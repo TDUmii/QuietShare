@@ -14,6 +14,7 @@
 #include "Viewers.h"
 #include "DocumentHost.h"
 #include "Mirror.h"
+#include "ToolMenu.h"
 #include <algorithm>
 #include <commctrl.h>
 #include <commdlg.h>
@@ -32,9 +33,9 @@ namespace
 {
 // QuietShare design tokens. Keep these values in one place so the native shell,
 // owner-drawn controls and RichEdit surface stay visually consistent.
-constexpr COLORREF BG = RGB(16, 18, 21), SIDEBAR = RGB(20, 23, 26), CARD = RGB(25, 29, 33),
-                   ELEVATED = RGB(37, 43, 48), HOVER = RGB(46, 54, 60), ACCENT = RGB(35, 200, 118),
-                   ACCENT_DARK = RGB(22, 93, 49), TEXT = RGB(242, 245, 247), MUTED = RGB(154, 166, 175),
+constexpr COLORREF BG = RGB(30, 30, 30), SIDEBAR = RGB(51, 51, 51), CARD = RGB(37, 37, 38),
+                   ELEVATED = RGB(60, 60, 60), HOVER = RGB(70, 70, 70), ACCENT = RGB(0, 122, 204),
+                   ACCENT_DARK = RGB(4, 57, 94), TEXT = RGB(242, 245, 247), MUTED = RGB(170, 170, 170),
                    DIVIDER = RGB(52, 59, 66), GREEN = RGB(110, 231, 160), AMBER = RGB(245, 184, 82),
                    DISABLED = RGB(105, 112, 121);
 constexpr int MODE = 100, PLAY = 101, SMALLER = 102, LARGER = 103, SPEED = 104, MASK = 105, TOPMOST = 106,
@@ -47,7 +48,7 @@ constexpr int MODE = 100, PLAY = 101, SMALLER = 102, LARGER = 103, SPEED = 104, 
               RELOAD_FILE = 144, KEEP_FILE = 145, WRAP = 146, FIT_WIDTH = 147,
               CLOSE_TAB = 148, CLOSE_OTHERS = 149, CLOSE_FILES = 150, SHOW_TREE = 151,
               INCLUDE_IGNORED = 152, CLOSE_APPLICATION = 153, SOURCE_MONITOR = 160, DEST_MONITOR = 161, FIND_INPUT = 162;
-constexpr int NORMAL_SIDEBAR = 148, COMPACT_SIDEBAR = 60, CONTROL_HEIGHT = 36, CONTROL_GAP = 8;
+constexpr int NORMAL_SIDEBAR = 60, COMPACT_SIDEBAR = 60, CONTROL_HEIGHT = 36, CONTROL_GAP = 8;
 constexpr UINT_PTR PRIVACY_TIMER = 1, SCROLL_TIMER = 2, SAVE_TIMER = 3, QA_TIMER = 4;
 HINSTANCE instance;
 HWND window, editor, underlay, tooltips, hoveredButton, imageViewer, fontSlider, filePicker,
@@ -321,62 +322,6 @@ void FillRoundRect(HDC dc, const RECT &rect, COLORREF color, int radius)
     SelectObject(dc, oldBrush);
     DeleteObject(brush);
 }
-void DrawShareGlyph(HDC dc, int x, int y, COLORREF color)
-{
-    HPEN pen = CreatePen(PS_SOLID, std::max(1, S(2)), color);
-    HGDIOBJ oldPen = SelectObject(dc, pen);
-    HGDIOBJ oldBrush = SelectObject(dc, GetStockObject(NULL_BRUSH));
-    MoveToEx(dc, x + S(11), y + S(10), nullptr);
-    LineTo(dc, x + S(19), y + S(6));
-    MoveToEx(dc, x + S(10), y + S(13), nullptr);
-    LineTo(dc, x + S(20), y + S(19));
-    Ellipse(dc, x + S(3), y + S(7), x + S(11), y + S(15));
-    Ellipse(dc, x + S(19), y + S(1), x + S(27), y + S(9));
-    Ellipse(dc, x + S(19), y + S(17), x + S(27), y + S(25));
-    SelectObject(dc, oldBrush);
-    SelectObject(dc, oldPen);
-    DeleteObject(pen);
-}
-void DrawNavIcon(HDC dc, int id, int x, int y, COLORREF color)
-{
-    HPEN pen = CreatePen(PS_SOLID, std::max(1, S(2)), color);
-    HGDIOBJ oldPen = SelectObject(dc, pen);
-    HGDIOBJ oldBrush = SelectObject(dc, GetStockObject(NULL_BRUSH));
-    if (id == NAV_SCRIPT)
-    {
-        Rectangle(dc, x + S(3), y + S(2), x + S(19), y + S(22));
-        MoveToEx(dc, x + S(7), y + S(8), nullptr);
-        LineTo(dc, x + S(15), y + S(8));
-        MoveToEx(dc, x + S(7), y + S(12), nullptr);
-        LineTo(dc, x + S(15), y + S(12));
-        MoveToEx(dc, x + S(7), y + S(16), nullptr);
-        LineTo(dc, x + S(13), y + S(16));
-    }
-    else if (id == NAV_HOME)
-    {
-        POINT roof[] = {{x + S(2), y + S(10)}, {x + S(12), y + S(2)}, {x + S(22), y + S(10)}};
-        Polyline(dc, roof, 3);
-        MoveToEx(dc, x + S(5), y + S(9), nullptr); LineTo(dc, x + S(5), y + S(22));
-        LineTo(dc, x + S(19), y + S(22)); LineTo(dc, x + S(19), y + S(9));
-    }
-    else if (id == NAV_SETTINGS)
-    {
-        for (int row : {5, 12, 19})
-        {
-            MoveToEx(dc, x + S(2), y + S(row), nullptr); LineTo(dc, x + S(22), y + S(row));
-            int knob = row == 12 ? 16 : 8;
-            Rectangle(dc, x + S(knob - 2), y + S(row - 2), x + S(knob + 2), y + S(row + 2));
-        }
-    }
-    else
-    {
-        POINT triangle[] = {{x + S(5), y + S(3)}, {x + S(20), y + S(12)}, {x + S(5), y + S(21)}};
-        Polygon(dc, triangle, 3);
-    }
-    SelectObject(dc, oldBrush);
-    SelectObject(dc, oldPen);
-    DeleteObject(pen);
-}
 void DrawSidebar(HDC dc, int sidebar, int height, bool compact)
 {
     RECT rail{0, 0, S(sidebar), height};
@@ -390,7 +335,7 @@ void DrawSidebar(HDC dc, int sidebar, int height, bool compact)
 
     RECT logo{S(16), S(20), S(48), S(52)};
     FillRoundRect(dc, logo, ACCENT, S(8));
-    DrawShareGlyph(dc, logo.left + S(2), logo.top + S(3), BG);
+    DrawCodicon(dc,0xeaf0,logo,TEXT,S(24));
     if (!compact)
     {
         RECT brand{S(56), S(20), S(sidebar - 8), S(52)};
@@ -948,33 +893,37 @@ void RunFind(bool forward)
 }
 void OverflowMenu()
 {
-    HMENU menu=CreatePopupMenu();bool safe=!Blocked();
-    auto item=[&](int id,const wchar_t*vn,const wchar_t*en,bool enabled=true){AppendMenuW(menu,MF_OWNERDRAW|(enabled?0:MF_GRAYED),id,(LPCWSTR)T(vn,en));};
+    std::vector<ToolMenuItem> entries;bool safe=!Blocked();
+    auto item=[&](int id,const wchar_t*vn,const wchar_t*en,bool enabled=true){
+        wchar_t icon=id==OPEN_FILE?0xea7f:id==OPEN_FOLDER?0xeaf7:id==FIND?0xea6d:
+            id==PLAY?0xeb2c:id==TOPMOST?0xeb2b:id==FOCUS?0xeb4c:
+            id==CLOSE_APPLICATION||id==CLOSE_TAB||id==CLOSE_OTHERS||id==CLOSE_FILES?0xea76:0xeb51;
+        entries.push_back({id,T(vn,en),enabled,icon});};
     item(OPEN_FILE,L"Mở file...   Ctrl+O",L"Open files...   Ctrl+O",safe);
     item(OPEN_FOLDER,L"Mở dự án...   Ctrl+Shift+O",L"Open project...   Ctrl+Shift+O",safe);
     item(FIND,L"Tìm...   Ctrl+F",L"Find...   Ctrl+F",safe&&!IsImage());
     item(WRAP,L"Bật/tắt xuống dòng",L"Toggle line wrap",safe&&IsCode());
     item(MODE,L"Soạn / Đọc   Ctrl+Enter",L"Edit / Read   Ctrl+Enter",safe);
-    item(PLAY,L"Chạy / Dừng cuộn   Space",L"Start / stop scrolling   Space",safe&&!IsImage()&&!IsCode()&&!IsPdf());
-    item(SPEED,L"Đổi tốc độ cuộn",L"Change scroll speed",safe);
-    AppendMenuW(menu,MF_SEPARATOR,0,nullptr);
-    item(PDF_PREV,L"Trang PDF trước",L"Previous PDF page",safe&&IsPdf());item(PDF_NEXT,L"Trang PDF sau",L"Next PDF page",safe&&IsPdf());
-    item(FIT_WIDTH,L"PDF vừa chiều ngang",L"Fit PDF width",safe&&IsPdf());
+    if(!IsImage()&&!IsCode()&&!IsPdf()) {
+        item(PLAY,L"Chạy / Dừng cuộn   Space",L"Start / stop scrolling   Space",safe);
+        item(SPEED,L"Đổi tốc độ cuộn",L"Change scroll speed",safe);
+    }
+    if(IsPdf()) {
+        item(PDF_PREV,L"Trang PDF trước",L"Previous PDF page",safe);item(PDF_NEXT,L"Trang PDF sau",L"Next PDF page",safe);
+        item(FIT_WIDTH,L"PDF vừa chiều ngang",L"Fit PDF width",safe);
+    }
     item(TOPMOST,L"Ghim / Bỏ ghim",L"Pin / unpin");item(FOCUS,L"Tập trung   F11",L"Focus   F11");
     item(SHOW_TREE,L"Ẩn / Hiện cây thư mục",L"Hide / show project tree",safe);
     item(LANGUAGE,L"English / Tiếng Việt",L"Tiếng Việt / English");
-    AppendMenuW(menu,MF_SEPARATOR,0,nullptr);
     item(CLOSE_TAB,L"Đóng tab   Ctrl+W",L"Close tab   Ctrl+W",safe&&viewingFile);
     item(CLOSE_OTHERS,L"Đóng các tab khác",L"Close other tabs",safe);
     item(CLOSE_FILES,L"Đóng mọi file",L"Close all file tabs",safe);
     item(VERIFY_PRIVACY,L"Kiểm tra WGC",L"Verify WGC privacy",!masked);
-    AppendMenuW(menu,MF_SEPARATOR,0,nullptr);
     item(CLOSE_APPLICATION,L"Đóng ứng dụng   Alt+F4",L"Close application   Alt+F4");
     RECT r{};GetWindowRect(GetDlgItem(window,OVERFLOW),&r);
-    if(mirror)mirror->SetPublicMenuOwner(window);
-    int selected=TrackPopupMenu(menu,TPM_RETURNCMD|TPM_RIGHTALIGN,r.right,r.bottom,0,window,nullptr);
-    if(mirror)mirror->SetPublicMenuOwner(nullptr);
-    DestroyMenu(menu);if(selected)SendMessageW(window,WM_COMMAND,selected,0);
+    ToolMenu menu;
+    int selected=menu.Show(window,r,dpi,uiFont,std::move(entries));
+    if(selected)SendMessageW(window,WM_COMMAND,selected,0);
 }
 void ToggleFocus()
 {
@@ -1055,7 +1004,7 @@ void DrawCenteredMessage(HDC dc, RECT bounds, const wchar_t *heading, const wcha
 void Paint(HDC dc)
 {
     RECT client{};GetClientRect(window,&client);FillRect(dc,&client,bgBrush);
-    if(!focusMode)DrawSidebar(dc,railWidth,client.bottom,compactUi);
+    if(!focusMode)DrawSidebar(dc,railWidth,client.bottom,true);
     RECT title{S(contentLeft),S(12),S(contentRight),S(40)};
     if(!focusMode && page!=Page::Content)DrawTextAt(dc,page==Page::Home?T(L"Tổng quan",L"Overview"):
         page==Page::Settings?T(L"Cài đặt",L"Settings"):T(L"Trình chiếu",L"Presentation"),title,TEXT,titleFont);
@@ -1115,20 +1064,11 @@ void Paint(HDC dc)
 }
 void DrawActionIcon(HDC dc,int id,RECT r,COLORREF color)
 {
-    int x=(r.left+r.right)/2,y=(r.top+r.bottom)/2,k=S(6);
-    HPEN pen=CreatePen(PS_SOLID,std::max(1,S(2)),color);auto old=SelectObject(dc,pen);auto brush=SelectObject(dc,GetStockObject(NULL_BRUSH));
-    auto line=[&](int a,int b,int c,int d){MoveToEx(dc,a,b,nullptr);LineTo(dc,c,d);};
-    if(id==SMALLER || id==LARGER){line(x-k,y,x+k,y);if(id==LARGER)line(x,y-k,x,y+k);}
-    else if(id==FOCUS){Rectangle(dc,x-k,y-k,x+k,y+k);if(focusMode){line(x-k-2,y,x+2,y);line(x-k-2,y,x-k+1,y-3);line(x-k-2,y,x-k+1,y+3);}}
-    else if(id==MASK){Ellipse(dc,x-k-2,y-S(4),x+k+2,y+S(4));Ellipse(dc,x-2,y-2,x+2,y+2);if(masked)line(x-k,y+k,x+k,y-k);}
-    else if(id==TOPMOST){Rectangle(dc,x-S(3),y-k,x+S(3),y+1);line(x-k,y+1,x+k,y+1);line(x,y+1,x,y+k);}
-    else if(id==OPEN_FILE){Rectangle(dc,x-k,y-k,x+S(3),y+k);line(x+4,y,x+10,y);line(x+7,y-3,x+7,y+3);}
-    else if(id==PLAY){if(running){line(x-S(3),y-k,x-S(3),y+k);line(x+S(3),y-k,x+S(3),y+k);}else{POINT p[]={{x-S(4),y-k},{x+k,y},{x-S(4),y+k}};Polygon(dc,p,3);}}
-    else if(id==MODE){Rectangle(dc,x-k,y-k,x+k,y+k);line(x-S(3),y-2,x+S(3),y-2);line(x-S(3),y+2,x+S(3),y+2);}
-    else if(id==OVERFLOW){for(int i=-1;i<=1;i++)Ellipse(dc,x+i*S(5)-1,y-1,x+i*S(5)+2,y+2);}
-    else if(id==FIND_CLOSE){line(x-k,y-k,x+k,y+k);line(x-k,y+k,x+k,y-k);}
-    else if(id==FIND_PREV || id==FIND_NEXT){int d=id==FIND_PREV?1:-1;line(x+d*3,y-k,x-d*3,y);line(x-d*3,y,x+d*3,y+k);}
-    SelectObject(dc,brush);SelectObject(dc,old);DeleteObject(pen);
+    wchar_t glyph=id==SMALLER?0xeb3b:id==LARGER?0xea60:id==FOCUS?(focusMode?0xeb4d:0xeb4c):
+        id==MASK?(masked?0xeae7:0xea70):id==TOPMOST?0xeb2b:id==OPEN_FILE?0xea7f:
+        id==PLAY?(running?0xead1:0xeb2c):id==MODE?0xea73:id==OVERFLOW?0xea7c:
+        id==FIND_CLOSE?0xea76:id==FIND_PREV?0xeab5:0xeab6;
+    DrawCodicon(dc,glyph,r,color,S(16));
 }
 void DrawButton(DRAWITEMSTRUCT *item)
 {
@@ -1150,7 +1090,7 @@ void DrawButton(DRAWITEMSTRUCT *item)
                      : nav       ? SIDEBAR
                                  : ELEVATED;
     if (primary && hover && !pressed)
-        color = GREEN;
+        color = RGB(17,139,220);
     HBRUSH background = CreateSolidBrush(nav ? SIDEBAR : zoom ? ELEVATED : page == Page::Settings ? CARD : BG);
     FillRect(item->hDC, &item->rcItem, background);
     DeleteObject(background);
@@ -1161,17 +1101,10 @@ void DrawButton(DRAWITEMSTRUCT *item)
     bool strip=page==Page::Content || focusMode;
     if (nav)
     {
-        COLORREF iconColor = disabled ? DISABLED : (activeNav ? GREEN : MUTED);
-        int iconLeft = compactUi ? (button.right - button.left - S(24)) / 2 : S(12);
-        DrawNavIcon(item->hDC, item->CtlID, button.left + iconLeft,
-                    button.top + (button.bottom - button.top - S(24)) / 2, iconColor);
-        if (!compactUi)
-        {
-            RECT label = button;
-            label.left += S(44);
-            DrawTextAt(item->hDC, TextOf(item->hwndItem), label, disabled ? DISABLED : TEXT, uiFont,
-                       DT_LEFT | DT_VCENTER | DT_SINGLELINE | DT_END_ELLIPSIS);
-        }
+        COLORREF iconColor = disabled ? DISABLED : (activeNav ? TEXT : MUTED);
+        wchar_t glyph=item->CtlID==NAV_HOME?0xeb06:item->CtlID==NAV_SCRIPT?0xeaf0:
+            item->CtlID==NAV_SETTINGS?0xeb51:0xea7a;
+        DrawCodicon(item->hDC,glyph,button,iconColor,S(24));
     }
     else if(strip && (item->CtlID==FOCUS || item->CtlID==MASK || item->CtlID==TOPMOST || item->CtlID==SMALLER || item->CtlID==LARGER || item->CtlID==MODE || item->CtlID==PLAY || item->CtlID==OPEN_FILE || item->CtlID==OVERFLOW || item->CtlID==FIND_CLOSE || item->CtlID==FIND_PREV || item->CtlID==FIND_NEXT))
         DrawActionIcon(item->hDC,item->CtlID,button,disabled?DISABLED:TEXT);
@@ -1179,7 +1112,7 @@ void DrawButton(DRAWITEMSTRUCT *item)
     {
         DrawTextAt(item->hDC, TextOf(item->hwndItem), button,
                    disabled  ? DISABLED
-                   : primary ? (pressed ? TEXT : BG)
+                   : primary ? TEXT
                              : TEXT,
                    uiFont, DT_CENTER | DT_VCENTER | DT_SINGLELINE | DT_END_ELLIPSIS);
     }
@@ -1411,7 +1344,7 @@ void WriteQa()
     GetWindowDisplayAffinity(window, &actual);
     auto boolean = [](bool value) -> std::wstring { return value ? L"true" : L"false"; };
     std::wstring report =
-        L"{\n  \"applicationVersion\": \"0.4.0\",\n  \"windowsBuild\": " + std::to_wstring(WindowsBuild()) +
+        L"{\n  \"applicationVersion\": \"0.4.1\",\n  \"windowsBuild\": " + std::to_wstring(WindowsBuild()) +
         L",\n  \"displayCloned\": " + boolean(cloned) + L",\n  \"topologyKnown\": " + boolean(topologyKnown) +
         L",\n  \"privacyApplied\": " + boolean(privacy.applied) +
         L",\n  \"requestedAffinity\": 17,\n  \"actualAffinity\": " + std::to_wstring(actual) +
@@ -1751,7 +1684,7 @@ void PublicThumbnail(HWND owner,int width,int height,bool live)
     HDC screen=GetDC(owner),dc=CreateCompatibleDC(screen);
     HBITMAP bitmap=CreateCompatibleBitmap(screen,width,height);auto old=SelectObject(dc,bitmap);
     RECT bounds{0,0,width,height};FillRect(dc,&bounds,bgBrush);
-    DrawShareGlyph(dc,width/2-S(15),height/2-S(13),ACCENT);
+    DrawCodicon(dc,0xeaf0,bounds,ACCENT,S(28));
     if(live){POINT origin{};DwmSetIconicLivePreviewBitmap(owner,bitmap,&origin,DWM_SIT_DISPLAYFRAME);}
     else DwmSetIconicThumbnail(owner,bitmap,DWM_SIT_DISPLAYFRAME);
     SelectObject(dc,old);DeleteObject(bitmap);DeleteDC(dc);ReleaseDC(owner,screen);
@@ -1763,6 +1696,7 @@ LRESULT CALLBACK Proc(HWND h, UINT message, WPARAM wp, LPARAM lp)
     case WM_DWMSENDICONICTHUMBNAIL:PublicThumbnail(h,HIWORD(lp),LOWORD(lp),false);return 0;
     case WM_DWMSENDICONICLIVEPREVIEWBITMAP:PublicThumbnail(h,320,180,true);return 0;
     case WM_CREATE: {
+        if(!LoadCodicons(instance))return -1;
         window = h;
         mirror=std::make_unique<MirrorController>();
         privacy = ApplyPrivacy(h);
@@ -1797,6 +1731,8 @@ LRESULT CALLBACK Proc(HWND h, UINT message, WPARAM wp, LPARAM lp)
             CreateWindowExW(WS_EX_TOPMOST, TOOLTIPS_CLASSW, nullptr, WS_POPUP | TTS_ALWAYSTIP | TTS_NOPREFIX,
                             0, 0, 0, 0, h, nullptr, instance, nullptr);
         SendMessageW(tooltips, TTM_SETMAXTIPWIDTH, 0, S(300));
+        SendMessageW(tooltips, TTM_SETDELAYTIME, TTDT_INITIAL, 850);
+        SendMessageW(tooltips, TTM_SETDELAYTIME, TTDT_RESHOW, 850);
         for (const auto &label : labels)
         {
             TOOLINFOW tip{sizeof(tip)};
@@ -1868,7 +1804,7 @@ LRESULT CALLBACK Proc(HWND h, UINT message, WPARAM wp, LPARAM lp)
         {
             f8Registered = RegisterHotKey(h, 2, MOD_NOREPEAT, VK_F8) != 0;
             SetTimer(h, PRIVACY_TIMER, 250, nullptr);
-            SetTimer(h, 5, 33, nullptr);
+            SetTimer(h, 5, 8, nullptr);
         }
         else
         {
@@ -2156,7 +2092,10 @@ LRESULT CALLBACK Proc(HWND h, UINT message, WPARAM wp, LPARAM lp)
                 }
                 Layout();
             }
-            if(page==Page::Presentation)InvalidateRect(h,nullptr,FALSE);
+            static ULONGLONG lastStatusPaint=0;
+            if(page==Page::Presentation && GetTickCount64()-lastStatusPaint>=250) {
+                lastStatusPaint=GetTickCount64();InvalidateRect(h,nullptr,FALSE);
+            }
         }
         else if (wp == SCROLL_TIMER)
             ScrollTick();

@@ -1,5 +1,6 @@
 #include "../src/Mirror.h"
 #include "../src/Privacy.h"
+#include "../src/ToolMenu.h"
 #include <windows.h>
 #include <fstream>
 #include <iostream>
@@ -9,6 +10,8 @@ using namespace quietshare;
 namespace
 {
 int passed=0,failed=0;
+MirrorController *menuController=nullptr;
+bool menuStayedVerified=false,menuProtected=false;
 struct SentCancel
 {
     HWND window=nullptr;
@@ -48,6 +51,15 @@ std::vector<unsigned char> Fixture(bool marker,unsigned stride=1024)
 }
 LRESULT CALLBACK WindowProc(HWND hwnd,UINT message,WPARAM wp,LPARAM lp)
 {
+    if(message==WM_TIMER && wp==91) {
+        HWND popup=FindWindowW(L"QuietShareToolMenu",nullptr);
+        if(popup && menuController) {
+            DWORD affinity=0;menuProtected=GetWindowDisplayAffinity(popup,&affinity)&&affinity==0x11;
+            menuController->Tick();menuStayedVerified=menuController->IsVerified();
+            PostMessageW(popup,WM_KEYDOWN,VK_ESCAPE,0);
+        }
+        return 0;
+    }
     if(message==WM_APP+9)
     {
         auto *controller=reinterpret_cast<MirrorController *>(GetWindowLongPtrW(hwnd,GWLP_USERDATA));
@@ -139,6 +151,17 @@ int wmain(int argc,wchar_t **argv)
         Check(actualWgc,"real WGC positive control then protected exclusion");
         if(actualWgc)
         {
+            menuController=&controller;
+            SetTimer(privateWindow,91,80,nullptr);
+            ToolMenu toolMenu;RECT anchor{24,24,380,64};
+            const int menuResult=toolMenu.Show(privateWindow,anchor,96,
+                static_cast<HFONT>(GetStockObject(DEFAULT_GUI_FONT)),{{1,L"Synthetic command   Ctrl+O",true,0xea7f},{2,L"Disabled",false,0xea76}});
+            KillTimer(privateWindow,91);menuController=nullptr;
+            Check(menuProtected,"tools popup owns verified capture exclusion before visibility");
+            Check(menuStayedVerified,"real WGC gate stays verified while tools popup is open");
+            controller.Tick();
+            Check(menuResult==0&&controller.IsVerified()&&!FindWindowW(L"QuietShareToolMenu",nullptr),
+                  "escape closes tools popup without invalidating capture");
             HWND combo=CreateWindowExW(0,L"COMBOBOX",L"",WS_CHILD|WS_VISIBLE|CBS_DROPDOWNLIST,
                 8,8,180,120,privateWindow,nullptr,wc.hInstance,nullptr);
             SendMessageW(combo,CB_ADDSTRING,0,reinterpret_cast<LPARAM>(L"Public synthetic monitor"));

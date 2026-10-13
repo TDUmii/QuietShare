@@ -1,14 +1,14 @@
 {
-  "version": "0.4.0",
+  "version": "0.4.1",
   "platform": "win-x64",
   "passed": true,
   "checks": {
     "QuietShare.exe.x64PE": true,
-    "QuietShare.exe.fileVersion0.4.0": true,
-    "QuietShare.exe.productVersion0.4.0": true,
+    "QuietShare.exe.fileVersion0.4.1": true,
+    "QuietShare.exe.productVersion0.4.1": true,
     "QuietShare-Setup.exe.x64PE": true,
-    "QuietShare-Setup.exe.fileVersion0.4.0": true,
-    "QuietShare-Setup.exe.productVersion0.4.0": true,
+    "QuietShare-Setup.exe.fileVersion0.4.1": true,
+    "QuietShare-Setup.exe.productVersion0.4.1": true,
     "installerPayloadMatchesPortableExe": true,
     "Scintilla.dll.x64PE": true,
     "Scintilla.dll.pinnedHashAndSize": true,
@@ -21,6 +21,9 @@
     "pdfium.dll.installerPayloadParity": true,
     "installerFullNoticeParity": true,
     "sourceNoticeMatchesDist": true,
+    "codiconsPinnedFontHash": true,
+    "appEmbeddedCodiconsParity": true,
+    "installerEmbeddedCodiconsParity": true,
     "QuietShare.exe.systemImportsOnly": true,
     "QuietShare-Setup.exe.systemImportsOnly": true,
     "Scintilla.dll.systemImportsOnly": true,
@@ -29,21 +32,21 @@
   },
   "files": {
     "QuietShare.exe": {
-      "bytes": 581632,
-      "sha256": "98706fdff9bf4655d557267c16922f0f29ba6caeac4f52e8fa8f9e32f96c1a3f",
+      "bytes": 668672,
+      "sha256": "60b562749d7e1ae0a6e99653271d4eaf4d40c0f0609498d69b2476212b685e42",
       "x64PE": true,
       "machine": "0x8664",
       "optionalHeaderMagic": "0x20b",
       "fileVersion": [
         0,
         4,
-        0,
+        1,
         0
       ],
       "productVersion": [
         0,
         4,
-        0,
+        1,
         0
       ],
       "imports": [
@@ -66,21 +69,21 @@
       ]
     },
     "QuietShare-Setup.exe": {
-      "bytes": 11901952,
-      "sha256": "f8df2b8b2475e845029a3254ccba35988a2d7e8bc9943189171354fb8e1cd250",
+      "bytes": 12097536,
+      "sha256": "1f8416d9a86bd179253250312acec4aa92de63d319957aa27d8ca10d10912b76",
       "x64PE": true,
       "machine": "0x8664",
       "optionalHeaderMagic": "0x20b",
       "fileVersion": [
         0,
         4,
-        0,
+        1,
         0
       ],
       "productVersion": [
         0,
         4,
-        0,
+        1,
         0
       ],
       "imports": [

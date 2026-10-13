@@ -1,4 +1,4 @@
-# QuietShare 0.4.0
+# QuietShare 0.4.1
 
 QuietShare là ứng dụng desktop để đọc lời nhắc, xem code, ảnh và PDF trong một cửa sổ riêng khi thuyết trình. App chạy offline trên Windows 10/11 x64, với giao diện tiếng Việt và tiếng Anh.
 
@@ -18,13 +18,14 @@ QuietShare is an offline Windows 10/11 x64 desktop app for private scripts, code
 - **Tập trung**: F11 ẩn sidebar và giữ một thanh tab/lệnh mỏng ở trên. Lệnh bổ sung nằm trong menu **⋯**, ngoài vùng nội dung.
 - **Smart Mirror**: đưa hình ảnh công khai từ màn hình nguồn lên màn hình đích ở chế độ Extend, sau khi kiểm tra capture thực tế đạt.
 - Giao diện tối, ghim trên cùng, che nhanh F8 và VI/EN trong app và bộ cài.
+- Thanh bên chỉ hiện icon; giữ chuột trên icon để xem tên. Menu công cụ có nền tối, icon và phím tắt căn phải; mở menu vẫn giữ được kiểm tra WGC.
 
 Văn bản/code hỗ trợ UTF-8 hoặc UTF-16 có BOM, tối đa 5 MiB. App nhận TXT, MD, LOG, C/C++, PY, JS/TS, HTML/CSS, JSON/XML/YAML, SQL, SH/PS1, RS, GO và một số định dạng code khác. File không có phần mở rộng hoặc định dạng chưa nhận diện được xem dưới dạng văn bản monospace đơn sắc nếu encoding hợp lệ và không có dữ liệu nhị phân; tệp thực thi, gói cài đặt và các định dạng nhị phân như BIN/ZIP bị từ chối. Ảnh nhận PNG, JPG/JPEG, BMP và khung đầu của GIF, tối đa 25 MiB/40 megapixel. PDF tối đa 64 MiB. File và thư mục phải nằm trên ổ đĩa cục bộ.
 
 ### Cài đặt
 
 1. Cần **Windows 10 phiên bản 2004 (build 19041) trở lên hoặc Windows 11, x64**, với DWM và Windows Graphics Capture hoạt động.
-2. Tải [QuietShare 0.4.0](https://github.com/TDUmii/QuietShare/blob/main/QuietShare-v0.4.0-win-x64.zip), giải nén toàn bộ gói và chạy `QuietShare-Setup.exe`. Bộ cài dùng tài khoản hiện tại, không cần quyền quản trị.
+2. Tải [QuietShare 0.4.1](https://github.com/TDUmii/QuietShare/releases/tag/v0.4.1), giải nén toàn bộ gói và chạy `QuietShare-Setup.exe`. Bộ cài dùng tài khoản hiện tại, không cần quyền quản trị.
 3. Để dùng portable, chạy `QuietShare.exe` trong thư mục đã giải nén. Giữ `Scintilla.dll`, `Lexilla.dll` và `pdfium.dll` cạnh EXE; không chỉ sao chép riêng EXE.
 
 Đóng QuietShare trước khi nâng cấp bằng bộ cài mới. Nâng cấp và gỡ app giữ lại lời nhắc đã tự lưu. Nút **EN / VI** trong bộ cài đổi ngôn ngữ.
@@ -59,13 +60,14 @@ Văn bản/code hỗ trợ UTF-8 hoặc UTF-16 có BOM, tối đa 5 MiB. App nh�
 - **Focus**: F11 hides the sidebar while retaining one slim top tab/command strip. Extra actions remain accessible through **⋯**, outside the content area.
 - **Smart Mirror**: project a public source display onto a separate destination in Extend after the actual capture preflight passes.
 - Dark interface, always-on-top pinning, instant F8 hide and VI/EN app/installer interfaces.
+- Icon-only navigation with delayed name tooltips. The dark tools menu includes icons and aligned shortcuts; opening it preserves WGC verification.
 
 Text/code support UTF-8 or BOM-marked UTF-16, up to 5 MiB. Supported extensions include TXT, MD, LOG, C/C++, PY, JS/TS, HTML/CSS, JSON/XML/YAML, SQL, SH/PS1, RS, GO and selected other source formats. Extensionless or unrecognized files fall back to monochrome monospace text when their encoding is valid and they contain no binary controls; executables, installer packages and binary formats such as BIN/ZIP are rejected. Images support PNG, JPG/JPEG, BMP and the first GIF frame, up to 25 MiB/40 megapixels. PDFs are limited to 64 MiB. Files/folders must be on local drives.
 
 ### Install
 
 1. Use **Windows 10 version 2004 (build 19041) or later, or Windows 11, x64**, with working DWM and Windows Graphics Capture.
-2. Download [QuietShare 0.4.0](https://github.com/TDUmii/QuietShare/blob/main/QuietShare-v0.4.0-win-x64.zip), extract the complete package and run `QuietShare-Setup.exe`. It installs for the current account without administrator rights.
+2. Download [QuietShare 0.4.1](https://github.com/TDUmii/QuietShare/releases/tag/v0.4.1), extract the complete package and run `QuietShare-Setup.exe`. It installs for the current account without administrator rights.
 3. For portable use, run `QuietShare.exe` in the extracted folder. Keep `Scintilla.dll`, `Lexilla.dll` and `pdfium.dll` beside it; copying only the EXE is insufficient.
 
 Close QuietShare before upgrading with a new installer. Upgrading/uninstalling preserve the autosaved script. Use the installer's **EN / VI** button to change its language.

@@ -290,7 +290,7 @@ bool ProjectTree::Create(HWND parent, int controlId)
                               GetModuleHandleW(nullptr), nullptr);
     if (!window_)
         return false;
-    TreeView_SetBkColor(window_, RGB(25, 29, 33));
+    TreeView_SetBkColor(window_, RGB(37, 37, 38));
     TreeView_SetTextColor(window_, RGB(242, 245, 247));
     TreeView_SetLineColor(window_, RGB(52, 59, 66));
     SetWindowTheme(window_, L"DarkMode_Explorer", nullptr);

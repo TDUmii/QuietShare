@@ -313,6 +313,12 @@ struct Capture
     HRESULT Next(Com<CaptureFrame> &frame, Com<ID3D11Texture2D> &texture)
     {
         HRESULT hr=pool->TryGetNextFrame(frame.put()); if(FAILED(hr)||!frame) return hr;
+        // The pool has two buffers: discard an older queued frame before presenting.
+        // Keep the newest frame to avoid accumulating latency when the UI was busy.
+        Com<CaptureFrame> newer;
+        hr=pool->TryGetNextFrame(newer.put());
+        if(FAILED(hr))return hr;
+        if(newer){CloseObject(frame.get());newer->AddRef();*frame.put()=newer.get();}
         Size32 current{};
         if(FAILED(frame->ContentSize(&current))||current.Width!=size.Width||current.Height!=size.Height)
             return E_FAIL; // New size requires a fresh preflight, never stretch an unverified region.

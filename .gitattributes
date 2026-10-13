@@ -3,6 +3,8 @@
 *.dll -text
 *.zip -text
 *.ico -text
+*.ttf -text
+assets/codicons/LICENSE whitespace=-blank-at-eol,-cr-at-eol
 *.png -text
 THIRD-PARTY.md -text whitespace=cr-at-eol,-blank-at-eol,-blank-at-eof
 dist/THIRD-PARTY.md -text whitespace=cr-at-eol,-blank-at-eol,-blank-at-eof

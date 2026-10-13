@@ -5,6 +5,7 @@
 #endif
 #include <algorithm>
 #include <windows.h>
+#include "Icons.h"
 #include <commctrl.h>
 #include <cstdint>
 #include <cstring>
@@ -21,18 +22,18 @@
 namespace
 {
 constexpr wchar_t kAppName[] = L"QuietShare";
-constexpr wchar_t kVersion[] = L"0.4.0";
+constexpr wchar_t kVersion[] = L"0.4.1";
 constexpr wchar_t kUninstallKey[] = L"Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\QuietShare";
 constexpr int kPayloadResource = 301;
 constexpr int kActionButton = 101;
 constexpr int kRunCheckbox = 102;
 constexpr int kCloseButton = 103;
 constexpr int kLanguageButton = 104;
-constexpr COLORREF kBackground = RGB(16, 18, 21);
-constexpr COLORREF kSurface = RGB(25, 29, 33);
-constexpr COLORREF kElevated = RGB(37, 43, 48);
-constexpr COLORREF kHover = RGB(44, 49, 53);
-constexpr COLORREF kAccent = RGB(35, 200, 118);
+constexpr COLORREF kBackground = RGB(30, 30, 30);
+constexpr COLORREF kSurface = RGB(37, 37, 38);
+constexpr COLORREF kElevated = RGB(60, 60, 60);
+constexpr COLORREF kHover = RGB(70, 70, 70);
+constexpr COLORREF kAccent = RGB(0, 122, 204);
 constexpr COLORREF kText = RGB(242, 245, 247);
 constexpr COLORREF kMuted = RGB(154, 166, 175);
 constexpr COLORREF kDivider = RGB(52, 59, 66);
@@ -903,11 +904,11 @@ int SelfTest(const std::wstring &reportPath)
                      VerQueryValueW(versionData.data(), L"\\", reinterpret_cast<void **>(&info), &infoSize) &&
                      infoSize >= sizeof(VS_FIXEDFILEINFO) && info->dwSignature == 0xFEEF04BD &&
                      HIWORD(info->dwFileVersionMS) == 0 && LOWORD(info->dwFileVersionMS) == 4 &&
-                     info->dwFileVersionLS == 0;
+                     HIWORD(info->dwFileVersionLS) == 1 && LOWORD(info->dwFileVersionLS) == 0;
     const bool ok = payloadOk && runtimeOk && pathOk && versionOk;
     std::ostringstream report;
     report << "{\n  \"selfTestPassed\": " << (ok ? "true" : "false")
-           << ",\n  \"version\": \"0.4.0\",\n  \"versionResourceVerified\": "
+           << ",\n  \"version\": \"0.4.1\",\n  \"versionResourceVerified\": "
            << (versionOk ? "true" : "false")
            << ",\n  \"payloadResourceId\": 301,\n  \"payloadBytes\": " << payload.size
            << ",\n  \"payloadPortableExecutable\": " << (payloadOk ? "true" : "false")
@@ -982,6 +983,18 @@ bool SaveOwnWindowBitmap(HWND window, const std::wstring &path)
         FillRect(memory, &area, gBackground);
         if (PrintWindow(window, memory, 0x00000002))
         {
+            // Some Windows builds omit subclassed BUTTON/STATIC children from
+            // PW_RENDERFULLCONTENT. Render each owned native child at its real bounds.
+            for (HWND child : {gHeading,gIntro,gFolderCaption,gFolderPath,gStatus,gRun,gClose,gAction,gLanguage})
+            {
+                if (!child || !IsWindowVisible(child)) continue;
+                RECT childBounds{};GetWindowRect(child,&childBounds);
+                const int saved=SaveDC(memory);
+                SetViewportOrgEx(memory,childBounds.left-bounds.left,childBounds.top-bounds.top,nullptr);
+                IntersectClipRect(memory,0,0,childBounds.right-childBounds.left,childBounds.bottom-childBounds.top);
+                SendMessageW(child,WM_PRINTCLIENT,reinterpret_cast<WPARAM>(memory),PRF_CLIENT|PRF_ERASEBKGND);
+                RestoreDC(memory,saved);
+            }
             // BI_RGB ignores alpha, but opaque bytes also aid bitmap viewers that inspect it.
             auto *bytes = static_cast<BYTE *>(pixels);
             for (DWORD offset = 3; offset < byteSize; offset += 4)
@@ -1057,19 +1070,7 @@ void PaintInstaller(HDC dc)
     FillRect(dc, &client, gBackground);
     RECT logo{S(32), S(24), S(64), S(56)};
     FillRounded(dc, logo, kAccent, S(8));
-    HPEN stroke = CreatePen(PS_SOLID, std::max(1, S(2)), kBackground);
-    HGDIOBJ previousPen = SelectObject(dc, stroke);
-    HGDIOBJ previousBrush = SelectObject(dc, GetStockObject(NULL_BRUSH));
-    MoveToEx(dc, S(45), S(37), nullptr);
-    LineTo(dc, S(53), S(33));
-    MoveToEx(dc, S(44), S(40), nullptr);
-    LineTo(dc, S(54), S(46));
-    Ellipse(dc, S(37), S(34), S(45), S(42));
-    Ellipse(dc, S(53), S(28), S(61), S(36));
-    Ellipse(dc, S(53), S(44), S(61), S(52));
-    SelectObject(dc, previousBrush);
-    SelectObject(dc, previousPen);
-    DeleteObject(stroke);
+    quietshare::DrawCodicon(dc,0xeaf0,logo,kText,S(24));
     DrawInstallerText(dc, L"QuietShare", {S(76), S(24), S(256), S(56)}, kText, gButtonFont,
                       DT_LEFT | DT_VCENTER | DT_SINGLELINE);
     DrawInstallerText(dc, kVersion, {S(504), S(24), S(588), S(56)}, kMuted, gSmallFont,
@@ -1096,15 +1097,15 @@ void DrawInstallerControl(HWND control, HDC dc)
     const bool focused = GetFocus() == control;
     FillRect(dc, &rect, checkbox ? gBackground : gSurface);
     const COLORREF color = !enabled  ? kSurface
-                           : pressed ? (primary ? RGB(24, 149, 68) : kElevated)
-                           : primary ? (hot ? RGB(35, 207, 98) : kAccent)
+                           : pressed ? (primary ? RGB(4, 57, 94) : kElevated)
+                           : primary ? (hot ? RGB(17, 139, 220) : kAccent)
                                      : (hot ? kHover : kElevated);
     RECT shape = rect;
     InflateRect(&shape, -1, -1);
     if (checkbox)
         shape = {S(1), (rect.bottom - S(18)) / 2, S(19), (rect.bottom + S(18)) / 2};
     const bool checked = checkbox && SendMessageW(control, BM_GETCHECK, 0, 0) == BST_CHECKED;
-    const COLORREF checkedColor = pressed ? RGB(24, 149, 68) : hot ? RGB(35, 207, 98) : kAccent;
+    const COLORREF checkedColor = pressed ? RGB(4, 57, 94) : hot ? RGB(17, 139, 220) : kAccent;
     FillRounded(dc, shape, checked && enabled ? checkedColor : color, checkbox ? S(4) : S(8));
     if (checkbox || !primary)
     {
@@ -1134,7 +1135,7 @@ void DrawInstallerControl(HWND control, HDC dc)
         label.left = S(30);
     DrawInstallerText(dc, text, label,
                       !enabled  ? kMuted
-                      : primary ? kBackground
+                      : primary ? kText
                                 : kText,
                       checkbox ? gFont : gButtonFont,
                       DT_VCENTER | DT_SINGLELINE | (checkbox ? DT_LEFT : DT_CENTER));
@@ -1247,20 +1248,17 @@ void UpdateInstallerLanguage()
     SetWindowTextW(gIntro, gUninstall
         ? I(L"Gỡ ứng dụng khỏi tài khoản Windows hiện tại.\nGhi chú và cài đặt cá nhân của bạn được giữ lại.",
             L"Remove the app from this Windows account.\nYour notes and personal settings are preserved.")
-        : I(L"Lời nhắc, code và PDF riêng khi chia sẻ màn hình.\nCài đặt cho tài khoản hiện tại, không cần quyền quản trị.",
-            L"Private scripts, code and PDFs during screen sharing.\nInstalls for this account without administrator rights."));
-    SetWindowTextW(gFolderCaption, I(L"THƯ MỤC ỨNG DỤNG", L"APPLICATION FOLDER"));
+        : I(L"Cài cho tài khoản hiện tại.",L"Install for this account."));
+    SetWindowTextW(gFolderCaption, I(L"Thư mục cài đặt", L"Install location"));
     SetWindowTextW(gLanguage, I(L"EN", L"VI"));
     if (gRun) SetWindowTextW(gRun, I(L"Mở QuietShare sau khi cài đặt", L"Open QuietShare after installation"));
     SetWindowTextW(gClose, gComplete ? I(L"Đóng", L"Close") : I(L"Hủy", L"Cancel"));
     SetWindowTextW(gAction, gComplete ? I(L"Hoàn tất", L"Done")
                                     : gUninstall ? I(L"Gỡ cài đặt", L"Uninstall") : I(L"Cài đặt", L"Install"));
     SetWindowTextW(gStatus, gComplete
-        ? I(L"Đã cài đặt QuietShare. Bạn có thể mở ứng dụng từ Desktop hoặc Start Menu.",
-            L"QuietShare is installed. Open it from your Desktop or Start Menu.")
+        ? I(L"Đã cài đặt.",L"Installed.")
         : gUninstall ? I(L"Hãy đóng QuietShare trước khi gỡ cài đặt.", L"Close QuietShare before uninstalling.")
-                     : I(L"Thêm lối tắt vào Desktop và Start Menu. Phiên bản 0.4.0.",
-                         L"Adds Desktop and Start Menu shortcuts. Version 0.4.0."));
+                     : L"");
     if (gRoot.empty())
         SetWindowTextW(gStatus, I(L"Không tìm được thư mục ứng dụng của tài khoản này.",
                                   L"Cannot find this account's application folder."));
@@ -1294,7 +1292,7 @@ LRESULT CALLBACK WindowProc(HWND window, UINT message, WPARAM wParam, LPARAM lPa
         gFolderPath = Label(window, gRoot.c_str(), gFont);
         gStatus = Label(window,
                         gUninstall ? L"Hãy đóng QuietShare trước khi gỡ cài đặt."
-                                   : L"Thêm lối tắt vào Desktop và Start Menu. Phiên bản 0.4.0.",
+                                   : L"Thêm lối tắt vào Desktop và Start Menu. Phiên bản 0.4.1.",
                         gFont);
         if (!gUninstall)
         {
@@ -1440,6 +1438,7 @@ LRESULT CALLBACK WindowProc(HWND window, UINT message, WPARAM wParam, LPARAM lPa
 int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int show)
 {
     gInstance = instance;
+    if(!quietshare::LoadCodicons(instance))return 1;
     int count = 0;
     LPWSTR *argv = CommandLineToArgvW(GetCommandLineW(), &count);
     bool selfTest = false, cleanup = false;

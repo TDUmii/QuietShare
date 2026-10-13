@@ -1,12 +1,13 @@
 #include "DocumentBar.h"
+#include "Icons.h"
 #include <commctrl.h>
 #include <windowsx.h>
 #include <algorithm>
 
 namespace quietshare {
 namespace {
-constexpr COLORREF Panel=RGB(25,29,33), Raised=RGB(37,43,48), Border=RGB(52,59,66),
-                   Text=RGB(242,245,247), Muted=RGB(154,166,175), Accent=RGB(35,200,118);
+constexpr COLORREF Panel=RGB(37,37,38), Raised=RGB(60,60,60), Border=RGB(52,59,66),
+                   Text=RGB(242,245,247), Muted=RGB(170,170,170), Accent=RGB(0,122,204);
 void Fill(HDC dc, RECT rect, COLORREF color) {
     HBRUSH brush=CreateSolidBrush(color); FillRect(dc,&rect,brush); DeleteObject(brush);
 }
@@ -85,21 +86,8 @@ void DocumentBar::Paint(HDC dc) {
         bool active=tabs_[i].id==active_;
         Fill(dc,r,active || (int)i==hovered_?Raised:Panel);
         int iconX=r.left+MulDiv(10,dpi_,96), center=(r.top+r.bottom)/2;
-        RECT icon{iconX,center-MulDiv(6,dpi_,96),iconX+MulDiv(9,dpi_,96),center+MulDiv(6,dpi_,96)};
-        Line(dc,icon.left,icon.top,icon.right,icon.top,Muted,s); Line(dc,icon.right,icon.top,icon.right,icon.bottom,Muted,s);
-        Line(dc,icon.left,icon.bottom,icon.right,icon.bottom,Muted,s); Line(dc,icon.left,icon.top,icon.left,icon.bottom,Muted,s);
-        int pad=2*s;
-        if(tabs_[i].kind==2) {
-            Line(dc,icon.left+3*s,center-3*s,icon.left+s,center,Accent,s);
-            Line(dc,icon.left+s,center,icon.left+3*s,center+3*s,Accent,s);
-            Line(dc,icon.right-3*s,center-3*s,icon.right-s,center,Accent,s);
-            Line(dc,icon.right-s,center,icon.right-3*s,center+3*s,Accent,s);
-        } else if(tabs_[i].kind==3) {
-            Line(dc,icon.left+pad,icon.bottom-pad,icon.left+4*s,center,Muted,s);
-            Line(dc,icon.left+4*s,center,icon.right-pad,icon.bottom-pad,Muted,s);
-        } else {
-            for(int row:{-2,2})Line(dc,icon.left+pad,center+row*s,icon.right-pad,center+row*s,Muted,s);
-        }
+        RECT icon{iconX,center-MulDiv(8,dpi_,96),iconX+MulDiv(16,dpi_,96),center+MulDiv(8,dpi_,96)};
+        DrawCodicon(dc,tabs_[i].kind==2?0xeae9:tabs_[i].kind==3?0xeb0e:0xea7b,icon,Muted,MulDiv(16,dpi_,96));
         RECT label=r; label.left+=MulDiv(26,dpi_,96); label.right-=MulDiv(tabs_[i].script?8:24,dpi_,96);
         SetTextColor(dc,active?Text:Muted); DrawTextW(dc,tabs_[i].name.c_str(),-1,&label,DT_LEFT|DT_VCENTER|DT_SINGLELINE|DT_END_ELLIPSIS);
         if(!tabs_[i].script) {

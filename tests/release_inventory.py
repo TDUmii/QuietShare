@@ -1,4 +1,4 @@
-"""Verify QuietShare 0.4.0 Windows EXE metadata/resources without running apps."""
+"""Verify QuietShare 0.4.1 Windows EXE metadata/resources without running apps."""
 
 from pathlib import Path
 import ctypes
@@ -13,7 +13,7 @@ import os
 
 
 ROOT = Path(__file__).resolve().parents[1]
-EXPECTED_VERSION = (0, 4, 0, 0)
+EXPECTED_VERSION = (0, 4, 1, 0)
 KERNEL = ctypes.WinDLL("kernel32", use_last_error=True)
 VERSION = ctypes.WinDLL("version", use_last_error=True)
 KERNEL.LoadLibraryExW.argtypes = [wintypes.LPCWSTR, wintypes.HANDLE, wintypes.DWORD]
@@ -133,8 +133,8 @@ def main() -> int:
             files[name] = {"bytes": len(data), "sha256": hashlib.sha256(data).hexdigest(),
                            **metadata, **versions}
             checks[name + ".x64PE"] = metadata["x64PE"]
-            checks[name + ".fileVersion0.4.0"] = versions["fileVersion"] == EXPECTED_VERSION
-            checks[name + ".productVersion0.4.0"] = versions["productVersion"] == EXPECTED_VERSION
+            checks[name + ".fileVersion0.4.1"] = versions["fileVersion"] == EXPECTED_VERSION
+            checks[name + ".productVersion0.4.1"] = versions["productVersion"] == EXPECTED_VERSION
             if path == app_path:
                 app = data
         except (OSError, ValueError, struct.error) as error:
@@ -158,6 +158,10 @@ def main() -> int:
     notice = (ROOT / "dist" / "THIRD-PARTY.md").read_bytes()
     checks["installerFullNoticeParity"] = resource(setup_path,305) == notice
     checks["sourceNoticeMatchesDist"] = (ROOT / "THIRD-PARTY.md").read_bytes() == notice
+    codicons = (ROOT / "assets/codicons/codicon.ttf").read_bytes()
+    checks["codiconsPinnedFontHash"] = hashlib.sha256(codicons).hexdigest() == "598b7946cbc22abe5e7fcf336b07b465446b47c1b29b4509cf31eca0a4964f1d"
+    checks["appEmbeddedCodiconsParity"] = resource(ROOT / "dist/QuietShare.exe",401) == codicons
+    checks["installerEmbeddedCodiconsParity"] = resource(setup_path,401) == codicons
     system_imports = {"advapi32.dll","comctl32.dll","comdlg32.dll","crypt32.dll","d3d11.dll",
                       "dwmapi.dll","dxgi.dll","gdi32.dll","imm32.dll","kernel32.dll","msimg32.dll",
                       "ole32.dll","oleaut32.dll","shell32.dll","ucrtbase.dll","user32.dll","uxtheme.dll","version.dll",
@@ -174,7 +178,7 @@ def main() -> int:
         cwd=ROOT,env=signing_env,check=True,capture_output=True,text=True)
     authenticode = {item["file"]:item["status"] for item in json.loads(signing.stdout)}
     report = {
-        "version": "0.4.0",
+        "version": "0.4.1",
         "platform": "win-x64",
         "passed": bool(checks) and all(checks.values()),
         "checks": checks,

@@ -19,8 +19,8 @@ namespace quietshare
 {
 namespace
 {
-constexpr COLORREF Background = RGB(25, 29, 33), Foreground = RGB(242, 245, 247);
-constexpr COLORREF Muted = RGB(154, 166, 175), Accent = RGB(35, 200, 118);
+constexpr COLORREF Background = RGB(30, 30, 30), Foreground = RGB(242, 245, 247);
+constexpr COLORREF Muted = RGB(170, 170, 170), Accent = RGB(86, 156, 214);
 constexpr COLORREF Keyword = RGB(197, 153, 255), String = RGB(224, 184, 122);
 constexpr COLORREF Comment = RGB(139, 166, 151), Number = RGB(116, 199, 236);
 std::wstring Error(const wchar_t *vi, const wchar_t *en)
@@ -298,7 +298,7 @@ struct CodeViewer::Impl
         Send(SCI_STYLESETFONT, STYLE_DEFAULT, reinterpret_cast<LPARAM>("Consolas"));
         Send(SCI_STYLECLEARALL);
         Send(SCI_SETCARETFORE, Foreground);
-        Send(SCI_SETSELBACK, TRUE, RGB(45, 75, 61));
+        Send(SCI_SETSELBACK, TRUE, RGB(38, 79, 120));
         Send(SCI_SETSELFORE, TRUE, Foreground);
         Send(SCI_SETMARGINTYPEN, 0, SC_MARGIN_NUMBER);
         Send(SCI_SETMARGINWIDTHN, 0, 52);
@@ -894,7 +894,7 @@ struct PdfViewer::Impl
         {
             const int start = std::min(selectStart, selectEnd),
                       end = std::min(chars - 1, std::max(selectStart, selectEnd));
-            HBRUSH highlight = CreateSolidBrush(RGB(35, 200, 118));
+            HBRUSH highlight = CreateSolidBrush(Accent);
             for (int i = start; i <= end && i < start + 100000; ++i)
             {
                 double l = 0, rt = 0, b = 0, t = 0;

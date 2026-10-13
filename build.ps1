@@ -18,7 +18,7 @@ $previousPath = $env:PATH
 $env:PATH = $CompilerRoot + ';' + $env:PATH
 function Compile-Resource([string]$source, [string]$output) {
     for ($attempt = 1; $attempt -le 3; $attempt++) {
-        $resourceProcess = Start-Process -FilePath $windres -ArgumentList @('--use-temp-file','-I.',$source,'-O','coff','-o',$output) -WorkingDirectory (Get-Location).Path -WindowStyle Hidden -PassThru -Wait
+        $resourceProcess = Start-Process -FilePath $windres -ArgumentList @('-I.',$source,'-O','coff','-o',$output) -WorkingDirectory (Get-Location).Path -WindowStyle Hidden -PassThru -Wait
         if ($resourceProcess.ExitCode -eq 0) { return }
         if ($attempt -lt 3) { Start-Sleep -Milliseconds 700 }
     }

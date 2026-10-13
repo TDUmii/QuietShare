@@ -76,6 +76,17 @@ def visible(window: int) -> bool:
     return bool(USER32.GetWindowLongW(window, -16) & WS_VISIBLE)
 
 
+def owned_popup(pid: int) -> int | None:
+    found = []
+    @native.ENUM_PROC
+    def visit(hwnd, _):
+        if native.window_pid(hwnd) == pid and class_name(hwnd) == "QuietShareToolMenu":
+            found.append(hwnd)
+        return True
+    USER32.EnumWindows(visit, 0)
+    return next(iter(found), None)
+
+
 def rect(window: int, owner: int | None = None) -> tuple[int, int, int, int]:
     bounds = wintypes.RECT()
     if not USER32.GetWindowRect(window, ctypes.byref(bounds)):
@@ -375,6 +386,16 @@ def main() -> int:
         check("closeAllKeepsPersistentScript", query(1) == 1 and query(2) == 0 and native.control_text(editor) == expected)
         send(window, CLOSE, 0)
         check("scriptTabCannotBeClosed", query(1) == 1)
+        command(132)
+        popup = wait_for(lambda: owned_popup(app.pid), 3)
+        check("shippingToolsPopupOpens", bool(popup))
+        popup_affinity = wintypes.DWORD()
+        check("shippingToolsPopupProtected", bool(USER32.GetWindowDisplayAffinity(popup, ctypes.byref(popup_affinity)))
+              and popup_affinity.value == 0x11)
+        time.sleep(0.4)
+        check("shippingToolsPopupKeepsRealWgcGate", query(1) == 1)
+        send(popup, WM_KEYDOWN, 0x1B)
+        check("shippingToolsPopupEscapeKeepsGate", not owned_popup(app.pid) and query(1) == 1)
         close(app)
         check("productionFirstExitClean", app.returncode == 0)
         app = launch()
