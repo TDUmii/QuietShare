@@ -27,10 +27,13 @@ class ToolMenu {
         if(msg==WM_ACTIVATE&&LOWORD(wp)==WA_INACTIVE){self->Finish(false);return 0;}
         if(msg==WM_KEYDOWN){if(wp==VK_ESCAPE)self->Finish(false);else if(wp==VK_RETURN||wp==VK_SPACE)self->Finish(true);else if(wp==VK_DOWN)self->Move(1);else if(wp==VK_UP)self->Move(-1);return 0;}
         if(msg==WM_MOUSEMOVE||msg==WM_LBUTTONUP){int index=(GET_Y_LPARAM(lp)-self->S(5))/self->row;
-            self->current=index>=0&&index<int(self->items.size())?index:-1;
+            int next=index>=0&&index<int(self->items.size())?index:-1;
+            if(msg==WM_MOUSEMOVE&&next==self->current)return 0;
+            self->current=next;
             if(msg==WM_LBUTTONUP)self->Finish(true);else InvalidateRect(hwnd,nullptr,FALSE);return 0;}
         if(msg==WM_ERASEBKGND)return 1;
-        if(msg==WM_PAINT){PAINTSTRUCT ps{};auto dc=BeginPaint(hwnd,&ps);RECT bounds{};GetClientRect(hwnd,&bounds);
+        if(msg==WM_PAINT){PAINTSTRUCT ps{};auto target=BeginPaint(hwnd,&ps);RECT bounds{};GetClientRect(hwnd,&bounds);
+            HDC dc=CreateCompatibleDC(target);HBITMAP bitmap=CreateCompatibleBitmap(target,bounds.right,bounds.bottom);auto previous=SelectObject(dc,bitmap);
             auto brush=CreateSolidBrush(RGB(37,37,38));FillRect(dc,&bounds,brush);DeleteObject(brush);
             for(size_t i=0;i<self->items.size();++i){const auto &item=self->items[i];RECT r{self->S(5),self->S(5)+int(i)*self->row,bounds.right-self->S(5),self->S(5)+int(i+1)*self->row};
                 if(int(i)==self->current&&item.enabled){brush=CreateSolidBrush(RGB(4,57,94));FillRect(dc,&r,brush);DeleteObject(brush);}
@@ -40,6 +43,7 @@ class ToolMenu {
                 size_t split=item.label.find(L"   ");std::wstring label=item.label.substr(0,split);DrawTextW(dc,label.c_str(),-1,&text,DT_LEFT|DT_VCENTER|DT_SINGLELINE);
                 if(split!=std::wstring::npos){SetTextColor(dc,item.enabled?RGB(160,160,160):RGB(115,115,115));DrawTextW(dc,item.label.c_str()+split+3,-1,&text,DT_RIGHT|DT_VCENTER|DT_SINGLELINE);}
                 SelectObject(dc,old);}
+            BitBlt(target,0,0,bounds.right,bounds.bottom,dc,0,0,SRCCOPY);SelectObject(dc,previous);DeleteObject(bitmap);DeleteDC(dc);
             EndPaint(hwnd,&ps);return 0;}
         return DefWindowProcW(hwnd,msg,wp,lp);
     }

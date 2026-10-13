@@ -15,6 +15,7 @@
 #include "DocumentHost.h"
 #include "Mirror.h"
 #include "ToolMenu.h"
+#include "LocalPicker.h"
 #include <algorithm>
 #include <commctrl.h>
 #include <commdlg.h>
@@ -47,12 +48,17 @@ constexpr int MODE = 100, PLAY = 101, SMALLER = 102, LARGER = 103, SPEED = 104, 
               VERIFY_PRIVACY = 140, MIRROR_START = 141, MIRROR_STOP = 142, POINTER = 143,
               RELOAD_FILE = 144, KEEP_FILE = 145, WRAP = 146, FIT_WIDTH = 147,
               CLOSE_TAB = 148, CLOSE_OTHERS = 149, CLOSE_FILES = 150, SHOW_TREE = 151,
-              INCLUDE_IGNORED = 152, CLOSE_APPLICATION = 153, SOURCE_MONITOR = 160, DEST_MONITOR = 161, FIND_INPUT = 162;
+              INCLUDE_IGNORED = 152, CLOSE_APPLICATION = 153, SOURCE_MONITOR = 160, DEST_MONITOR = 161, FIND_INPUT = 162, SIZE_INPUT = 163;
 constexpr int NORMAL_SIDEBAR = 60, COMPACT_SIDEBAR = 60, CONTROL_HEIGHT = 36, CONTROL_GAP = 8;
 constexpr UINT_PTR PRIVACY_TIMER = 1, SCROLL_TIMER = 2, SAVE_TIMER = 3, QA_TIMER = 4;
 HINSTANCE instance;
 HWND window, editor, underlay, tooltips, hoveredButton, imageViewer, fontSlider, filePicker,
-     findInput, sourceMonitor, destinationMonitor;
+     findInput, sourceMonitor, destinationMonitor, sizeInput;
+bool updatingSize=false,sliderTracking=false;
+DocumentId sizeInputDocument=0;
+int sliderPreview=-1;
+std::wstring pickerFolder;
+std::wstring sizeError;
 TabManager documents;
 DocumentBar documentBar;
 ProjectTree projectTree;
@@ -82,7 +88,6 @@ LoadedContent &ActiveContent() { return documents.Active().content; }
 bool viewingFile = false, focusMode = false, scriptReading = false;
 int codePoints = 14, imageZoom = 100, panX = 0, panY = 0;
 std::wstring scriptDraft, importError;
-bool fileDialogProtected = true;
 RECT dropRect{}, settingsCardRect{};
 RECT fontLabelRect{};
 RECT contentCardRect{};
@@ -109,6 +114,8 @@ const wchar_t *T(const wchar_t *vietnamese, const wchar_t *englishText)
 }
 
 void ApplyTextFormat();
+void SyncSizeInput(bool force=false);
+void CommitSizeInput();
 void Pause();
 void Layout();
 void SetReading(bool value);
@@ -301,7 +308,7 @@ void AdjustFont(int delta)
         panX = panY = 0;
         InvalidateRect(imageViewer, nullptr, FALSE);
     }
-    else { ActiveTextSize() = std::clamp(ActiveTextSize() + delta, 12, 72);
+    else { ActiveTextSize() = std::clamp(ActiveTextSize() + delta, 8, 200);
         if(IsCode())codeViewer.SetZoom(ActiveTextSize()*100/14); }
     ApplyTextFormat();
 }
@@ -447,16 +454,22 @@ void UpdateButtons()
     for (int id : {MODE, PLAY, SMALLER, LARGER, SPEED, RESET_ZOOM, NAV_SCRIPT, NAV_READ, OPEN_FILE, OPEN_DROP,
                    HOME_SCRIPT, VIEW_FILE})
         EnableWindow(GetDlgItem(window, id), !Blocked());
-    EnableWindow(GetDlgItem(window, SMALLER), !Blocked() && (IsPdf()?pdfViewer.GetState().zoom>25:IsCode()?codeViewer.GetState().zoom>25:IsImage() ? imageZoom > 25 : ActiveTextSize() > 12));
-    EnableWindow(GetDlgItem(window, LARGER), !Blocked() && (IsPdf()?pdfViewer.GetState().zoom<400:IsCode()?codeViewer.GetState().zoom<400:IsImage() ? imageZoom < 400 : ActiveTextSize() < 72));
+    EnableWindow(GetDlgItem(window, SMALLER), !Blocked() && (IsPdf()?pdfViewer.GetState().zoom>25:IsCode()?codeViewer.GetState().zoom>25:IsImage() ? imageZoom > 25 : ActiveTextSize() > 8));
+    EnableWindow(GetDlgItem(window, LARGER), !Blocked() && (IsPdf()?pdfViewer.GetState().zoom<400:IsCode()?codeViewer.GetState().zoom<400:IsImage() ? imageZoom < 400 : ActiveTextSize() < 200));
     EnableWindow(GetDlgItem(window, PLAY), !Blocked() && !IsImage() && !IsCode()&&!IsPdf());
     EnableWindow(GetDlgItem(window, SPEED), !Blocked() && !IsImage() && !IsCode()&&!IsPdf());
     if (fontSlider)
     {
-        SendMessageW(fontSlider, TBM_SETRANGE, TRUE, MAKELPARAM(IsImage()||IsPdf()||IsCode() ? 25 : 12, IsImage()||IsPdf()||IsCode() ? 400 : 72));
-        SendMessageW(fontSlider, TBM_SETPOS, TRUE, IsPdf()?pdfViewer.GetState().zoom:IsCode()?codeViewer.GetState().zoom:IsImage() ? imageZoom : ActiveTextSize());
+        const int low=IsImage()||IsPdf()||IsCode()?25:8,high=IsImage()||IsPdf()||IsCode()?400:200;
+        if(!sliderTracking) {
+            if(SendMessageW(fontSlider,TBM_GETRANGEMIN,0,0)!=low||SendMessageW(fontSlider,TBM_GETRANGEMAX,0,0)!=high)
+                SendMessageW(fontSlider,TBM_SETRANGE,TRUE,MAKELPARAM(low,high));
+            int value=IsPdf()?pdfViewer.GetState().zoom:IsCode()?codeViewer.GetState().zoom:IsImage()?imageZoom:ActiveTextSize();
+            if(SendMessageW(fontSlider,TBM_GETPOS,0,0)!=value)SendMessageW(fontSlider,TBM_SETPOS,TRUE,value);
+        }
         EnableWindow(fontSlider, !Blocked());
     }
+    if(sizeInput){EnableWindow(sizeInput,!Blocked());SyncSizeInput();}
     SetTip(NAV_SCRIPT, T(L"Lời nhắc - Ctrl+Enter", L"Script - Ctrl+Enter"));
     SetTip(NAV_READ, T(L"Đọc - Ctrl+Enter", L"Read - Ctrl+Enter"));
     SetTip(PLAY, T(running ? L"Dừng cuộn - Space" : L"Cuộn tự động - Space",
@@ -520,7 +533,7 @@ void Layout()
     int gutter=focusMode?8:12;
     contentLeft=railWidth+gutter;contentRight=width-gutter;
     for(HWND button:buttons)ShowWindow(button,SW_HIDE);
-    for(HWND control:{fontSlider,findInput,sourceMonitor,destinationMonitor,documentBar.Window(),projectTree.Handle()})
+    for(HWND control:{fontSlider,sizeInput,findInput,sourceMonitor,destinationMonitor,documentBar.Window(),projectTree.Handle()})
         if(control)ShowWindow(control,SW_HIDE);
     fontLabelRect={};
     auto move=[&](int id,int left,int top,int w,int h=32){
@@ -571,7 +584,7 @@ void Layout()
     }
     else if(page==Page::Settings) {
         int x=contentLeft+12,y=64;move(SMALLER,x,y,32);x+=32;
-        fontLabelRect={S(x),S(y),S(x+40),S(y+32)};x+=40;move(LARGER,x,y,32);x+=40;move(RESET_ZOOM,x,y,56);
+        x+=4;move(SIZE_INPUT,x,y,64);x+=64;fontLabelRect={S(x),S(y),S(x+28),S(y+32)};x+=32;move(LARGER,x,y,32);x+=40;move(RESET_ZOOM,x,y,56);
         MoveWindow(fontSlider,S(contentLeft+12),S(112),S(contentRight-contentLeft-24),S(24),TRUE);ShowWindow(fontSlider,SW_SHOW);
         move(TOPMOST,contentLeft+12,160,64);move(LANGUAGE,contentLeft+84,160,44);
         move(INCLUDE_IGNORED,contentLeft+12,208,std::min(260,contentRight-contentLeft-24),28);
@@ -636,7 +649,7 @@ void RefreshFonts()
                            CLEARTYPE_QUALITY, 0, L"Segoe UI Variable");
     for (HWND button : buttons)
         SendMessageW(button, WM_SETFONT, (WPARAM)uiFont, TRUE);
-    for(HWND control:{findInput,sourceMonitor,destinationMonitor,projectTree.Handle()})if(control)SendMessageW(control,WM_SETFONT,(WPARAM)uiFont,TRUE);
+    for(HWND control:{findInput,sizeInput,sourceMonitor,destinationMonitor,projectTree.Handle()})if(control)SendMessageW(control,WM_SETFONT,(WPARAM)uiFont,TRUE);
     if (oldUi)
         DeleteObject(oldUi);
     if (oldTitle)
@@ -645,6 +658,49 @@ void RefreshFonts()
         DeleteObject(oldBrand);
     if (oldMeta)
         DeleteObject(oldMeta);
+}
+int CurrentSize()
+{
+    return IsPdf()?pdfViewer.GetState().zoom:IsCode()?codeViewer.GetState().zoom:IsImage()?imageZoom:ActiveTextSize();
+}
+void SyncSizeInput(bool force)
+{
+    if(!sizeInput||(!force&&GetFocus()==sizeInput))return;
+    updatingSize=true;SetWindowTextW(sizeInput,std::to_wstring(sliderTracking&&sliderPreview>=0?sliderPreview:CurrentSize()).c_str());updatingSize=false;
+}
+void SetContentSize(int value,bool refresh=true)
+{
+    Pause();sizeError.clear();
+    if(IsCode())codeViewer.SetZoom(value);
+    else if(IsPdf())pdfViewer.SetZoom(value);
+    else if(IsImage()){imageZoom=value;panX=panY=0;InvalidateRect(imageViewer,nullptr,FALSE);}
+    else {
+        ActiveTextSize()=value;
+        CHARFORMAT2W format{};format.cbSize=sizeof(format);format.dwMask=CFM_SIZE;format.yHeight=value*20;
+        loading=true;SendMessageW(editor,EM_SETCHARFORMAT,SCF_ALL,(LPARAM)&format);loading=false;
+    }
+    if(refresh)UpdateButtons();
+    SyncSizeInput(true);InvalidateRect(window,&fontLabelRect,FALSE);
+}
+void CommitSizeInput()
+{
+    if(updatingSize||!sizeInput||Blocked()||page!=Page::Settings||sizeInputDocument!=documents.Active().id)return;
+    const auto text=TextOf(sizeInput);int value=0;bool valid=!text.empty()&&text.size()<=4;
+    for(wchar_t character:text){if(character<L'0'||character>L'9'){valid=false;break;}value=value*10+character-L'0';}
+    int low=IsCode()||IsImage()||IsPdf()?25:8,high=IsCode()||IsImage()||IsPdf()?400:200;
+    if(!valid||value<low||value>high) {
+        sizeError=IsCode()||IsImage()||IsPdf()?T(L"Zoom: 25-400%.",L"Zoom: 25-400%."):T(L"Cỡ chữ: 8-200 pt.",L"Text size: 8-200 pt.");
+        SyncSizeInput(true);InvalidateRect(window,nullptr,FALSE);return;
+    }
+    if(value!=CurrentSize())SetContentSize(value);
+}
+LRESULT CALLBACK SizeInputProc(HWND control,UINT message,WPARAM wp,LPARAM lp,UINT_PTR,DWORD_PTR)
+{
+    if(message==WM_SETFOCUS){sizeInputDocument=documents.Active().id;SendMessageW(control,EM_SETSEL,0,-1);}
+    if(message==WM_SETFOCUS||message==WM_KILLFOCUS)InvalidateRect(window,nullptr,FALSE);
+    if(message==WM_KEYDOWN&&wp==VK_RETURN){CommitSizeInput();return 0;}
+    if(message==WM_KEYDOWN&&wp==VK_ESCAPE){sizeError.clear();SyncSizeInput(true);InvalidateRect(window,nullptr,FALSE);return 0;}
+    return DefSubclassProc(control,message,wp,lp);
 }
 void SetReading(bool value)
 {
@@ -812,62 +868,36 @@ bool OpenContentPath(const std::wstring &path)
         if(result.status==OpenStatus::Opened)documents.Close(result.id);
         documents.Activate(previous);viewingFile=previous!=0;viewerError.clear();RenderDocument();return false;
     }
+    pickerFolder=LocalParentFolder(ActiveContent().path);
     importError.clear();documents.EvictInactiveHeavy();return true;
-}
-UINT_PTR CALLBACK FilePickerHook(HWND hook, UINT message, WPARAM, LPARAM)
-{
-    if (message == WM_INITDIALOG)
-    {
-        HWND dialog = GetParent(hook);
-        filePicker = dialog;
-        fileDialogProtected = ApplyPrivacy(dialog).applied;
-        if (!fileDialogProtected || Blocked())
-        {
-            ShowWindow(dialog, SW_HIDE);
-            PostMessageW(dialog, WM_COMMAND, IDCANCEL, 0);
-        }
-    }
-    else if (message == WM_DESTROY) filePicker = nullptr;
-    return 0;
 }
 void ChooseFile()
 {
-    if(Blocked())return;Pause();std::vector<wchar_t> paths(262144);
-    OPENFILENAMEW choice{};choice.lStructSize=sizeof(choice);choice.hwndOwner=window;
-    choice.lpstrFilter=T(L"Nội dung\0*.txt;*.md;*.cpp;*.py;*.js;*.ts;*.json;*.html;*.css;*.png;*.jpg;*.jpeg;*.bmp;*.gif;*.pdf\0Tất cả file\0*.*\0\0",
-                        L"Content\0*.txt;*.md;*.cpp;*.py;*.js;*.ts;*.json;*.html;*.css;*.png;*.jpg;*.jpeg;*.bmp;*.gif;*.pdf\0All files\0*.*\0\0");
-    choice.lpstrFile=paths.data();choice.nMaxFile=(DWORD)paths.size();choice.lpstrTitle=T(L"Mở nội dung",L"Open content");
-    choice.Flags=OFN_EXPLORER|OFN_ENABLEHOOK|OFN_FILEMUSTEXIST|OFN_PATHMUSTEXIST|OFN_NOCHANGEDIR|OFN_DONTADDTORECENT|OFN_ALLOWMULTISELECT;
-    choice.lpfnHook=FilePickerHook;fileDialogProtected=true;BOOL selected=GetOpenFileNameW(&choice);filePicker=nullptr;
-    if(selected && fileDialogProtected) {
-        std::wstring first=paths.data();const wchar_t *next=paths.data()+first.size()+1;
-        if(!*next)OpenContentPath(first);
-        else for(int count=0;*next && count<31;++count){std::wstring name=next;OpenContentPath(first+L"\\"+name);next+=name.size()+1;}
-    } else if(!fileDialogProtected)importError=T(L"Không bảo vệ được cửa sổ chọn file.",L"File picker capture exclusion failed.");
+    if(Blocked())return;
+    Pause();LocalPicker picker;
+    auto paths=picker.Show(window,false,pickerFolder,english,uiFont,filePicker,importError);
+    if(!paths.empty()) {
+        pickerFolder=LocalParentFolder(paths.front());
+        if(mirror&&!mirror->IsVerified())VerifyPrivacy();
+        for(const auto &path:paths)OpenContentPath(path);
+    }
     Layout();
-}
-int CALLBACK FolderHook(HWND dialog,UINT message,LPARAM,LPARAM)
-{
-    if(message==BFFM_INITIALIZED) {
-        filePicker=dialog;fileDialogProtected=ApplyPrivacy(dialog).applied;
-        if(!fileDialogProtected || Blocked()){ShowWindow(dialog,SW_HIDE);PostMessageW(dialog,WM_COMMAND,IDCANCEL,0);}
-    } return 0;
 }
 void ChooseFolder()
 {
-    if(Blocked())return;Pause();BROWSEINFOW choice{};choice.hwndOwner=window;
-    choice.lpszTitle=T(L"Mở thư mục dự án cục bộ",L"Open a local project folder");
-    choice.ulFlags=BIF_RETURNONLYFSDIRS|BIF_NEWDIALOGSTYLE;choice.lpfn=FolderHook;fileDialogProtected=true;
-    HRESULT apartment=CoInitializeEx(nullptr,COINIT_APARTMENTTHREADED);
-    PIDLIST_ABSOLUTE folder=SHBrowseForFolderW(&choice);filePicker=nullptr;
-    if(folder && fileDialogProtected && !Blocked()) {
-        wchar_t path[32768]{};if(SHGetPathFromIDListEx(folder,path,32768,0) && projectTree.OpenFolder(path,importError)) {
+    if(Blocked())return;
+    Pause();LocalPicker picker;
+    auto paths=picker.Show(window,true,projectTree.Root().empty()?pickerFolder:projectTree.Root(),english,uiFont,filePicker,importError);
+    if(!paths.empty()) {
+        pickerFolder=paths.front();
+        if(mirror&&!mirror->IsVerified())VerifyPrivacy();
+        if(!Blocked()&&projectTree.OpenFolder(paths.front(),importError)) {
             treeVisible=true;page=Page::Content;focusMode=false;
             TreeView_Expand(projectTree.Handle(),TreeView_GetRoot(projectTree.Handle()),TVE_EXPAND);
         }
     }
-    CoTaskMemFree(folder);if(SUCCEEDED(apartment))CoUninitialize();Layout();
-    if(!Blocked() && IsWindowVisible(projectTree.Handle()))SetFocus(projectTree.Handle());
+    Layout();
+    if(!Blocked()&&IsWindowVisible(projectTree.Handle()))SetFocus(projectTree.Handle());
 }
 std::wstring SelectedMonitor(HWND combo)
 {
@@ -1070,7 +1100,14 @@ void Paint(HDC dc)
         DrawTextAt(dc,text,status,MUTED,metaFont,DT_LEFT|DT_WORDBREAK);
     }
     if(fontLabelRect.right>fontLabelRect.left) {
-        std::wstring label=IsPdf()?std::to_wstring(pdfViewer.GetState().zoom)+L"%":IsCode()?std::to_wstring(codeViewer.GetState().zoom)+L"%":IsImage()?std::to_wstring(imageZoom)+L"%":std::to_wstring(ActiveTextSize());
+        if(page==Page::Settings&&sizeInput) {
+            RECT input{};GetWindowRect(sizeInput,&input);MapWindowPoints(nullptr,window,(POINT*)&input,2);InflateRect(&input,1,1);
+            HPEN pen=CreatePen(PS_SOLID,1,GetFocus()==sizeInput?ACCENT:DIVIDER);
+            auto oldPen=SelectObject(dc,pen),oldBrush=SelectObject(dc,GetStockObject(NULL_BRUSH));
+            Rectangle(dc,input.left,input.top,input.right,input.bottom);
+            SelectObject(dc,oldBrush);SelectObject(dc,oldPen);DeleteObject(pen);
+        }
+        std::wstring label=IsPdf()||IsCode()||IsImage()?L"%":L"pt";
         DrawTextAt(dc,label,fontLabelRect,TEXT,uiFont,DT_CENTER|DT_VCENTER|DT_SINGLELINE);
     }
     if(focusMode)return;
@@ -1078,7 +1115,7 @@ void Paint(HDC dc)
     std::wstring label=Blocked()?T(L"Nội dung đang khóa",L"Content locked"):
         saveFailed?T(L"Không lưu được lời nhắc",L"Script save failed"):
         savedNoteRecovered&&!dirty&&!reading?T(L"Đã giữ bản dự phòng lời nhắc cũ",L"Old script recovery copy preserved"):
-        dirty?T(L"Đang lưu...",L"Saving..."):!findMessage.empty()?findMessage:
+        dirty?T(L"Đang lưu...",L"Saving..."):!sizeError.empty()?sizeError:!findMessage.empty()?findMessage:
         !importError.empty()?importError:IsPdf()?std::to_wstring(pdfViewer.GetState().page+1)+L" / "+std::to_wstring(pdfViewer.PageCount()):
         viewingFile?ActiveContent().displayName:page==Page::Content?T(L"Lời nhắc · Tự lưu trên máy",L"Script · Saved locally"):L"";
     size_t split=label.find(L" / ");if(split!=std::wstring::npos && !IsPdf())label=english?label.substr(split+3):label.substr(0,split);
@@ -1158,6 +1195,7 @@ void DrawButton(DRAWITEMSTRUCT *item)
 }
 LRESULT CALLBACK ButtonProc(HWND control, UINT message, WPARAM wp, LPARAM lp, UINT_PTR, DWORD_PTR)
 {
+    if(control==fontSlider&&message==WM_ERASEBKGND)return 1;
     if (message == WM_MOUSEMOVE && IsWindowEnabled(control) && hoveredButton != control)
     {
         HWND previous = hoveredButton;
@@ -1366,7 +1404,7 @@ void WriteQa()
     GetWindowDisplayAffinity(window, &actual);
     auto boolean = [](bool value) -> std::wstring { return value ? L"true" : L"false"; };
     std::wstring report =
-        L"{\n  \"applicationVersion\": \"0.4.2\",\n  \"windowsBuild\": " + std::to_wstring(WindowsBuild()) +
+        L"{\n  \"applicationVersion\": \"0.4.3\",\n  \"windowsBuild\": " + std::to_wstring(WindowsBuild()) +
         L",\n  \"displayCloned\": " + boolean(cloned) + L",\n  \"topologyKnown\": " + boolean(topologyKnown) +
         L",\n  \"privacyApplied\": " + boolean(privacy.applied) +
         L",\n  \"requestedAffinity\": 17,\n  \"actualAffinity\": " + std::to_wstring(actual) +
@@ -1775,6 +1813,10 @@ LRESULT CALLBACK Proc(HWND h, UINT message, WPARAM wp, LPARAM lp)
                                        0, 0, 0, 0, h, nullptr, instance, nullptr);
         fontSlider = CreateWindowExW(0, TRACKBAR_CLASSW, L"Cỡ chữ / Zoom", WS_CHILD | WS_TABSTOP | TBS_NOTICKS,
                                       0, 0, 0, 0, h, (HMENU)FONT_SLIDER, instance, nullptr);
+        sizeInput=CreateWindowExW(0,L"EDIT",L"24",WS_CHILD|WS_TABSTOP|ES_CENTER|ES_NUMBER|ES_AUTOHSCROLL,
+            0,0,0,0,h,(HMENU)SIZE_INPUT,instance,nullptr);
+        SendMessageW(sizeInput,EM_SETLIMITTEXT,4,0);SetWindowTheme(sizeInput,L"DarkMode_Explorer",nullptr);
+        SetWindowSubclass(sizeInput,SizeInputProc,1,0);
         SetWindowTheme(fontSlider, L"DarkMode_Explorer", nullptr);
         SetWindowSubclass(fontSlider, ButtonProc, 1, 0);
         if(!documentHost.Create(h,editor,imageViewer,viewerError))return -1;
@@ -1948,11 +1990,12 @@ LRESULT CALLBACK Proc(HWND h, UINT message, WPARAM wp, LPARAM lp)
             {
                 RECT bounds{}; GetClientRect(fontSlider, &bounds);
                 FillRect(draw->hdc, &bounds, cardBrush);
-                RECT channel{}, thumb{};
+                RECT channel{};
                 SendMessageW(fontSlider, TBM_GETCHANNELRECT, 0, (LPARAM)&channel);
-                SendMessageW(fontSlider, TBM_GETTHUMBRECT, 0, (LPARAM)&thumb);
                 int centerY = (bounds.top + bounds.bottom) / 2;
-                int centerX = (thumb.left + thumb.right) / 2;
+                int low=(int)SendMessageW(fontSlider,TBM_GETRANGEMIN,0,0),high=(int)SendMessageW(fontSlider,TBM_GETRANGEMAX,0,0);
+                int value=sliderPreview>=0?sliderPreview:(int)SendMessageW(fontSlider,TBM_GETPOS,0,0);
+                int centerX=channel.left+MulDiv(std::clamp(value,low,high)-low,channel.right-channel.left,std::max(1,high-low));
                 channel.top = centerY - S(2); channel.bottom = centerY + S(2);
                 FillRoundRect(draw->hdc, channel, DIVIDER, S(4));
                 RECT filled = channel; filled.right = centerX;
@@ -1984,13 +2027,14 @@ LRESULT CALLBACK Proc(HWND h, UINT message, WPARAM wp, LPARAM lp)
     case WM_HSCROLL:
         if ((HWND)lp == fontSlider && !Blocked())
         {
-            int value = (int)SendMessageW(fontSlider, TBM_GETPOS, 0, 0);
-            Pause();
-            if(IsCode())codeViewer.SetZoom(value);
-            else if(IsPdf())pdfViewer.SetZoom(value);
-            else if (IsImage()) { imageZoom = value; panX = panY = 0; InvalidateRect(imageViewer,nullptr,FALSE); }
-            else {ActiveTextSize() = value;if(IsCode())codeViewer.SetZoom(value*100/14);}
-            ApplyTextFormat();
+            int action=LOWORD(wp);
+            int value=action==TB_THUMBTRACK?HIWORD(wp):(int)SendMessageW(fontSlider,TBM_GETPOS,0,0);
+            sliderTracking=action==TB_THUMBTRACK;sliderPreview=value;
+            InvalidateRect(fontSlider,nullptr,FALSE);UpdateWindow(fontSlider);SyncSizeInput(true);
+            // PDF rendering is intentionally deferred until release; the slider
+            // and numeric preview remain immediate even for expensive pages.
+            if(!IsPdf()||!sliderTracking)if(value!=CurrentSize())SetContentSize(value,false);
+            if(!sliderTracking){sliderPreview=-1;UpdateButtons();}
         }
         return 0;
     case WM_DROPFILES: {
@@ -2003,6 +2047,7 @@ LRESULT CALLBACK Proc(HWND h, UINT message, WPARAM wp, LPARAM lp)
         DragFinish(drop);Layout();return 0;
     }
     case WM_COMMAND:
+        if(LOWORD(wp)==SIZE_INPUT&&HIWORD(wp)==EN_KILLFOCUS){CommitSizeInput();return 0;}
         if((LOWORD(wp)==SOURCE_MONITOR || LOWORD(wp)==DEST_MONITOR) && HIWORD(wp)==CBN_SELCHANGE) {
             documentHost.Hide();if(mirror)mirror->Invalidate();Layout();return 0;
         }
@@ -2102,9 +2147,29 @@ LRESULT CALLBACK Proc(HWND h, UINT message, WPARAM wp, LPARAM lp)
         else if(wp==3)RecallWindow();
         return 0;
     case WM_POWERBROADCAST:
+        if(wp==PBT_APMSUSPEND||wp==PBT_APMRESUMEAUTOMATIC||wp==PBT_APMRESUMESUSPEND)RefreshPrivacy();
+        else if(wp==PBT_POWERSETTINGCHANGE&&lp) {
+            const auto *setting=(const POWERBROADCAST_SETTING*)lp;
+            constexpr GUID consoleState{0x6fe69556,0x704a,0x47a0,{0x8f,0x24,0xc2,0x8d,0x93,0x6f,0xda,0x47}};
+            constexpr GUID sessionState{0x2b84c20e,0xad23,0x4ddf,{0x93,0xdb,0x05,0xff,0xbd,0x7e,0xfc,0xa5}};
+            constexpr GUID monitorState{0x02731015,0x4510,0x4526,{0x99,0xe6,0xe5,0xa1,0x7e,0xbd,0x1a,0xea}};
+            DWORD state=1;
+            if(setting->DataLength==sizeof(state))memcpy(&state,setting->Data,sizeof(state));
+            if(state==0&&(IsEqualGUID(setting->PowerSetting,consoleState)||IsEqualGUID(setting->PowerSetting,sessionState)||IsEqualGUID(setting->PowerSetting,monitorState)))RefreshPrivacy();
+        }
+        return TRUE;
+    case WM_DEVICECHANGE: {
+        const auto current=EnumerateMonitors();bool changed=current.size()!=monitors.size();
+        for(const auto &a:current) {
+            const auto found=std::find_if(monitors.begin(),monitors.end(),[&](const MonitorInfo &b){return a.stableId==b.stableId;});
+            if(found==monitors.end()||!EqualRect(&a.bounds,&found->bounds)||a.adapter.LowPart!=found->adapter.LowPart||a.adapter.HighPart!=found->adapter.HighPart)changed=true;
+        }
+        if(changed){RefreshPrivacy();UpdateMonitors();}
+        else if(mirror)mirror->Tick();
+        return TRUE;
+    }
     case WM_DISPLAYCHANGE:
     case WM_DWMCOMPOSITIONCHANGED:
-    case WM_DEVICECHANGE:
         RefreshPrivacy();UpdateMonitors();
         return 0;
     case WM_TIMER:

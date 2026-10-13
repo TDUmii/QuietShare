@@ -1,5 +1,5 @@
 {
-  "version": "0.4.2",
+  "version": "0.4.3",
   "platform": "win-x64",
   "windowsBuild": 26200,
   "baselineV03": {
@@ -10,7 +10,7 @@
     "releasePE": 7,
     "status": "PASS before changes"
   },
-  "passed": 812,
+  "passed": 849,
   "failed": 0,
   "suites": [
     {
@@ -1295,7 +1295,7 @@
     },
     {
       "name": "WGC / canary / cancellation",
-      "passed": 47,
+      "passed": 52,
       "failed": 0,
       "notTested": 0,
       "checks": []
@@ -2190,11 +2190,11 @@
           "status": "PASS"
         },
         {
-          "name": "QuietShare.exe.fileVersion0.4.2",
+          "name": "QuietShare.exe.fileVersion0.4.3",
           "status": "PASS"
         },
         {
-          "name": "QuietShare.exe.productVersion0.4.2",
+          "name": "QuietShare.exe.productVersion0.4.3",
           "status": "PASS"
         },
         {
@@ -2202,11 +2202,11 @@
           "status": "PASS"
         },
         {
-          "name": "QuietShare-Setup.exe.fileVersion0.4.2",
+          "name": "QuietShare-Setup.exe.fileVersion0.4.3",
           "status": "PASS"
         },
         {
-          "name": "QuietShare-Setup.exe.productVersion0.4.2",
+          "name": "QuietShare-Setup.exe.productVersion0.4.3",
           "status": "PASS"
         },
         {
@@ -2545,7 +2545,7 @@
     },
     {
       "name": "Shipping EXE / multi-view integration",
-      "passed": 115,
+      "passed": 131,
       "failed": 0,
       "notTested": 5,
       "checks": [
@@ -2974,6 +2974,70 @@
           "status": "PASS"
         },
         {
+          "name": "exactSizeInputPresent",
+          "status": "PASS"
+        },
+        {
+          "name": "exactScriptSize37",
+          "status": "PASS"
+        },
+        {
+          "name": "scriptSliderExpandedRange",
+          "status": "PASS"
+        },
+        {
+          "name": "sliderThumbTrackUpdatesSizeImmediately",
+          "status": "PASS"
+        },
+        {
+          "name": "outOfRangeSizePreservesValue",
+          "status": "PASS"
+        },
+        {
+          "name": "protectedNativeFilePickerOpens",
+          "status": "PASS"
+        },
+        {
+          "name": "nativePickerCaptureExclusion",
+          "status": "PASS"
+        },
+        {
+          "name": "batteryAndUnrelatedDeviceDoNotClosePicker",
+          "status": "PASS"
+        },
+        {
+          "name": "nativePickerShowsLocalFixtureFiles",
+          "status": "PASS"
+        },
+        {
+          "name": "nativePickerMultiOpenPreservesScript",
+          "status": "PASS"
+        },
+        {
+          "name": "exactCodeZoom137",
+          "status": "PASS"
+        },
+        {
+          "name": "protectedNativeProjectPickerOpens",
+          "status": "PASS"
+        },
+        {
+          "name": "nativeProjectPickerLoadsTree",
+          "status": "PASS"
+        },
+        {
+          "name": "pickerCanReopenAfterProjectSelection",
+          "status": "PASS"
+        },
+        {
+          "name": "F8CancelsPickerAndMasksContent",
+          "status": "PASS"
+        },
+        {
+          "name": "nativePickersKeepSavedScript",
+          "status": "PASS"
+        },
+        {
           "name": "shippingToolsPopupOpens",
           "status": "PASS"
         },
@@ -3028,6 +3092,78 @@
         {
           "name": "remoteReceiverAndTwoPhysicalMonitors",
           "status": "NOT TESTED"
+        }
+      ]
+    },
+    {
+      "name": "Settings / slider live paint",
+      "passed": 16,
+      "failed": 0,
+      "notTested": 0,
+      "checks": [
+        {
+          "name": "syntheticOwnedQaWindow",
+          "status": "PASS"
+        },
+        {
+          "name": "settingsControlsPresent",
+          "status": "PASS"
+        },
+        {
+          "name": "fontRange8To200",
+          "status": "PASS"
+        },
+        {
+          "name": "liveValue:8",
+          "status": "PASS"
+        },
+        {
+          "name": "validOwnedPixels:8",
+          "status": "PASS"
+        },
+        {
+          "name": "liveValue:56",
+          "status": "PASS"
+        },
+        {
+          "name": "validOwnedPixels:56",
+          "status": "PASS"
+        },
+        {
+          "name": "liveValue:104",
+          "status": "PASS"
+        },
+        {
+          "name": "validOwnedPixels:104",
+          "status": "PASS"
+        },
+        {
+          "name": "liveValue:152",
+          "status": "PASS"
+        },
+        {
+          "name": "validOwnedPixels:152",
+          "status": "PASS"
+        },
+        {
+          "name": "liveValue:200",
+          "status": "PASS"
+        },
+        {
+          "name": "validOwnedPixels:200",
+          "status": "PASS"
+        },
+        {
+          "name": "fillFollowsEveryDragStep",
+          "status": "PASS"
+        },
+        {
+          "name": "fullFillCoversChannel",
+          "status": "PASS"
+        },
+        {
+          "name": "releaseReturnsToNativeValue",
+          "status": "PASS"
         }
       ]
     },
@@ -3118,26 +3254,25 @@
   ],
   "files": {
     "QuietShare.exe": {
-      "bytes": 669696,
-      "sha256": "a244154a0701f7506bf6ca2287c6c93ae4c22ed2d91d0426d5b25703299b4a1e",
+      "bytes": 699392,
+      "sha256": "878634b4f8e67285961232a8c34554a83c9c6b0eb5164b9aaf97ad1fe309dac5",
       "x64PE": true,
       "machine": "0x8664",
       "optionalHeaderMagic": "0x20b",
       "fileVersion": [
         0,
         4,
-        2,
+        3,
         0
       ],
       "productVersion": [
         0,
         4,
-        2,
+        3,
         0
       ],
       "imports": [
         "COMCTL32.dll",
-        "comdlg32.dll",
         "CRYPT32.dll",
         "d3d11.dll",
         "dwmapi.dll",
@@ -3155,21 +3290,21 @@
       ]
     },
     "QuietShare-Setup.exe": {
-      "bytes": 12098560,
-      "sha256": "ef1f13900bbdff2fcb534de1188a288824bb78c6fc735775b0d2b656f470de42",
+      "bytes": 12128256,
+      "sha256": "61a324ea4c352a567746f9cd2b4f444530174b93c9a6cdb9bfd6b1466b57071c",
       "x64PE": true,
       "machine": "0x8664",
       "optionalHeaderMagic": "0x20b",
       "fileVersion": [
         0,
         4,
-        2,
+        3,
         0
       ],
       "productVersion": [
         0,
         4,
-        2,
+        3,
         0
       ],
       "imports": [
@@ -3233,7 +3368,7 @@
   },
   "monitorCount": 1,
   "actualWgcCanary": true,
-  "canaryElapsedMs": 359,
+  "canaryElapsedMs": 343,
   "listedVideoControllers": [
     {
       "Name": "Parsec Virtual Display Adapter",

@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.4.3
+
+- Replaced shell file/project dialogs with a capture-protected native local picker, bounded folder navigation, multi-file selection and no Explorer auxiliary surfaces.
+- Unrelated device and battery notifications no longer close a picker or invalidate capture; real display, suspend and privacy failures retain fail-closed behavior.
+- Buffered tool menu painting and stopped repainting when mouse movement stays within the same row.
+- Added exact numeric text-size/zoom input in Settings. Script/text size supports 8-200 pt; code/images/PDF retain 25-400% zoom.
+- Slider fill and numeric preview update during dragging without resetting its range/position. Expensive PDF rendering occurs on release.
+- Installer payloads are embedded with Windows UpdateResource after linking to avoid large-payload windres heap failures.
+
 ## 0.4.2
 
 - Added global Ctrl+Alt+Q to recall a covered, hidden or minimized window without opening Alt+Tab, stealing foreground focus or changing the pin setting.

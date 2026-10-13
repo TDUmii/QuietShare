@@ -1,4 +1,4 @@
-# QuietShare 0.4.2
+# QuietShare 0.4.3
 
 QuietShare là ứng dụng desktop để đọc lời nhắc, xem code, ảnh và PDF trong một cửa sổ riêng khi thuyết trình. App chạy offline trên Windows 10/11 x64, với giao diện tiếng Việt và tiếng Anh.
 
@@ -25,7 +25,7 @@ Văn bản/code hỗ trợ UTF-8 hoặc UTF-16 có BOM, tối đa 5 MiB. App nh�
 ### Cài đặt
 
 1. Cần **Windows 10 phiên bản 2004 (build 19041) trở lên hoặc Windows 11, x64**, với DWM và Windows Graphics Capture hoạt động.
-2. Tải [QuietShare 0.4.2](https://github.com/TDUmii/QuietShare/releases/tag/v0.4.2), giải nén toàn bộ gói và chạy `QuietShare-Setup.exe`. Bộ cài dùng tài khoản hiện tại, không cần quyền quản trị.
+2. Tải [QuietShare 0.4.3](https://github.com/TDUmii/QuietShare/releases/tag/v0.4.3), giải nén toàn bộ gói và chạy `QuietShare-Setup.exe`. Bộ cài dùng tài khoản hiện tại, không cần quyền quản trị.
 3. Để dùng portable, chạy `QuietShare.exe` trong thư mục đã giải nén. Giữ `Scintilla.dll`, `Lexilla.dll` và `pdfium.dll` cạnh EXE; không chỉ sao chép riêng EXE.
 
 Đóng QuietShare trước khi nâng cấp bằng bộ cài mới. Nâng cấp và gỡ app giữ lại lời nhắc đã tự lưu. Nút **EN / VI** trong bộ cài đổi ngôn ngữ.
@@ -37,6 +37,10 @@ Văn bản/code hỗ trợ UTF-8 hoặc UTF-16 có BOM, tối đa 5 MiB. App nh�
 3. Dùng **Mở hoặc thả file**, Ctrl+O hoặc kéo thả nhiều file. Ctrl+Tab / Ctrl+Shift+Tab chuyển tab; dấu **×**, chuột giữa hoặc Ctrl+W đóng tab file. **⋯** có lệnh đóng tab khác/mọi file, luôn giữ lời nhắc. Mở lại file đã thay đổi sẽ có lựa chọn **Tải lại** hoặc **Giữ bản đang xem**.
 4. Ctrl+Shift+O hoặc **Mở dự án** chọn thư mục. Mở rộng thư mục rồi nhấp đúp file, hoặc dùng phím mũi tên và Enter. **⋯ > Ẩn / Hiện cây thư mục** đổi giữa cây và nội dung. Cây bỏ qua junction/symlink và giới hạn thư mục lớn; mở thư mục con riêng nếu app yêu cầu.
 5. Dùng **− / +**, Ctrl+`−` / Ctrl+`+`, Ctrl rồi lăn chuột hoặc **Cài đặt** để đổi cỡ chữ/zoom. Ctrl+`0` đưa chữ/code về cỡ mặc định, ảnh/PDF về vừa khung. Kéo ảnh hoặc dùng phím mũi tên để di chuyển.
+
+Trong **Cài đặt**, nhập trực tiếp cỡ chữ rồi nhấn Enter: lời nhắc/văn bản 8-200 pt; code/ảnh/PDF 25-400% zoom. Thanh trượt hiển thị giá trị và phần màu ngay khi kéo. PDF áp dụng mức zoom khi thả chuột để tránh dựng lại trang nặng ở từng bước.
+
+Hộp chọn file/dự án là cửa sổ native được bảo vệ của QuietShare. Dùng **Ổ đĩa**, **Lên**, nhấp đúp để vào thư mục; Ctrl/Shift chọn nhiều file rồi bấm **Mở**, hoặc bấm **Chọn thư mục** cho dự án. Hộp chọn chỉ duyệt ổ cục bộ, bỏ qua reparse/junction và hiện tối đa 1.000 mục mỗi thư mục.
 6. Ctrl+F tìm trong lời nhắc, văn bản, code hoặc PDF có lớp chữ; Enter tìm tiếp, Shift+Enter tìm trước, Esc đóng tìm kiếm. Chọn chữ rồi Ctrl+C để sao chép. **⋯ > Bật/tắt xuống dòng** áp dụng cho code.
 7. PDF hiển thị một trang tại một thời điểm. **⋯ > Trang PDF trước / sau** hoặc Page Up / Page Down đổi trang; **⋯ > PDF vừa chiều ngang** đổi fit. Lăn chuột hoặc kéo vùng trống để di chuyển; kéo trên chữ để chọn và Ctrl+C để sao chép.
 8. F11 bật/tắt tập trung. Lăn chuột trên thanh tab hoặc dùng mũi tên hai đầu để xem tab bị tràn; rê chuột để xem tooltip. **Ghim** giữ cửa sổ trên cùng. Kéo thanh tiêu đề/cạnh để di chuyển/resize. Trong F11, kéo vùng trống thanh tab để di chuyển; menu ⋯ hoặc Alt+F4 đóng app. **EN / VI** trong Cài đặt hoặc **⋯** đổi ngôn ngữ.
@@ -49,6 +53,8 @@ Ctrl+Alt+Q gọi QuietShare lên khi bị che hoặc thu nhỏ, kể cả lúc k
 **Duplicate luôn khóa nội dung riêng.** Kiểm tra thất bại, thay đổi màn hình hoặc capture mất an toàn sẽ dừng chiếu và khóa nội dung. “Windows đã nhận” xác nhận trạng thái API; “người xem chưa được xác minh” vẫn cần kiểm tra từ phía người nhận trong đúng Zoom/Meet/Teams/OBS hoặc máy chiếu sẽ dùng. Dùng nội dung mẫu trước buổi chia sẻ. Phần mềm không ngăn máy ảnh bên ngoài chụp màn hình.
 
 ![Thanh tập trung / Focus strip](docs/quietshare-reading.png)
+
+![Cỡ chữ và thanh trượt / Text size and slider](docs/quietshare-settings.png)
 
 ## English
 
@@ -69,7 +75,7 @@ Text/code support UTF-8 or BOM-marked UTF-16, up to 5 MiB. Supported extensions 
 ### Install
 
 1. Use **Windows 10 version 2004 (build 19041) or later, or Windows 11, x64**, with working DWM and Windows Graphics Capture.
-2. Download [QuietShare 0.4.2](https://github.com/TDUmii/QuietShare/releases/tag/v0.4.2), extract the complete package and run `QuietShare-Setup.exe`. It installs for the current account without administrator rights.
+2. Download [QuietShare 0.4.3](https://github.com/TDUmii/QuietShare/releases/tag/v0.4.3), extract the complete package and run `QuietShare-Setup.exe`. It installs for the current account without administrator rights.
 3. For portable use, run `QuietShare.exe` in the extracted folder. Keep `Scintilla.dll`, `Lexilla.dll` and `pdfium.dll` beside it; copying only the EXE is insufficient.
 
 Close QuietShare before upgrading with a new installer. Upgrading/uninstalling preserve the autosaved script. Use the installer's **EN / VI** button to change its language.
@@ -81,6 +87,10 @@ Close QuietShare before upgrading with a new installer. Upgrading/uninstalling p
 3. Use **Open or drop a file**, Ctrl+O or multi-file drag/drop. Ctrl+Tab / Ctrl+Shift+Tab switches tabs; **×**, middle-click or Ctrl+W closes a file tab. **⋯** can close other/all file tabs while retaining the script. Reopening a changed file offers **Reload** or **Keep current preview**.
 4. Ctrl+Shift+O or **Open project** selects a folder. Expand folders, then double-click a file or navigate with arrows and Enter. **⋯ > Hide / show project tree** switches between tree and content. Junctions/symlinks are skipped and large folders are bounded; open a subfolder separately if requested.
 5. Use **− / +**, Ctrl+`−` / Ctrl+`+`, Ctrl plus the wheel, or **Settings** to adjust text size/zoom. Ctrl+`0` restores default script/code size and fits images/PDFs. Drag images or use arrows to pan.
+
+In **Settings**, type a size and press Enter: scripts/text support 8-200 pt; code/images/PDF use 25-400% zoom. The slider value and fill update while dragging. PDFs apply the zoom on release to avoid rendering expensive pages at every step.
+
+The file/project picker is a capture-protected QuietShare native window. Use **Drives**, **Up**, and double-click to enter a folder; Ctrl/Shift selects multiple files, then **Open**, or use **Select folder** for a project. It browses local drives, skips reparse/junction entries and displays up to 1,000 entries per folder.
 6. Ctrl+F opens find for scripts, text, code and PDFs with a text layer. Enter finds next, Shift+Enter previous, and Esc closes find. Select text and Ctrl+C to copy. **⋯ > Toggle line wrap** applies to code.
 7. The PDF reader displays one page at a time. **⋯ > Previous / Next PDF page** or Page Up / Page Down changes pages; **⋯ > Fit PDF width** changes fit. Scroll or drag a blank area to pan; drag over text to select it, then Ctrl+C to copy.
 8. F11 enters/exits focus. Scroll over the tab strip or use its end arrows for overflowing tabs; hover for tooltips. **Pin** keeps the window on top. Drag its title bar/edges to move/resize. In F11, drag blank tab-strip space to move; use ⋯ or Alt+F4 to close the app. Change language through **EN / VI** in Settings or **⋯**.

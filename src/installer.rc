@@ -3,15 +3,12 @@
 1 RT_MANIFEST "app.manifest"
 101 ICON "quietshare.ico"
 401 RCDATA "../assets/codicons/codicon.ttf"
-301 RCDATA "../dist/QuietShare.exe"
-302 RCDATA "../dist/Scintilla.dll"
-303 RCDATA "../dist/Lexilla.dll"
-304 RCDATA "../dist/pdfium.dll"
-305 RCDATA "../dist/THIRD-PARTY.md"
+// Payload resources 301-305 are added post-link with Windows UpdateResource.
+// Keeping multi-megabyte payloads out of windres avoids its large-COFF heap crash.
 
 1 VERSIONINFO
-FILEVERSION 0,4,2,0
-PRODUCTVERSION 0,4,2,0
+FILEVERSION 0,4,3,0
+PRODUCTVERSION 0,4,3,0
 FILEFLAGSMASK VS_FFI_FILEFLAGSMASK
 FILEFLAGS 0
 FILEOS VOS_NT_WINDOWS32
@@ -24,11 +21,11 @@ BEGIN
         BEGIN
             VALUE "CompanyName", "QuietShare\0"
             VALUE "FileDescription", "QuietShare private teleprompter installer\0"
-            VALUE "FileVersion", "0.4.2\0"
+            VALUE "FileVersion", "0.4.3\0"
             VALUE "InternalName", "QuietShare-Setup\0"
             VALUE "OriginalFilename", "QuietShare-Setup.exe\0"
             VALUE "ProductName", "QuietShare\0"
-            VALUE "ProductVersion", "0.4.2\0"
+            VALUE "ProductVersion", "0.4.3\0"
         END
     END
     BLOCK "VarFileInfo"

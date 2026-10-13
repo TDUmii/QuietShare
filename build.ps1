@@ -42,6 +42,37 @@ try {
         Compile-Resource 'installer.rc' '../build/installer.res'
         & $compiler '-std=c++17' '-O2' '-s' '-static' '-static-libgcc' '-static-libstdc++' '-municode' '-mwindows' '-DUNICODE' '-D_UNICODE' 'Installer.cpp' (Join-Path $buildDir 'installer.res') '-o' (Join-Path $distDir 'QuietShare-Setup.exe') '-lole32' '-lshell32' '-luuid' '-ladvapi32' '-lcomctl32' '-luser32' '-lgdi32' '-lversion'
         if ($LASTEXITCODE) { throw 'Installer compilation failed.' }
+        if (-not ('QuietShareBuildResources' -as [type])) {
+            Add-Type -TypeDefinition @'
+using System;
+using System.Runtime.InteropServices;
+public static class QuietShareBuildResources {
+    [DllImport("kernel32.dll", CharSet=CharSet.Unicode, SetLastError=true)]
+    public static extern IntPtr BeginUpdateResource(string path, bool deleteExisting);
+    [DllImport("kernel32.dll", SetLastError=true)]
+    public static extern bool UpdateResource(IntPtr update, IntPtr type, IntPtr name, ushort language, byte[] bytes, uint size);
+    [DllImport("kernel32.dll", SetLastError=true)]
+    public static extern bool EndUpdateResource(IntPtr update, bool discard);
+}
+'@
+        }
+        $setupOutput = Join-Path $distDir 'QuietShare-Setup.exe'
+        $resourceUpdate = [QuietShareBuildResources]::BeginUpdateResource($setupOutput,$false)
+        if ($resourceUpdate -eq [IntPtr]::Zero) { throw 'Cannot open installer resource update.' }
+        $resourceCommitted = $false
+        try {
+            $payloadNames = @('QuietShare.exe','Scintilla.dll','Lexilla.dll','pdfium.dll','THIRD-PARTY.md')
+            for ($index = 0; $index -lt $payloadNames.Count; $index++) {
+                $payloadBytes = [IO.File]::ReadAllBytes((Join-Path $distDir $payloadNames[$index]))
+                if (-not [QuietShareBuildResources]::UpdateResource($resourceUpdate,[IntPtr]10,[IntPtr](301+$index),1033,$payloadBytes,$payloadBytes.Length)) {
+                    throw "Cannot embed installer payload: $($payloadNames[$index])"
+                }
+            }
+            $resourceCommitted = [QuietShareBuildResources]::EndUpdateResource($resourceUpdate,$false)
+            if (-not $resourceCommitted) { throw 'Cannot commit installer payload resources.' }
+        } finally {
+            if (-not $resourceCommitted) { [QuietShareBuildResources]::EndUpdateResource($resourceUpdate,$true) | Out-Null }
+        }
     }
 } finally { Pop-Location; $env:PATH = $previousPath }
 Get-ChildItem -LiteralPath $distDir -Filter '*.exe' | Select-Object Name,Length

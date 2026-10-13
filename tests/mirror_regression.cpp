@@ -1,6 +1,7 @@
 #include "../src/Mirror.h"
 #include "../src/Privacy.h"
 #include "../src/ToolMenu.h"
+#include "../src/LocalPicker.h"
 #include <windows.h>
 #include <fstream>
 #include <iostream>
@@ -12,6 +13,7 @@ namespace
 int passed=0,failed=0;
 MirrorController *menuController=nullptr;
 bool menuStayedVerified=false,menuProtected=false;
+bool menuIdleDoesNotRepaint=false;
 struct SentCancel
 {
     HWND window=nullptr;
@@ -56,6 +58,9 @@ LRESULT CALLBACK WindowProc(HWND hwnd,UINT message,WPARAM wp,LPARAM lp)
         if(popup && menuController) {
             DWORD affinity=0;menuProtected=GetWindowDisplayAffinity(popup,&affinity)&&affinity==0x11;
             menuController->Tick();menuStayedVerified=menuController->IsVerified();
+            UpdateWindow(popup);
+            for(int i=0;i<100;++i)SendMessageW(popup,WM_MOUSEMOVE,0,MAKELPARAM(20,20));
+            menuIdleDoesNotRepaint=!GetUpdateRect(popup,nullptr,FALSE);
             PostMessageW(popup,WM_KEYDOWN,VK_ESCAPE,0);
         }
         return 0;
@@ -92,6 +97,10 @@ LRESULT CALLBACK WindowProc(HWND hwnd,UINT message,WPARAM wp,LPARAM lp)
 }
 int wmain(int argc,wchar_t **argv)
 {
+    Check(LocalParentFolder(L"C:\\code")==L"C:\\","picker Up preserves a drive root");
+    Check(LocalParentFolder(L"C:\\note.py")==L"C:\\","file at drive root reopens the correct picker folder");
+    Check(LocalParentFolder(L"C:\\code\\project\\")==L"C:\\code","picker Up handles nested trailing separators");
+    Check(LocalParentFolder(L"C:\\").empty(),"picker Up from root returns to drive list");
     std::cout.setf(std::ios::unitbuf);
     SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
     const COLORREF a=RGB(34,92,182),b=RGB(211,147,37);
@@ -159,6 +168,7 @@ int wmain(int argc,wchar_t **argv)
             KillTimer(privateWindow,91);menuController=nullptr;
             Check(menuProtected,"tools popup owns verified capture exclusion before visibility");
             Check(menuStayedVerified,"real WGC gate stays verified while tools popup is open");
+            Check(menuIdleDoesNotRepaint,"100 mouse moves within one menu row schedule no repaints");
             controller.Tick();
             Check(menuResult==0&&controller.IsVerified()&&!FindWindowW(L"QuietShareToolMenu",nullptr),
                   "escape closes tools popup without invalidating capture");

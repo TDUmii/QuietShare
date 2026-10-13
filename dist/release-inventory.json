@@ -1,14 +1,14 @@
 {
-  "version": "0.4.2",
+  "version": "0.4.3",
   "platform": "win-x64",
   "passed": true,
   "checks": {
     "QuietShare.exe.x64PE": true,
-    "QuietShare.exe.fileVersion0.4.2": true,
-    "QuietShare.exe.productVersion0.4.2": true,
+    "QuietShare.exe.fileVersion0.4.3": true,
+    "QuietShare.exe.productVersion0.4.3": true,
     "QuietShare-Setup.exe.x64PE": true,
-    "QuietShare-Setup.exe.fileVersion0.4.2": true,
-    "QuietShare-Setup.exe.productVersion0.4.2": true,
+    "QuietShare-Setup.exe.fileVersion0.4.3": true,
+    "QuietShare-Setup.exe.productVersion0.4.3": true,
     "installerPayloadMatchesPortableExe": true,
     "Scintilla.dll.x64PE": true,
     "Scintilla.dll.pinnedHashAndSize": true,
@@ -32,26 +32,25 @@
   },
   "files": {
     "QuietShare.exe": {
-      "bytes": 669696,
-      "sha256": "a244154a0701f7506bf6ca2287c6c93ae4c22ed2d91d0426d5b25703299b4a1e",
+      "bytes": 699392,
+      "sha256": "878634b4f8e67285961232a8c34554a83c9c6b0eb5164b9aaf97ad1fe309dac5",
       "x64PE": true,
       "machine": "0x8664",
       "optionalHeaderMagic": "0x20b",
       "fileVersion": [
         0,
         4,
-        2,
+        3,
         0
       ],
       "productVersion": [
         0,
         4,
-        2,
+        3,
         0
       ],
       "imports": [
         "COMCTL32.dll",
-        "comdlg32.dll",
         "CRYPT32.dll",
         "d3d11.dll",
         "dwmapi.dll",
@@ -69,21 +68,21 @@
       ]
     },
     "QuietShare-Setup.exe": {
-      "bytes": 12098560,
-      "sha256": "ef1f13900bbdff2fcb534de1188a288824bb78c6fc735775b0d2b656f470de42",
+      "bytes": 12128256,
+      "sha256": "61a324ea4c352a567746f9cd2b4f444530174b93c9a6cdb9bfd6b1466b57071c",
       "x64PE": true,
       "machine": "0x8664",
       "optionalHeaderMagic": "0x20b",
       "fileVersion": [
         0,
         4,
-        2,
+        3,
         0
       ],
       "productVersion": [
         0,
         4,
-        2,
+        3,
         0
       ],
       "imports": [

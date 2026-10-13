@@ -1,4 +1,4 @@
-# QuietShare 0.4.2 - Third-party notices
+# QuietShare 0.4.3 - Third-party notices
 
 ## Microsoft Codicons 0.0.39
 
