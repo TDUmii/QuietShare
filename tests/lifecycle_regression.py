@@ -13,6 +13,7 @@ import hashlib
 import json
 import os
 from pathlib import Path
+import struct
 import subprocess
 import sys
 import time
@@ -41,6 +42,16 @@ USER32.SendMessageTimeoutW.argtypes = [wintypes.HWND, wintypes.UINT, wintypes.WP
 USER32.SendMessageTimeoutW.restype = wintypes.LPARAM
 USER32.ShowWindow.argtypes = [wintypes.HWND, ctypes.c_int]
 USER32.ShowWindow.restype = wintypes.BOOL
+USER32.GetWindowLongW.argtypes = [wintypes.HWND, ctypes.c_int]
+USER32.GetWindowLongW.restype = wintypes.LONG
+KERNEL32.GlobalAlloc.argtypes = [wintypes.UINT, ctypes.c_size_t]
+KERNEL32.GlobalAlloc.restype = wintypes.HANDLE
+KERNEL32.GlobalLock.argtypes = [wintypes.HANDLE]
+KERNEL32.GlobalLock.restype = ctypes.c_void_p
+KERNEL32.GlobalUnlock.argtypes = [wintypes.HANDLE]
+KERNEL32.GlobalUnlock.restype = wintypes.BOOL
+KERNEL32.GlobalFree.argtypes = [wintypes.HANDLE]
+KERNEL32.GlobalFree.restype = wintypes.HANDLE
 KERNEL32.LocalFree.argtypes = [wintypes.HANDLE]
 KERNEL32.LocalFree.restype = wintypes.HANDLE
 
@@ -101,6 +112,28 @@ def control_text(control: int) -> str:
 def set_control_text(control: int, text: str) -> bool:
     buffer = ctypes.create_unicode_buffer(text)
     return bool(send(control, 0x000C, 0, ctypes.addressof(buffer)))
+
+
+def drop_file(window: int, path: Path) -> None:
+    # Build only our synthetic HDROP. User32's internal WM_COPYGLOBALDATA copies
+    # the global memory into the receiving process; ordinary HDROP is process-local.
+    # This tests WM_DROPFILES without clipboard, Explorer, keyboard or pointer input.
+    payload = struct.pack("<IiiII", 20, 0, 0, 0, 1) + (str(path) + "\0\0").encode("utf-16-le")
+    memory = KERNEL32.GlobalAlloc(0x0042, len(payload))
+    if not memory:
+        raise ctypes.WinError(ctypes.get_last_error())
+    try:
+        address = KERNEL32.GlobalLock(memory)
+        if not address:
+            raise ctypes.WinError(ctypes.get_last_error())
+        ctypes.memmove(address, payload, len(payload))
+        KERNEL32.GlobalUnlock(memory)
+        remote_drop = send(window, 0x0049, len(payload), memory)
+        if not remote_drop:
+            raise RuntimeError("Windows could not marshal test HDROP into its owned process")
+        send(window, 0x0233, remote_drop, 0)
+    finally:
+        KERNEL32.GlobalFree(memory)
 
 
 def decrypt(path: Path) -> str:
@@ -232,8 +265,43 @@ def main() -> int:
         check("reopenRestoresExactText", bool(reopened_editor) and control_text(reopened_editor) == expected_text,
               {"pid": reopened.pid, "characters": len(expected_text)})
         check("reopenKeepsPlainTextMode", bool(send(reopened_editor, 0x0400 + 90) & 1), "TM_PLAINTEXT remains set")
+        preview_text = "// Synthetic source preview - không phải lời nhắc đã lưu.\r\n\tint main() {\r\n    return 17;\r\n}\r\n"
+        preview_path = folder / "source-preview.cpp"
+        preview_path.write_bytes(preview_text.encode("utf-8"))
+        saved_before_preview = notes.read_bytes()
+        drop_file(reopened_window, preview_path)
+        check("sourceDropShowsExactReadonlyPreview",
+              line_endings(control_text(reopened_editor)) == line_endings(preview_text)
+              and bool(USER32.GetWindowLongW(reopened_editor, -16) & 0x0800),
+              {"fixture": "source-preview.cpp", "readOnlyStyle": True,
+               "comparison": "only CR/CRLF normalization allowed"})
+        time.sleep(1.3)
+        check("sourcePreviewDoesNotReplaceSavedDraft",
+              decrypt(notes) == expected_text and notes.read_bytes() == saved_before_preview,
+              {"storedCharacters": len(expected_text), "encryptedBytesUnchanged": True})
+        send(reopened_window, 0x0111, 100)
+        check("previewEditReturnsExactDraft",
+              control_text(reopened_editor) == expected_text
+              and not (USER32.GetWindowLongW(reopened_editor, -16) & 0x0800),
+              "MODE command follows Ctrl+Enter logic and restores editable saved script")
+        # Close while the file is showing, so restart also proves separation.
+        drop_file(reopened_window, preview_path)
+        check("sourcePreviewReopenedBeforeClose",
+              line_endings(control_text(reopened_editor)) == line_endings(preview_text),
+              "synthetic source remains a local readonly preview")
         close_owned(reopened)
         check("reopenedClosedNormally", reopened.returncode == 0, {"exitCode": reopened.returncode})
+        check("previewCloseKeepsExactSavedDraft", decrypt(notes) == expected_text,
+              "closing during readonly source preview retains the saved script")
+        after_preview = launch("after-preview-restart")
+        after_preview_window = wait_window(after_preview)
+        after_preview_editor = USER32.GetDlgItem(after_preview_window, 110)
+        check("previewRestartRestoresExactDraft",
+              bool(after_preview_editor) and control_text(after_preview_editor) == expected_text,
+              {"pid": after_preview.pid, "characters": len(expected_text)})
+        close_owned(after_preview)
+        check("afterPreviewClosedNormally", after_preview.returncode == 0,
+              {"exitCode": after_preview.returncode})
         check("testedBinaryUnchanged", hashlib.sha256(EXE.read_bytes()).hexdigest() == executable_hash,
               executable_hash)
     except Exception as error:
@@ -259,10 +327,10 @@ def main() -> int:
 
     failed = [item["check"] for item in checks if not item["passed"]]
     report = {
-        "applicationVersion": "0.2.0",
+        "applicationVersion": "0.3.0",
         "passed": not failed,
         "method": "Production EXE with isolated LOCALAPPDATA; PID-bound Win32 control messages and DPAPI decrypt",
-        "scope": "Unreadable-file recovery, Unicode autosave, native plaintext mode, single instance and restart restoration",
+        "scope": "Unreadable-file recovery, Unicode autosave, native plaintext mode, single instance, readonly source preview separation and restart restoration",
         "isolation": {"localAppData": str(local_data), "applicationFlags": [], "personalClipboardUsed": False,
                       "installerRun": False, "desktopCaptured": False, "existingUserWindowTouched": False},
         "exeSha256": executable_hash,
@@ -272,6 +340,7 @@ def main() -> int:
         "failedChecks": failed,
         "checks": checks,
         "limits": ["Synthetic document only; no personal document was opened.",
+                   "Synthetic WM_DROPFILES uses Windows internal WM_COPYGLOBALDATA; physical drag-and-drop input is not exercised.",
                    "This regression does not test meeting capture, display reconnect, or installation."],
     }
     target = ROOT / "artifacts" / "lifecycle-check.json"

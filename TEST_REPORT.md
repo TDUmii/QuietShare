@@ -1,40 +1,51 @@
-# Kiểm thử QuietShare 0.2.0
+# Kiểm thử QuietShare 0.3.0
 
-Ngày kiểm tra: 13/10/2026, theo múi giờ Asia/Saigon. Bản này chỉ có nội dung nhắc chữ.
+Ngày kiểm tra: 13/10/2026, múi giờ Asia/Saigon. Bản native hỗ trợ lời nhắc, code và ảnh cục bộ.
 
-## Kết quả của EXE được đóng gói
+## Kết quả bản phát hành
 
-**141 kiểm tra cục bộ đạt, 0 thất bại**, trên Windows 11 x64 build 26200. Lệnh tái hiện: `./tests/run-local.ps1` trong PowerShell 7. Báo cáo: `artifacts/local-qa-report.json`.
+Tất cả nhóm kiểm tra dưới đây đạt trên Windows 11 x64 build 26200. Lệnh tái hiện: `./tests/run-local.ps1` trong PowerShell 7.
 
-**22 kiểm tra vòng đời production EXE đạt**, gồm bảo toàn bản lưu hỏng, editor thuần text, autosave Unicode, mở lần hai và khôi phục sau khi đóng. Báo cáo riêng: `artifacts/lifecycle-check.json`; script `tests/lifecycle_regression.py` dùng `LOCALAPPDATA` tách biệt và chỉ thao tác cửa sổ theo PID do test mở.
+| Nhóm | Kết quả | Báo cáo cục bộ |
+|---|---|---|
+| Giao diện, thao tác, capture mẫu, lưu và bộ cài | 179 đạt, 0 thất bại, 0 unavailable | `artifacts/local-qa-report.json` |
+| Bộ đọc nội dung và render ảnh | 60 đạt, 0 thất bại | `artifacts/qa-content/content-regression.json` |
+| Vòng đời production EXE | 29 đạt, 0 thất bại | `artifacts/lifecycle-check.json` |
+| Scrollbar native trên EXE thật | 17 đạt, 0 thất bại | `artifacts/scrollbar-check.json` |
+| PE, version resource và payload bộ cài | 7 đạt, 0 thất bại | `artifacts/release-inventory.json` |
 
 | Hạng mục | Bằng chứng và phạm vi |
 |---|---|
-| Nhập và đọc | RichEdit thuần text, Unicode tiếng Việt; chuyển Đọc sang chỉ đọc rồi trở lại Sửa lời; nội dung giữ nguyên |
-| Cỡ chữ | Thao tác A+ đổi 24 thành 28 pt; kiểm tra định dạng thực tế của control và ảnh render |
-| Cuộn và dừng | Timer thật làm vị trí cuộn tăng từ 0 lên 25 pixel trong lượt QA; sau Dừng, vị trí giữ nguyên |
-| Che nhanh | Cùng handler F8 ẩn control, dừng cuộn và vẽ màn che; mở lại không đổi nội dung |
-| Cửa sổ nhỏ | Cửa sổ 460 x 360 pixel ở DPI hiện tại; các nút và vùng nội dung nằm trong khung; đã xem ảnh render |
-| Polish và resize | 90 tổ hợp kích thước/mode/ngôn ngữ/scale: 430, 460, 640, 840, 1080 px; Sửa/Đọc/Che; VI/EN; scale logic 96/120/144 DPI. Không có control chồng nhau hoặc đè editor; vùng editor còn ít nhất 80 px logic. Scale DPI được mô phỏng, không phải chuyển màn hình vật lý |
-| Trạng thái UI | Ảnh hover và pressed khác ảnh mặc định; placeholder Sửa/Đọc chỉ được vẽ khi document trống và không ghi vào nội dung; scrollbar native vẫn cuộn qua WM_VSCROLL; ảnh English được repaint đồng bộ trước khi chụp |
-| Tự lưu | EN_CHANGE thật kích hoạt lưu sau khoảng 0,9 giây; DPAPI đọc lại đúng tiếng Việt; marker không xuất hiện dạng plaintext trong tệp |
-| Giữ nội dung | Tệp hỏng được sao lưu nguyên từng byte trước khi cho nhập lời mới; mở instance thứ hai không tạo cửa sổ sửa cùng tài liệu; đóng/mở production EXE khôi phục đúng lời đã lưu |
-| Affinity | Windows chấp nhận và đọc lại `0x11`, Win32 error 0 |
-| Capture cục bộ | Ảnh GDI BitBlt trong vùng cửa sổ chỉ thấy nền tím mẫu khi bật affinity; ảnh giao diện dùng nội dung mẫu và tạm tắt affinity để kiểm tra render |
-| Bộ cài | Self-test phiên bản, PE x64, payload và đường dẫn theo tài khoản đạt; giao diện cài/gỡ cùng palette dark và icon sản phẩm; chụp QA không chạy thao tác cài/gỡ |
-| Khớp bản phát hành | 7 kiểm tra resource/phiên bản/PE đạt; EXE nhúng ở resource301 của bộ cài khớp từng byte với EXE chạy trực tiếp |
-| Phụ thuộc | EXE ứng dụng chỉ import DLL hệ thống Windows; không có .NET, WebView2 hoặc DLL runtime GCC riêng |
-| Chữ ký | Kiểm tra Authenticode thực tế: ứng dụng và bộ cài đều `NotSigned` |
+| Chuẩn bị và Tùy chỉnh | Điều hướng qua nút thật; Home ẩn editor; slider thay cỡ chữ thực tế của control; mở file qua handler `WM_DROPFILES` |
+| Focus | Sidebar và toolbar được ẩn; nút F11 mở lại điều khiển; ảnh text và ảnh riêng xác nhận nút không bị canvas vẽ đè |
+| Code | Preview chỉ đọc dùng Consolas; giữ nguyên thụt dòng; file không được thực thi; quay về lời nhắc phục hồi đúng draft |
+| Ảnh | WIC đọc PNG/JPEG/BMP/GIF khung đầu; kiểm tra alpha, tỷ lệ, orientation, zoom, pan và clip đúng viewport; màu của ảnh fixture được xác nhận trên capture tích hợp |
+| Pan regression | 5 kiểm tra zoom 200% bắt được cả 5 lỗi khi chạy với bản mô phỏng cách clip cũ; module sản xuất đạt toàn bộ |
+| Lỗi mở file | File không tồn tại, encoding hỏng, binary, định dạng không hỗ trợ, vượt giới hạn và đường dẫn không cục bộ không thay nội dung đang mở |
+| Giữ lời nhắc khi xem file | Production EXE mở preview code qua HDROP tổng hợp; encrypted draft không đổi sau autosave; MODE100 phục hồi bản sửa; đóng app khi đang preview rồi mở lại khôi phục đúng draft |
+| Typography và resize | 150 tổ hợp: 5 kích thước 430/460/640/840/1080 px, 5 mode Sửa/Đọc/Che/Home/Settings, VI/EN, scale logic 96/120/144 DPI. Control nằm trong khung, không chồng nhau hoặc đè vùng editor thông thường; editor còn tối thiểu 80 px logic |
+| Visual review | Đã xem render native Home/Settings/Focus/code/ảnh, cửa sổ tối thiểu, empty, hover, pressed, masked, tiếng Anh và scale logic 150%; reviewer độc lập không thấy visual blocker |
+| Scrollbar | Kiểm tra track tại idle, trên 6 giây, hover, rời chuột, theme change, Page Down, phím điều hướng, wheel, kéo thumb và resize: giữ tối; nội dung thực sự cuộn |
+| Cuộn và dừng | Timer thật làm vị trí cuộn tăng từ 0 lên 25 pixel trong lượt QA; dừng giữ nguyên vị trí |
+| Che nhanh | Handler F8 ẩn editor/canvas, dừng cuộn; mở lại giữ nội dung. Mở file bị chặn khi nội dung đang khóa |
+| Tự lưu | EN_CHANGE kích hoạt lưu sau khoảng 0,9 giây; DPAPI đọc lại đúng Unicode; marker không xuất hiện dạng plaintext |
+| Bản lưu hỏng và nhiều instance | Tệp hỏng được giữ nguyên từng byte trong bản dự phòng; instance thứ hai không tạo editor cạnh tranh cùng tài liệu |
+| Affinity và capture | Windows chấp nhận và đọc lại `0x11`, Win32 error 0; GDI BitBlt chỉ thấy nền tím mẫu khi bật affinity; render giao diện tạm tắt affinity và chỉ dùng nội dung QA |
+| Bộ cài | Self-test version, PE x64, payload và đường dẫn theo tài khoản đạt; UI cài/gỡ cùng palette dark; chụp QA không chạy thao tác cài/gỡ |
+| Release parity | Resource301 trong Setup khớp từng byte với portable EXE; ZIP được đọc lại để so từng file với payload đã kiểm tra |
+| Phụ thuộc và chữ ký | Chỉ import DLL hệ thống Windows, runtime GCC liên kết tĩnh; ứng dụng và bộ cài đều `NotSigned` theo Authenticode |
 
-Các lượt QA dùng thư mục dữ liệu riêng. Không mở tài khoản, cài ứng dụng vào máy, hoặc chụp toàn bộ desktop. Đã xem trực tiếp ảnh Sửa/Đọc, cửa sổ tối thiểu, màn che, placeholder, English, scale logic, nền capture và cài/gỡ.
+QA dùng thư mục dữ liệu riêng và file tổng hợp. Không mở tài khoản, dùng clipboard cá nhân, cài app vào máy hoặc chụp toàn bộ desktop. Báo cáo thô, dữ liệu tự lưu và fixture nằm trong `artifacts/`, được loại khỏi Git và ZIP.
 
-## Giới hạn
+## Giới hạn kiểm tra
 
-- Capture đạt ở đường GDI `BitBlt` với nền mẫu tại các thời điểm chụp. Chưa kiểm tra đầu nhận Zoom, Teams, Meet hoặc OBS; `remoteReceiverVerified` vẫn là `null`.
-- Chưa thử máy chiếu thật, rút/cắm màn hình hoặc đo khung hình chuyển tiếp. Duplicate vật lý phát cùng hình ảnh; cần Extend để có màn hình riêng.
-- Chưa kiểm tra Windows 10, ARM64/x86, GPU khác, nhiều DPI hoặc cài/gỡ trên máy sạch. Bản phát hành hiện là x64.
-- Native C++ Release đã bỏ symbol; chưa đo sức chống dịch ngược và không cam kết chống dịch ngược tuyệt đối.
+- Capture đạt ở đường GDI `BitBlt` với nền mẫu tại thời điểm chụp. Chưa kiểm tra đầu nhận Zoom, Teams, Meet hoặc OBS; `remoteReceiverVerified` vẫn là `null`.
+- Chưa thử máy chiếu, rút/cắm màn hình hoặc đo khung hình chuyển tiếp. Duplicate vật lý phát cùng hình ảnh; cần Extend để có màn hình riêng.
+- Scale DPI trong matrix được mô phỏng bằng scale logic, không phải chuyển monitor hoặc đổi DPI hệ điều hành thực.
+- Chưa kiểm tra Windows 10, ARM64/x86, GPU khác hoặc cài/gỡ trên máy sạch. Bản phát hành hiện là x64.
+- Drop production dùng HDROP tổng hợp theo PID do test mở; chưa kiểm tra kéo file bằng chuột từ Explorer. Native file picker và chuyển topology khi picker đang mở chưa được kiểm thử tương tác tự động.
+- Native Release đã bỏ symbol; chưa đo sức chống dịch ngược và không cam kết chống dịch ngược tuyệt đối.
 
-Trước buổi chia sẻ, dùng lời mẫu và xem từ phía người nhận với đúng phần mềm/cấu hình sẽ sử dụng. Khi dùng máy chiếu, chuyển Extend trước khi mở lời riêng.
+Trước buổi chia sẻ, dùng nội dung mẫu và xem từ phía người nhận trong đúng phần mềm/cấu hình sẽ dùng. Khi dùng máy chiếu, chuyển Extend trước khi mở nội dung riêng.
 
-Kích thước và SHA-256 cuối được lưu trong `release-inventory.json` của gói ZIP.
+Kích thước, SHA-256 và trạng thái chữ ký của EXE cuối được lưu trong `release-inventory.json` của gói ZIP.

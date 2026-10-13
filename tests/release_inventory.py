@@ -1,4 +1,4 @@
-"""Verify QuietShare 0.2.0 Windows EXE metadata/resources without running apps."""
+"""Verify QuietShare 0.3.0 Windows EXE metadata/resources without running apps."""
 
 from pathlib import Path
 import ctypes
@@ -10,7 +10,7 @@ import sys
 
 
 ROOT = Path(__file__).resolve().parents[1]
-EXPECTED_VERSION = (0, 2, 0, 0)
+EXPECTED_VERSION = (0, 3, 0, 0)
 KERNEL = ctypes.WinDLL("kernel32", use_last_error=True)
 VERSION = ctypes.WinDLL("version", use_last_error=True)
 KERNEL.LoadLibraryExW.argtypes = [wintypes.LPCWSTR, wintypes.HANDLE, wintypes.DWORD]
@@ -105,8 +105,8 @@ def main() -> int:
             files[name] = {"bytes": len(data), "sha256": hashlib.sha256(data).hexdigest(),
                            **metadata, **versions}
             checks[name + ".x64PE"] = metadata["x64PE"]
-            checks[name + ".fileVersion0.2.0"] = versions["fileVersion"] == EXPECTED_VERSION
-            checks[name + ".productVersion0.2.0"] = versions["productVersion"] == EXPECTED_VERSION
+            checks[name + ".fileVersion0.3.0"] = versions["fileVersion"] == EXPECTED_VERSION
+            checks[name + ".productVersion0.3.0"] = versions["productVersion"] == EXPECTED_VERSION
             if path == app_path:
                 app = data
         except (OSError, ValueError, struct.error) as error:
@@ -118,14 +118,14 @@ def main() -> int:
         checks["installerPayloadMatchesPortableExe"] = False
         errors["installerPayload"] = str(error)
     report = {
-        "version": "0.2.0",
+        "version": "0.3.0",
         "platform": "win-x64",
         "passed": bool(checks) and all(checks.values()),
         "checks": checks,
         "files": files,
         "errors": errors,
         "authenticode": None,
-        "runtime": "Native text teleprompter using Windows system libraries",
+        "runtime": "Native script, code and image viewer using Windows system libraries",
         "method": "PE header parsing, Windows VERSIONINFO reading and setup RCDATA 301 byte comparison; no EXE execution",
     }
     target = ROOT / "artifacts" / "release-inventory.json"

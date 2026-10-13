@@ -1,4 +1,4 @@
-"""Verify QuietShare 0.2.0 teleprompter GDI captures and export review PNGs.
+"""Verify QuietShare 0.3.0 teleprompter GDI captures and export review PNGs.
 
 This checks one local BitBlt capture path. It cannot establish what Zoom,
 Teams, OBS, another capture API, a remote viewer, or a projector receives.
@@ -25,7 +25,8 @@ DARK_SURFACES = ((24, 27, 30), (11, 13, 15), (17, 19, 21), (34, 38, 42), (44, 49
 REQUIRED_CAPTURES = {
     "qa-visible": ("editing.bmp", "visible.bmp", "large-text.bmp", "scrolling.bmp", "masked.bmp", "compact.bmp", "english.bmp",
                    "minimum-editing.bmp", "minimum-masked.bmp", "wide.bmp", "hover.bmp", "pressed.bmp", "english-editing.bmp", "empty.bmp", "empty-reading.bmp",
-                   "dpi-125.bmp", "dpi-150.bmp"),
+                   "dpi-125.bmp", "dpi-150.bmp", "home.bmp", "settings.bmp", "focus.bmp", "code-file.bmp",
+                   "image-file.bmp", "image-focus.bmp", "file-error.bmp"),
     "qa-excluded": ("excluded.bmp",),
 }
 
@@ -162,7 +163,7 @@ def main() -> int:
             check(f"{folder}.diagnosticsReadable", False, str(error))
             diagnostic = {}
         expected = {
-            "applicationVersion": "0.2.0",
+            "applicationVersion": "0.3.0",
             "topologyKnown": True,
             "displayCloned": False,
             "privacyApplied": True,
@@ -179,6 +180,10 @@ def main() -> int:
                 expected[field] = True
             expected["languageToggleApplied"] = True
             for field in ("polishLayoutMatrixFits", "hoverTrackingApplied", "emptyScriptStayedEmpty", "nativeScrollbarStillScrolls"):
+                expected[field] = True
+            for field in ("focusHidesChrome", "homeControlsWork", "settingsControlsWork", "codeFilePreview", "imageFilePreview", "filePreviewPreservesScript"):
+                expected[field] = True
+            for field in ("dropFileHandlerWorks", "imageMaskHidesCanvas", "imageZoomAndPanWork", "focusRestoreButtonWorks"):
                 expected[field] = True
         for field, value in expected.items():
             actual = diagnostic.get(field)
@@ -214,13 +219,23 @@ def main() -> int:
                 else:
                     check(f"{key}.windowPixelsVisible", metrics["purpleFraction"] < 0.02,
                           {"maximumExclusive": 0.02, "actual": metrics["purpleFraction"]})
-                    check(f"{key}.darkInterfacePresent", metrics["darkCardFraction"] >= 0.40,
-                          {"minimum": 0.40, "actual": metrics["darkCardFraction"]})
-                    check(f"{key}.textLikePixelsPresent",
-                          metrics["brightPixelFraction"] >= 0.001 and metrics["distinctColorsAtLeast"] >= 40,
-                          {"brightPixelFraction": metrics["brightPixelFraction"],
-                           "distinctColorsAtLeast": metrics["distinctColorsAtLeast"],
-                           "interpretation": "pixel evidence of rendered text; no OCR or semantic assertion"})
+                    if file in ("image-file.bmp", "image-focus.bmp"):
+                        # The known 4x2 BMP has a red top half and a blue bottom half.
+                        # A focused image can occupy most of the window with no UI text.
+                        for label, fraction, expected_color in (("redTop", 0.40, (255, 0, 0)),
+                                                               ("blueBottom", 0.60, (0, 0, 255))):
+                            index = (int(bitmap.height * fraction) * bitmap.width + bitmap.width // 2) * 3
+                            actual_color = tuple(bitmap.rgb[index:index + 3])
+                            check(f"{key}.fixtureImage.{label}", near(actual_color, expected_color, 5),
+                                  {"expected": expected_color, "actual": actual_color})
+                    else:
+                        check(f"{key}.darkInterfacePresent", metrics["darkCardFraction"] >= 0.40,
+                              {"minimum": 0.40, "actual": metrics["darkCardFraction"]})
+                        check(f"{key}.textLikePixelsPresent",
+                              metrics["brightPixelFraction"] >= 0.001 and metrics["distinctColorsAtLeast"] >= 40,
+                              {"brightPixelFraction": metrics["brightPixelFraction"],
+                               "distinctColorsAtLeast": metrics["distinctColorsAtLeast"],
+                               "interpretation": "pixel evidence of rendered text; no OCR or semantic assertion"})
                     if file in ("editing.bmp", "visible.bmp", "large-text.bmp", "scrolling.bmp", "compact.bmp", "english.bmp"):
                         check(f"{key}.contentPanelHasTextLikePixels", metrics["panelBrightPixelFraction"] >= 0.0008,
                               {"minimum": 0.0008, "actual": metrics["panelBrightPixelFraction"]})
@@ -280,7 +295,7 @@ def main() -> int:
     installer_report = artifacts / "installer-self-test.json"
     try:
         setup = json.loads(installer_report.read_text(encoding="utf-8-sig"))
-        for field, expected in {"selfTestPassed": True, "version": "0.2.0",
+        for field, expected in {"selfTestPassed": True, "version": "0.3.0",
                                 "versionResourceVerified": True, "payloadResourceId": 301,
                                 "payloadPortableExecutable": True, "fixedInstallPathVerified": True,
                                 "installationWrites": False, "error": ""}.items():
@@ -328,7 +343,7 @@ def main() -> int:
     report = {
         "passed": not failed,
         "method": "GDI BitBlt with SRCCOPY | CAPTUREBLT; synthetic purple underlay and exact window crops",
-        "applicationVersion": "0.2.0",
+        "applicationVersion": "0.3.0",
         "scope": "Local native text teleprompter editing, reading, font controls, timer scroll, pause, mask and compact layout",
         "limits": [
             "Passing checks proves only these local GDI captures at the sampled instants.",

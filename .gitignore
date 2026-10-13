@@ -2,6 +2,8 @@
 build/
 vendor/
 artifacts/
+__pycache__/
+*.pyc
 
 # Keep only the release payload and release notes in the repository
 dist/*
@@ -14,6 +16,7 @@ dist/*
 !dist/release-inventory.json
 !dist/docs/
 !dist/docs/quietshare-reading.png
+!dist/docs/quietshare-home.png
 
 # Superseded browser implementation and SDK bootstrap from v0.1
 src/Browser.cpp

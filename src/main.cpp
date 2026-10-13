@@ -6,15 +6,21 @@
 #endif
 #define NOMINMAX
 #include <windows.h>
+#include <windowsx.h>
 #include "Privacy.h"
+#include "Content.h"
 #include <algorithm>
 #include <commctrl.h>
+#include <commdlg.h>
 #include <dwmapi.h>
 #include <richedit.h>
 #include <shellapi.h>
+#include <shlobj.h>
 #include <string>
 #include <vector>
+#include <utility>
 #include <wincrypt.h>
+#include <uxtheme.h>
 
 using namespace quietshare;
 namespace
@@ -27,11 +33,13 @@ constexpr COLORREF BG = RGB(11, 13, 15), SIDEBAR = RGB(17, 19, 21), CARD = RGB(2
                    DIVIDER = RGB(48, 52, 58), GREEN = RGB(110, 231, 160), AMBER = RGB(245, 184, 82),
                    DISABLED = RGB(105, 112, 121);
 constexpr int MODE = 100, PLAY = 101, SMALLER = 102, LARGER = 103, SPEED = 104, MASK = 105, TOPMOST = 106,
-              LANGUAGE = 107, RESET_ZOOM = 108, EDITOR = 110, NAV_SCRIPT = 120, NAV_READ = 121;
+              LANGUAGE = 107, RESET_ZOOM = 108, EDITOR = 110, NAV_SCRIPT = 120, NAV_READ = 121,
+              NAV_HOME = 122, NAV_SETTINGS = 123, OPEN_FILE = 124, FOCUS = 125, OPEN_DROP = 126,
+              HOME_SCRIPT = 127, HOME_SETTINGS = 128, VIEW_FILE = 129, FONT_SLIDER = 130;
 constexpr int NORMAL_SIDEBAR = 176, COMPACT_SIDEBAR = 64, CONTROL_HEIGHT = 36, CONTROL_GAP = 8;
 constexpr UINT_PTR PRIVACY_TIMER = 1, SCROLL_TIMER = 2, SAVE_TIMER = 3, QA_TIMER = 4;
 HINSTANCE instance;
-HWND window, editor, underlay, tooltips, hoveredButton;
+HWND window, editor, underlay, tooltips, hoveredButton, imageViewer, fontSlider, filePicker;
 HFONT uiFont, titleFont, brandFont, metaFont;
 HBRUSH bgBrush, cardBrush;
 UINT dpi = 96;
@@ -43,17 +51,28 @@ int fontPoints = 24, speed = 1;
 double scrollRemainder = 0;
 ULONGLONG lastScrollTick = 0;
 std::wstring dataDir;
+enum class Page { Home, Content, Settings };
+Page page = Page::Content;
+LoadedContent openedContent;
+bool viewingFile = false, focusMode = false;
+int codePoints = 14, imageZoom = 100, panX = 0, panY = 0;
+std::wstring scriptDraft, importError;
+bool fileDialogProtected = true;
+RECT dropRect{}, settingsCardRect{};
 RECT fontLabelRect{};
 RECT contentCardRect{};
 int railWidth = NORMAL_SIDEBAR, contentLeft = NORMAL_SIDEBAR + 24, contentRight = 0;
 bool compactUi = false, shortUi = false;
 std::vector<HWND> buttons;
 WNDPROC editorProc;
-bool qa = false, qaVisual = false, qaStorage = false, qaCaptureOk = true, qaPass = true;
+bool qa = false, qaVisual = false, qaStorage = false, qaInteractive = false, qaCaptureOk = true, qaPass = true;
 bool qaReading = false, qaReadOnly = false, qaFont = false, qaScrolled = false, qaPaused = false,
      qaMasked = false, qaCompact = false, qaUnchanged = false, qaEditReturned = false, qaLanguage = false;
 bool qaRoundtrip = false, qaPlaintextAbsent = false, qaAutosave = false;
 bool qaLayoutMatrix = true, qaHover = false, qaEmpty = false, qaNativeScrollbar = false;
+bool qaFocus = false, qaHome = false, qaSettings = false, qaCodeFile = false, qaImageFile = false,
+     qaPreviewKeepsScript = false, qaDropped = false, qaImageMask = false, qaImagePan = false,
+     qaFocusRestored = false;
 int qaStage = 0;
 LONG qaStartY = 0, qaEndY = 0, qaPausedY = 0;
 std::wstring qaDir, qaContent;
@@ -65,6 +84,13 @@ const wchar_t *T(const wchar_t *vietnamese, const wchar_t *englishText)
 
 void ApplyTextFormat();
 void Pause();
+void Layout();
+void SetReading(bool value);
+void ShowScript();
+bool OpenContentPath(const std::wstring &path);
+bool IsImage() { return viewingFile && openedContent.kind == ContentKind::Image; }
+bool IsCode() { return viewingFile && openedContent.kind == ContentKind::Code; }
+int &ActiveTextSize() { return IsCode() ? codePoints : fontPoints; }
 
 int S(int value)
 {
@@ -128,7 +154,7 @@ bool SaveNotes()
 {
     if (storageBlocked)
         return false;
-    std::string plain = Utf8(TextOf(editor));
+    std::string plain = Utf8(viewingFile ? scriptDraft : TextOf(editor));
     DATA_BLOB input{(DWORD)plain.size(), (BYTE *)plain.data()}, encrypted{};
     if (!CryptProtectData(&input, L"QuietShare notes", nullptr, nullptr, nullptr, CRYPTPROTECT_UI_FORBIDDEN,
                           &encrypted))
@@ -208,7 +234,14 @@ void AdjustFont(int delta)
     if (Blocked())
         return;
     Pause();
-    fontPoints = std::clamp(fontPoints + delta, 12, 72);
+    if (IsImage())
+    {
+        imageZoom = std::clamp(imageZoom + (delta > 0 ? 10 : -10), 25, 400);
+        panX = panY = 0;
+        InvalidateRect(imageViewer, nullptr, FALSE);
+    }
+    else
+        ActiveTextSize() = std::clamp(ActiveTextSize() + delta, 12, 72);
     ApplyTextFormat();
 }
 void ResetFont()
@@ -216,7 +249,14 @@ void ResetFont()
     if (Blocked())
         return;
     Pause();
-    fontPoints = 24;
+    if (IsImage())
+    {
+        imageZoom = 100;
+        panX = panY = 0;
+        InvalidateRect(imageViewer, nullptr, FALSE);
+    }
+    else
+        ActiveTextSize() = IsCode() ? 14 : 24;
     ApplyTextFormat();
 }
 void DrawTextAt(HDC dc, const std::wstring &text, RECT rect, COLORREF color, HFONT selectedFont,
@@ -269,6 +309,22 @@ void DrawNavIcon(HDC dc, int id, int x, int y, COLORREF color)
         MoveToEx(dc, x + S(7), y + S(16), nullptr);
         LineTo(dc, x + S(13), y + S(16));
     }
+    else if (id == NAV_HOME)
+    {
+        POINT roof[] = {{x + S(2), y + S(10)}, {x + S(12), y + S(2)}, {x + S(22), y + S(10)}};
+        Polyline(dc, roof, 3);
+        MoveToEx(dc, x + S(5), y + S(9), nullptr); LineTo(dc, x + S(5), y + S(22));
+        LineTo(dc, x + S(19), y + S(22)); LineTo(dc, x + S(19), y + S(9));
+    }
+    else if (id == NAV_SETTINGS)
+    {
+        for (int row : {5, 12, 19})
+        {
+            MoveToEx(dc, x + S(2), y + S(row), nullptr); LineTo(dc, x + S(22), y + S(row));
+            int knob = row == 12 ? 16 : 8;
+            Rectangle(dc, x + S(knob - 2), y + S(row - 2), x + S(knob + 2), y + S(row + 2));
+        }
+    }
     else
     {
         POINT triangle[] = {{x + S(5), y + S(3)}, {x + S(20), y + S(12)}, {x + S(5), y + S(21)}};
@@ -299,6 +355,8 @@ void DrawSidebar(HDC dc, int sidebar, int height, bool compact)
     }
 
     int logicalHeight = MulDiv(height, 96, dpi);
+    if (logicalHeight < 360)
+        return;
     int statusTop = logicalHeight - (compact ? 56 : 80);
     RECT status{S(12), S(statusTop), S(sidebar - 12), height - S(16)};
     if (!compact)
@@ -342,10 +400,20 @@ void SetTip(int id, const wchar_t *text)
 }
 void UpdateButtons()
 {
-    SetWindowTextW(window, T(L"QuietShare - Nhắc chữ riêng", L"QuietShare - Private teleprompter"));
+    SetWindowTextW(window, L"QuietShare");
     SetWindowTextW(GetDlgItem(window, MODE), T(reading ? L"Sửa lời" : L"Đọc", reading ? L"Edit" : L"Read"));
     SetWindowTextW(GetDlgItem(window, NAV_SCRIPT), T(L"Lời nhắc", L"Script"));
     SetWindowTextW(GetDlgItem(window, NAV_READ), T(L"Đọc", L"Read"));
+    SetWindowTextW(GetDlgItem(window, NAV_HOME), T(L"Chuẩn bị", L"Home"));
+    SetWindowTextW(GetDlgItem(window, NAV_SETTINGS), T(L"Tùy chỉnh", L"Settings"));
+    SetWindowTextW(GetDlgItem(window, OPEN_FILE), T(L"Mở file", L"Open file"));
+    SetWindowTextW(GetDlgItem(window, OPEN_DROP), T(L"Mở hoặc thả file", L"Open or drop a file"));
+    SetWindowTextW(GetDlgItem(window, HOME_SCRIPT), T(L"Lời nhắc", L"Script"));
+    SetWindowTextW(GetDlgItem(window, HOME_SETTINGS), T(L"Tùy chỉnh", L"Settings"));
+    SetWindowTextW(GetDlgItem(window, VIEW_FILE), T(L"Xem file", L"View file"));
+    SetWindowTextW(GetDlgItem(window, FOCUS), focusMode ? L"F11" : T(L"Tập trung", L"Focus"));
+    SetWindowTextW(GetDlgItem(window, SMALLER), IsImage() ? L"-" : L"A-");
+    SetWindowTextW(GetDlgItem(window, LARGER), IsImage() ? L"+" : L"A+");
     SetWindowTextW(GetDlgItem(window, PLAY), T(running ? L"Dừng" : L"Chạy", running ? L"Stop" : L"Start"));
     const wchar_t *speeds[] = {T(L"Chậm", L"Slow"), T(L"Vừa", L"Medium"), T(L"Nhanh", L"Fast")};
     SetWindowTextW(GetDlgItem(window, SPEED), speeds[speed]);
@@ -353,10 +421,19 @@ void UpdateButtons()
     SetWindowTextW(GetDlgItem(window, TOPMOST), topmost ? T(L"Ghim", L"Pin") : T(L"Thả", L"Free"));
     SetWindowTextW(GetDlgItem(window, LANGUAGE), english ? L"VI" : L"EN");
     SetWindowTextW(GetDlgItem(window, RESET_ZOOM), L"100%");
-    for (int id : {MODE, PLAY, SMALLER, LARGER, SPEED, RESET_ZOOM, NAV_SCRIPT, NAV_READ})
+    for (int id : {MODE, PLAY, SMALLER, LARGER, SPEED, RESET_ZOOM, NAV_SCRIPT, NAV_READ, OPEN_FILE, OPEN_DROP,
+                   HOME_SCRIPT, VIEW_FILE})
         EnableWindow(GetDlgItem(window, id), !Blocked());
-    EnableWindow(GetDlgItem(window, SMALLER), !Blocked() && fontPoints > 12);
-    EnableWindow(GetDlgItem(window, LARGER), !Blocked() && fontPoints < 72);
+    EnableWindow(GetDlgItem(window, SMALLER), !Blocked() && (IsImage() ? imageZoom > 25 : ActiveTextSize() > 12));
+    EnableWindow(GetDlgItem(window, LARGER), !Blocked() && (IsImage() ? imageZoom < 400 : ActiveTextSize() < 72));
+    EnableWindow(GetDlgItem(window, PLAY), !Blocked() && !IsImage() && !IsCode());
+    EnableWindow(GetDlgItem(window, SPEED), !Blocked() && !IsImage() && !IsCode());
+    if (fontSlider)
+    {
+        SendMessageW(fontSlider, TBM_SETRANGE, TRUE, MAKELPARAM(IsImage() ? 25 : 12, IsImage() ? 400 : 72));
+        SendMessageW(fontSlider, TBM_SETPOS, TRUE, IsImage() ? imageZoom : ActiveTextSize());
+        EnableWindow(fontSlider, !Blocked());
+    }
     SetTip(NAV_SCRIPT, T(L"Lời nhắc - Ctrl+Enter", L"Script - Ctrl+Enter"));
     SetTip(NAV_READ, T(L"Đọc - Ctrl+Enter", L"Read - Ctrl+Enter"));
     SetTip(PLAY, T(running ? L"Dừng cuộn - Space" : L"Cuộn tự động - Space",
@@ -366,10 +443,15 @@ void UpdateButtons()
                    masked ? L"Reveal the script - F8" : L"Hide the script - F8"));
     SetTip(SMALLER, T(L"Giảm cỡ chữ - Ctrl+-", L"Smaller text - Ctrl+-"));
     SetTip(LARGER, T(L"Tăng cỡ chữ - Ctrl++", L"Larger text - Ctrl++"));
-    SetTip(RESET_ZOOM, T(L"Cỡ chữ mặc định 24 pt - Ctrl+0", L"Default size 24 pt - Ctrl+0"));
+    SetTip(RESET_ZOOM, IsImage() ? T(L"Vừa khung - Ctrl+0", L"Fit to window - Ctrl+0")
+                                : IsCode() ? T(L"Cỡ chữ mặc định 14 pt - Ctrl+0", L"Default size 14 pt - Ctrl+0")
+                                           : T(L"Cỡ chữ mặc định 24 pt - Ctrl+0", L"Default size 24 pt - Ctrl+0"));
     SetTip(TOPMOST, T(topmost ? L"Bỏ ghim cửa sổ" : L"Ghim cửa sổ trên cùng",
                       topmost ? L"Unpin the window" : L"Keep the window on top"));
     SetTip(LANGUAGE, english ? L"Chuyển sang tiếng Việt" : L"Switch to English");
+    SetTip(NAV_HOME, T(L"Chuẩn bị nội dung", L"Prepare content"));
+    SetTip(NAV_SETTINGS, T(L"Tùy chỉnh hiển thị", L"Display settings"));
+    SetTip(FOCUS, T(L"Ẩn/hiện sidebar và toolbar - F11", L"Hide/show sidebar and toolbar - F11"));
     for (HWND button : buttons)
         InvalidateRect(button, nullptr, FALSE);
     InvalidateRect(window, nullptr, FALSE);
@@ -383,90 +465,91 @@ void Pause()
 }
 void Layout()
 {
-    if (!window || !editor)
-        return;
-    RECT client{};
-    GetClientRect(window, &client);
+    if (!window || !editor) return;
+    RECT client{}; GetClientRect(window, &client);
     int width = MulDiv(client.right, 96, dpi), height = MulDiv(client.bottom, 96, dpi);
-    compactUi = width < 700;
-    shortUi = height < 380;
-    railWidth = compactUi ? COMPACT_SIDEBAR : NORMAL_SIDEBAR;
-    int gutter = compactUi ? 16 : 24;
-    contentLeft = railWidth + gutter;
-    contentRight = std::max(contentLeft + 1, width - gutter);
-    int x = contentLeft, y = reading ? 16 : (compactUi || shortUi ? 56 : 88);
+    compactUi = width < 700; shortUi = height < 380;
+    railWidth = focusMode ? 0 : compactUi ? COMPACT_SIDEBAR : NORMAL_SIDEBAR;
+    int gutter = focusMode ? 12 : compactUi ? 16 : 24;
+    contentLeft = railWidth + gutter; contentRight = width - gutter;
+    fontLabelRect = {};
+    for (HWND button : buttons) ShowWindow(button, SW_HIDE);
+    ShowWindow(fontSlider, SW_HIDE);
     auto move = [&](int id, int left, int top, int w, int h = CONTROL_HEIGHT) {
-        MoveWindow(GetDlgItem(window, id), S(left), S(top), S(w), S(h), TRUE);
+        HWND child = GetDlgItem(window, id);
+        MoveWindow(child, S(left), S(top), S(w), S(h), TRUE); ShowWindow(child, SW_SHOW);
     };
-    move(NAV_SCRIPT, 12, 80, railWidth - 24, 40);
-    move(NAV_READ, 12, 128, railWidth - 24, 40);
-    ShowWindow(GetDlgItem(window, NAV_SCRIPT), SW_SHOW);
-    ShowWindow(GetDlgItem(window, NAV_READ), SW_SHOW);
-    ShowWindow(GetDlgItem(window, MODE), SW_HIDE);
-
-    constexpr int playWidth = 68, speedWidth = 80, maskWidth = 100, fontWidth = 32, labelWidth = 40,
-                  resetWidth = 56, pinWidth = 64, languageWidth = 44;
-    auto nextRow = [&]() {
-        x = contentLeft;
-        y += CONTROL_HEIGHT + CONTROL_GAP;
-    };
-    auto group = [&](int w) {
-        if (x != contentLeft && x + 16 + w > contentRight)
-            nextRow();
-        else if (x != contentLeft)
-            x += 16;
-    };
-    auto place = [&](int id, int w) {
-        move(id, x, y, w);
-        x += w + CONTROL_GAP;
-    };
-    ShowWindow(GetDlgItem(window, PLAY), reading ? SW_SHOW : SW_HIDE);
-    ShowWindow(GetDlgItem(window, SPEED), reading ? SW_SHOW : SW_HIDE);
-    if (reading)
+    if (!focusMode)
     {
-        place(PLAY, playWidth);
-        place(SPEED, speedWidth);
+        int y = 72;
+        for (int id : {NAV_HOME, NAV_SCRIPT, NAV_READ, NAV_SETTINGS})
+        { move(id, 12, y, railWidth - 24, 32); y += 40; }
+        move(FOCUS, 12, height < 360 ? height - 48 : height - 128, railWidth - 24, 36);
     }
-    place(MASK, maskWidth);
-    x -= CONTROL_GAP;
-    group(fontWidth * 2 + labelWidth + CONTROL_GAP + resetWidth);
-    move(SMALLER, x, y, fontWidth);
-    x += fontWidth;
-    fontLabelRect = {S(x), S(y), S(x + labelWidth), S(y + CONTROL_HEIGHT)};
-    x += labelWidth;
-    move(LARGER, x, y, fontWidth);
-    x += fontWidth + CONTROL_GAP;
-    place(RESET_ZOOM, resetWidth);
-    x -= CONTROL_GAP;
-    group(pinWidth + CONTROL_GAP + languageWidth);
-    place(TOPMOST, pinWidth);
-    place(LANGUAGE, languageWidth);
-    ShowWindow(GetDlgItem(window, MASK), SW_SHOW);
-    ShowWindow(GetDlgItem(window, TOPMOST), SW_SHOW);
-    ShowWindow(GetDlgItem(window, LANGUAGE), SW_SHOW);
-    ShowWindow(GetDlgItem(window, RESET_ZOOM), SW_SHOW);
-    int top = y + CONTROL_HEIGHT + (shortUi ? 8 : 16);
-    contentCardRect = {S(contentLeft), S(top), S(contentRight), S(height - 40)};
-    int editorWidth = S(std::max(1, contentRight - contentLeft - 16));
-    int editorHeight = S(std::max(1, height - top - 56));
-    // Keep RichEdit rectangular inside a shared rounded shell. Its automatic
-    // scrollbar visibility can change without altering the outer card geometry.
-    MoveWindow(editor, contentCardRect.left + S(8), contentCardRect.top + S(8), editorWidth, editorHeight,
-               TRUE);
-    RECT textRect{};
-    GetClientRect(editor, &textRect);
-    textRect.left += S(compactUi ? 12 : 16);
-    textRect.right -= S(compactUi ? 8 : 12);
-    textRect.top += S(8);
-    textRect.bottom -= S(8);
+    contentCardRect = {S(contentLeft), S(56), S(contentRight), S(height - 40)};
+    if (focusMode)
+    {
+        contentCardRect = {S(contentLeft), S(12), S(contentRight), S(height - 12)};
+        move(FOCUS, contentRight - 52, 20, 44, 28);
+    }
+    else if (page == Page::Home && !Blocked())
+    {
+        dropRect = {S(contentLeft), S(56), S(contentRight), S(height - 112)};
+        move(OPEN_DROP, contentLeft, 56, contentRight - contentLeft, height - 168);
+        int count = openedContent.path.empty() ? 2 : 3;
+        int buttonWidth = (contentRight - contentLeft - (count - 1) * 8) / count;
+        int x = contentLeft;
+        if (count == 3) { move(VIEW_FILE, x, height - 96, buttonWidth, 48); x += buttonWidth + 8; }
+        move(HOME_SCRIPT, x, height - 96, buttonWidth, 48); x += buttonWidth + 8;
+        move(HOME_SETTINGS, x, height - 96, buttonWidth, 48);
+    }
+    else if (page == Page::Settings && !Blocked())
+    {
+        settingsCardRect = contentCardRect;
+        int x = contentLeft + 16, y = 104;
+        move(SMALLER, x, y, 32); x += 32;
+        fontLabelRect = {S(x), S(y), S(x + 40), S(y + 36)}; x += 40;
+        move(LARGER, x, y, 32); x += 40; move(RESET_ZOOM, x, y, 56);
+        MoveWindow(fontSlider, S(contentLeft + 16), S(148), S(contentRight - contentLeft - 32), S(24), TRUE);
+        ShowWindow(fontSlider, SW_SHOW);
+        move(TOPMOST, contentLeft + 16, 192, 64);
+        move(LANGUAGE, contentLeft + 88, 192, 44);
+        move(OPEN_FILE, contentLeft + 148, 192, 100);
+    }
+    else
+    {
+        int x = contentLeft, y = reading ? 16 : 56;
+        auto nextRow = [&]() { x = contentLeft; y += CONTROL_HEIGHT + CONTROL_GAP; };
+        auto group = [&](int w) {
+            if (x != contentLeft && x + 16 + w > contentRight) nextRow();
+            else if (x != contentLeft) x += 16;
+        };
+        auto place = [&](int id, int w) { move(id, x, y, w); x += w + CONTROL_GAP; };
+        if (reading && !IsImage() && !IsCode()) { place(PLAY, 68); place(SPEED, 80); }
+        place(MASK, 100); x -= 8; group(168);
+        move(SMALLER, x, y, 32); x += 32;
+        fontLabelRect = {S(x), S(y), S(x + 40), S(y + 36)}; x += 40;
+        move(LARGER, x, y, 32); x += 40; place(RESET_ZOOM, 56); x -= 8;
+        group(116); place(TOPMOST, 64); place(LANGUAGE, 44);
+        int top = y + CONTROL_HEIGHT + (shortUi ? 8 : 16);
+        contentCardRect = {S(contentLeft), S(top), S(contentRight), S(height - 40)};
+    }
+    int ew = std::max(1L, contentCardRect.right - contentCardRect.left - S(16));
+    int eh = std::max(1L, contentCardRect.bottom - contentCardRect.top - S(16));
+    MoveWindow(editor, contentCardRect.left + S(8), contentCardRect.top + S(8), ew, eh, TRUE);
+    MoveWindow(imageViewer, contentCardRect.left + S(8), contentCardRect.top + S(8), ew, eh, TRUE);
+    RECT textRect{}; GetClientRect(editor, &textRect);
+    textRect.left += S(compactUi ? 12 : 16); textRect.right -= S(compactUi ? 8 : 12);
+    textRect.top += S(8); textRect.bottom -= S(8);
     SendMessageW(editor, EM_SETRECT, 0, (LPARAM)&textRect);
-    // RichEdit can retain pixels outside its new formatting rectangle after resize.
+    bool showContent = page == Page::Content && !Blocked();
+    ShowWindow(editor, showContent && !IsImage() ? SW_SHOW : SW_HIDE);
+    ShowWindow(imageViewer, showContent && IsImage() ? SW_SHOW : SW_HIDE);
     RedrawWindow(editor, nullptr, nullptr, RDW_INVALIDATE | RDW_ERASE | RDW_UPDATENOW);
-    ShowWindow(editor, Blocked() ? SW_HIDE : SW_SHOW);
-    for (int id : {SMALLER, LARGER})
-        SetWindowRgn(GetDlgItem(window, id),
-                     CreateRoundRectRgn(0, 0, S(32) + 1, S(CONTROL_HEIGHT) + 1, S(16), S(16)), TRUE);
+    if (focusMode) SetWindowPos(GetDlgItem(window, FOCUS), HWND_TOP, 0, 0, 0, 0,
+                              SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
     UpdateButtons();
+    RedrawWindow(window, nullptr, nullptr, RDW_INVALIDATE | RDW_ALLCHILDREN | RDW_UPDATENOW);
 }
 void ApplyTextFormat()
 {
@@ -474,9 +557,9 @@ void ApplyTextFormat()
     CHARFORMAT2W cf{};
     cf.cbSize = sizeof(cf);
     cf.dwMask = CFM_SIZE | CFM_COLOR | CFM_FACE | CFM_BOLD;
-    cf.yHeight = fontPoints * 20;
+    cf.yHeight = ActiveTextSize() * 20;
     cf.crTextColor = TEXT;
-    wcscpy_s(cf.szFaceName, L"Segoe UI");
+    wcscpy_s(cf.szFaceName, IsCode() ? L"Consolas" : L"Segoe UI");
     SendMessageW(editor, EM_SETCHARFORMAT, SCF_ALL, (LPARAM)&cf);
     CHARRANGE selection{};
     SendMessageW(editor, EM_EXGETSEL, 0, (LPARAM)&selection);
@@ -485,8 +568,8 @@ void ApplyTextFormat()
     pf.cbSize = sizeof(pf);
     pf.dwMask = PFM_LINESPACING | PFM_SPACEAFTER;
     pf.bLineSpacingRule = 5;
-    pf.dyLineSpacing = 26;
-    pf.dySpaceAfter = 100;
+    pf.dyLineSpacing = IsCode() ? 22 : 26;
+    pf.dySpaceAfter = IsCode() ? 0 : 100;
     SendMessageW(editor, EM_SETPARAFORMAT, 0, (LPARAM)&pf);
     SendMessageW(editor, EM_EXSETSEL, 0, (LPARAM)&selection);
     loading = false;
@@ -518,21 +601,20 @@ void SetReading(bool value)
 {
     if (Blocked())
         return;
+    if (viewingFile && !value) { ShowScript(); return; }
     Pause();
+    page = Page::Content;
     reading = value;
-    SendMessageW(editor, EM_SETREADONLY, reading, 0);
+    SendMessageW(editor, EM_SETREADONLY, reading || viewingFile, 0);
     SendMessageW(editor, EM_SETSEL, 0, 0);
     POINT origin{};
     SendMessageW(editor, EM_SETSCROLLPOS, 0, (LPARAM)&origin);
-    if (!reading)
-        SetFocus(editor);
-    else
-        SetFocus(GetDlgItem(window, PLAY));
     Layout();
+    SetFocus(IsImage() ? imageViewer : !reading || IsCode() ? editor : GetDlgItem(window, PLAY));
 }
 void ToggleRun()
 {
-    if (!reading || Blocked())
+    if (!reading || Blocked() || IsImage() || IsCode())
         return;
     if (running)
         Pause();
@@ -573,18 +655,182 @@ void ToggleMask()
 {
     Pause();
     masked = !masked;
+    if (masked && filePicker)
+    {
+        ShowWindow(filePicker, SW_HIDE);
+        PostMessageW(filePicker, WM_COMMAND, IDCANCEL, 0);
+    }
     Layout();
     RedrawWindow(window, nullptr, nullptr, RDW_INVALIDATE | RDW_ALLCHILDREN | RDW_UPDATENOW);
 }
 void RefreshPrivacy()
 {
     ShowWindow(editor, SW_HIDE);
+    ShowWindow(imageViewer, SW_HIDE);
     privacy = ApplyPrivacy(window);
     topologyKnown = TryGetDisplayCloned(cloned);
     if (Blocked())
+    {
         Pause();
+        if (filePicker)
+        {
+            ShowWindow(filePicker, SW_HIDE);
+            PostMessageW(filePicker, WM_COMMAND, IDCANCEL, 0);
+        }
+    }
     Layout();
     RedrawWindow(window, nullptr, nullptr, RDW_INVALIDATE | RDW_ALLCHILDREN | RDW_UPDATENOW);
+}
+void ShowScript()
+{
+    if (Blocked()) return;
+    Pause();
+    if (viewingFile)
+    {
+        viewingFile = false;
+        loading = true;
+        SendMessageW(editor, EM_EXLIMITTEXT, 0, 500000);
+        SetWindowTextW(editor, scriptDraft.c_str());
+        loading = false;
+    }
+    focusMode = false;
+    SetReading(false);
+    ApplyTextFormat();
+}
+void ShowOpenedFile()
+{
+    if (Blocked() || openedContent.path.empty()) return;
+    Pause();
+    if (!viewingFile) scriptDraft = TextOf(editor);
+    viewingFile = true;
+    SetWindowTextW(imageViewer, openedContent.displayName.c_str());
+    loading = true;
+    SendMessageW(editor, EM_EXLIMITTEXT, 0, 5 * 1024 * 1024);
+    SetWindowTextW(editor, openedContent.text.c_str());
+    loading = false;
+    panX = panY = 0;
+    ApplyTextFormat();
+    SetReading(true);
+    SetFocus(IsImage() ? imageViewer : editor);
+}
+bool OpenContentPath(const std::wstring &path)
+{
+    if (Blocked()) return false;
+    LoadedContent next;
+    std::wstring error;
+    if (!LoadLocalContent(path, next, error))
+    {
+        importError = error;
+        page = Page::Home;
+        focusMode = false;
+        Layout();
+        return false;
+    }
+    openedContent = std::move(next);
+    importError.clear();
+    ShowOpenedFile();
+    return true;
+}
+UINT_PTR CALLBACK FilePickerHook(HWND hook, UINT message, WPARAM, LPARAM)
+{
+    if (message == WM_INITDIALOG)
+    {
+        HWND dialog = GetParent(hook);
+        filePicker = dialog;
+        fileDialogProtected = ApplyPrivacy(dialog).applied;
+        if (!fileDialogProtected || Blocked())
+        {
+            ShowWindow(dialog, SW_HIDE);
+            PostMessageW(dialog, WM_COMMAND, IDCANCEL, 0);
+        }
+    }
+    else if (message == WM_DESTROY) filePicker = nullptr;
+    return 0;
+}
+void ChooseFile()
+{
+    if (Blocked()) return;
+    Pause();
+    std::vector<wchar_t> path(32768);
+    OPENFILENAMEW choice{sizeof(choice)};
+    choice.hwndOwner = window;
+    choice.lpstrFilter = T(L"Văn bản / Code / Ảnh\0*.txt;*.md;*.cpp;*.h;*.py;*.js;*.ts;*.tsx;*.json;*.html;*.css;*.png;*.jpg;*.jpeg;*.bmp;*.gif\0Tất cả file\0*.*\0\0",
+                          L"Text / Code / Images\0*.txt;*.md;*.cpp;*.h;*.py;*.js;*.ts;*.tsx;*.json;*.html;*.css;*.png;*.jpg;*.jpeg;*.bmp;*.gif\0All files\0*.*\0\0");
+    choice.lpstrFile = path.data();
+    choice.nMaxFile = (DWORD)path.size();
+    choice.lpstrTitle = T(L"Mở nội dung", L"Open content");
+    choice.Flags = OFN_EXPLORER | OFN_ENABLEHOOK | OFN_FILEMUSTEXIST | OFN_PATHMUSTEXIST |
+                   OFN_NOCHANGEDIR | OFN_DONTADDTORECENT;
+    choice.lpfnHook = FilePickerHook;
+    fileDialogProtected = true;
+    BOOL selected = GetOpenFileNameW(&choice);
+    filePicker = nullptr;
+    if (selected && fileDialogProtected) OpenContentPath(path.data());
+    else if (!fileDialogProtected)
+    {
+        importError = T(L"Không bảo vệ được cửa sổ chọn file. / File picker capture exclusion failed.",
+                        L"Không bảo vệ được cửa sổ chọn file. / File picker capture exclusion failed.");
+        page = Page::Home;
+        Layout();
+    }
+}
+void ToggleFocus()
+{
+    focusMode = !focusMode;
+    if (focusMode && !Blocked()) SetReading(true);
+    page = Page::Content;
+    Layout();
+    SetFocus(IsImage() ? imageViewer : editor);
+}
+LRESULT CALLBACK ImageProc(HWND h, UINT message, WPARAM wp, LPARAM lp)
+{
+    static POINT previous{};
+    if (message == WM_PAINT)
+    {
+        PAINTSTRUCT paint{}; HDC dc = BeginPaint(h, &paint);
+        RECT bounds{}; GetClientRect(h, &bounds);
+        HDC buffer = CreateCompatibleDC(dc);
+        HBITMAP bitmap = CreateCompatibleBitmap(dc, std::max(1L,bounds.right), std::max(1L,bounds.bottom));
+        HGDIOBJ old = SelectObject(buffer, bitmap);
+        FillRect(buffer, &bounds, cardBrush);
+        if (!Blocked() && IsImage())
+        {
+            DrawImage(buffer, openedContent, bounds, imageZoom, CARD, panX, panY);
+        }
+        BitBlt(dc,0,0,bounds.right,bounds.bottom,buffer,0,0,SRCCOPY);
+        SelectObject(buffer,old); DeleteObject(bitmap); DeleteDC(buffer);
+        EndPaint(h, &paint); return 0;
+    }
+    if (message == WM_ERASEBKGND) return 1;
+    if (message == WM_LBUTTONDOWN && !Blocked())
+    {
+        SetFocus(h); SetCapture(h); previous = {GET_X_LPARAM(lp), GET_Y_LPARAM(lp)}; return 0;
+    }
+    if (message == WM_MOUSEMOVE && GetCapture() == h)
+    {
+        POINT now{GET_X_LPARAM(lp), GET_Y_LPARAM(lp)};
+        panX += now.x - previous.x; panY += now.y - previous.y; previous = now;
+        InvalidateRect(h,nullptr,FALSE); return 0;
+    }
+    if (message == WM_LBUTTONUP) { if(GetCapture()==h) ReleaseCapture(); return 0; }
+    if (message == WM_MOUSEWHEEL)
+    {
+        if (GetKeyState(VK_CONTROL) & 0x8000) AdjustFont(GET_WHEEL_DELTA_WPARAM(wp)>0?2:-2);
+        else { panY += GET_WHEEL_DELTA_WPARAM(wp)/2; InvalidateRect(h,nullptr,FALSE); }
+        return 0;
+    }
+    if (message == WM_KEYDOWN)
+    {
+        if (wp==VK_ESCAPE && focusMode) { ToggleFocus(); return 0; }
+        if (wp==L'0' && (GetKeyState(VK_CONTROL) & 0x8000)) { ResetFont(); return 0; }
+        if (wp==VK_LEFT) panX += S(24); else if(wp==VK_RIGHT) panX -= S(24);
+        else if(wp==VK_UP) panY += S(24); else if(wp==VK_DOWN) panY -= S(24);
+        else if(wp==VK_ADD || wp==VK_OEM_PLUS) AdjustFont(2);
+        else if(wp==VK_SUBTRACT || wp==VK_OEM_MINUS) AdjustFont(-2);
+        else return DefWindowProcW(h,message,wp,lp);
+        InvalidateRect(h,nullptr,FALSE); return 0;
+    }
+    return DefWindowProcW(h,message,wp,lp);
 }
 void DrawCenteredMessage(HDC dc, RECT bounds, const wchar_t *heading, const wchar_t *body)
 {
@@ -609,27 +855,31 @@ void Paint(HDC dc)
     RECT client{};
     GetClientRect(window, &client);
     FillRect(dc, &client, bgBrush);
-    DrawSidebar(dc, railWidth, client.bottom, compactUi);
+    if (!focusMode) DrawSidebar(dc, railWidth, client.bottom, compactUi);
     RECT title{S(contentLeft), S(12), S(contentRight), S(40)};
-    if (!reading)
+    if (!focusMode && (!reading || page != Page::Content))
     {
-        DrawTextAt(dc, T(L"Nhắc chữ riêng", L"Private teleprompter"), title, TEXT, titleFont);
-        if (!compactUi && !shortUi)
-        {
-            RECT subtitle{S(contentLeft), S(44), S(contentRight), S(64)};
-            DrawTextAt(dc,
-                       T(L"Tập trung vào nội dung. Màn hình riêng, lời nhắc riêng.",
-                         L"Focus on your words. Private display, private script."),
-                       subtitle, MUTED, metaFont, DT_LEFT | DT_VCENTER | DT_SINGLELINE | DT_END_ELLIPSIS);
-        }
+        DrawTextAt(dc, page == Page::Home ? T(L"Chuẩn bị nội dung", L"Prepare content")
+                      : page == Page::Settings ? T(L"Tùy chỉnh", L"Settings")
+                                               : T(L"Nhắc chữ riêng", L"Private teleprompter"),
+                   title, TEXT, titleFont);
     }
-    RECT zoomSurface = fontLabelRect;
-    zoomSurface.left -= S(32);
-    zoomSurface.right += S(32);
-    FillRoundRect(dc, zoomSurface, ELEVATED, S(16));
-    DrawTextAt(dc, std::to_wstring(fontPoints), fontLabelRect, TEXT, uiFont,
-               DT_CENTER | DT_VCENTER | DT_SINGLELINE);
-    FillRoundRect(dc, contentCardRect, CARD, S(24));
+    if (page != Page::Home || Blocked()) FillRoundRect(dc, contentCardRect, CARD, S(24));
+    if (page == Page::Settings && !Blocked() && !focusMode)
+    {
+        RECT summary{S(contentLeft + 16), S(68), S(contentRight - 16), S(96)};
+        std::wstring text = IsImage() ? T(L"Ảnh · Phóng/thu", L"Image · Zoom")
+                            : IsCode() ? T(L"Code · Cỡ chữ", L"Code · Text size")
+                                       : T(L"Lời nhắc · Cỡ chữ", L"Script · Text size");
+        DrawTextAt(dc, text, summary, TEXT, brandFont);
+    }
+    if (!focusMode && fontLabelRect.right > fontLabelRect.left)
+    {
+        RECT zoomSurface = fontLabelRect; zoomSurface.left -= S(32); zoomSurface.right += S(32);
+        FillRoundRect(dc, zoomSurface, ELEVATED, S(16));
+        std::wstring label = IsImage() ? std::to_wstring(imageZoom) + L"%" : std::to_wstring(ActiveTextSize());
+        DrawTextAt(dc, label, fontLabelRect, TEXT, uiFont, DT_CENTER | DT_VCENTER | DT_SINGLELINE);
+    }
     if (Blocked())
     {
         const wchar_t *heading = storageBlocked ? T(L"Lời nhắc đang khóa", L"Script locked")
@@ -650,6 +900,7 @@ void Paint(HDC dc)
                                  L"Windows could not apply capture exclusion.");
         DrawCenteredMessage(dc, contentCardRect, heading, cover);
     }
+    if (focusMode) return;
     RECT footer{S(contentLeft), client.bottom - S(32), S(contentRight), client.bottom - S(8)};
     std::wstring footerText =
         masked       ? T(L"Đã che nội dung · F8 để mở lại", L"Content hidden · F8 to reveal")
@@ -661,15 +912,27 @@ void Paint(HDC dc)
         : !reading ? T(L"Sửa nội dung · Tự lưu trên máy", L"Edit the script · Saved locally")
         : running  ? T(L"Đang cuộn · F8 che nhanh", L"Scrolling · F8 hides quickly")
                    : T(L"Sẵn sàng đọc · F8 che nhanh", L"Ready to read · F8 hides quickly");
-    DrawTextAt(dc, footerText, footer, saveFailed || (Blocked() && !masked) ? AMBER : MUTED, metaFont,
+    bool storageStatus = saveFailed || dirty || (savedNoteRecovered && !reading);
+    if (!Blocked() && page == Page::Home && !storageStatus)
+    {
+        footerText = importError;
+        size_t split = footerText.find(L" / ");
+        if (split != std::wstring::npos) footerText = english ? footerText.substr(split + 3) : footerText.substr(0,split);
+    }
+    else if (!Blocked() && viewingFile && !storageStatus) footerText = openedContent.displayName;
+    else if (!Blocked() && page == Page::Settings && !storageStatus) footerText.clear();
+    DrawTextAt(dc, footerText, footer, saveFailed || (Blocked() && !masked) || !importError.empty() ? AMBER : MUTED, metaFont,
                DT_LEFT | DT_VCENTER | DT_SINGLELINE | DT_END_ELLIPSIS);
 }
 void DrawButton(DRAWITEMSTRUCT *item)
 {
     bool disabled = (item->itemState & ODS_DISABLED) != 0;
-    bool nav = item->CtlID == NAV_SCRIPT || item->CtlID == NAV_READ;
-    bool activeNav = (item->CtlID == NAV_SCRIPT && !reading) || (item->CtlID == NAV_READ && reading);
-    bool primary = item->CtlID == PLAY;
+    bool nav = item->CtlID == NAV_SCRIPT || item->CtlID == NAV_READ || item->CtlID == NAV_HOME || item->CtlID == NAV_SETTINGS;
+    bool activeNav = (item->CtlID == NAV_SCRIPT && page == Page::Content && !reading) ||
+                     (item->CtlID == NAV_READ && page == Page::Content && reading) ||
+                     (item->CtlID == NAV_HOME && page == Page::Home) ||
+                     (item->CtlID == NAV_SETTINGS && page == Page::Settings);
+    bool primary = item->CtlID == PLAY || item->CtlID == OPEN_FILE;
     bool pressed = (item->itemState & ODS_SELECTED) != 0;
     bool hover = hoveredButton == item->hwndItem && !disabled;
     bool zoom = item->CtlID == SMALLER || item->CtlID == LARGER;
@@ -682,7 +945,7 @@ void DrawButton(DRAWITEMSTRUCT *item)
                                  : ELEVATED;
     if (primary && hover && !pressed)
         color = GREEN;
-    HBRUSH background = CreateSolidBrush(nav ? SIDEBAR : zoom ? ELEVATED : BG);
+    HBRUSH background = CreateSolidBrush(nav ? SIDEBAR : zoom ? ELEVATED : page == Page::Settings ? CARD : BG);
     FillRect(item->hDC, &item->rcItem, background);
     DeleteObject(background);
     RECT button = item->rcItem;
@@ -703,9 +966,21 @@ void DrawButton(DRAWITEMSTRUCT *item)
                        DT_LEFT | DT_VCENTER | DT_SINGLELINE | DT_END_ELLIPSIS);
         }
     }
+    else if (item->CtlID == OPEN_DROP)
+    {
+        RECT heading = button;
+        int middle = (button.bottom + button.top) / 2;
+        heading.top = middle - S(32); heading.bottom = middle;
+        DrawTextAt(item->hDC, TextOf(item->hwndItem), heading, TEXT, brandFont,
+                   DT_CENTER | DT_VCENTER | DT_SINGLELINE);
+        RECT detail{button.left + S(16),middle + S(8),button.right - S(16),middle + S(32)};
+        DrawTextAt(item->hDC, openedContent.path.empty() ? T(L"Text · Code · Ảnh", L"Text · Code · Images")
+                                                     : openedContent.displayName,
+                   detail, MUTED, metaFont, DT_CENTER | DT_VCENTER | DT_SINGLELINE | DT_END_ELLIPSIS);
+    }
     else
     {
-        DrawTextAt(item->hDC, TextOf(item->hwndItem), button,
+        DrawTextAt(item->hDC, item->CtlID == FOCUS && compactUi ? L"F11" : TextOf(item->hwndItem), button,
                    disabled  ? DISABLED
                    : primary ? (pressed ? TEXT : BG)
                              : TEXT,
@@ -755,41 +1030,10 @@ LRESULT CALLBACK ButtonProc(HWND control, UINT message, WPARAM wp, LPARAM lp, UI
         InvalidateRect(control, nullptr, FALSE);
     return result;
 }
-void PaintNativeScrollbar(HWND control)
-{
-    // Only paint the existing Win32 scrollbar. Hit testing, dragging, arrows,
-    // keyboard operation and accessibility remain owned by RichEdit/User32.
-    SCROLLBARINFO bar{sizeof(bar)};
-    if (!GetScrollBarInfo(control, OBJID_VSCROLL, &bar) ||
-        (bar.rgstate[0] & (STATE_SYSTEM_INVISIBLE | STATE_SYSTEM_OFFSCREEN)))
-        return;
-    RECT bounds{};
-    GetWindowRect(control, &bounds);
-    OffsetRect(&bar.rcScrollBar, -bounds.left, -bounds.top);
-    HDC dc = GetWindowDC(control);
-    FillRect(dc, &bar.rcScrollBar, cardBrush);
-    RECT thumb{bar.rcScrollBar.left + S(5), bar.rcScrollBar.top + bar.xyThumbTop,
-               bar.rcScrollBar.right - S(5), bar.rcScrollBar.top + bar.xyThumbBottom};
-    if (!(bar.rgstate[3] & STATE_SYSTEM_UNAVAILABLE) && thumb.bottom > thumb.top)
-        FillRoundRect(dc, thumb, MUTED, S(6));
-    HPEN pen = CreatePen(PS_SOLID, std::max(1, S(1)), MUTED);
-    HGDIOBJ oldPen = SelectObject(dc, pen);
-    int center = (bar.rcScrollBar.left + bar.rcScrollBar.right) / 2;
-    int top = bar.rcScrollBar.top + bar.dxyLineButton / 2;
-    int bottom = bar.rcScrollBar.bottom - bar.dxyLineButton / 2;
-    MoveToEx(dc, center - S(3), top + S(1), nullptr);
-    LineTo(dc, center, top - S(2));
-    LineTo(dc, center + S(3), top + S(1));
-    MoveToEx(dc, center - S(3), bottom - S(1), nullptr);
-    LineTo(dc, center, bottom + S(2));
-    LineTo(dc, center + S(3), bottom - S(1));
-    SelectObject(dc, oldPen);
-    DeleteObject(pen);
-    ReleaseDC(control, dc);
-}
 LRESULT CALLBACK EditorProc(HWND control, UINT message, WPARAM wp, LPARAM lp)
 {
-    if (message == WM_PASTE && !reading)
+    if (message == WM_PASTE && (Blocked() || reading || viewingFile)) return 0;
+    if (message == WM_PASTE && !reading && !viewingFile && !Blocked())
     {
         if (OpenClipboard(window))
         {
@@ -831,6 +1075,7 @@ LRESULT CALLBACK EditorProc(HWND control, UINT message, WPARAM wp, LPARAM lp)
         SetReading(!reading);
         return 0;
     }
+    if (message == WM_KEYDOWN && wp == VK_ESCAPE && focusMode) { ToggleFocus(); return 0; }
     if (message == WM_KEYDOWN && reading && wp == VK_SPACE)
     {
         ToggleRun();
@@ -860,9 +1105,8 @@ LRESULT CALLBACK EditorProc(HWND control, UINT message, WPARAM wp, LPARAM lp)
                                     : T(L"Ctrl+V để bắt đầu", L"Ctrl+V to begin"));
         ReleaseDC(control, dc);
     }
-    if (message == WM_NCPAINT || message == WM_PAINT || message == WM_VSCROLL || message == WM_MOUSEWHEEL ||
-        message == EM_SETSCROLLPOS || message == WM_NCMOUSEMOVE || message == WM_NCLBUTTONDOWN)
-        PaintNativeScrollbar(control);
+    if (message == WM_THEMECHANGED)
+        RedrawWindow(control, nullptr, nullptr, RDW_FRAME | RDW_INVALIDATE | RDW_UPDATENOW);
     return result;
 }
 LRESULT CALLBACK UnderlayProc(HWND h, UINT message, WPARAM wp, LPARAM lp)
@@ -924,17 +1168,18 @@ bool CompactFits()
         }
         controls.push_back(rect);
     }
+    if (page != Page::Content && !Blocked()) return true;
     RECT rect{};
-    GetWindowRect(editor, &rect);
+    GetWindowRect(IsImage() ? imageViewer : editor, &rect);
     MapWindowPoints(nullptr, window, (POINT *)&rect, 2);
     for (const RECT &control : controls)
     {
         RECT overlap{};
-        if (IntersectRect(&overlap, &rect, &control))
+        if (IntersectRect(&overlap, &rect, &control) && !focusMode)
             return false;
     }
     return rect.left >= 0 && rect.right <= client.right && rect.top >= 0 &&
-           rect.bottom <= client.bottom - S(32) && rect.bottom - rect.top >= S(80);
+           rect.bottom <= client.bottom - S(focusMode ? 0 : 32) && rect.bottom - rect.top >= S(80);
 }
 void WriteQa()
 {
@@ -942,7 +1187,7 @@ void WriteQa()
     GetWindowDisplayAffinity(window, &actual);
     auto boolean = [](bool value) -> std::wstring { return value ? L"true" : L"false"; };
     std::wstring report =
-        L"{\n  \"applicationVersion\": \"0.2.0\",\n  \"windowsBuild\": " + std::to_wstring(WindowsBuild()) +
+        L"{\n  \"applicationVersion\": \"0.3.0\",\n  \"windowsBuild\": " + std::to_wstring(WindowsBuild()) +
         L",\n  \"displayCloned\": " + boolean(cloned) + L",\n  \"topologyKnown\": " + boolean(topologyKnown) +
         L",\n  \"privacyApplied\": " + boolean(privacy.applied) +
         L",\n  \"requestedAffinity\": 17,\n  \"actualAffinity\": " + std::to_wstring(actual) +
@@ -960,6 +1205,16 @@ void WriteQa()
         boolean(qaLayoutMatrix) + L",\n  \"hoverTrackingApplied\": " + boolean(qaHover) +
         L",\n  \"emptyScriptStayedEmpty\": " + boolean(qaEmpty) + L",\n  \"nativeScrollbarStillScrolls\": " +
         boolean(qaNativeScrollbar) +
+        L",\n  \"focusHidesChrome\": " + boolean(qaFocus) +
+        L",\n  \"homeControlsWork\": " + boolean(qaHome) +
+        L",\n  \"settingsControlsWork\": " + boolean(qaSettings) +
+        L",\n  \"codeFilePreview\": " + boolean(qaCodeFile) +
+        L",\n  \"imageFilePreview\": " + boolean(qaImageFile) +
+        L",\n  \"filePreviewPreservesScript\": " + boolean(qaPreviewKeepsScript) +
+        L",\n  \"dropFileHandlerWorks\": " + boolean(qaDropped) +
+        L",\n  \"imageMaskHidesCanvas\": " + boolean(qaImageMask) +
+        L",\n  \"imageZoomAndPanWork\": " + boolean(qaImagePan) +
+        L",\n  \"focusRestoreButtonWorks\": " + boolean(qaFocusRestored) +
         L",\n  \"dpiMatrixMethod\": \"Simulated logical scaling at 96, 120 and 144 DPI; not a physical "
         L"monitor test\"\n}\n";
     std::string bytes = Utf8(report);
@@ -982,7 +1237,9 @@ void FinishQa()
     if (qaVisual)
         qaPass = qaPass && qaReading && qaReadOnly && qaFont && qaScrolled && qaPaused && qaMasked &&
                  qaCompact && qaUnchanged && qaEditReturned && qaLanguage && qaLayoutMatrix && qaHover &&
-                 qaEmpty && qaNativeScrollbar;
+                 qaEmpty && qaNativeScrollbar && qaFocus && qaHome && qaSettings && qaCodeFile &&
+                 qaImageFile && qaPreviewKeepsScript && qaDropped && qaImageMask && qaImagePan &&
+                 qaFocusRestored;
     if (qaStorage)
         qaPass = qaPass && qaRoundtrip && qaPlaintextAbsent && qaAutosave;
     WriteQa();
@@ -1088,6 +1345,12 @@ void QaTick()
                             Layout();
                             qaLayoutMatrix = CompactFits() && qaLayoutMatrix;
                         }
+                        masked = false;
+                        for (Page surface : {Page::Home, Page::Settings})
+                        {
+                            page = surface; Layout(); qaLayoutMatrix = CompactFits() && qaLayoutMatrix;
+                        }
+                        page = Page::Content;
                     }
                 }
             }
@@ -1150,6 +1413,72 @@ void QaTick()
             RefreshFonts();
             Layout();
         }
+        SetWindowPos(window,nullptr,0,0,S(840),S(560),SWP_NOMOVE|SWP_NOZORDER|SWP_NOACTIVATE);
+        SendMessageW(window, WM_COMMAND, MAKEWPARAM(NAV_HOME,BN_CLICKED),0);
+        qaHome = page == Page::Home && IsWindowVisible(GetDlgItem(window,OPEN_DROP)) && !IsWindowVisible(editor);
+        Capture(L"home.bmp");
+        SendMessageW(window, WM_COMMAND, MAKEWPARAM(HOME_SETTINGS,BN_CLICKED),0);
+        qaSettings = page == Page::Settings && IsWindowVisible(fontSlider);
+        int beforeSize = ActiveTextSize();
+        SendMessageW(fontSlider,TBM_SETPOS,TRUE,32);
+        SendMessageW(window,WM_HSCROLL,TB_THUMBPOSITION,(LPARAM)fontSlider);
+        qaSettings = qaSettings && ActiveTextSize()==32;
+        ActiveTextSize() = beforeSize; ApplyTextFormat();
+        Capture(L"settings.bmp");
+        ShowScript(); SetReading(true); ToggleFocus();
+        qaFocus = focusMode && !IsWindowVisible(GetDlgItem(window,NAV_READ)) &&
+                  !IsWindowVisible(GetDlgItem(window,PLAY)) && CompactFits();
+        Capture(L"focus.bmp");
+        SendMessageW(window,WM_COMMAND,MAKEWPARAM(FOCUS,BN_CLICKED),0);
+        qaFocusRestored = !focusMode && IsWindowVisible(GetDlgItem(window,NAV_READ)) &&
+                          IsWindowVisible(GetDlgItem(window,PLAY));
+        {
+            const std::wstring codePath = qaDir + L"\\example.cpp";
+            const std::string code = "#include <iostream>\n\n// Preview only - this file is never executed.\nint main() {\n    int total = 0;\n    for (int i = 1; i <= 5; ++i) {\n        total += i;\n        std::cout << total << '\\n';\n    }\n    return 0;\n}\n";
+            WriteBytes(codePath,code.data(),(DWORD)code.size());
+            HGLOBAL dropped = GlobalAlloc(GMEM_MOVEABLE | GMEM_ZEROINIT,
+                                          sizeof(DROPFILES)+(codePath.size()+2)*sizeof(wchar_t));
+            if (dropped)
+            {
+                auto data = (DROPFILES *)GlobalLock(dropped);
+                if (data)
+                {
+                    data->pFiles = sizeof(DROPFILES); data->fWide = TRUE;
+                    CopyMemory((BYTE *)data+sizeof(DROPFILES),codePath.c_str(),
+                               (codePath.size()+1)*sizeof(wchar_t));
+                    GlobalUnlock(dropped);
+                    SendMessageW(window,WM_DROPFILES,(WPARAM)dropped,0);
+                    qaDropped = viewingFile && openedContent.displayName == L"example.cpp";
+                }
+                else GlobalFree(dropped);
+            }
+            qaCodeFile = qaDropped && IsCode() &&
+                         (GetWindowLongPtrW(editor,GWL_STYLE)&ES_READONLY);
+            CHARFORMAT2W format{}; format.cbSize=sizeof(format);
+            SendMessageW(editor,EM_GETCHARFORMAT,SCF_DEFAULT,(LPARAM)&format);
+            qaCodeFile = qaCodeFile && std::wstring(format.szFaceName)==L"Consolas";
+            Capture(L"code-file.bmp");
+            qaImageFile = OpenContentPath(qaDir + L"\\..\\qa-content\\orientation.bmp") && IsImage() &&
+                          IsWindowVisible(imageViewer) && !IsWindowVisible(editor);
+            AdjustFont(2);
+            SendMessageW(imageViewer,WM_KEYDOWN,VK_LEFT,0);
+            qaImagePan = imageZoom == 110 && panX == S(24);
+            ResetFont();
+            qaImagePan = qaImagePan && imageZoom == 100 && panX == 0 && panY == 0;
+            ToggleMask();
+            qaImageMask = Blocked() && !IsWindowVisible(imageViewer) && !IsWindowVisible(editor) &&
+                          !OpenContentPath(codePath) && IsImage();
+            ToggleMask();
+            qaImageMask = qaImageMask && IsWindowVisible(imageViewer);
+            Capture(L"image-file.bmp");
+            ToggleFocus(); Capture(L"image-focus.bmp"); ToggleFocus();
+            ShowScript();
+            qaPreviewKeepsScript = !viewingFile && TextOf(editor)==qaContent;
+            bool fileFailure = !OpenContentPath(qaDir + L"\\missing.exe");
+            qaPreviewKeepsScript = qaPreviewKeepsScript && fileFailure && TextOf(editor)==qaContent;
+            Capture(L"file-error.bmp");
+            importError.clear(); ShowScript();
+        }
         FinishQa();
         break;
     }
@@ -1165,13 +1494,16 @@ LRESULT CALLBACK Proc(HWND h, UINT message, WPARAM wp, LPARAM lp)
         if (qaVisual)
             SetWindowDisplayAffinity(h, 0);
         const std::vector<std::pair<int, const wchar_t *>> labels = {
-            {NAV_SCRIPT, L"Lời nhắc"}, {NAV_READ, L"Đọc"},  {MODE, L"Đọc"},   {PLAY, L"Chạy"},
+            {NAV_HOME, L"Chuẩn bị"}, {NAV_SCRIPT, L"Lời nhắc"}, {NAV_READ, L"Đọc"}, {NAV_SETTINGS, L"Tùy chỉnh"},
+            {MODE, L"Đọc"},   {PLAY, L"Chạy"},
             {SPEED, L"Vừa"},           {MASK, L"Che · F8"}, {SMALLER, L"A-"}, {LARGER, L"A+"},
-            {RESET_ZOOM, L"100%"},     {TOPMOST, L"Ghim"},  {LANGUAGE, L"EN"}};
+            {RESET_ZOOM, L"100%"}, {TOPMOST, L"Ghim"}, {LANGUAGE, L"EN"}, {FOCUS, L"Tập trung"},
+            {OPEN_FILE, L"Mở file"}, {OPEN_DROP, L"Mở hoặc thả file"}, {HOME_SCRIPT, L"Lời nhắc"},
+            {HOME_SETTINGS, L"Tùy chỉnh"}, {VIEW_FILE, L"Xem file"}};
         for (const auto &label : labels)
         {
             buttons.push_back(CreateWindowW(L"BUTTON", label.second,
-                                            WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_OWNERDRAW, 0, 0, 0, 0, h,
+                                            WS_CHILD | WS_VISIBLE | WS_TABSTOP | WS_CLIPSIBLINGS | BS_OWNERDRAW, 0, 0, 0, 0, h,
                                             (HMENU)(INT_PTR)label.first, instance, nullptr));
             SetWindowSubclass(buttons.back(), ButtonProc, 1, 0);
         }
@@ -1191,10 +1523,18 @@ LRESULT CALLBACK Proc(HWND h, UINT message, WPARAM wp, LPARAM lp)
         }
         editor =
             CreateWindowExW(0, MSFTEDIT_CLASS, L"",
-                            WS_CHILD | WS_TABSTOP | WS_VSCROLL | ES_MULTILINE | ES_AUTOVSCROLL | ES_NOHIDESEL,
+                            WS_CHILD | WS_TABSTOP | WS_CLIPSIBLINGS | WS_VSCROLL | ES_MULTILINE | ES_AUTOVSCROLL | ES_NOHIDESEL,
                             0, 0, 0, 0, h, (HMENU)EDITOR, instance, nullptr);
         if (!editor)
             return -1;
+        SetWindowTheme(editor, L"DarkMode_Explorer", nullptr);
+        imageViewer = CreateWindowExW(0, L"QuietShareImage", L"", WS_CHILD | WS_TABSTOP | WS_CLIPSIBLINGS,
+                                       0, 0, 0, 0, h, nullptr, instance, nullptr);
+        fontSlider = CreateWindowExW(0, TRACKBAR_CLASSW, L"Cỡ chữ / Zoom", WS_CHILD | WS_TABSTOP | TBS_NOTICKS,
+                                      0, 0, 0, 0, h, (HMENU)FONT_SLIDER, instance, nullptr);
+        SetWindowTheme(fontSlider, L"DarkMode_Explorer", nullptr);
+        SetWindowSubclass(fontSlider, ButtonProc, 1, 0);
+        DragAcceptFiles(h, TRUE);
         SendMessageW(editor, EM_SETTEXTMODE, TM_PLAINTEXT | TM_MULTICODEPAGE, 0);
         editorProc = (WNDPROC)SetWindowLongPtrW(editor, GWLP_WNDPROC, (LONG_PTR)EditorProc);
         SendMessageW(editor, EM_SETBKGNDCOLOR, 0, CARD);
@@ -1219,6 +1559,7 @@ LRESULT CALLBACK Proc(HWND h, UINT message, WPARAM wp, LPARAM lp)
         qaContent = TextOf(editor);
         RefreshFonts();
         ApplyTextFormat();
+        page = qa ? Page::Content : Page::Home;
         SendMessageW(editor, EM_SETSEL, 0, 0);
         if (!qa)
         {
@@ -1227,7 +1568,7 @@ LRESULT CALLBACK Proc(HWND h, UINT message, WPARAM wp, LPARAM lp)
         }
         else
         {
-            SetTimer(h, QA_TIMER, 900, nullptr);
+            if (!qaInteractive) SetTimer(h, QA_TIMER, 900, nullptr);
             if (qaStorage)
             {
                 SetWindowTextW(editor, (content + L" Tự lưu.").c_str());
@@ -1274,8 +1615,74 @@ LRESULT CALLBACK Proc(HWND h, UINT message, WPARAM wp, LPARAM lp)
     case WM_DRAWITEM:
         DrawButton((DRAWITEMSTRUCT *)lp);
         return TRUE;
+    case WM_NOTIFY: {
+        auto notification = (NMHDR *)lp;
+        if (notification->hwndFrom == fontSlider && notification->code == NM_CUSTOMDRAW)
+        {
+            auto draw = (NMCUSTOMDRAW *)lp;
+            if (draw->dwDrawStage == CDDS_PREPAINT)
+            {
+                RECT bounds{}; GetClientRect(fontSlider, &bounds);
+                FillRect(draw->hdc, &bounds, cardBrush);
+                RECT channel{}, thumb{};
+                SendMessageW(fontSlider, TBM_GETCHANNELRECT, 0, (LPARAM)&channel);
+                SendMessageW(fontSlider, TBM_GETTHUMBRECT, 0, (LPARAM)&thumb);
+                int centerY = (bounds.top + bounds.bottom) / 2;
+                int centerX = (thumb.left + thumb.right) / 2;
+                channel.top = centerY - S(2); channel.bottom = centerY + S(2);
+                FillRoundRect(draw->hdc, channel, DIVIDER, S(4));
+                RECT filled = channel; filled.right = centerX;
+                if (filled.right > filled.left)
+                    FillRoundRect(draw->hdc, filled, IsWindowEnabled(fontSlider) ? ACCENT : DISABLED, S(4));
+                RECT handle{centerX-S(7),centerY-S(7),centerX+S(7),centerY+S(7)};
+                bool keyboardFocus = GetFocus() == fontSlider &&
+                    !(SendMessageW(window,WM_QUERYUISTATE,0,0) & UISF_HIDEFOCUS);
+                if (keyboardFocus)
+                {
+                    RECT ring = handle; InflateRect(&ring,S(3),S(3));
+                    FillRoundRect(draw->hdc,ring,GREEN,S(20));
+                    InflateRect(&ring,-S(2),-S(2)); FillRoundRect(draw->hdc,ring,CARD,S(16));
+                }
+                FillRoundRect(draw->hdc,handle,!IsWindowEnabled(fontSlider) ? DISABLED
+                    : hoveredButton == fontSlider ? GREEN : TEXT,S(14));
+                return CDRF_SKIPDEFAULT;
+            }
+        }
+        break;
+    }
+    case WM_CTLCOLORSTATIC:
+        SetBkColor((HDC)wp, CARD);
+        SetTextColor((HDC)wp, TEXT);
+        return (LRESULT)cardBrush;
+    case WM_HSCROLL:
+        if ((HWND)lp == fontSlider && !Blocked())
+        {
+            int value = (int)SendMessageW(fontSlider, TBM_GETPOS, 0, 0);
+            Pause();
+            if (IsImage()) { imageZoom = value; panX = panY = 0; InvalidateRect(imageViewer,nullptr,FALSE); }
+            else ActiveTextSize() = value;
+            ApplyTextFormat();
+        }
+        return 0;
+    case WM_DROPFILES: {
+        HDROP drop = (HDROP)wp;
+        UINT count = DragQueryFileW(drop, 0xFFFFFFFF, nullptr, 0);
+        if (count == 1)
+        {
+            UINT length = DragQueryFileW(drop, 0, nullptr, 0);
+            std::vector<wchar_t> path(length + 1);
+            DragQueryFileW(drop,0,path.data(),length+1);
+            OpenContentPath(path.data());
+        }
+        else if (!Blocked())
+        {
+            importError = L"Mở một file mỗi lần. / Open one file at a time.";
+            page = Page::Home; focusMode = false; Layout();
+        }
+        DragFinish(drop); return 0;
+    }
     case WM_COMMAND:
-        if (LOWORD(wp) == EDITOR && HIWORD(wp) == EN_CHANGE && !loading)
+        if (LOWORD(wp) == EDITOR && HIWORD(wp) == EN_CHANGE && !loading && !viewingFile)
         {
             dirty = true;
             SetTimer(h, SAVE_TIMER, 900, nullptr);
@@ -1285,8 +1692,14 @@ LRESULT CALLBACK Proc(HWND h, UINT message, WPARAM wp, LPARAM lp)
             return 0;
         switch (LOWORD(wp))
         {
+        case NAV_HOME:
+            Pause(); focusMode = false; page = Page::Home; Layout(); break;
+        case NAV_SETTINGS:
+        case HOME_SETTINGS:
+            Pause(); focusMode = false; page = Page::Settings; Layout(); break;
         case NAV_SCRIPT:
-            SetReading(false);
+        case HOME_SCRIPT:
+            ShowScript();
             break;
         case NAV_READ:
             SetReading(true);
@@ -1294,6 +1707,13 @@ LRESULT CALLBACK Proc(HWND h, UINT message, WPARAM wp, LPARAM lp)
         case MODE:
             SetReading(!reading);
             break;
+        case OPEN_FILE:
+        case OPEN_DROP:
+            ChooseFile(); break;
+        case VIEW_FILE:
+            ShowOpenedFile(); break;
+        case FOCUS:
+            ToggleFocus(); break;
         case PLAY:
             ToggleRun();
             break;
@@ -1385,10 +1805,11 @@ int WINAPI wWinMain(HINSTANCE inst, HINSTANCE, LPWSTR, int show)
     for (int i = 1; i < count; ++i)
     {
         std::wstring flag = args[i];
-        if (flag == L"--qa-visible" || flag == L"--qa-excluded" || flag == L"--qa-storage")
+        if (flag == L"--qa-visible" || flag == L"--qa-excluded" || flag == L"--qa-storage" || flag == L"--qa-scrollbar")
         {
             qa = true;
-            qaVisual = flag == L"--qa-visible";
+            qaVisual = flag == L"--qa-visible" || flag == L"--qa-scrollbar";
+            qaInteractive = flag == L"--qa-scrollbar";
             qaStorage = flag == L"--qa-storage";
             if (i + 1 < count && args[i + 1][0] != L'-')
                 qaDir = args[++i];
@@ -1435,7 +1856,7 @@ int WINAPI wWinMain(HINSTANCE inst, HINSTANCE, LPWSTR, int show)
     HMODULE richEdit = LoadLibraryExW(L"Msftedit.dll", nullptr, LOAD_LIBRARY_SEARCH_SYSTEM32);
     if (!richEdit)
         return 5;
-    INITCOMMONCONTROLSEX controls{sizeof(controls), ICC_STANDARD_CLASSES};
+    INITCOMMONCONTROLSEX controls{sizeof(controls), ICC_STANDARD_CLASSES | ICC_BAR_CLASSES};
     InitCommonControlsEx(&controls);
     bgBrush = CreateSolidBrush(BG);
     cardBrush = CreateSolidBrush(CARD);
@@ -1450,6 +1871,11 @@ int WINAPI wWinMain(HINSTANCE inst, HINSTANCE, LPWSTR, int show)
                                                     GetSystemMetrics(SM_CXSMICON),
                                                     GetSystemMetrics(SM_CYSMICON), LR_SHARED));
     RegisterClassExW(&wc);
+    WNDCLASSEXW imageClass = wc;
+    imageClass.lpfnWndProc = ImageProc;
+    imageClass.lpszClassName = L"QuietShareImage";
+    imageClass.hCursor = LoadCursorW(nullptr, IDC_SIZEALL);
+    RegisterClassExW(&imageClass);
     RECT start{S(72), S(66), S(72 + 720), S(66 + 560)};
     if (!qa)
     {
@@ -1476,7 +1902,7 @@ int WINAPI wWinMain(HINSTANCE inst, HINSTANCE, LPWSTR, int show)
         UpdateWindow(underlay);
     }
     window =
-        CreateWindowExW(WS_EX_TOPMOST, L"QuietSharePrivate", L"QuietShare - Nhắc chữ riêng",
+        CreateWindowExW(WS_EX_TOPMOST, L"QuietSharePrivate", L"QuietShare",
                         WS_OVERLAPPEDWINDOW | WS_CLIPCHILDREN, start.left, start.top,
                         start.right - start.left, start.bottom - start.top, nullptr, nullptr, inst, nullptr);
     if (!window)
@@ -1500,11 +1926,15 @@ int WINAPI wWinMain(HINSTANCE inst, HINSTANCE, LPWSTR, int show)
     Layout();
     UpdateWindow(window);
     if (!qa && !Blocked())
-        SetFocus(editor);
+        SetFocus(GetDlgItem(window, OPEN_DROP));
     MSG message{};
     int result;
     while ((result = GetMessageW(&message, nullptr, 0, 0)) > 0)
     {
+        if (message.message == WM_KEYDOWN && message.wParam == VK_F11)
+        { ToggleFocus(); continue; }
+        if (message.message == WM_KEYDOWN && message.wParam == VK_ESCAPE && focusMode)
+        { ToggleFocus(); continue; }
         if (message.message == WM_KEYDOWN && message.wParam == VK_TAB)
             SendMessageW(window, WM_CHANGEUISTATE, MAKEWPARAM(UIS_CLEAR, UISF_HIDEFOCUS), 0);
         if (message.message == WM_KEYDOWN && message.wParam == VK_F8 && !f8Registered)

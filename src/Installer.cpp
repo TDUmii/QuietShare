@@ -20,7 +20,7 @@
 namespace
 {
 constexpr wchar_t kAppName[] = L"QuietShare";
-constexpr wchar_t kVersion[] = L"0.2.0";
+constexpr wchar_t kVersion[] = L"0.3.0";
 constexpr wchar_t kUninstallKey[] = L"Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\QuietShare";
 constexpr int kPayloadResource = 301;
 constexpr int kActionButton = 101;
@@ -674,12 +674,12 @@ int SelfTest(const std::wstring &reportPath)
     bool versionOk = versionSize && GetFileVersionInfoW(self.c_str(), 0, versionSize, versionData.data()) &&
                      VerQueryValueW(versionData.data(), L"\\", reinterpret_cast<void **>(&info), &infoSize) &&
                      infoSize >= sizeof(VS_FIXEDFILEINFO) && info->dwSignature == 0xFEEF04BD &&
-                     HIWORD(info->dwFileVersionMS) == 0 && LOWORD(info->dwFileVersionMS) == 2 &&
+                     HIWORD(info->dwFileVersionMS) == 0 && LOWORD(info->dwFileVersionMS) == 3 &&
                      info->dwFileVersionLS == 0;
     const bool ok = payloadOk && pathOk && versionOk;
     std::ostringstream report;
     report << "{\n  \"selfTestPassed\": " << (ok ? "true" : "false")
-           << ",\n  \"version\": \"0.2.0\",\n  \"versionResourceVerified\": "
+           << ",\n  \"version\": \"0.3.0\",\n  \"versionResourceVerified\": "
            << (versionOk ? "true" : "false")
            << ",\n  \"payloadResourceId\": 301,\n  \"payloadBytes\": " << payload.size
            << ",\n  \"payloadPortableExecutable\": " << (payloadOk ? "true" : "false")
@@ -842,7 +842,7 @@ void PaintInstaller(HDC dc)
     DeleteObject(stroke);
     DrawInstallerText(dc, L"QuietShare", {S(76), S(24), S(256), S(56)}, kText, gButtonFont,
                       DT_LEFT | DT_VCENTER | DT_SINGLELINE);
-    DrawInstallerText(dc, L"0.2.0", {S(504), S(24), S(588), S(56)}, kMuted, gSmallFont,
+    DrawInstallerText(dc, L"0.3.0", {S(504), S(24), S(588), S(56)}, kMuted, gSmallFont,
                       DT_RIGHT | DT_VCENTER | DT_SINGLELINE);
     FillRounded(dc, {S(32), S(192), S(588), S(280)}, kSurface, S(12));
     RECT footer{0, S(400), client.right, client.bottom};
@@ -1035,7 +1035,7 @@ LRESULT CALLBACK WindowProc(HWND window, UINT message, WPARAM wParam, LPARAM lPa
         gFolderPath = Label(window, gRoot.c_str(), gFont);
         gStatus = Label(window,
                         gUninstall ? L"Hãy đóng QuietShare trước khi gỡ cài đặt."
-                                   : L"Thêm lối tắt vào Desktop và Start Menu. Phiên bản 0.2.0.",
+                                   : L"Thêm lối tắt vào Desktop và Start Menu. Phiên bản 0.3.0.",
                         gFont);
         if (!gUninstall)
         {

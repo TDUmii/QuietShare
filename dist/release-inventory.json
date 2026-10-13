@@ -1,51 +1,51 @@
 {
-  "version": "0.2.0",
+  "version": "0.3.0",
   "platform": "win-x64",
   "passed": true,
   "checks": {
     "QuietShare.exe.x64PE": true,
-    "QuietShare.exe.fileVersion0.2.0": true,
-    "QuietShare.exe.productVersion0.2.0": true,
+    "QuietShare.exe.fileVersion0.3.0": true,
+    "QuietShare.exe.productVersion0.3.0": true,
     "QuietShare-Setup.exe.x64PE": true,
-    "QuietShare-Setup.exe.fileVersion0.2.0": true,
-    "QuietShare-Setup.exe.productVersion0.2.0": true,
+    "QuietShare-Setup.exe.fileVersion0.3.0": true,
+    "QuietShare-Setup.exe.productVersion0.3.0": true,
     "installerPayloadMatchesPortableExe": true
   },
   "files": {
     "QuietShare.exe": {
-      "bytes": 349184,
-      "sha256": "2e77eeb79b527cebf5cda84edcda366afc473e8708bf49e56ea6bde12887bb39",
+      "bytes": 391168,
+      "sha256": "0d81b40b7e6e275dfa684bef783a1b060a71f9c64504d0c320db5aea757ca75f",
       "x64PE": true,
       "machine": "0x8664",
       "optionalHeaderMagic": "0x20b",
       "fileVersion": [
         0,
-        2,
+        3,
         0,
         0
       ],
       "productVersion": [
         0,
-        2,
+        3,
         0,
         0
       ]
     },
     "QuietShare-Setup.exe": {
-      "bytes": 1471488,
-      "sha256": "b4d4f71326d041280e8a09d10032cfaa9875375872567183d73b9e32d63e5f84",
+      "bytes": 1513472,
+      "sha256": "b5a73fa2c677091a343f03f3de681f12d25980efb653ba2615e373711e6b3024",
       "x64PE": true,
       "machine": "0x8664",
       "optionalHeaderMagic": "0x20b",
       "fileVersion": [
         0,
-        2,
+        3,
         0,
         0
       ],
       "productVersion": [
         0,
-        2,
+        3,
         0,
         0
       ]
@@ -56,6 +56,6 @@
     "QuietShare.exe": "NotSigned",
     "QuietShare-Setup.exe": "NotSigned"
   },
-  "runtime": "Native text teleprompter using Windows system libraries",
+  "runtime": "Native script, code and image viewer using Windows system libraries",
   "method": "PE header parsing, Windows VERSIONINFO reading and setup RCDATA 301 byte comparison; no EXE execution"
 }

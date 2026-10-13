@@ -20,7 +20,7 @@ function Compile-Resource([string]$source, [string]$output) {
 Push-Location (Join-Path $projectRoot 'src')
 try {
     Compile-Resource 'app.rc' '../build/app.res'
-    & $compiler '-std=c++17' '-O2' '-s' '-static' '-static-libgcc' '-static-libstdc++' '-municode' '-mwindows' '-DUNICODE' '-D_UNICODE' '-D_WIN32_WINNT=0x0A00' 'main.cpp' 'Privacy.cpp' (Join-Path $buildDir 'app.res') '-o' (Join-Path $distDir 'QuietShare.exe') '-lcomctl32' '-ldwmapi' '-lcrypt32' '-lshell32' '-luser32' '-lgdi32'
+    & $compiler '-std=c++17' '-O2' '-s' '-static' '-static-libgcc' '-static-libstdc++' '-municode' '-mwindows' '-DUNICODE' '-D_UNICODE' '-D_WIN32_WINNT=0x0A00' 'main.cpp' 'Privacy.cpp' 'Content.cpp' (Join-Path $buildDir 'app.res') '-o' (Join-Path $distDir 'QuietShare.exe') '-lcomctl32' '-ldwmapi' '-lcrypt32' '-lshell32' '-luser32' '-lgdi32' '-luxtheme' '-lcomdlg32' '-lwindowscodecs' '-lole32' '-luuid' '-lmsimg32'
     if ($LASTEXITCODE) { throw 'Application compilation failed.' }
     if (Test-Path -LiteralPath 'Installer.cpp') {
         Compile-Resource 'installer.rc' '../build/installer.res'

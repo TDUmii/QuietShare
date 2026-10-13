@@ -3,6 +3,7 @@ $projectRoot = Split-Path -Parent $PSScriptRoot
 $artifactRoot = Join-Path $projectRoot 'artifacts'
 $exe = Join-Path $projectRoot 'dist\QuietShare.exe'
 $setup = Join-Path $projectRoot 'dist\QuietShare-Setup.exe'
+& (Join-Path $PSScriptRoot 'run-content.ps1')
 $runs = @(@('--qa-visible', 'qa-visible'), @('--qa-excluded', 'qa-excluded'), @('--qa-storage', 'qa-storage'))
 foreach ($run in $runs) {
     $directory = Join-Path $artifactRoot $run[1]
@@ -28,3 +29,4 @@ python (Join-Path $PSScriptRoot 'release_inventory.py')
 if ($LASTEXITCODE) { throw 'Release inventory verification failed.' }
 python (Join-Path $PSScriptRoot 'lifecycle_regression.py')
 if ($LASTEXITCODE) { throw 'Production EXE lifecycle regression failed.' }
+& (Join-Path $PSScriptRoot 'run-scrollbar.ps1')
