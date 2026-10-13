@@ -42,6 +42,13 @@ USER32.SendMessageTimeoutW.argtypes = [wintypes.HWND, wintypes.UINT, wintypes.WP
 USER32.SendMessageTimeoutW.restype = wintypes.LPARAM
 USER32.ShowWindow.argtypes = [wintypes.HWND, ctypes.c_int]
 USER32.ShowWindow.restype = wintypes.BOOL
+USER32.IsWindowVisible.argtypes = [wintypes.HWND]
+USER32.IsWindowVisible.restype = wintypes.BOOL
+USER32.IsIconic.argtypes = [wintypes.HWND]
+USER32.IsIconic.restype = wintypes.BOOL
+USER32.GetForegroundWindow.restype = wintypes.HWND
+USER32.GetWindowDisplayAffinity.argtypes = [wintypes.HWND,ctypes.POINTER(wintypes.DWORD)]
+USER32.GetWindowDisplayAffinity.restype = wintypes.BOOL
 USER32.GetWindowLongW.argtypes = [wintypes.HWND, ctypes.c_int]
 USER32.GetWindowLongW.restype = wintypes.LONG
 USER32.IsWindowEnabled.argtypes = [wintypes.HWND]
@@ -178,8 +185,8 @@ def main() -> int:
     expected_text = ""
     first = None
 
-    def check(name: str, passed: bool, details: object) -> None:
-        checks.append({"check": name, "passed": passed, "details": details})
+    def check(name: str, passed: bool, details: object = None) -> None:
+        checks.append({"check": name, "passed": bool(passed), "details": details})
         if not passed:
             raise AssertionError(name)
 
@@ -234,6 +241,32 @@ def main() -> int:
               bool(send(window,0x8000+14,timeout=6000)),
               "Actual production preflight completed before entering synthetic notes")
         check("unreadableNotesStartsBlank", control_text(editor) == "", "editor is empty")
+        send(window,0x111,106)
+        check("recallStartsUnpinned", not USER32.GetWindowLongW(window,-20)&8)
+        USER32.ShowWindow(window,0)
+        foreground=USER32.GetForegroundWindow()
+        send(window,0x312,3)
+        check("recallRevealsHiddenOwnedWindow", bool(USER32.IsWindowVisible(window)))
+        check("recallPreservesForeground", USER32.GetForegroundWindow()==foreground)
+        check("recallDoesNotPin", not USER32.GetWindowLongW(window,-20)&8)
+        recall_deadline=time.monotonic()+8
+        while time.monotonic()<recall_deadline and not send(window,0x800E,timeout=6000):
+            time.sleep(0.05)
+        check("recallRetainsRealWgcGate", bool(send(window,0x800E,timeout=6000)),
+              {"maskedLabel":control_text(USER32.GetDlgItem(window,105)),"sourceIndex":send(USER32.GetDlgItem(window,160),0x147)})
+        check("recallPreflightPreservesForeground", USER32.GetForegroundWindow()==foreground)
+        USER32.ShowWindow(window,6)
+        foreground=USER32.GetForegroundWindow()
+        send(window,0x312,3)
+        check("recallRestoresMinimizedWindow", not USER32.IsIconic(window) and USER32.IsWindowVisible(window))
+        check("recallMinimizedPreservesForeground", USER32.GetForegroundWindow()==foreground)
+        affinity= wintypes.DWORD()
+        check("recallRetainsCaptureExclusion", bool(USER32.GetWindowDisplayAffinity(window,ctypes.byref(affinity))) and affinity.value==0x11)
+        send(window,0x312,2)
+        send(window,0x312,3)
+        check("recallDoesNotRevealF8MaskedContent", not send(window,0x800E,timeout=6000))
+        send(window,0x312,2)
+        check("F8CanRevealAfterRecall", bool(send(window,0x800E,timeout=6000)))
         backup_paths = list(notes.parent.glob("notes.dpapi.recovery-*"))
         backups = [{"path": str(path), "bytes": path.stat().st_size,
                     "sha256": hashlib.sha256(path.read_bytes()).hexdigest()} for path in backup_paths]
@@ -346,7 +379,7 @@ def main() -> int:
 
     failed = [item["check"] for item in checks if not item["passed"]]
     report = {
-        "applicationVersion": "0.4.0",
+        "applicationVersion": "0.4.2",
         "passed": not failed,
         "method": "Production EXE with isolated LOCALAPPDATA; PID-bound Win32 control messages and DPAPI decrypt",
         "scope": "Unreadable-file recovery, Unicode autosave, native plaintext mode, single instance, readonly source preview separation and restart restoration",

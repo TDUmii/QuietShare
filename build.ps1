@@ -18,8 +18,14 @@ $previousPath = $env:PATH
 $env:PATH = $CompilerRoot + ';' + $env:PATH
 function Compile-Resource([string]$source, [string]$output) {
     for ($attempt = 1; $attempt -le 3; $attempt++) {
-        $resourceProcess = Start-Process -FilePath $windres -ArgumentList @('-I.',$source,'-O','coff','-o',$output) -WorkingDirectory (Get-Location).Path -WindowStyle Hidden -PassThru -Wait
-        if ($resourceProcess.ExitCode -eq 0) { return }
+        # Separate RC parsing from COFF conversion; direct large-payload COFF
+        # emission can crash this MinGW windres build during heap cleanup.
+        $nativeResource = $output + '.native'
+        $resourceProcess = Start-Process -FilePath $windres -ArgumentList @('-I.',$source,'-O','res','-o',$nativeResource) -WorkingDirectory (Get-Location).Path -WindowStyle Hidden -PassThru -Wait
+        if ($resourceProcess.ExitCode -eq 0) {
+            $resourceProcess = Start-Process -FilePath $windres -ArgumentList @('-J','res','-O','coff','-i',$nativeResource,'-o',$output) -WorkingDirectory (Get-Location).Path -WindowStyle Hidden -PassThru -Wait
+            if ($resourceProcess.ExitCode -eq 0) { return }
+        }
         if ($attempt -lt 3) { Start-Sleep -Milliseconds 700 }
     }
     throw "Resource compilation failed: $source (exit $($resourceProcess.ExitCode))"

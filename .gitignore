@@ -17,6 +17,7 @@ dist/*
 !dist/TEST_REPORT.md
 !dist/TEST_REPORT_v0.4.0.md
 !dist/TEST_REPORT_v0.4.1.md
+!dist/TEST_REPORT_v0.4.2.md
 !dist/CHANGELOG.md
 !dist/THIRD-PARTY.md
 !dist/release-inventory.json
@@ -26,6 +27,7 @@ dist/*
 !dist/docs/QuietShare_v0.4.0_Codex_Implementation_Plan.md
 !dist/docs/test-evidence-v0.4.0.json
 !dist/docs/test-evidence-v0.4.1.json
+!dist/docs/test-evidence-v0.4.2.json
 !dist/dependencies/
 !dist/dependencies/**
 

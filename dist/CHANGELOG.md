@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.4.2
+
+- Added global Ctrl+Alt+Q to recall a covered, hidden or minimized window without opening Alt+Tab, stealing foreground focus or changing the pin setting.
+- Recall preserves F8 masking and checks the existing capture/privacy gate before displaying private readers or metadata. It never overrides Duplicate restrictions.
+- The pin tooltip describes the shortcut and reports an unavailable registration if another application occupies it.
+
 ## 0.4.1
 
 - Replaced navigation and tool action sketches with bundled Microsoft Codicons; icon-only navigation now reveals bilingual names after an 850 ms hover.

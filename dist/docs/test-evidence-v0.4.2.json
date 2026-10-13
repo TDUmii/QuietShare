@@ -1,5 +1,5 @@
 {
-  "version": "0.4.1",
+  "version": "0.4.2",
   "platform": "win-x64",
   "windowsBuild": 26200,
   "baselineV03": {
@@ -10,7 +10,7 @@
     "releasePE": 7,
     "status": "PASS before changes"
   },
-  "passed": 801,
+  "passed": 812,
   "failed": 0,
   "suites": [
     {
@@ -2190,11 +2190,11 @@
           "status": "PASS"
         },
         {
-          "name": "QuietShare.exe.fileVersion0.4.1",
+          "name": "QuietShare.exe.fileVersion0.4.2",
           "status": "PASS"
         },
         {
-          "name": "QuietShare.exe.productVersion0.4.1",
+          "name": "QuietShare.exe.productVersion0.4.2",
           "status": "PASS"
         },
         {
@@ -2202,11 +2202,11 @@
           "status": "PASS"
         },
         {
-          "name": "QuietShare-Setup.exe.fileVersion0.4.1",
+          "name": "QuietShare-Setup.exe.fileVersion0.4.2",
           "status": "PASS"
         },
         {
-          "name": "QuietShare-Setup.exe.productVersion0.4.1",
+          "name": "QuietShare-Setup.exe.productVersion0.4.2",
           "status": "PASS"
         },
         {
@@ -2293,7 +2293,7 @@
     },
     {
       "name": "Shipping EXE / script lifecycle",
-      "passed": 31,
+      "passed": 42,
       "failed": 0,
       "notTested": 0,
       "checks": [
@@ -2319,6 +2319,50 @@
         },
         {
           "name": "unreadableNotesStartsBlank",
+          "status": "PASS"
+        },
+        {
+          "name": "recallStartsUnpinned",
+          "status": "PASS"
+        },
+        {
+          "name": "recallRevealsHiddenOwnedWindow",
+          "status": "PASS"
+        },
+        {
+          "name": "recallPreservesForeground",
+          "status": "PASS"
+        },
+        {
+          "name": "recallDoesNotPin",
+          "status": "PASS"
+        },
+        {
+          "name": "recallRetainsRealWgcGate",
+          "status": "PASS"
+        },
+        {
+          "name": "recallPreflightPreservesForeground",
+          "status": "PASS"
+        },
+        {
+          "name": "recallRestoresMinimizedWindow",
+          "status": "PASS"
+        },
+        {
+          "name": "recallMinimizedPreservesForeground",
+          "status": "PASS"
+        },
+        {
+          "name": "recallRetainsCaptureExclusion",
+          "status": "PASS"
+        },
+        {
+          "name": "recallDoesNotRevealF8MaskedContent",
+          "status": "PASS"
+        },
+        {
+          "name": "F8CanRevealAfterRecall",
           "status": "PASS"
         },
         {
@@ -3074,21 +3118,21 @@
   ],
   "files": {
     "QuietShare.exe": {
-      "bytes": 668672,
-      "sha256": "60b562749d7e1ae0a6e99653271d4eaf4d40c0f0609498d69b2476212b685e42",
+      "bytes": 669696,
+      "sha256": "a244154a0701f7506bf6ca2287c6c93ae4c22ed2d91d0426d5b25703299b4a1e",
       "x64PE": true,
       "machine": "0x8664",
       "optionalHeaderMagic": "0x20b",
       "fileVersion": [
         0,
         4,
-        1,
+        2,
         0
       ],
       "productVersion": [
         0,
         4,
-        1,
+        2,
         0
       ],
       "imports": [
@@ -3111,21 +3155,21 @@
       ]
     },
     "QuietShare-Setup.exe": {
-      "bytes": 12097536,
-      "sha256": "1f8416d9a86bd179253250312acec4aa92de63d319957aa27d8ca10d10912b76",
+      "bytes": 12098560,
+      "sha256": "ef1f13900bbdff2fcb534de1188a288824bb78c6fc735775b0d2b656f470de42",
       "x64PE": true,
       "machine": "0x8664",
       "optionalHeaderMagic": "0x20b",
       "fileVersion": [
         0,
         4,
-        1,
+        2,
         0
       ],
       "productVersion": [
         0,
         4,
-        1,
+        2,
         0
       ],
       "imports": [

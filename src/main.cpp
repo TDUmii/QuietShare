@@ -71,7 +71,7 @@ UINT dpi = 96;
 PrivacyResult privacy;
 bool topologyKnown = false, cloned = true, masked = false, reading = false, running = false, loading = false,
      dirty = false, saveFailed = false, f8Registered = false, savedNoteRecovered = false,
-     storageBlocked = false, topmost = true, english = false;
+     storageBlocked = false, topmost = true, english = false, recallRegistered = false;
 int fontPoints = 24, speed = 1;
 double scrollRemainder = 0;
 ULONGLONG lastScrollTick = 0;
@@ -269,6 +269,25 @@ void SetTopmost(bool value)
                  SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE | SWP_SHOWWINDOW);
     InvalidateRect(window, nullptr, FALSE);
 }
+void RecallWindow()
+{
+    // Conceal all readers and metadata before restoring a minimized/covered HWND.
+    // A recall never changes pinning, foreground focus or the explicit F8 mask.
+    topologyKnown=false;
+    documentHost.Hide();SendMessageW(tooltips,TTM_POP,0,0);
+    Layout();
+    DWORD affinity=0;
+    if(!GetWindowDisplayAffinity(window,&affinity)||affinity!=0x11) {
+        privacy=ApplyPrivacy(window);
+        if(mirror)mirror->Invalidate();
+    }
+    if(IsIconic(window)||!IsWindowVisible(window))ShowWindow(window,SW_SHOWNOACTIVATE);
+    topologyKnown=TryGetDisplayCloned(cloned);
+    if(mirror)mirror->Tick();
+    if(mirror&&!mirror->IsVerified()&&!masked)PostMessageW(window,VerifyPrivacyMessage,0,0);
+    Layout();
+    SetWindowPos(window,HWND_TOP,0,0,0,0,SWP_NOMOVE|SWP_NOSIZE|SWP_NOACTIVATE|SWP_SHOWWINDOW);
+}
 void AdjustFont(int delta)
 {
     if (Blocked())
@@ -452,6 +471,9 @@ void UpdateButtons()
                                            : T(L"Cỡ chữ mặc định 24 pt - Ctrl+0", L"Default size 24 pt - Ctrl+0"));
     SetTip(TOPMOST, T(topmost ? L"Bỏ ghim cửa sổ" : L"Ghim cửa sổ trên cùng",
                       topmost ? L"Unpin the window" : L"Keep the window on top"));
+    SetTip(TOPMOST,recallRegistered
+        ? T(L"Ghim / Bỏ ghim. Gọi cửa sổ: Ctrl+Alt+Q (không đổi focus)",L"Pin / unpin. Recall: Ctrl+Alt+Q (keeps focus)")
+        : T(L"Ghim / Bỏ ghim. Ctrl+Alt+Q không khả dụng: có thể đang được app khác dùng.",L"Pin / unpin. Ctrl+Alt+Q unavailable: another app may use it."));
     SetTip(LANGUAGE, english ? L"Chuyển sang tiếng Việt" : L"Switch to English");
     SetTip(NAV_HOME, T(L"Chuẩn bị nội dung", L"Prepare content"));
     SetTip(NAV_SETTINGS, T(L"Tùy chỉnh hiển thị", L"Display settings"));
@@ -1344,7 +1366,7 @@ void WriteQa()
     GetWindowDisplayAffinity(window, &actual);
     auto boolean = [](bool value) -> std::wstring { return value ? L"true" : L"false"; };
     std::wstring report =
-        L"{\n  \"applicationVersion\": \"0.4.1\",\n  \"windowsBuild\": " + std::to_wstring(WindowsBuild()) +
+        L"{\n  \"applicationVersion\": \"0.4.2\",\n  \"windowsBuild\": " + std::to_wstring(WindowsBuild()) +
         L",\n  \"displayCloned\": " + boolean(cloned) + L",\n  \"topologyKnown\": " + boolean(topologyKnown) +
         L",\n  \"privacyApplied\": " + boolean(privacy.applied) +
         L",\n  \"requestedAffinity\": 17,\n  \"actualAffinity\": " + std::to_wstring(actual) +
@@ -1803,6 +1825,8 @@ LRESULT CALLBACK Proc(HWND h, UINT message, WPARAM wp, LPARAM lp)
         if (!qa)
         {
             f8Registered = RegisterHotKey(h, 2, MOD_NOREPEAT, VK_F8) != 0;
+            recallRegistered=RegisterHotKey(h,3,MOD_CONTROL|MOD_ALT|MOD_NOREPEAT,L'Q')!=0;
+            UpdateButtons();
             SetTimer(h, PRIVACY_TIMER, 250, nullptr);
             SetTimer(h, 5, 8, nullptr);
         }
@@ -2075,6 +2099,7 @@ LRESULT CALLBACK Proc(HWND h, UINT message, WPARAM wp, LPARAM lp)
     case WM_HOTKEY:
         if (wp == 2)
             ToggleMask();
+        else if(wp==3)RecallWindow();
         return 0;
     case WM_POWERBROADCAST:
     case WM_DISPLAYCHANGE:
@@ -2136,6 +2161,7 @@ LRESULT CALLBACK Proc(HWND h, UINT message, WPARAM wp, LPARAM lp)
         documentHost.CloseExternal();
         if (f8Registered)
             UnregisterHotKey(h, 2);
+        if(recallRegistered)UnregisterHotKey(h,3);
         if (underlay)
             DestroyWindow(underlay);
         window=nullptr;editor=nullptr;
