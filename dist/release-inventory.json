@@ -1,0 +1,61 @@
+{
+  "version": "0.2.0",
+  "platform": "win-x64",
+  "passed": true,
+  "checks": {
+    "QuietShare.exe.x64PE": true,
+    "QuietShare.exe.fileVersion0.2.0": true,
+    "QuietShare.exe.productVersion0.2.0": true,
+    "QuietShare-Setup.exe.x64PE": true,
+    "QuietShare-Setup.exe.fileVersion0.2.0": true,
+    "QuietShare-Setup.exe.productVersion0.2.0": true,
+    "installerPayloadMatchesPortableExe": true
+  },
+  "files": {
+    "QuietShare.exe": {
+      "bytes": 326144,
+      "sha256": "8815013ac9b4e8ea13bd86dc870f1000e1d4d36822048dc9df4b6525aca04c99",
+      "x64PE": true,
+      "machine": "0x8664",
+      "optionalHeaderMagic": "0x20b",
+      "fileVersion": [
+        0,
+        2,
+        0,
+        0
+      ],
+      "productVersion": [
+        0,
+        2,
+        0,
+        0
+      ]
+    },
+    "QuietShare-Setup.exe": {
+      "bytes": 1434112,
+      "sha256": "78dcf683e23eb51b7a5c28292bdb85abc0bf204d062485d5815cd36505ec4909",
+      "x64PE": true,
+      "machine": "0x8664",
+      "optionalHeaderMagic": "0x20b",
+      "fileVersion": [
+        0,
+        2,
+        0,
+        0
+      ],
+      "productVersion": [
+        0,
+        2,
+        0,
+        0
+      ]
+    }
+  },
+  "errors": {},
+  "authenticode": {
+    "QuietShare.exe": "NotSigned",
+    "QuietShare-Setup.exe": "NotSigned"
+  },
+  "runtime": "Native text teleprompter using Windows system libraries",
+  "method": "PE header parsing, Windows VERSIONINFO reading and setup RCDATA 301 byte comparison; no EXE execution"
+}

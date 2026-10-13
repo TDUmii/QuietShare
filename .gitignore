@@ -1,0 +1,23 @@
+# Build and local QA data
+build/
+vendor/
+artifacts/
+
+# Keep only the release payload and release notes in the repository
+dist/*
+!dist/
+!dist/QuietShare.exe
+!dist/QuietShare-Setup.exe
+!dist/README.md
+!dist/TEST_REPORT.md
+!dist/THIRD-PARTY.md
+!dist/release-inventory.json
+!dist/docs/
+!dist/docs/quietshare-reading.png
+
+# Superseded browser implementation and SDK bootstrap from v0.1
+src/Browser.cpp
+src/Browser.h
+prepare-sdk.ps1
+tests/make_fixtures.py
+QuietShare-v0.1.0-win-x64.zip
