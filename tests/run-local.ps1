@@ -19,6 +19,9 @@ if ($process.ExitCode) { throw 'Installer self-test failed.' }
 $installerImage = Join-Path $artifactRoot 'installer-visible.bmp'
 $process = Start-Process -FilePath $setup -ArgumentList ('--qa-visible --report "' + $installerImage + '"') -WindowStyle Hidden -PassThru -Wait
 if ($process.ExitCode) { throw 'Installer UI capture failed.' }
+$uninstallerImage = Join-Path $artifactRoot 'uninstaller-visible.bmp'
+$process = Start-Process -FilePath $setup -ArgumentList ('--uninstall --qa-visible --report "' + $uninstallerImage + '"') -WindowStyle Hidden -PassThru -Wait
+if ($process.ExitCode) { throw 'Uninstaller UI capture failed.' }
 python (Join-Path $PSScriptRoot 'verify_local.py')
 if ($LASTEXITCODE) { throw 'Artifact verification failed.' }
 python (Join-Path $PSScriptRoot 'release_inventory.py')

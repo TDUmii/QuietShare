@@ -1,6 +1,7 @@
 #include <windows.h>
 
 1 RT_MANIFEST "app.manifest"
+101 ICON "quietshare.ico"
 301 RCDATA "../dist/QuietShare.exe"
 
 1 VERSIONINFO

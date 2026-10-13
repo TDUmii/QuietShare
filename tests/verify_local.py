@@ -23,7 +23,9 @@ PURPLE = (124, 58, 237)
 # the redesigned layout uses all of them in a single capture.
 DARK_SURFACES = ((24, 27, 30), (11, 13, 15), (17, 19, 21), (34, 38, 42), (44, 49, 53))
 REQUIRED_CAPTURES = {
-    "qa-visible": ("editing.bmp", "visible.bmp", "large-text.bmp", "scrolling.bmp", "masked.bmp", "compact.bmp", "english.bmp"),
+    "qa-visible": ("editing.bmp", "visible.bmp", "large-text.bmp", "scrolling.bmp", "masked.bmp", "compact.bmp", "english.bmp",
+                   "minimum-editing.bmp", "minimum-masked.bmp", "wide.bmp", "hover.bmp", "pressed.bmp", "english-editing.bmp", "empty.bmp", "empty-reading.bmp",
+                   "dpi-125.bmp", "dpi-150.bmp"),
     "qa-excluded": ("excluded.bmp",),
 }
 
@@ -176,6 +178,8 @@ def main() -> int:
                           "pauseStable", "maskApplied", "compactLayoutFits", "contentUnchanged"):
                 expected[field] = True
             expected["languageToggleApplied"] = True
+            for field in ("polishLayoutMatrixFits", "hoverTrackingApplied", "emptyScriptStayedEmpty", "nativeScrollbarStillScrolls"):
+                expected[field] = True
         for field, value in expected.items():
             actual = diagnostic.get(field)
             check(f"{folder}.{field}", type(actual) is type(value) and actual == value,
@@ -234,6 +238,15 @@ def main() -> int:
             except ValueError as error:
                 check(f"qa-visible.{before}_to_{after}.changed", False, str(error))
 
+    if "qa-visible/wide.bmp" in images and "qa-visible/hover.bmp" in images:
+        difference = changed_fraction(images["qa-visible/wide.bmp"], images["qa-visible/hover.bmp"])
+        check("qa-visible.hoverChangesRenderedPixels", difference >= 0.0001,
+              {"minimum": 0.0001, "actual": difference, "interpretation": "same-size native captures before and during hover"})
+    if "qa-visible/hover.bmp" in images and "qa-visible/pressed.bmp" in images:
+        difference = changed_fraction(images["qa-visible/hover.bmp"], images["qa-visible/pressed.bmp"])
+        check("qa-visible.pressChangesRenderedPixels", difference >= 0.0001,
+              {"minimum": 0.0001, "actual": difference, "interpretation": "native button state while hovered versus pressed"})
+
     compact_key, normal_key = "qa-visible/compact.bmp", "qa-visible/visible.bmp"
     if compact_key in images and normal_key in images:
         compact, normal = images[compact_key], images[normal_key]
@@ -286,6 +299,14 @@ def main() -> int:
                "reviewPng": str(installer_bmp.with_suffix(".png"))})
     except (OSError, ValueError, struct.error) as error:
         check("installer.nativeUiCapture", False, str(error))
+    try:
+        uninstall_bmp = artifacts / "uninstaller-visible.bmp"
+        bitmap = read_bmp(uninstall_bmp)
+        write_png(uninstall_bmp.with_suffix(".png"), bitmap)
+        check("uninstaller.nativeUiCapture", bitmap.width >= 500 and bitmap.height >= 350,
+              {"width": bitmap.width, "height": bitmap.height, "reviewPng": str(uninstall_bmp.with_suffix(".png"))})
+    except (OSError, ValueError, struct.error) as error:
+        check("uninstaller.nativeUiCapture", False, str(error))
 
     if args.exe.is_file():
         try:

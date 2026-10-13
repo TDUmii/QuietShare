@@ -1,5 +1,8 @@
 #define WIN32_LEAN_AND_MEAN
 #define NOMINMAX
+#ifndef _WIN32_WINNT
+#define _WIN32_WINNT 0x0A00
+#endif
 #include <algorithm>
 #include <windows.h>
 #include <commctrl.h>
@@ -13,7 +16,6 @@
 #include <sstream>
 #include <string>
 #include <vector>
-#include <windows.h>
 
 namespace
 {
@@ -24,14 +26,31 @@ constexpr int kPayloadResource = 301;
 constexpr int kActionButton = 101;
 constexpr int kRunCheckbox = 102;
 constexpr int kCloseButton = 103;
+constexpr COLORREF kBackground = RGB(11, 13, 15);
+constexpr COLORREF kSurface = RGB(24, 27, 30);
+constexpr COLORREF kElevated = RGB(34, 38, 42);
+constexpr COLORREF kHover = RGB(44, 49, 53);
+constexpr COLORREF kAccent = RGB(29, 185, 84);
+constexpr COLORREF kText = RGB(248, 250, 252);
+constexpr COLORREF kMuted = RGB(156, 163, 175);
+constexpr COLORREF kDivider = RGB(48, 52, 58);
 HINSTANCE gInstance = nullptr;
 HWND gWindow = nullptr;
 HWND gStatus = nullptr;
 HWND gAction = nullptr;
 HWND gRun = nullptr;
+HWND gClose = nullptr;
+HWND gHeading = nullptr;
+HWND gIntro = nullptr;
+HWND gFolderCaption = nullptr;
+HWND gFolderPath = nullptr;
 HFONT gFont = nullptr;
 HFONT gTitleFont = nullptr;
+HFONT gSmallFont = nullptr;
+HFONT gButtonFont = nullptr;
 HBRUSH gBackground = nullptr;
+HBRUSH gSurface = nullptr;
+UINT gDpi = 96;
 bool gUninstall = false;
 bool gComplete = false;
 bool gQaVisible = false;
@@ -586,8 +605,8 @@ int Cleanup(DWORD parentPid, HANDLE inheritedParent, const std::wstring &root)
     // RemoveDirectory only removes an empty app installation directory. It never recurses.
     RemoveDirectoryW(root.c_str());
     MarkTemporaryImageForDeletion();
-    MessageBoxW(nullptr, L"Đã gỡ QuietShare. Ghi chú và cài đặt cá nhân của bạn được giữ lại.",
-                L"QuietShare", MB_OK | MB_ICONINFORMATION);
+    MessageBoxW(nullptr, L"Đã gỡ QuietShare. Ghi chú và cài đặt cá nhân của bạn được giữ lại.", L"QuietShare",
+                MB_OK | MB_ICONINFORMATION);
     return 0;
 }
 
@@ -776,11 +795,223 @@ bool ValidQaReportPath(const std::wstring &path)
            ValidateFile(destination, error);
 }
 
-HWND Label(HWND parent, const wchar_t *text, int x, int y, int width, int height, bool title = false)
+int S(int value)
 {
-    HWND item = CreateWindowExW(0, L"STATIC", text, WS_CHILD | WS_VISIBLE | SS_LEFT, x, y, width, height,
-                                parent, nullptr, gInstance, nullptr);
-    SendMessageW(item, WM_SETFONT, reinterpret_cast<WPARAM>(title ? gTitleFont : gFont), TRUE);
+    return MulDiv(value, gDpi, 96);
+}
+
+void FillRounded(HDC dc, const RECT &rect, COLORREF color, int radius)
+{
+    HBRUSH brush = CreateSolidBrush(color);
+    HGDIOBJ previousBrush = SelectObject(dc, brush);
+    HGDIOBJ previousPen = SelectObject(dc, GetStockObject(NULL_PEN));
+    RoundRect(dc, rect.left, rect.top, rect.right, rect.bottom, radius, radius);
+    SelectObject(dc, previousPen);
+    SelectObject(dc, previousBrush);
+    DeleteObject(brush);
+}
+
+void DrawInstallerText(HDC dc, const wchar_t *text, RECT rect, COLORREF color, HFONT font, UINT flags)
+{
+    HGDIOBJ previous = SelectObject(dc, font);
+    SetBkMode(dc, TRANSPARENT);
+    SetTextColor(dc, color);
+    DrawTextW(dc, text, -1, &rect, flags);
+    SelectObject(dc, previous);
+}
+
+void PaintInstaller(HDC dc)
+{
+    RECT client{};
+    GetClientRect(gWindow, &client);
+    FillRect(dc, &client, gBackground);
+    RECT logo{S(32), S(24), S(64), S(56)};
+    FillRounded(dc, logo, kAccent, S(8));
+    HPEN stroke = CreatePen(PS_SOLID, std::max(1, S(2)), kBackground);
+    HGDIOBJ previousPen = SelectObject(dc, stroke);
+    HGDIOBJ previousBrush = SelectObject(dc, GetStockObject(NULL_BRUSH));
+    MoveToEx(dc, S(45), S(37), nullptr);
+    LineTo(dc, S(53), S(33));
+    MoveToEx(dc, S(44), S(40), nullptr);
+    LineTo(dc, S(54), S(46));
+    Ellipse(dc, S(37), S(34), S(45), S(42));
+    Ellipse(dc, S(53), S(28), S(61), S(36));
+    Ellipse(dc, S(53), S(44), S(61), S(52));
+    SelectObject(dc, previousBrush);
+    SelectObject(dc, previousPen);
+    DeleteObject(stroke);
+    DrawInstallerText(dc, L"QuietShare", {S(76), S(24), S(256), S(56)}, kText, gButtonFont,
+                      DT_LEFT | DT_VCENTER | DT_SINGLELINE);
+    DrawInstallerText(dc, L"0.2.0", {S(504), S(24), S(588), S(56)}, kMuted, gSmallFont,
+                      DT_RIGHT | DT_VCENTER | DT_SINGLELINE);
+    FillRounded(dc, {S(32), S(192), S(588), S(280)}, kSurface, S(12));
+    RECT footer{0, S(400), client.right, client.bottom};
+    FillRect(dc, &footer, gSurface);
+    HBRUSH divider = CreateSolidBrush(kDivider);
+    RECT rule{0, S(400), client.right, S(401)};
+    FillRect(dc, &rule, divider);
+    DeleteObject(divider);
+}
+
+void DrawInstallerControl(HWND control, HDC dc)
+{
+    RECT rect{};
+    GetClientRect(control, &rect);
+    const bool checkbox = GetDlgCtrlID(control) == kRunCheckbox;
+    const bool primary = GetDlgCtrlID(control) == kActionButton;
+    const bool enabled = IsWindowEnabled(control) != FALSE;
+    const bool hot = GetPropW(control, L"QuietShareHover") != nullptr;
+    const LRESULT state = SendMessageW(control, BM_GETSTATE, 0, 0);
+    const bool pressed = (state & BST_PUSHED) != 0;
+    const bool focused = GetFocus() == control;
+    FillRect(dc, &rect, checkbox ? gBackground : gSurface);
+    const COLORREF color = !enabled  ? kSurface
+                           : pressed ? (primary ? RGB(24, 149, 68) : kElevated)
+                           : primary ? (hot ? RGB(35, 207, 98) : kAccent)
+                                     : (hot ? kHover : kElevated);
+    RECT shape = rect;
+    InflateRect(&shape, -1, -1);
+    if (checkbox)
+        shape = {S(1), (rect.bottom - S(18)) / 2, S(19), (rect.bottom + S(18)) / 2};
+    const bool checked = checkbox && SendMessageW(control, BM_GETCHECK, 0, 0) == BST_CHECKED;
+    const COLORREF checkedColor = pressed ? RGB(24, 149, 68) : hot ? RGB(35, 207, 98) : kAccent;
+    FillRounded(dc, shape, checked && enabled ? checkedColor : color, checkbox ? S(4) : S(8));
+    if (checkbox || !primary)
+    {
+        HPEN border = CreatePen(PS_SOLID, std::max(1, S(1)), enabled ? RGB(99, 107, 116) : kDivider);
+        HGDIOBJ previousPen = SelectObject(dc, border);
+        HGDIOBJ previousBrush = SelectObject(dc, GetStockObject(NULL_BRUSH));
+        RoundRect(dc, shape.left, shape.top, shape.right, shape.bottom, checkbox ? S(4) : S(8),
+                  checkbox ? S(4) : S(8));
+        SelectObject(dc, previousBrush);
+        SelectObject(dc, previousPen);
+        DeleteObject(border);
+    }
+    if (checked)
+    {
+        HPEN check = CreatePen(PS_SOLID, std::max(1, S(2)), enabled ? kBackground : kMuted);
+        HGDIOBJ previous = SelectObject(dc, check);
+        MoveToEx(dc, shape.left + S(4), shape.top + S(9), nullptr);
+        LineTo(dc, shape.left + S(7), shape.top + S(12));
+        LineTo(dc, shape.left + S(13), shape.top + S(5));
+        SelectObject(dc, previous);
+        DeleteObject(check);
+    }
+    wchar_t text[128]{};
+    GetWindowTextW(control, text, static_cast<int>(sizeof(text) / sizeof(text[0])));
+    RECT label = rect;
+    if (checkbox)
+        label.left = S(30);
+    DrawInstallerText(dc, text, label,
+                      !enabled  ? kMuted
+                      : primary ? kBackground
+                                : kText,
+                      checkbox ? gFont : gButtonFont,
+                      DT_VCENTER | DT_SINGLELINE | (checkbox ? DT_LEFT : DT_CENTER));
+    if (focused)
+    {
+        RECT focus = checkbox ? RECT{S(26), 0, rect.right, rect.bottom} : shape;
+        InflateRect(&focus, -S(3), -S(3));
+        HPEN pen = CreatePen(PS_SOLID, std::max(1, S(2)), primary ? kBackground : kAccent);
+        HGDIOBJ previousPen = SelectObject(dc, pen);
+        HGDIOBJ previousBrush = SelectObject(dc, GetStockObject(NULL_BRUSH));
+        RoundRect(dc, focus.left, focus.top, focus.right, focus.bottom, S(6), S(6));
+        SelectObject(dc, previousBrush);
+        SelectObject(dc, previousPen);
+        DeleteObject(pen);
+    }
+}
+
+LRESULT CALLBACK InstallerControlProc(HWND control, UINT message, WPARAM wp, LPARAM lp, UINT_PTR, DWORD_PTR)
+{
+    // Keep the native BUTTON styles, accessibility and Enter/Space/check semantics; replace painting only.
+    switch (message)
+    {
+    case WM_PAINT: {
+        PAINTSTRUCT paint{};
+        HDC dc = BeginPaint(control, &paint);
+        DrawInstallerControl(control, dc);
+        EndPaint(control, &paint);
+        return 0;
+    }
+    case WM_PRINTCLIENT:
+        DrawInstallerControl(control, reinterpret_cast<HDC>(wp));
+        return 0;
+    case WM_ERASEBKGND:
+        return 1;
+    case WM_MOUSEMOVE:
+        if (!GetPropW(control, L"QuietShareHover"))
+        {
+            SetPropW(control, L"QuietShareHover", reinterpret_cast<HANDLE>(1));
+            TRACKMOUSEEVENT track{sizeof(track), TME_LEAVE, control, 0};
+            TrackMouseEvent(&track);
+            InvalidateRect(control, nullptr, FALSE);
+        }
+        break;
+    case WM_MOUSELEAVE:
+        RemovePropW(control, L"QuietShareHover");
+        InvalidateRect(control, nullptr, FALSE);
+        break;
+    case WM_NCDESTROY:
+        RemovePropW(control, L"QuietShareHover");
+        RemoveWindowSubclass(control, InstallerControlProc, 1);
+        break;
+    }
+    const LRESULT result = DefSubclassProc(control, message, wp, lp);
+    if (message == WM_SETFOCUS || message == WM_KILLFOCUS || message == WM_ENABLE || message == BM_SETCHECK ||
+        message == BM_SETSTATE || message == WM_SETTEXT || message == WM_KEYDOWN || message == WM_KEYUP ||
+        message == WM_LBUTTONDOWN || message == WM_LBUTTONUP)
+        InvalidateRect(control, nullptr, FALSE);
+    return result;
+}
+
+void SetInstallerFonts()
+{
+    for (HFONT font : {gFont, gTitleFont, gSmallFont, gButtonFont})
+        if (font)
+            DeleteObject(font);
+    auto make = [](int size, int weight) {
+        return CreateFontW(-S(size), 0, 0, 0, weight, FALSE, FALSE, FALSE, DEFAULT_CHARSET,
+                           OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, CLEARTYPE_QUALITY, DEFAULT_PITCH,
+                           L"Segoe UI");
+    };
+    gFont = make(15, FW_NORMAL);
+    gTitleFont = make(24, FW_SEMIBOLD);
+    gSmallFont = make(12, FW_SEMIBOLD);
+    gButtonFont = make(15, FW_SEMIBOLD);
+    for (HWND item : {gIntro, gFolderPath, gStatus, gRun})
+        if (item)
+            SendMessageW(item, WM_SETFONT, reinterpret_cast<WPARAM>(gFont), FALSE);
+    for (HWND item : {gAction, gClose})
+        if (item)
+            SendMessageW(item, WM_SETFONT, reinterpret_cast<WPARAM>(gButtonFont), FALSE);
+    if (gHeading)
+        SendMessageW(gHeading, WM_SETFONT, reinterpret_cast<WPARAM>(gTitleFont), FALSE);
+    if (gFolderCaption)
+        SendMessageW(gFolderCaption, WM_SETFONT, reinterpret_cast<WPARAM>(gSmallFont), FALSE);
+}
+
+void LayoutInstaller()
+{
+    auto place = [](HWND item, int x, int y, int width, int height) {
+        if (item)
+            MoveWindow(item, S(x), S(y), S(width), S(height), TRUE);
+    };
+    place(gHeading, 32, 80, 556, 34);
+    place(gIntro, 32, 124, 556, 48);
+    place(gFolderCaption, 48, 208, 524, 18);
+    place(gFolderPath, 48, 232, 524, 36);
+    place(gStatus, 32, 300, 556, 44);
+    place(gRun, 32, 352, 424, 32);
+    place(gClose, 332, 420, 112, 40);
+    place(gAction, 456, 420, 132, 40);
+}
+
+HWND Label(HWND parent, const wchar_t *text, HFONT font)
+{
+    HWND item = CreateWindowExW(0, L"STATIC", text, WS_CHILD | WS_VISIBLE | SS_LEFT, 0, 0, 0, 0, parent,
+                                nullptr, gInstance, nullptr);
+    SendMessageW(item, WM_SETFONT, reinterpret_cast<WPARAM>(font), TRUE);
     return item;
 }
 
@@ -789,35 +1020,42 @@ LRESULT CALLBACK WindowProc(HWND window, UINT message, WPARAM wParam, LPARAM lPa
     switch (message)
     {
     case WM_CREATE: {
-        Label(window, gUninstall ? L"Gỡ cài đặt QuietShare" : L"Cài đặt QuietShare", 32, 27, 555, 42, true);
-        Label(window,
-              gUninstall ? L"Gỡ ứng dụng khỏi tài khoản Windows hiện tại.\nGhi chú và cài đặt cá nhân của "
-                           L"bạn được giữ lại."
-                         : L"Cửa sổ nhắc chữ riêng khi bạn chia sẻ màn hình.\nCài đặt cho tài "
-                           L"khoản hiện tại, không cần quyền quản trị.",
-              33, 82, 555, 52);
-        Label(window, L"THƯ MỤC ỨNG DỤNG", 33, 159, 530, 24);
-        Label(window, gRoot.c_str(), 33, 185, 554, 49);
+        gWindow = window;
+        gDpi = GetDpiForWindow(window);
+        SetInstallerFonts();
+        gHeading = Label(window, gUninstall ? L"Gỡ cài đặt QuietShare" : L"Cài đặt QuietShare", gTitleFont);
+        gIntro = Label(window,
+                       gUninstall
+                           ? L"Gỡ ứng dụng khỏi tài khoản Windows hiện tại.\nGhi chú và cài đặt cá nhân của "
+                             L"bạn được giữ lại."
+                           : L"Cửa sổ nhắc chữ riêng khi bạn chia sẻ màn hình.\nCài đặt cho tài "
+                             L"khoản hiện tại, không cần quyền quản trị.",
+                       gFont);
+        gFolderCaption = Label(window, L"THƯ MỤC ỨNG DỤNG", gSmallFont);
+        gFolderPath = Label(window, gRoot.c_str(), gFont);
         gStatus = Label(window,
                         gUninstall ? L"Hãy đóng QuietShare trước khi gỡ cài đặt."
                                    : L"Thêm lối tắt vào Desktop và Start Menu. Phiên bản 0.2.0.",
-                        33, 250, 553, 58);
+                        gFont);
         if (!gUninstall)
         {
             gRun = CreateWindowExW(0, L"BUTTON", L"Mở QuietShare sau khi cài đặt",
-                                   WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_AUTOCHECKBOX, 32, 311, 400, 26,
-                                   window, reinterpret_cast<HMENU>(kRunCheckbox), gInstance, nullptr);
+                                   WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_AUTOCHECKBOX, 0, 0, 0, 0, window,
+                                   reinterpret_cast<HMENU>(kRunCheckbox), gInstance, nullptr);
             SendMessageW(gRun, WM_SETFONT, reinterpret_cast<WPARAM>(gFont), TRUE);
             SendMessageW(gRun, BM_SETCHECK, BST_CHECKED, 0);
+            SetWindowSubclass(gRun, InstallerControlProc, 1, 0);
         }
-        HWND close =
-            CreateWindowExW(0, L"BUTTON", L"Hủy", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_PUSHBUTTON, 330,
-                            359, 112, 39, window, reinterpret_cast<HMENU>(kCloseButton), gInstance, nullptr);
+        gClose = CreateWindowExW(0, L"BUTTON", L"Hủy", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_PUSHBUTTON, 0,
+                                 0, 0, 0, window, reinterpret_cast<HMENU>(kCloseButton), gInstance, nullptr);
         gAction = CreateWindowExW(0, L"BUTTON", gUninstall ? L"Gỡ cài đặt" : L"Cài đặt",
-                                  WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_DEFPUSHBUTTON, 456, 359, 132, 39,
-                                  window, reinterpret_cast<HMENU>(kActionButton), gInstance, nullptr);
-        SendMessageW(close, WM_SETFONT, reinterpret_cast<WPARAM>(gFont), TRUE);
-        SendMessageW(gAction, WM_SETFONT, reinterpret_cast<WPARAM>(gFont), TRUE);
+                                  WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_DEFPUSHBUTTON, 0, 0, 0, 0, window,
+                                  reinterpret_cast<HMENU>(kActionButton), gInstance, nullptr);
+        SendMessageW(gClose, WM_SETFONT, reinterpret_cast<WPARAM>(gButtonFont), TRUE);
+        SendMessageW(gAction, WM_SETFONT, reinterpret_cast<WPARAM>(gButtonFont), TRUE);
+        SetWindowSubclass(gClose, InstallerControlProc, 1, 0);
+        SetWindowSubclass(gAction, InstallerControlProc, 1, 0);
+        LayoutInstaller();
         if (gRoot.empty())
         {
             EnableWindow(gAction, FALSE);
@@ -889,15 +1127,33 @@ LRESULT CALLBACK WindowProc(HWND window, UINT message, WPARAM wParam, LPARAM lPa
             return 0;
         }
         break;
-    case WM_CTLCOLORSTATIC:
-        SetBkColor(reinterpret_cast<HDC>(wParam), RGB(247, 249, 252));
-        SetTextColor(reinterpret_cast<HDC>(wParam), RGB(30, 41, 59));
-        return reinterpret_cast<LRESULT>(gBackground);
-    case WM_ERASEBKGND: {
-        RECT rect{};
-        GetClientRect(window, &rect);
-        FillRect(reinterpret_cast<HDC>(wParam), &rect, gBackground);
+    case WM_CTLCOLORSTATIC: {
+        const HWND label = reinterpret_cast<HWND>(lParam);
+        const bool card = label == gFolderCaption || label == gFolderPath;
+        SetBkColor(reinterpret_cast<HDC>(wParam), card ? kSurface : kBackground);
+        SetTextColor(reinterpret_cast<HDC>(wParam),
+                     label == gHeading || label == gFolderPath ? kText : kMuted);
+        return reinterpret_cast<LRESULT>(card ? gSurface : gBackground);
+    }
+    case WM_PAINT: {
+        PAINTSTRUCT paint{};
+        HDC dc = BeginPaint(window, &paint);
+        PaintInstaller(dc);
+        EndPaint(window, &paint);
+        return 0;
+    }
+    case WM_ERASEBKGND:
+        PaintInstaller(reinterpret_cast<HDC>(wParam));
         return 1;
+    case WM_DPICHANGED: {
+        gDpi = HIWORD(wParam);
+        SetInstallerFonts();
+        const auto suggested = reinterpret_cast<RECT *>(lParam);
+        SetWindowPos(window, nullptr, suggested->left, suggested->top, suggested->right - suggested->left,
+                     suggested->bottom - suggested->top, SWP_NOACTIVATE | SWP_NOZORDER);
+        LayoutInstaller();
+        RedrawWindow(window, nullptr, nullptr, RDW_INVALIDATE | RDW_ALLCHILDREN);
+        return 0;
     }
     case WM_CLOSE:
         DestroyWindow(window);
@@ -985,22 +1241,27 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int show)
     SetProcessDPIAware();
     INITCOMMONCONTROLSEX controls{sizeof(controls), ICC_STANDARD_CLASSES};
     InitCommonControlsEx(&controls);
-    gBackground = CreateSolidBrush(RGB(247, 249, 252));
-    gFont = CreateFontW(-17, 0, 0, 0, FW_NORMAL, FALSE, FALSE, FALSE, DEFAULT_CHARSET, OUT_DEFAULT_PRECIS,
-                        CLIP_DEFAULT_PRECIS, CLEARTYPE_QUALITY, DEFAULT_PITCH, L"Segoe UI");
-    gTitleFont =
-        CreateFontW(-28, 0, 0, 0, FW_SEMIBOLD, FALSE, FALSE, FALSE, DEFAULT_CHARSET, OUT_DEFAULT_PRECIS,
-                    CLIP_DEFAULT_PRECIS, CLEARTYPE_QUALITY, DEFAULT_PITCH, L"Segoe UI");
+    HDC screen = GetDC(nullptr);
+    if (screen)
+    {
+        gDpi = static_cast<UINT>(GetDeviceCaps(screen, LOGPIXELSX));
+        ReleaseDC(nullptr, screen);
+    }
+    gBackground = CreateSolidBrush(kBackground);
+    gSurface = CreateSolidBrush(kSurface);
     WNDCLASSEXW type{};
     type.cbSize = sizeof(type);
     type.lpfnWndProc = WindowProc;
     type.hInstance = instance;
     type.hCursor = LoadCursorW(nullptr, IDC_ARROW);
     type.hbrBackground = gBackground;
-    type.hIcon = LoadIconW(nullptr, IDI_APPLICATION);
+    type.hIcon = LoadIconW(instance, MAKEINTRESOURCEW(101));
+    type.hIconSm = reinterpret_cast<HICON>(LoadImageW(instance, MAKEINTRESOURCEW(101), IMAGE_ICON,
+                                                      GetSystemMetrics(SM_CXSMICON),
+                                                      GetSystemMetrics(SM_CYSMICON), LR_SHARED));
     type.lpszClassName = L"QuietShareSetupWindow";
     RegisterClassExW(&type);
-    RECT rect{0, 0, 620, 424};
+    RECT rect{0, 0, S(620), S(480)};
     constexpr DWORD style = WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX;
     AdjustWindowRectEx(&rect, style, FALSE, 0);
     const int width = rect.right - rect.left, height = rect.bottom - rect.top;
@@ -1012,9 +1273,27 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int show)
     {
         DeleteObject(gFont);
         DeleteObject(gTitleFont);
+        DeleteObject(gSmallFont);
+        DeleteObject(gButtonFont);
         DeleteObject(gBackground);
+        DeleteObject(gSurface);
         CoUninitialize();
         return 22;
+    }
+    HMODULE dwm = LoadLibraryExW(L"dwmapi.dll", nullptr, LOAD_LIBRARY_SEARCH_SYSTEM32);
+    if (dwm)
+    {
+        using SetAttribute = HRESULT(WINAPI *)(HWND, DWORD, LPCVOID, DWORD);
+        auto setAttribute = reinterpret_cast<SetAttribute>(GetProcAddress(dwm, "DwmSetWindowAttribute"));
+        if (setAttribute)
+        {
+            const BOOL dark = TRUE;
+            const DWORD rounded = 2;
+            setAttribute(gWindow, 20, &dark, sizeof(dark));
+            setAttribute(gWindow, 33, &rounded, sizeof(rounded));
+            setAttribute(gWindow, 34, &kDivider, sizeof(kDivider));
+        }
+        FreeLibrary(dwm);
     }
     ShowWindow(gWindow, show);
     UpdateWindow(gWindow);
@@ -1038,7 +1317,10 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int show)
     }
     DeleteObject(gFont);
     DeleteObject(gTitleFont);
+    DeleteObject(gSmallFont);
+    DeleteObject(gButtonFont);
     DeleteObject(gBackground);
+    DeleteObject(gSurface);
     CoUninitialize();
     return static_cast<int>(message.wParam);
 }

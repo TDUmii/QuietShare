@@ -4,7 +4,7 @@ Ngày kiểm tra: 13/10/2026, theo múi giờ Asia/Saigon. Bản này chỉ có 
 
 ## Kết quả của EXE được đóng gói
 
-**94 kiểm tra cục bộ đạt, 0 thất bại**, trên Windows 11 x64 build 26200. Lệnh tái hiện: `./tests/run-local.ps1` trong PowerShell 7. Báo cáo: `artifacts/local-qa-report.json`.
+**141 kiểm tra cục bộ đạt, 0 thất bại**, trên Windows 11 x64 build 26200. Lệnh tái hiện: `./tests/run-local.ps1` trong PowerShell 7. Báo cáo: `artifacts/local-qa-report.json`.
 
 **22 kiểm tra vòng đời production EXE đạt**, gồm bảo toàn bản lưu hỏng, editor thuần text, autosave Unicode, mở lần hai và khôi phục sau khi đóng. Báo cáo riêng: `artifacts/lifecycle-check.json`; script `tests/lifecycle_regression.py` dùng `LOCALAPPDATA` tách biệt và chỉ thao tác cửa sổ theo PID do test mở.
 
@@ -15,16 +15,18 @@ Ngày kiểm tra: 13/10/2026, theo múi giờ Asia/Saigon. Bản này chỉ có 
 | Cuộn và dừng | Timer thật làm vị trí cuộn tăng từ 0 lên 25 pixel trong lượt QA; sau Dừng, vị trí giữ nguyên |
 | Che nhanh | Cùng handler F8 ẩn control, dừng cuộn và vẽ màn che; mở lại không đổi nội dung |
 | Cửa sổ nhỏ | Cửa sổ 460 x 360 pixel ở DPI hiện tại; các nút và vùng nội dung nằm trong khung; đã xem ảnh render |
+| Polish và resize | 90 tổ hợp kích thước/mode/ngôn ngữ/scale: 430, 460, 640, 840, 1080 px; Sửa/Đọc/Che; VI/EN; scale logic 96/120/144 DPI. Không có control chồng nhau hoặc đè editor; vùng editor còn ít nhất 80 px logic. Scale DPI được mô phỏng, không phải chuyển màn hình vật lý |
+| Trạng thái UI | Ảnh hover và pressed khác ảnh mặc định; placeholder Sửa/Đọc chỉ được vẽ khi document trống và không ghi vào nội dung; scrollbar native vẫn cuộn qua WM_VSCROLL; ảnh English được repaint đồng bộ trước khi chụp |
 | Tự lưu | EN_CHANGE thật kích hoạt lưu sau khoảng 0,9 giây; DPAPI đọc lại đúng tiếng Việt; marker không xuất hiện dạng plaintext trong tệp |
 | Giữ nội dung | Tệp hỏng được sao lưu nguyên từng byte trước khi cho nhập lời mới; mở instance thứ hai không tạo cửa sổ sửa cùng tài liệu; đóng/mở production EXE khôi phục đúng lời đã lưu |
 | Affinity | Windows chấp nhận và đọc lại `0x11`, Win32 error 0 |
 | Capture cục bộ | Ảnh GDI BitBlt trong vùng cửa sổ chỉ thấy nền tím mẫu khi bật affinity; ảnh giao diện dùng nội dung mẫu và tạm tắt affinity để kiểm tra render |
-| Bộ cài | Self-test phiên bản, PE x64, payload và đường dẫn theo tài khoản đạt; đã xem trực tiếp giao diện bộ cài 0.2.0 |
+| Bộ cài | Self-test phiên bản, PE x64, payload và đường dẫn theo tài khoản đạt; giao diện cài/gỡ cùng palette dark và icon sản phẩm; chụp QA không chạy thao tác cài/gỡ |
 | Khớp bản phát hành | 7 kiểm tra resource/phiên bản/PE đạt; EXE nhúng ở resource301 của bộ cài khớp từng byte với EXE chạy trực tiếp |
 | Phụ thuộc | EXE ứng dụng chỉ import DLL hệ thống Windows; không có .NET, WebView2 hoặc DLL runtime GCC riêng |
 | Chữ ký | Kiểm tra Authenticode thực tế: ứng dụng và bộ cài đều `NotSigned` |
 
-Các lượt QA dùng thư mục dữ liệu riêng. Không mở tài khoản, cài ứng dụng vào máy, hoặc chụp toàn bộ desktop. Đã xem trực tiếp ảnh chế độ đọc, cửa sổ nhỏ, màn che, nền capture và bộ cài.
+Các lượt QA dùng thư mục dữ liệu riêng. Không mở tài khoản, cài ứng dụng vào máy, hoặc chụp toàn bộ desktop. Đã xem trực tiếp ảnh Sửa/Đọc, cửa sổ tối thiểu, màn che, placeholder, English, scale logic, nền capture và cài/gỡ.
 
 ## Giới hạn
 

@@ -1,5 +1,6 @@
 #include <windows.h>
 1 RT_MANIFEST "app.manifest"
+101 ICON "quietshare.ico"
 1 VERSIONINFO
 FILEVERSION 0,2,0,0
 PRODUCTVERSION 0,2,0,0
