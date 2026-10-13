@@ -1,6 +1,6 @@
 # Kiểm thử QuietShare 0.2.0
 
-Ngày kiểm tra: 12/10/2026, theo múi giờ Asia/Saigon. Bản này chỉ có nội dung nhắc chữ.
+Ngày kiểm tra: 13/10/2026, theo múi giờ Asia/Saigon. Bản này chỉ có nội dung nhắc chữ.
 
 ## Kết quả của EXE được đóng gói
 
@@ -12,7 +12,7 @@ Ngày kiểm tra: 12/10/2026, theo múi giờ Asia/Saigon. Bản này chỉ có 
 |---|---|
 | Nhập và đọc | RichEdit thuần text, Unicode tiếng Việt; chuyển Đọc sang chỉ đọc rồi trở lại Sửa lời; nội dung giữ nguyên |
 | Cỡ chữ | Thao tác A+ đổi 24 thành 28 pt; kiểm tra định dạng thực tế của control và ảnh render |
-| Cuộn và dừng | Timer thật làm vị trí cuộn tăng từ 0 lên 24 pixel trong lượt QA; sau Dừng, vị trí giữ nguyên |
+| Cuộn và dừng | Timer thật làm vị trí cuộn tăng từ 0 lên 25 pixel trong lượt QA; sau Dừng, vị trí giữ nguyên |
 | Che nhanh | Cùng handler F8 ẩn control, dừng cuộn và vẽ màn che; mở lại không đổi nội dung |
 | Cửa sổ nhỏ | Cửa sổ 460 x 360 pixel ở DPI hiện tại; các nút và vùng nội dung nằm trong khung; đã xem ảnh render |
 | Tự lưu | EN_CHANGE thật kích hoạt lưu sau khoảng 0,9 giây; DPAPI đọc lại đúng tiếng Việt; marker không xuất hiện dạng plaintext trong tệp |

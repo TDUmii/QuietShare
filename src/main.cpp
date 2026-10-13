@@ -19,10 +19,16 @@
 using namespace quietshare;
 namespace
 {
-constexpr COLORREF BG = RGB(15, 23, 42), CARD = RGB(25, 33, 52), TEXT = RGB(241, 245, 249),
-                   MUTED = RGB(170, 184, 206), GREEN = RGB(74, 222, 128), AMBER = RGB(253, 203, 105);
+// QuietShare design tokens. Keep these values in one place so the native shell,
+// owner-drawn controls and RichEdit surface stay visually consistent.
+constexpr COLORREF BG = RGB(11, 13, 15), SIDEBAR = RGB(17, 19, 21), CARD = RGB(24, 27, 30),
+                   ELEVATED = RGB(34, 38, 42), HOVER = RGB(44, 49, 53), ACCENT = RGB(29, 185, 84),
+                   ACCENT_DARK = RGB(22, 93, 49), TEXT = RGB(248, 250, 252), MUTED = RGB(156, 163, 175),
+                   DIVIDER = RGB(48, 52, 58), SAFE_SURFACE = RGB(24, 62, 38), WARNING_SURFACE = RGB(62, 48, 28),
+                   GREEN = ACCENT, AMBER = RGB(245, 184, 82);
 constexpr int MODE = 100, PLAY = 101, SMALLER = 102, LARGER = 103, SPEED = 104, MASK = 105, TOPMOST = 106,
-              LANGUAGE = 107, RESET_ZOOM = 108, EDITOR = 110;
+              LANGUAGE = 107, RESET_ZOOM = 108, EDITOR = 110, NAV_SCRIPT = 120, NAV_READ = 121;
+constexpr int NORMAL_SIDEBAR = 184, COMPACT_SIDEBAR = 136;
 constexpr UINT_PTR PRIVACY_TIMER = 1, SCROLL_TIMER = 2, SAVE_TIMER = 3, QA_TIMER = 4;
 HINSTANCE instance;
 HWND window, editor, underlay;
@@ -218,10 +224,105 @@ void DrawTextAt(HDC dc, const std::wstring &text, RECT rect, COLORREF color, HFO
     DrawTextW(dc, text.c_str(), -1, &rect, flags);
     SelectObject(dc, old);
 }
+void FillRoundRect(HDC dc, const RECT &rect, COLORREF color, int radius)
+{
+    HBRUSH brush = CreateSolidBrush(color);
+    HGDIOBJ oldBrush = SelectObject(dc, brush);
+    HGDIOBJ oldPen = SelectObject(dc, GetStockObject(NULL_PEN));
+    RoundRect(dc, rect.left, rect.top, rect.right, rect.bottom, radius, radius);
+    SelectObject(dc, oldPen);
+    SelectObject(dc, oldBrush);
+    DeleteObject(brush);
+}
+void DrawShareGlyph(HDC dc, int x, int y, COLORREF color)
+{
+    HPEN pen = CreatePen(PS_SOLID, std::max(1, S(2)), color);
+    HGDIOBJ oldPen = SelectObject(dc, pen);
+    HGDIOBJ oldBrush = SelectObject(dc, GetStockObject(NULL_BRUSH));
+    MoveToEx(dc, x + S(8), y + S(9), nullptr);
+    LineTo(dc, x + S(22), y + S(5));
+    MoveToEx(dc, x + S(8), y + S(12), nullptr);
+    LineTo(dc, x + S(22), y + S(19));
+    SelectObject(dc, GetStockObject(WHITE_BRUSH));
+    Ellipse(dc, x + S(2), y + S(6), x + S(12), y + S(16));
+    Ellipse(dc, x + S(18), y, x + S(28), y + S(10));
+    Ellipse(dc, x + S(18), y + S(16), x + S(28), y + S(26));
+    SelectObject(dc, oldBrush);
+    SelectObject(dc, oldPen);
+    DeleteObject(pen);
+}
+void DrawNavIcon(HDC dc, int id, int x, int y, COLORREF color)
+{
+    HPEN pen = CreatePen(PS_SOLID, std::max(1, S(1)), color);
+    HGDIOBJ oldPen = SelectObject(dc, pen);
+    HGDIOBJ oldBrush = SelectObject(dc, GetStockObject(NULL_BRUSH));
+    if (id == NAV_SCRIPT)
+    {
+        Rectangle(dc, x + S(3), y + S(2), x + S(19), y + S(22));
+        MoveToEx(dc, x + S(7), y + S(8), nullptr);
+        LineTo(dc, x + S(15), y + S(8));
+        MoveToEx(dc, x + S(7), y + S(12), nullptr);
+        LineTo(dc, x + S(15), y + S(12));
+        MoveToEx(dc, x + S(7), y + S(16), nullptr);
+        LineTo(dc, x + S(13), y + S(16));
+    }
+    else
+    {
+        POINT triangle[] = {{x + S(5), y + S(3)}, {x + S(20), y + S(12)}, {x + S(5), y + S(21)}};
+        Polygon(dc, triangle, 3);
+    }
+    SelectObject(dc, oldBrush);
+    SelectObject(dc, oldPen);
+    DeleteObject(pen);
+}
+void DrawSidebar(HDC dc, int sidebar, int height, bool compact)
+{
+    RECT rail{0, 0, S(sidebar), height};
+    HBRUSH brush = CreateSolidBrush(SIDEBAR);
+    FillRect(dc, &rail, brush);
+    DeleteObject(brush);
+    RECT divider{S(sidebar - 1), 0, S(sidebar), height};
+    brush = CreateSolidBrush(DIVIDER);
+    FillRect(dc, &divider, brush);
+    DeleteObject(brush);
+
+    RECT logo{S(16), S(22), S(48), S(54)};
+    FillRoundRect(dc, logo, ACCENT, S(8));
+    DrawShareGlyph(dc, logo.left + S(2), logo.top + S(3), BG);
+    if (!compact)
+    {
+        RECT brand{S(60), S(22), S(sidebar - 12), S(54)};
+        DrawTextAt(dc, L"QuietShare", brand, TEXT, titleFont, DT_LEFT | DT_VCENTER | DT_SINGLELINE);
+        RECT caption{S(16), S(78), S(sidebar - 16), S(98)};
+        DrawTextAt(dc, T(L"KHÔNG GIAN", L"WORKSPACE"), caption, MUTED, uiFont,
+                   DT_LEFT | DT_VCENTER | DT_SINGLELINE);
+    }
+
+    int logicalHeight = MulDiv(height, 96, dpi);
+    int statusTop = std::max(196, logicalHeight - 82);
+    RECT status{S(12), S(statusTop), S(sidebar - 12), S(statusTop + 58)};
+    FillRoundRect(dc, status, ELEVATED, S(10));
+    bool safe = !Blocked();
+    HBRUSH dotBrush = CreateSolidBrush(safe ? ACCENT : AMBER);
+    RECT dot{status.left + S(12), status.top + S(15), status.left + S(20), status.top + S(23)};
+    FillRect(dc, &dot, dotBrush);
+    DeleteObject(dotBrush);
+    if (!compact)
+    {
+        RECT state{status.left + S(28), status.top + S(8), status.right - S(8), status.top + S(30)};
+        DrawTextAt(dc, safe ? T(L"BẢO MẬT", L"PRIVATE") : T(L"ĐANG KHÓA", L"LOCKED"), state,
+                   safe ? TEXT : AMBER, uiFont, DT_LEFT | DT_VCENTER | DT_SINGLELINE);
+        RECT stateHint{status.left + S(28), status.top + S(29), status.right - S(8), status.bottom - S(6)};
+        DrawTextAt(dc, safe ? T(L"Sẵn sàng đọc", L"Ready to read") : T(L"Cần kiểm tra", L"Needs attention"),
+                   stateHint, MUTED, uiFont, DT_LEFT | DT_VCENTER | DT_SINGLELINE | DT_END_ELLIPSIS);
+    }
+}
 void UpdateButtons()
 {
     SetWindowTextW(window, T(L"QuietShare - Nhắc chữ riêng", L"QuietShare - Private teleprompter"));
     SetWindowTextW(GetDlgItem(window, MODE), T(reading ? L"Sửa lời" : L"Đọc", reading ? L"Edit" : L"Read"));
+    SetWindowTextW(GetDlgItem(window, NAV_SCRIPT), T(L"Lời nhắc", L"Script"));
+    SetWindowTextW(GetDlgItem(window, NAV_READ), T(L"Đọc", L"Read"));
     SetWindowTextW(GetDlgItem(window, PLAY), T(running ? L"Dừng" : L"Chạy", running ? L"Stop" : L"Start"));
     const wchar_t *speeds[] = {T(L"Chậm", L"Slow"), T(L"Vừa", L"Medium"), T(L"Nhanh", L"Fast")};
     SetWindowTextW(GetDlgItem(window, SPEED), speeds[speed]);
@@ -229,7 +330,7 @@ void UpdateButtons()
     SetWindowTextW(GetDlgItem(window, TOPMOST), topmost ? T(L"Ghim", L"Pin") : T(L"Thả", L"Free"));
     SetWindowTextW(GetDlgItem(window, LANGUAGE), english ? L"VI" : L"EN");
     SetWindowTextW(GetDlgItem(window, RESET_ZOOM), L"100%");
-    for (int id : {MODE, PLAY, SMALLER, LARGER, SPEED, RESET_ZOOM})
+    for (int id : {MODE, PLAY, SMALLER, LARGER, SPEED, RESET_ZOOM, NAV_SCRIPT, NAV_READ})
         EnableWindow(GetDlgItem(window, id), !Blocked());
     EnableWindow(GetDlgItem(window, SMALLER), !Blocked() && fontPoints > 12);
     EnableWindow(GetDlgItem(window, LARGER), !Blocked() && fontPoints < 72);
@@ -250,67 +351,62 @@ void Layout()
     GetClientRect(window, &client);
     int width = MulDiv(client.right, 96, dpi), height = MulDiv(client.bottom, 96, dpi);
     bool focusMode = reading && !Blocked();
-    bool wrapToolbar = width < 620;
-    int x = 18, y = focusMode ? 14 : 80;
+    int sidebar = width < 560 ? COMPACT_SIDEBAR : NORMAL_SIDEBAR;
+    int contentLeft = sidebar + 24, contentRight = std::max(contentLeft + 1, width - 24);
+    int x = contentLeft, y = focusMode ? 16 : 88;
     auto move = [&](int id, int left, int top, int w, int h = 34) {
         MoveWindow(GetDlgItem(window, id), S(left), S(top), S(w), S(h), TRUE);
     };
-    int modeWidth = focusMode ? 70 : 80, playWidth = 62, fontWidth = focusMode ? 32 : 40,
-        labelWidth = focusMode ? 24 : 36, speedWidth = focusMode ? 72 : 76, maskWidth = focusMode ? 84 : 90,
-        resetWidth = focusMode ? 44 : 48, pinWidth = focusMode ? 60 : 70, languageWidth = focusMode ? 36 : 44;
-    move(MODE, x, y, modeWidth);
-    x += modeWidth + 8;
-    if (reading)
-    {
-        move(PLAY, x, y, playWidth);
-        x += playWidth + 8;
-    }
-    if (reading)
-    {
-        move(SPEED, x, y, speedWidth);
-        x += speedWidth + 8;
-    }
-    if (wrapToolbar && focusMode)
-    {
-        move(MASK, x, y, maskWidth);
-        x = 18;
+    move(NAV_SCRIPT, 16, 104, sidebar - 32, 36);
+    move(NAV_READ, 16, 146, sidebar - 32, 36);
+    ShowWindow(GetDlgItem(window, NAV_SCRIPT), SW_SHOW);
+    ShowWindow(GetDlgItem(window, NAV_READ), SW_SHOW);
+    ShowWindow(GetDlgItem(window, MODE), SW_HIDE);
+
+    int playWidth = 62, fontWidth = focusMode ? 32 : 36, labelWidth = focusMode ? 24 : 28,
+        speedWidth = focusMode ? 72 : 76, maskWidth = focusMode ? 84 : 90, resetWidth = focusMode ? 44 : 48,
+        pinWidth = focusMode ? 52 : 70, languageWidth = focusMode ? 36 : 44;
+    int gap = focusMode ? 6 : 8;
+    auto nextRow = [&]() {
+        x = contentLeft;
         y += 42;
-        move(SMALLER, x, y, fontWidth);
-        x += fontWidth;
-        fontLabelRect = {S(x), S(y), S(x + labelWidth), S(y + 34)};
-        x += labelWidth;
-        move(LARGER, x, y, fontWidth);
-        x += fontWidth + 8;
-        move(RESET_ZOOM, x, y, resetWidth);
-        x += resetWidth + 8;
-        move(TOPMOST, x, y, pinWidth);
-        x += pinWidth + 8;
-        move(LANGUAGE, x, y, languageWidth);
-    }
-    else
-    {
-        move(MASK, x, y, maskWidth);
-        x += maskWidth + 8;
-        move(SMALLER, x, y, fontWidth);
-        x += fontWidth;
-        fontLabelRect = {S(x), S(y), S(x + labelWidth), S(y + 34)};
-        x += labelWidth;
-        move(LARGER, x, y, fontWidth);
-        x += fontWidth + 8;
-        move(RESET_ZOOM, x, y, resetWidth);
-        x += resetWidth + 8;
-        move(TOPMOST, x, y, pinWidth);
-        x += pinWidth + 8;
-        move(LANGUAGE, x, y, languageWidth);
-    }
+    };
+    auto place = [&](int id, int w) {
+        if (x != contentLeft && x + w > contentRight)
+            nextRow();
+        move(id, x, y, w);
+        x += w + gap;
+    };
     ShowWindow(GetDlgItem(window, PLAY), reading ? SW_SHOW : SW_HIDE);
     ShowWindow(GetDlgItem(window, SPEED), reading ? SW_SHOW : SW_HIDE);
+    if (reading)
+    {
+        place(PLAY, playWidth);
+        place(SPEED, speedWidth);
+    }
+    place(MASK, maskWidth);
+    int fontGroupWidth = fontWidth + labelWidth + fontWidth;
+    if (x != contentLeft && x + fontGroupWidth > contentRight)
+        nextRow();
+    move(SMALLER, x, y, fontWidth);
+    x += fontWidth;
+    fontLabelRect = {S(x), S(y), S(x + labelWidth), S(y + 34)};
+    x += labelWidth;
+    move(LARGER, x, y, fontWidth);
+    x += fontWidth + gap;
+    place(RESET_ZOOM, resetWidth);
+    int pinLanguageWidth = pinWidth + gap + languageWidth;
+    if (x != contentLeft && x + pinLanguageWidth > contentRight)
+        nextRow();
+    place(TOPMOST, pinWidth);
+    place(LANGUAGE, languageWidth);
     ShowWindow(GetDlgItem(window, MASK), SW_SHOW);
     ShowWindow(GetDlgItem(window, TOPMOST), SW_SHOW);
     ShowWindow(GetDlgItem(window, LANGUAGE), SW_SHOW);
     ShowWindow(GetDlgItem(window, RESET_ZOOM), SW_SHOW);
     int top = y + 48;
-    MoveWindow(editor, S(18), S(top), S(std::max(1, width - 36)), S(std::max(1, height - top - 42)), TRUE);
+    MoveWindow(editor, S(contentLeft), S(top), S(std::max(1, contentRight - contentLeft)),
+               S(std::max(1, height - top - 42)), TRUE);
     RECT textRect{};
     GetClientRect(editor, &textRect);
     textRect.left += S(20);
@@ -438,8 +534,11 @@ void Paint(HDC dc)
     RECT client{};
     GetClientRect(window, &client);
     FillRect(dc, &client, bgBrush);
-    RECT title{S(18), S(14), client.right - S(18), S(42)};
-    RECT status{S(18), S(46), client.right - S(18), S(67)};
+    int width = MulDiv(client.right, 96, dpi);
+    int sidebar = width < 560 ? COMPACT_SIDEBAR : NORMAL_SIDEBAR;
+    int contentLeft = sidebar + 24;
+    DrawSidebar(dc, sidebar, client.bottom, width < 560);
+    RECT title{S(contentLeft), S(16), client.right - S(24), S(44)};
     std::wstring message =
         storageBlocked     ? T(L"Không đọc hoặc sao lưu được lời cũ - nội dung đang khóa",
                                L"The saved script could not be read - content is locked")
@@ -453,8 +552,15 @@ void Paint(HDC dc)
     if (!reading || Blocked())
     {
         DrawTextAt(dc, T(L"Nhắc chữ riêng", L"Private teleprompter"), title, TEXT, titleFont);
-        DrawTextAt(dc, message, status,
-                   storageBlocked || !topologyKnown || cloned || !privacy.applied ? AMBER : GREEN, uiFont,
+        RECT subtitle{S(contentLeft), S(44), client.right - S(24), S(64)};
+        DrawTextAt(dc, T(L"Tập trung vào nội dung. Màn hình riêng, lời nhắc riêng.",
+                         L"Focus on your words. Private display, private script."),
+                   subtitle, MUTED, uiFont, DT_LEFT | DT_VCENTER | DT_SINGLELINE | DT_END_ELLIPSIS);
+        RECT status{S(contentLeft), S(68), client.right - S(24), S(94)};
+        bool warning = storageBlocked || !topologyKnown || cloned || !privacy.applied;
+        FillRoundRect(dc, status, warning ? WARNING_SURFACE : SAFE_SURFACE, S(8));
+        RECT statusText{status.left + S(12), status.top, status.right - S(12), status.bottom};
+        DrawTextAt(dc, message, statusText, warning ? AMBER : ACCENT, uiFont,
                    DT_LEFT | DT_VCENTER | DT_SINGLELINE | DT_END_ELLIPSIS);
     }
     DrawTextAt(dc, std::to_wstring(fontPoints), fontLabelRect, MUTED, uiFont,
@@ -464,7 +570,7 @@ void Paint(HDC dc)
         RECT card{};
         GetWindowRect(editor, &card);
         MapWindowPoints(nullptr, window, (POINT *)&card, 2);
-        FillRect(dc, &card, cardBrush);
+        FillRoundRect(dc, card, CARD, S(12));
         InflateRect(&card, -S(28), -S(20));
         std::wstring cover =
             storageBlocked ? T(L"Bản lưu cũ được giữ nguyên. Đóng app và kiểm tra quyền đọc tệp lời nhắc.",
@@ -479,7 +585,11 @@ void Paint(HDC dc)
                                  L"Windows could not apply capture exclusion.");
         DrawTextAt(dc, cover, card, MUTED, uiFont, DT_CENTER | DT_VCENTER | DT_WORDBREAK);
     }
-    RECT footer{S(18), client.bottom - S(32), client.right - S(18), client.bottom - S(8)};
+    RECT footerLine{S(contentLeft), client.bottom - S(42), client.right - S(24), client.bottom - S(41)};
+    HBRUSH dividerBrush = CreateSolidBrush(DIVIDER);
+    FillRect(dc, &footerLine, dividerBrush);
+    DeleteObject(dividerBrush);
+    RECT footer{S(contentLeft), client.bottom - S(32), client.right - S(24), client.bottom - S(8)};
     std::wstring footerText =
         saveFailed ? T(L"Không lưu được lời nhắc trên máy", L"Could not save the script")
         : savedNoteRecovered && !dirty && !reading ? T(L"Không đọc được lời cũ · Đã giữ bản dự phòng",
@@ -493,20 +603,49 @@ void Paint(HDC dc)
 void DrawButton(DRAWITEMSTRUCT *item)
 {
     bool disabled = (item->itemState & ODS_DISABLED) != 0;
-    bool primary = item->CtlID == MODE || (item->CtlID == PLAY && running);
-    COLORREF color = (item->itemState & ODS_SELECTED) ? RGB(49, 65, 85)
-                     : primary && !disabled           ? RGB(36, 78, 99)
-                                                      : CARD;
-    HBRUSH brush = CreateSolidBrush(color);
-    FillRect(item->hDC, &item->rcItem, brush);
-    DeleteObject(brush);
-    DrawTextAt(item->hDC, TextOf(item->hwndItem), item->rcItem, disabled ? RGB(114, 130, 151) : TEXT, uiFont,
-               DT_CENTER | DT_VCENTER | DT_SINGLELINE);
-    if (item->itemState & ODS_FOCUS)
+    bool nav = item->CtlID == NAV_SCRIPT || item->CtlID == NAV_READ;
+    bool activeNav = (item->CtlID == NAV_SCRIPT && !reading) || (item->CtlID == NAV_READ && reading);
+    bool primary = activeNav || item->CtlID == MODE || (item->CtlID == PLAY && running);
+    bool pressed = (item->itemState & ODS_SELECTED) != 0;
+    COLORREF color = disabled ? SIDEBAR : pressed ? HOVER : primary ? ACCENT_DARK : (nav ? ELEVATED : CARD);
+    HBRUSH background = CreateSolidBrush(nav ? SIDEBAR : BG);
+    FillRect(item->hDC, &item->rcItem, background);
+    DeleteObject(background);
+    RECT button = item->rcItem;
+    InflateRect(&button, -1, -1);
+    FillRoundRect(item->hDC, button, color, S(9));
+    if (nav)
     {
-        RECT focus = item->rcItem;
-        InflateRect(&focus, -3, -3);
-        DrawFocusRect(item->hDC, &focus);
+        COLORREF iconColor = disabled ? MUTED : (activeNav ? ACCENT : TEXT);
+        DrawNavIcon(item->hDC, item->CtlID, button.left + S(10), button.top + S(6), iconColor);
+        RECT label = button;
+        label.left += S(38);
+        DrawTextAt(item->hDC, TextOf(item->hwndItem), label, disabled ? MUTED : TEXT, uiFont,
+                   DT_LEFT | DT_VCENTER | DT_SINGLELINE | DT_END_ELLIPSIS);
+        if (activeNav && !disabled)
+        {
+            RECT active{button.left, button.top + S(8), button.left + S(3), button.bottom - S(8)};
+            HBRUSH accentBrush = CreateSolidBrush(ACCENT);
+            FillRect(item->hDC, &active, accentBrush);
+            DeleteObject(accentBrush);
+        }
+    }
+    else
+    {
+        DrawTextAt(item->hDC, TextOf(item->hwndItem), button, disabled ? MUTED : TEXT, uiFont,
+                   DT_CENTER | DT_VCENTER | DT_SINGLELINE | DT_END_ELLIPSIS);
+    }
+    if (GetFocus() == item->hwndItem)
+    {
+        RECT focus = button;
+        InflateRect(&focus, -2, -2);
+        HPEN pen = CreatePen(PS_SOLID, std::max(1, S(2)), ACCENT);
+        HGDIOBJ oldPen = SelectObject(item->hDC, pen);
+        HGDIOBJ oldBrush = SelectObject(item->hDC, GetStockObject(NULL_BRUSH));
+        RoundRect(item->hDC, focus.left, focus.top, focus.right, focus.bottom, S(9), S(9));
+        SelectObject(item->hDC, oldBrush);
+        SelectObject(item->hDC, oldPen);
+        DeleteObject(pen);
     }
 }
 LRESULT CALLBACK EditorProc(HWND control, UINT message, WPARAM wp, LPARAM lp)
@@ -757,8 +896,9 @@ LRESULT CALLBACK Proc(HWND h, UINT message, WPARAM wp, LPARAM lp)
         if (qaVisual)
             SetWindowDisplayAffinity(h, 0);
         const std::vector<std::pair<int, const wchar_t *>> labels = {
-            {MODE, L"Đọc"},      {PLAY, L"Chạy"},    {SMALLER, L"A-"},  {LARGER, L"A+"},      {SPEED, L"Vừa"},
-            {MASK, L"Che · F8"}, {TOPMOST, L"Ghim"}, {LANGUAGE, L"EN"}, {RESET_ZOOM, L"100%"}};
+            {NAV_SCRIPT, L"Lời nhắc"}, {NAV_READ, L"Đọc"},  {MODE, L"Đọc"},      {PLAY, L"Chạy"},
+            {SMALLER, L"A-"},         {LARGER, L"A+"},     {SPEED, L"Vừa"},     {MASK, L"Che · F8"},
+            {TOPMOST, L"Ghim"},       {LANGUAGE, L"EN"},   {RESET_ZOOM, L"100%"}};
         for (const auto &label : labels)
             buttons.push_back(CreateWindowW(L"BUTTON", label.second,
                                             WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_OWNERDRAW, 0, 0, 0, 0, h,
@@ -850,6 +990,12 @@ LRESULT CALLBACK Proc(HWND h, UINT message, WPARAM wp, LPARAM lp)
             return 0;
         switch (LOWORD(wp))
         {
+        case NAV_SCRIPT:
+            SetReading(false);
+            break;
+        case NAV_READ:
+            SetReading(true);
+            break;
         case MODE:
             SetReading(!reading);
             break;
@@ -1006,14 +1152,14 @@ int WINAPI wWinMain(HINSTANCE inst, HINSTANCE, LPWSTR, int show)
     wc.hCursor = LoadCursorW(nullptr, IDC_ARROW);
     wc.hIcon = LoadIconW(nullptr, IDI_APPLICATION);
     RegisterClassExW(&wc);
-    RECT start{S(72), S(66), S(72 + 640), S(66 + 540)};
+    RECT start{S(72), S(66), S(72 + 720), S(66 + 560)};
     if (!qa)
     {
         RECT work{};
         if (SystemParametersInfoW(SPI_GETWORKAREA, 0, &work, 0))
         {
-            int width = std::min<int>(S(640), work.right - work.left - 24);
-            int height = std::min<int>(S(540), work.bottom - work.top - 24);
+            int width = std::min<int>(S(720), work.right - work.left - 24);
+            int height = std::min<int>(S(560), work.bottom - work.top - 24);
             start.left = work.left + (work.right - work.left - width) / 2;
             start.top = work.top + (work.bottom - work.top - height) / 3;
             start.right = start.left + width;
@@ -1043,7 +1189,7 @@ int WINAPI wWinMain(HINSTANCE inst, HINSTANCE, LPWSTR, int show)
     DwmSetWindowAttribute(window, 20, &dark, sizeof(dark));
     DWORD rounded = 2;
     DwmSetWindowAttribute(window, 33, &rounded, sizeof(rounded));
-    COLORREF border = RGB(71, 85, 105);
+    COLORREF border = DIVIDER;
     DwmSetWindowAttribute(window, 34, &border, sizeof(border));
     ShowWindow(window, qa ? SW_SHOWNOACTIVATE : show);
     if (qa)

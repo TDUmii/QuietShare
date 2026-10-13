@@ -18,8 +18,10 @@ from pathlib import Path
 
 
 PURPLE = (124, 58, 237)
-CARD = (25, 33, 52)
-DARK = (15, 23, 42)
+# Keep the visual smoke test aligned with the native design tokens in src/main.cpp.
+# The check intentionally accepts the shell, sidebar and elevated surfaces because
+# the redesigned layout uses all of them in a single capture.
+DARK_SURFACES = ((24, 27, 30), (11, 13, 15), (17, 19, 21), (34, 38, 42), (44, 49, 53))
 REQUIRED_CAPTURES = {
     "qa-visible": ("editing.bmp", "visible.bmp", "large-text.bmp", "scrolling.bmp", "masked.bmp", "compact.bmp", "english.bmp"),
     "qa-excluded": ("excluded.bmp",),
@@ -96,7 +98,7 @@ def image_metrics(bitmap: Bitmap) -> dict:
             pixel = tuple(bitmap.rgb[index : index + 3])
             sample_count += 1
             purple += near(pixel, PURPLE, 5)
-            dark_card += near(pixel, CARD) or near(pixel, DARK)
+            dark_card += any(near(pixel, color) for color in DARK_SURFACES)
             is_bright = min(pixel) >= 145
             bright += is_bright
             if 0.05 <= x / bitmap.width <= 0.95 and 0.33 <= y / bitmap.height <= 0.82:

@@ -13,8 +13,8 @@
   },
   "files": {
     "QuietShare.exe": {
-      "bytes": 326144,
-      "sha256": "8815013ac9b4e8ea13bd86dc870f1000e1d4d36822048dc9df4b6525aca04c99",
+      "bytes": 334336,
+      "sha256": "62121eff91105cc14f9f83a524380d1bb1b1c8f998bed8a362c0f84d993d603e",
       "x64PE": true,
       "machine": "0x8664",
       "optionalHeaderMagic": "0x20b",
@@ -32,8 +32,8 @@
       ]
     },
     "QuietShare-Setup.exe": {
-      "bytes": 1434112,
-      "sha256": "78dcf683e23eb51b7a5c28292bdb85abc0bf204d062485d5815cd36505ec4909",
+      "bytes": 1442304,
+      "sha256": "68afafb603b9a2fd2cf4464ab30139ed21ac826c69631849544d538f195bfefb",
       "x64PE": true,
       "machine": "0x8664",
       "optionalHeaderMagic": "0x20b",

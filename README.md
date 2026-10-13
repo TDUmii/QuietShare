@@ -6,6 +6,12 @@ QuietShare là cửa sổ nhắc chữ riêng cho lúc bạn thuyết trình, d�
 
 ## Tiếng Việt
 
+### Tính năng
+
+- Giao diện dark hiện đại với sidebar **Lời nhắc / Đọc**, điểm nhấn xanh và bố cục tự co theo cửa sổ.
+- Chế độ đọc tập trung, chữ phóng to tùy ý, cuộn tự động, ghim cửa sổ và nút che nhanh F8.
+- Hỗ trợ tiếng Việt và tiếng Anh; lời nhắc tự lưu cục bộ bằng Windows DPAPI.
+
 ### Cài đặt
 
 Tải [QuietShare-v0.2.0-win-x64.zip](QuietShare-v0.2.0-win-x64.zip), giải nén rồi chạy `QuietShare-Setup.exe`. Bộ cài chỉ dùng tài khoản Windows hiện tại, không cần quyền quản trị. Nếu muốn dùng ngay, mở `dist/QuietShare.exe`.
@@ -23,6 +29,12 @@ Nội dung tự lưu trên máy bằng Windows DPAPI và được khôi phục �
 Khi chia sẻ online, hãy thử bằng một đoạn văn mẫu trong đúng phần mềm và cấu hình bạn sẽ dùng. Windows có thể loại cửa sổ này khỏi một số đường capture. Nếu dùng máy chiếu hoặc màn hình phụ, chọn **Win+P > Extend**; chế độ **Duplicate** phát cùng một hình ảnh trên cả hai màn hình và không thể giữ lời nhắc riêng trên laptop.
 
 ## English
+
+### Features
+
+- A modern dark shell with **Script / Read** sidebar navigation, a green accent and responsive desktop layout.
+- Focused reading mode with adjustable type size, auto-scroll, always-on-top pinning and an instant F8 hide action.
+- Vietnamese and English UI; the script is autosaved locally with Windows DPAPI.
 
 ### Install
 
