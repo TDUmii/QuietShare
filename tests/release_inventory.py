@@ -1,4 +1,4 @@
-"""Verify QuietShare 0.3.0 Windows EXE metadata/resources without running apps."""
+"""Verify QuietShare 0.4.0 Windows EXE metadata/resources without running apps."""
 
 from pathlib import Path
 import ctypes
@@ -7,10 +7,13 @@ import hashlib
 import json
 import struct
 import sys
+import subprocess
+import shutil
+import os
 
 
 ROOT = Path(__file__).resolve().parents[1]
-EXPECTED_VERSION = (0, 3, 0, 0)
+EXPECTED_VERSION = (0, 4, 0, 0)
 KERNEL = ctypes.WinDLL("kernel32", use_last_error=True)
 VERSION = ctypes.WinDLL("version", use_last_error=True)
 KERNEL.LoadLibraryExW.argtypes = [wintypes.LPCWSTR, wintypes.HANDLE, wintypes.DWORD]
@@ -92,6 +95,31 @@ def pe_metadata(data: bytes) -> dict:
             "machine": hex(machine), "optionalHeaderMagic": hex(magic)}
 
 
+def import_names(data: bytes) -> list[str]:
+    pe = struct.unpack_from("<I", data, 0x3C)[0]
+    sections = struct.unpack_from("<H", data, pe + 6)[0]
+    optional_size = struct.unpack_from("<H", data, pe + 20)[0]
+    section_start = pe + 24 + optional_size
+    def offset(rva):
+        for index in range(sections):
+            virtual_size, virtual, raw_size, raw = struct.unpack_from("<IIII", data, section_start + index*40 + 8)
+            if virtual <= rva < virtual + max(virtual_size,raw_size):
+                return raw + rva - virtual
+        raise ValueError("Import RVA is outside image sections")
+    rva = struct.unpack_from("<I",data,pe+24+112+8)[0]
+    imports = []
+    if rva:
+        cursor = offset(rva)
+        for _ in range(128):
+            fields = struct.unpack_from("<IIIII",data,cursor)
+            if not any(fields):
+                break
+            name = offset(fields[3])
+            imports.append(data[name:data.index(b"\0",name)].decode("ascii"))
+            cursor += 20
+    return imports
+
+
 def main() -> int:
     checks, files, errors = {}, {}, {}
     app_path = ROOT / "dist" / "QuietShare.exe"
@@ -105,8 +133,8 @@ def main() -> int:
             files[name] = {"bytes": len(data), "sha256": hashlib.sha256(data).hexdigest(),
                            **metadata, **versions}
             checks[name + ".x64PE"] = metadata["x64PE"]
-            checks[name + ".fileVersion0.3.0"] = versions["fileVersion"] == EXPECTED_VERSION
-            checks[name + ".productVersion0.3.0"] = versions["productVersion"] == EXPECTED_VERSION
+            checks[name + ".fileVersion0.4.0"] = versions["fileVersion"] == EXPECTED_VERSION
+            checks[name + ".productVersion0.4.0"] = versions["productVersion"] == EXPECTED_VERSION
             if path == app_path:
                 app = data
         except (OSError, ValueError, struct.error) as error:
@@ -117,16 +145,44 @@ def main() -> int:
     except (OSError, ValueError) as error:
         checks["installerPayloadMatchesPortableExe"] = False
         errors["installerPayload"] = str(error)
+    manifest = json.loads((ROOT / "dependencies" / "viewers-lock.json").read_text(encoding="utf-8"))
+    for index, runtime in enumerate(manifest["runtime"],302):
+        name = runtime["file"]
+        data = (ROOT / "dist" / name).read_bytes()
+        metadata = pe_metadata(data)
+        digest = hashlib.sha256(data).hexdigest()
+        files[name] = {"bytes":len(data),"sha256":digest,"version":runtime["version"],**metadata}
+        checks[name+".x64PE"] = metadata["x64PE"]
+        checks[name+".pinnedHashAndSize"] = digest == runtime["sha256"] and len(data) == runtime["bytes"]
+        checks[name+".installerPayloadParity"] = resource(setup_path,index) == data
+    notice = (ROOT / "dist" / "THIRD-PARTY.md").read_bytes()
+    checks["installerFullNoticeParity"] = resource(setup_path,305) == notice
+    checks["sourceNoticeMatchesDist"] = (ROOT / "THIRD-PARTY.md").read_bytes() == notice
+    system_imports = {"advapi32.dll","comctl32.dll","comdlg32.dll","crypt32.dll","d3d11.dll",
+                      "dwmapi.dll","dxgi.dll","gdi32.dll","imm32.dll","kernel32.dll","msimg32.dll",
+                      "ole32.dll","oleaut32.dll","shell32.dll","ucrtbase.dll","user32.dll","uxtheme.dll","version.dll",
+                      "api-ms-win-core-winrt-l1-1-0.dll","api-ms-win-core-winrt-string-l1-1-0.dll"}
+    for name in files:
+        imports = import_names((ROOT / "dist" / name).read_bytes())
+        files[name]["imports"] = imports
+        checks[name+".systemImportsOnly"] = bool(imports) and all(item.lower() in system_imports for item in imports)
+    signing_env = os.environ.copy()
+    signing_env.pop("PSModulePath",None)
+    signing = subprocess.run([shutil.which("pwsh.exe") or "powershell.exe","-NoProfile","-Command",
+        "Get-AuthenticodeSignature -LiteralPath 'dist/QuietShare.exe','dist/QuietShare-Setup.exe' | "
+        "Select-Object @{Name='file';Expression={Split-Path -Leaf $_.Path}},@{Name='status';Expression={$_.Status.ToString()}} | ConvertTo-Json -Compress"],
+        cwd=ROOT,env=signing_env,check=True,capture_output=True,text=True)
+    authenticode = {item["file"]:item["status"] for item in json.loads(signing.stdout)}
     report = {
-        "version": "0.3.0",
+        "version": "0.4.0",
         "platform": "win-x64",
         "passed": bool(checks) and all(checks.values()),
         "checks": checks,
         "files": files,
         "errors": errors,
-        "authenticode": None,
-        "runtime": "Native script, code and image viewer using Windows system libraries",
-        "method": "PE header parsing, Windows VERSIONINFO reading and setup RCDATA 301 byte comparison; no EXE execution",
+        "authenticode": authenticode,
+        "runtime": "Native Win32 with pinned x64 Scintilla, Lexilla and non-V8/non-XFA PDFium; Windows WIC, WGC and D3D11",
+        "method": "PE headers, VERSIONINFO and setup RCDATA 301-305 byte parity; dependency SHA-256/size manifest verification; no EXE execution",
     }
     target = ROOT / "artifacts" / "release-inventory.json"
     target.parent.mkdir(parents=True, exist_ok=True)

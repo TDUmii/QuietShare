@@ -1,71 +1,87 @@
-# QuietShare 0.3.0
+# QuietShare 0.4.0
 
-QuietShare là cửa sổ riêng để đọc lời nhắc, xem code hoặc ảnh khi thuyết trình và chia sẻ màn hình. Ứng dụng chạy offline bằng EXE native cho Windows 10/11 x64, không cần .NET hay trình duyệt.
+QuietShare là ứng dụng desktop để đọc lời nhắc, xem code, ảnh và PDF trong một cửa sổ riêng khi thuyết trình. App chạy offline trên Windows 10/11 x64, với giao diện tiếng Việt và tiếng Anh.
 
-QuietShare is a private window for scripts, code and images during presentations and screen sharing. It runs offline as a native Windows 10/11 x64 EXE, with no .NET or browser runtime required.
+QuietShare is an offline Windows 10/11 x64 desktop app for private scripts, code, images and PDFs during presentations. It supports Vietnamese and English.
 
-![Chuẩn bị nội dung / Prepare content](docs/quietshare-home.png)
+![Tổng quan / Overview](docs/quietshare-home.png)
 
 ## Tiếng Việt
 
 ### Tính năng
 
-- **Chuẩn bị**: mở hoặc kéo thả một file văn bản, code hay ảnh vào ứng dụng.
-- **Lời nhắc / Đọc**: soạn lời nhắc, đọc với chữ lớn và cuộn tự động ở ba tốc độ.
-- **Tùy chỉnh**: kéo thanh chỉnh cỡ chữ 12-72 pt; ảnh phóng/thu 25-400% so với kích thước vừa khung.
-- **Tập trung**: F11 ẩn sidebar và toolbar; nút F11 nhỏ trong góc mở lại các điều khiển.
-- Giao diện dark, scrollbar tối, ghim cửa sổ, che nhanh bằng F8, tiếng Việt và tiếng Anh.
-- Lời nhắc tự lưu trên máy bằng Windows DPAPI. Xem file riêng không ghi đè lời nhắc đang soạn.
+- **Nhiều tab**: mở nhiều file hoặc kéo thả một nhóm file; giữ scroll, zoom và trang PDF theo tab. Lời nhắc có tab riêng, không bị file xem trước ghi đè. Tối đa 32 tab, gồm lời nhắc.
+- **Code có màu cú pháp**: số dòng, monospace, giữ thụt dòng, chọn/sao chép, tìm kiếm và xuống dòng tùy chọn. Lexer hỗ trợ Python, C/C++, C#, Java, JavaScript/TypeScript, HTML, CSS, JSON, XML, YAML, Markdown, SQL, Bash/PowerShell, Rust và Go. Code chỉ được xem, không thực thi.
+- **Cây dự án**: duyệt thư mục cục bộ khi cần; mặc định bỏ qua thư mục ẩn và `.git`, `node_modules`, `.venv`, `dist`, `build`. Có thể đổi bộ lọc trong Cài đặt.
+- **PDF trong app**: xem từng trang, vừa khung/vừa chiều ngang, zoom 25-400%, chọn/sao chép và tìm chữ khi có lớp văn bản. PDF scan vẫn xem được; PDF có mật khẩu chưa được hỗ trợ.
+- **Lời nhắc và ảnh**: tự lưu lời nhắc bằng Windows DPAPI, soạn/đọc và cuộn ở ba tốc độ; ảnh có zoom và kéo để di chuyển.
+- **Tập trung**: F11 ẩn sidebar và giữ một thanh tab/lệnh mỏng ở trên. Lệnh bổ sung nằm trong menu **⋯**, ngoài vùng nội dung.
+- **Smart Mirror**: đưa hình ảnh công khai từ màn hình nguồn lên màn hình đích ở chế độ Extend, sau khi kiểm tra capture thực tế đạt.
+- Giao diện tối, ghim trên cùng, che nhanh F8 và VI/EN trong app và bộ cài.
 
-Văn bản và code hỗ trợ UTF-8 hoặc UTF-16 có BOM, tối đa 5 MiB. Các định dạng phổ biến gồm TXT, Markdown, LOG, C/C++, Python, JavaScript, TypeScript, HTML, CSS, JSON, XML và YAML. Code được hiển thị bằng font monospace. Ảnh hỗ trợ PNG, JPG/JPEG, BMP và khung hình đầu của GIF; tối đa 25 MiB và 40 megapixel.
+Văn bản/code hỗ trợ UTF-8 hoặc UTF-16 có BOM, tối đa 5 MiB. App nhận TXT, MD, LOG, C/C++, PY, JS/TS, HTML/CSS, JSON/XML/YAML, SQL, SH/PS1, RS, GO và một số định dạng code khác. File không có phần mở rộng hoặc định dạng chưa nhận diện được xem dưới dạng văn bản monospace đơn sắc nếu encoding hợp lệ và không có dữ liệu nhị phân; tệp thực thi, gói cài đặt và các định dạng nhị phân như BIN/ZIP bị từ chối. Ảnh nhận PNG, JPG/JPEG, BMP và khung đầu của GIF, tối đa 25 MiB/40 megapixel. PDF tối đa 64 MiB. File và thư mục phải nằm trên ổ đĩa cục bộ.
 
 ### Cài đặt
 
-Tải [QuietShare-v0.3.0-win-x64.zip](https://github.com/TDUmii/QuietShare/releases/tag/v0.3.0), giải nén và chạy `QuietShare-Setup.exe`. Bộ cài dùng tài khoản Windows hiện tại, không cần quyền quản trị. Để dùng bản portable, mở `QuietShare.exe` ngay trong thư mục vừa giải nén.
+1. Cần **Windows 10 phiên bản 2004 (build 19041) trở lên hoặc Windows 11, x64**, với DWM và Windows Graphics Capture hoạt động.
+2. Tải [QuietShare 0.4.0](https://github.com/TDUmii/QuietShare/blob/main/QuietShare-v0.4.0-win-x64.zip), giải nén toàn bộ gói và chạy `QuietShare-Setup.exe`. Bộ cài dùng tài khoản hiện tại, không cần quyền quản trị.
+3. Để dùng portable, chạy `QuietShare.exe` trong thư mục đã giải nén. Giữ `Scintilla.dll`, `Lexilla.dll` và `pdfium.dll` cạnh EXE; không chỉ sao chép riêng EXE.
+
+Đóng QuietShare trước khi nâng cấp bằng bộ cài mới. Nâng cấp và gỡ app giữ lại lời nhắc đã tự lưu. Nút **EN / VI** trong bộ cài đổi ngôn ngữ.
 
 ### Sử dụng
 
-1. Tại **Chuẩn bị**, bấm **Mở hoặc thả file** hoặc kéo một file từ Explorer vào cửa sổ. Muốn soạn lời nói, chọn **Lời nhắc** và nhập hoặc dán nội dung.
-2. Chọn **Đọc**, rồi bấm **Chạy** để cuộn lời nhắc. **Chậm / Vừa / Nhanh** chọn tốc độ; **Dừng** tạm dừng. Khi xem code hoặc ảnh, các nút cuộn tự động được ẩn.
-3. Dùng **A- / A+**, **Tùy chỉnh** hoặc Ctrl rồi lăn chuột để chỉnh cỡ chữ. Với ảnh, dùng **- / +** hoặc Ctrl rồi lăn chuột để phóng/thu; kéo ảnh hoặc dùng phím mũi tên để di chuyển. Nút **100%** hoặc Ctrl+`0` đưa chữ về cỡ mặc định và ảnh về vừa khung.
-4. Bấm **Tập trung** hoặc F11 để dành cửa sổ cho nội dung. Bấm nút **F11** trong góc, nhấn F11 lần nữa hoặc Esc để hiện lại sidebar và toolbar.
-5. **Ghim** giữ cửa sổ trên cùng; bấm lại để bỏ ghim. Kéo thanh tiêu đề để di chuyển, kéo cạnh để đổi kích thước. **Che · F8** che nội dung ngay lập tức; F8 lần nữa mở lại.
-6. **EN** chuyển sang tiếng Anh và **VI** chuyển lại tiếng Việt. Khi cửa sổ hẹp, sidebar thu thành icon; rê chuột để xem nhãn và phím tắt. Tab chuyển giữa các điều khiển.
+1. Đợi kiểm tra capture khi mở app. Nếu nội dung đang khóa, bấm **Kiểm tra WGC** tại **Tổng quan**; nếu cần đổi màn hình nguồn, mở **Trình chiếu** và chọn **Nguồn** trước. App kiểm tra một marker thử, không dùng nội dung cá nhân; chỉ hiện nội dung khi kiểm tra đạt.
+2. Chọn **Lời nhắc** để soạn. Ctrl+Enter chuyển soạn/đọc; dùng nút chạy hoặc **⋯ > Chạy / Dừng cuộn**. **⋯ > Đổi tốc độ cuộn** chọn Chậm/Vừa/Nhanh. Chỉ lời nhắc được tự lưu và khôi phục khi mở lại app.
+3. Dùng **Mở hoặc thả file**, Ctrl+O hoặc kéo thả nhiều file. Ctrl+Tab / Ctrl+Shift+Tab chuyển tab; dấu **×**, chuột giữa hoặc Ctrl+W đóng tab file. **⋯** có lệnh đóng tab khác/mọi file, luôn giữ lời nhắc. Mở lại file đã thay đổi sẽ có lựa chọn **Tải lại** hoặc **Giữ bản đang xem**.
+4. Ctrl+Shift+O hoặc **Mở dự án** chọn thư mục. Mở rộng thư mục rồi nhấp đúp file, hoặc dùng phím mũi tên và Enter. **⋯ > Ẩn / Hiện cây thư mục** đổi giữa cây và nội dung. Cây bỏ qua junction/symlink và giới hạn thư mục lớn; mở thư mục con riêng nếu app yêu cầu.
+5. Dùng **− / +**, Ctrl+`−` / Ctrl+`+`, Ctrl rồi lăn chuột hoặc **Cài đặt** để đổi cỡ chữ/zoom. Ctrl+`0` đưa chữ/code về cỡ mặc định, ảnh/PDF về vừa khung. Kéo ảnh hoặc dùng phím mũi tên để di chuyển.
+6. Ctrl+F tìm trong lời nhắc, văn bản, code hoặc PDF có lớp chữ; Enter tìm tiếp, Shift+Enter tìm trước, Esc đóng tìm kiếm. Chọn chữ rồi Ctrl+C để sao chép. **⋯ > Bật/tắt xuống dòng** áp dụng cho code.
+7. PDF hiển thị một trang tại một thời điểm. **⋯ > Trang PDF trước / sau** hoặc Page Up / Page Down đổi trang; **⋯ > PDF vừa chiều ngang** đổi fit. Lăn chuột hoặc kéo vùng trống để di chuyển; kéo trên chữ để chọn và Ctrl+C để sao chép.
+8. F11 bật/tắt tập trung. Lăn chuột trên thanh tab hoặc dùng mũi tên hai đầu để xem tab bị tràn; rê chuột để xem tooltip. **Ghim** giữ cửa sổ trên cùng. Kéo thanh tiêu đề/cạnh để di chuyển/resize. Trong F11, kéo vùng trống thanh tab để di chuyển; menu ⋯ hoặc Alt+F4 đóng app. **EN / VI** trong Cài đặt hoặc **⋯** đổi ngôn ngữ.
+9. F8 che mọi nội dung, tên tab và cây thư mục, đồng thời dừng cuộn và Smart Mirror. Bấm F8 để mở lại; nếu app yêu cầu xác minh, bấm **Kiểm tra WGC** trước khi tiếp tục.
 
-Ctrl+Enter chuyển giữa soạn lời nhắc và đọc. Nếu đang xem file, Ctrl+Enter hoặc **Lời nhắc** đưa bạn về bản lời nhắc đã soạn. **Chuẩn bị > Xem file** mở lại file vừa xem. Chỉ lời nhắc được tự lưu và khôi phục khi mở app; file được mở trong phiên hiện tại.
+Để dùng **Smart Mirror**: chuyển **Win+P > Extend**, đặt toàn bộ QuietShare trên màn hình nguồn, vào **Trình chiếu**, chọn **Nguồn** và **Đích** khác nhau, rồi bấm **Kiểm tra WGC** và **Bắt đầu**. Hai màn hình phải thuộc cùng GPU trong phiên bản này. **Con trỏ** chọn có hiện con trỏ; **Dừng** kết thúc chiếu. Một màn hình vẫn có thể kiểm tra WGC để dùng cửa sổ riêng, nhưng không thể bắt đầu Smart Mirror.
 
-Trước buổi chia sẻ online, thử nội dung mẫu và kiểm tra từ phía người nhận trong đúng phần mềm/cấu hình sẽ dùng. Windows có thể loại cửa sổ QuietShare khỏi một số đường capture. Với máy chiếu hoặc màn hình phụ, dùng **Win+P > Extend** để có màn hình riêng; **Duplicate** phát cùng hình ảnh trên cả hai màn hình và ứng dụng sẽ khóa nội dung trong chế độ này.
+**Duplicate luôn khóa nội dung riêng.** Kiểm tra thất bại, thay đổi màn hình hoặc capture mất an toàn sẽ dừng chiếu và khóa nội dung. “Windows đã nhận” xác nhận trạng thái API; “người xem chưa được xác minh” vẫn cần kiểm tra từ phía người nhận trong đúng Zoom/Meet/Teams/OBS hoặc máy chiếu sẽ dùng. Dùng nội dung mẫu trước buổi chia sẻ. Phần mềm không ngăn máy ảnh bên ngoài chụp màn hình.
 
-![Chế độ tập trung / Focus mode](docs/quietshare-reading.png)
+![Thanh tập trung / Focus strip](docs/quietshare-reading.png)
 
 ## English
 
 ### Features
 
-- **Home**: open or drop a text, source code or image file into the app.
-- **Script / Read**: edit a script, read larger text and auto-scroll at three speeds.
-- **Settings**: adjust text from 12-72 pt with a slider; zoom images from 25-400% relative to fit-to-window size.
-- **Focus**: F11 hides the sidebar and toolbar; a small F11 button restores the controls.
-- Dark UI and scrollbar, always-on-top pinning, instant F8 hide, Vietnamese and English UI.
-- Local script autosave with Windows DPAPI. File previews keep your existing script intact.
+- **Multiple tabs**: open/drop several files and keep scroll, zoom and PDF page per tab. The permanent script remains independent of read-only previews. Up to 32 tabs, including the script.
+- **Syntax-colored code**: line numbers, monospace indentation, selection/copy, find and optional wrapping. Lexers cover Python, C/C++, C#, Java, JavaScript/TypeScript, HTML, CSS, JSON, XML, YAML, Markdown, SQL, Bash/PowerShell, Rust and Go. Code is never executed.
+- **Project tree**: browse local folders lazily. Hidden folders and `.git`, `node_modules`, `.venv`, `dist`, `build` are ignored by default; change the filter in Settings.
+- **In-app PDFs**: page navigation, fit-page/fit-width, 25-400% zoom, selection/copy and find when a text layer exists. Image-only scans remain viewable; password-protected PDFs are unsupported.
+- **Scripts and images**: local Windows DPAPI autosave, editing/reading and three auto-scroll speeds; image zoom and dragging to pan.
+- **Focus**: F11 hides the sidebar while retaining one slim top tab/command strip. Extra actions remain accessible through **⋯**, outside the content area.
+- **Smart Mirror**: project a public source display onto a separate destination in Extend after the actual capture preflight passes.
+- Dark interface, always-on-top pinning, instant F8 hide and VI/EN app/installer interfaces.
 
-Text and code support UTF-8 or BOM-marked UTF-16, up to 5 MiB. Common formats include TXT, Markdown, LOG, C/C++, Python, JavaScript, TypeScript, HTML, CSS, JSON, XML and YAML. Code uses a monospace font. Images support PNG, JPG/JPEG, BMP and the first frame of GIF, up to 25 MiB and 40 megapixels.
+Text/code support UTF-8 or BOM-marked UTF-16, up to 5 MiB. Supported extensions include TXT, MD, LOG, C/C++, PY, JS/TS, HTML/CSS, JSON/XML/YAML, SQL, SH/PS1, RS, GO and selected other source formats. Extensionless or unrecognized files fall back to monochrome monospace text when their encoding is valid and they contain no binary controls; executables, installer packages and binary formats such as BIN/ZIP are rejected. Images support PNG, JPG/JPEG, BMP and the first GIF frame, up to 25 MiB/40 megapixels. PDFs are limited to 64 MiB. Files/folders must be on local drives.
 
 ### Install
 
-Download [QuietShare-v0.3.0-win-x64.zip](https://github.com/TDUmii/QuietShare/releases/tag/v0.3.0), extract it and run `QuietShare-Setup.exe`. The per-user installer does not require administrator rights. For portable use, open `QuietShare.exe` in the extracted folder.
+1. Use **Windows 10 version 2004 (build 19041) or later, or Windows 11, x64**, with working DWM and Windows Graphics Capture.
+2. Download [QuietShare 0.4.0](https://github.com/TDUmii/QuietShare/blob/main/QuietShare-v0.4.0-win-x64.zip), extract the complete package and run `QuietShare-Setup.exe`. It installs for the current account without administrator rights.
+3. For portable use, run `QuietShare.exe` in the extracted folder. Keep `Scintilla.dll`, `Lexilla.dll` and `pdfium.dll` beside it; copying only the EXE is insufficient.
+
+Close QuietShare before upgrading with a new installer. Upgrading/uninstalling preserve the autosaved script. Use the installer's **EN / VI** button to change its language.
 
 ### Use
 
-1. On **Home**, click **Open or drop a file**, or drag one file from Explorer into the window. To prepare spoken notes, select **Script** and type or paste your script.
-2. Select **Read**, then press **Start** to auto-scroll the script. **Slow / Medium / Fast** changes the speed; **Stop** pauses it. Auto-scroll controls are hidden for code and images.
-3. Use **A- / A+**, **Settings**, or Ctrl plus the mouse wheel to change text size. For images, use **- / +** or Ctrl plus the wheel to zoom; drag the image or use the arrow keys to pan. **100%** or Ctrl+`0` restores the default text size or fits the image to the window.
-4. Click **Focus** or press F11 to give the content more space. Click the corner **F11** button, press F11 again, or press Esc to restore the sidebar and toolbar.
-5. **Pin** keeps the window on top; press it again to unpin. Drag the title bar to move the window and an edge to resize it. **Hide · F8** covers the content immediately; F8 again reveals it.
-6. **EN** switches to English and **VI** switches back to Vietnamese. A narrow window collapses the sidebar to icons; hover for labels and shortcuts. Tab moves between controls.
+1. Wait for the capture check at launch. If content is locked, press **Verify WGC privacy** on **Overview**; to change the source display, open **Presentation** and select **Source** first. The app checks a synthetic marker without your personal content and reveals content only after success.
+2. Select **Script** to prepare your notes. Ctrl+Enter switches editing/reading; use the play action or **⋯ > Start / stop scrolling**. **⋯ > Change scroll speed** cycles Slow/Medium/Fast. Only the script is autosaved/restored on launch.
+3. Use **Open or drop a file**, Ctrl+O or multi-file drag/drop. Ctrl+Tab / Ctrl+Shift+Tab switches tabs; **×**, middle-click or Ctrl+W closes a file tab. **⋯** can close other/all file tabs while retaining the script. Reopening a changed file offers **Reload** or **Keep current preview**.
+4. Ctrl+Shift+O or **Open project** selects a folder. Expand folders, then double-click a file or navigate with arrows and Enter. **⋯ > Hide / show project tree** switches between tree and content. Junctions/symlinks are skipped and large folders are bounded; open a subfolder separately if requested.
+5. Use **− / +**, Ctrl+`−` / Ctrl+`+`, Ctrl plus the wheel, or **Settings** to adjust text size/zoom. Ctrl+`0` restores default script/code size and fits images/PDFs. Drag images or use arrows to pan.
+6. Ctrl+F opens find for scripts, text, code and PDFs with a text layer. Enter finds next, Shift+Enter previous, and Esc closes find. Select text and Ctrl+C to copy. **⋯ > Toggle line wrap** applies to code.
+7. The PDF reader displays one page at a time. **⋯ > Previous / Next PDF page** or Page Up / Page Down changes pages; **⋯ > Fit PDF width** changes fit. Scroll or drag a blank area to pan; drag over text to select it, then Ctrl+C to copy.
+8. F11 enters/exits focus. Scroll over the tab strip or use its end arrows for overflowing tabs; hover for tooltips. **Pin** keeps the window on top. Drag its title bar/edges to move/resize. In F11, drag blank tab-strip space to move; use ⋯ or Alt+F4 to close the app. Change language through **EN / VI** in Settings or **⋯**.
+9. F8 hides every viewer, tab name and project tree, and stops auto-scroll and Smart Mirror. Press F8 to reveal; run **Verify WGC privacy** first if verification is requested.
 
-Ctrl+Enter switches between editing and reading your script. From a file preview, Ctrl+Enter or **Script** restores your existing script. **Home > View file** returns to the last opened file. Only the script is autosaved and restored on launch; opened files belong to the current session.
+For **Smart Mirror**, choose **Win+P > Extend**, place the entire QuietShare window on the source display, open **Presentation**, choose different **Source** and **Destination** displays, then press **Verify WGC privacy** and **Start**. Both displays must use the same GPU in this version. **Pointer** controls cursor visibility; **Stop** ends projection. A single display can run the WGC preflight for private-window use but cannot start Smart Mirror.
 
-Before a real online share, test sample content from the receiver's side with the meeting app and capture mode you will use. Windows can exclude QuietShare from some capture paths. For a projector or second display, choose **Win+P > Extend** for a private display; **Duplicate** mirrors the same pixels and the app locks its content in that mode.
-
-The release is native Windows x64 code and is not digitally signed. Native compilation makes casual decompilation harder, but no executable can promise absolute protection against reverse engineering.
+**Duplicate always locks private content.** Failed checks, changed displays or unsafe capture stop projection and lock the readers. “Windows accepted” confirms the API state; “Viewer unverified” still requires a receiver-side check in the actual Zoom/Meet/Teams/OBS or projector setup. Use sample content before sharing. Software cannot prevent an external camera from filming the screen.

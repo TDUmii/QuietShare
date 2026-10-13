@@ -1,5 +1,10 @@
-param([string]$CompilerRoot = 'D:\Microsoft VS Code\mingw64\bin')
+param([string]$CompilerRoot = '')
 $ErrorActionPreference = 'Stop'
+if (!$CompilerRoot) {
+    $compilerCommand = Get-Command 'g++.exe' -ErrorAction SilentlyContinue
+    if (!$compilerCommand) { throw 'Add MinGW-w64 to PATH or pass -CompilerRoot with its bin directory.' }
+    $CompilerRoot = Split-Path -Parent $compilerCommand.Source
+}
 $projectRoot = Split-Path -Parent $PSScriptRoot
 $artifactRoot = Join-Path $projectRoot 'artifacts\qa-content'
 $compiler = Join-Path $CompilerRoot 'g++.exe'

@@ -1,4 +1,4 @@
-"""Check the production EXE's native scrollbar across idle and interaction states.
+"""Check the separately compiled native QA EXE scrollbar across interaction states.
 
 Only the test child PID is targeted. The app's --qa-scrollbar fixture uses its
 own Data directory and renders sample text without capture exclusion. Pixels
@@ -18,7 +18,8 @@ import time
 import uuid
 
 sys.dont_write_bytecode = True
-from lifecycle_regression import EXE, ROOT, USER32, app_windows, send
+from lifecycle_regression import ROOT, USER32, app_windows, send
+EXE = ROOT / "build" / "QuietShare-QA.exe"
 
 
 GDI32 = ctypes.WinDLL("gdi32", use_last_error=True)
@@ -260,7 +261,7 @@ def main() -> int:
             process.wait(timeout=3)
         check("fixtureExitZero", process.returncode == 0)
 
-    result = {"scope": "Actual EXE native RichEdit scrollbar; isolated sample fixture only",
+    result = {"scope": "Separate QA EXE built from production UI source; native RichEdit scrollbar with isolated sample fixture",
               "windowsVersion": sys.getwindowsversion().build,
               "testedBinarySha256": hashlib.sha256(EXE.read_bytes()).hexdigest(),
               "checks": checks, "samples": samples,

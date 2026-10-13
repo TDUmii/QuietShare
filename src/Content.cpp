@@ -15,6 +15,7 @@ namespace
 {
 constexpr LONGLONG TextLimit = 5LL * 1024 * 1024;
 constexpr LONGLONG ImageLimit = 25LL * 1024 * 1024;
+constexpr LONGLONG PdfLimit = 64LL * 1024 * 1024;
 constexpr ULONGLONG PixelLimit = 40ULL * 1000 * 1000;
 
 template <class T> struct ComObject
@@ -92,6 +93,11 @@ bool KindForName(const std::wstring &name, ContentKind &kind)
                    [](wchar_t character) { return static_cast<wchar_t>(std::towlower(character)); });
     const size_t dot = lower.find_last_of(L'.');
     const std::wstring extension = dot == std::wstring::npos ? L"" : lower.substr(dot);
+    if (extension == L".pdf")
+    {
+        kind = ContentKind::Pdf;
+        return true;
+    }
     static const wchar_t *images[] = {L".png", L".jpg", L".jpeg", L".bmp", L".gif"};
     for (const wchar_t *candidate : images)
         if (extension == candidate)
@@ -116,9 +122,9 @@ bool KindForName(const std::wstring &name, ContentKind &kind)
         L".cs",   L".java", L".kt",   L".kts",    L".py",     L".pyw",   L".js",  L".jsx",
         L".mjs",  L".cjs",  L".ts",   L".tsx",    L".html",   L".htm",   L".css", L".scss",
         L".sass", L".less", L".json", L".jsonc",  L".xml",    L".svg",   L".yml", L".yaml",
-        L".toml", L".ini",  L".cfg",  L".conf",   L".sh",     L".bash",  L".ps1", L".psm1",
+        L".toml", L".ini",  L".cfg",  L".conf",   L".sh",     L".bash",  L".ps1", L".psm1", L".psd1",
         L".bat",  L".cmd",  L".sql",  L".rs",     L".go",     L".rb",    L".php", L".swift",
-        L".lua",  L".r",    L".vue",  L".svelte", L".gradle", L".cmake", L".tex"};
+        L".lua",  L".r",    L".vue",  L".svelte", L".gradle", L".cmake", L".tex", L".xaml", L".csproj"};
     for (const wchar_t *candidate : sources)
         if (extension == candidate)
         {
@@ -128,7 +134,24 @@ bool KindForName(const std::wstring &name, ContentKind &kind)
     return false;
 }
 
-bool ReadLocalFile(const std::wstring &path, LONGLONG limit, std::vector<BYTE> &bytes, std::wstring &error)
+bool DeniedPreviewName(const std::wstring &name)
+{
+    std::wstring lower = name;
+    std::transform(lower.begin(), lower.end(), lower.begin(),
+                   [](wchar_t character) { return static_cast<wchar_t>(std::towlower(character)); });
+    const size_t dot = lower.find_last_of(L'.');
+    const std::wstring extension = dot == std::wstring::npos ? L"" : lower.substr(dot);
+    // Executables/packages and explicitly binary formats never fall back to plain text,
+    // even if their bytes are ASCII. Supported scripts remain read-only source code.
+    static const wchar_t *denied[] = {L".exe", L".dll", L".sys", L".com", L".scr", L".msi", L".msp",
+                                     L".lnk", L".pif", L".cpl", L".appx", L".appxbundle", L".msix",
+                                     L".msixbundle", L".bin", L".zip", L".7z", L".rar", L".cab", L".iso"};
+    for (const auto *candidate : denied)
+        if (extension == candidate) return true;
+    return false;
+}
+
+bool ReadLocalFile(std::wstring &path, LONGLONG limit, std::vector<BYTE> &bytes, std::wstring &error)
 {
     FileHandle file;
     file.value =
@@ -156,6 +179,7 @@ bool ReadLocalFile(const std::wstring &path, LONGLONG limit, std::vector<BYTE> &
         finalPath.erase(0, 4);
     if (!LocalDrivePath(finalPath))
         return Fail(error, L"Tệp phải nằm trên ổ đĩa cục bộ. / The file must be on a local drive.");
+    path = std::move(finalPath);
     LARGE_INTEGER size{};
     if (!GetFileSizeEx(file.value, &size) || size.QuadPart < 0)
         return Fail(error, L"Không đọc được kích thước tệp. / Cannot read the file size.");
@@ -164,7 +188,9 @@ bool ReadLocalFile(const std::wstring &path, LONGLONG limit, std::vector<BYTE> &
                     limit == TextLimit
                         ? L"Tệp chữ hoặc code phải nhỏ hơn hoặc bằng 5 MiB. / Text or code files must be at "
                           L"most 5 MiB."
-                        : L"Tệp ảnh phải nhỏ hơn hoặc bằng 25 MiB. / Image files must be at most 25 MiB.");
+                        : limit == PdfLimit
+                              ? L"Tệp PDF phải nhỏ hơn hoặc bằng 64 MiB. / PDF files must be at most 64 MiB."
+                              : L"Tệp ảnh phải nhỏ hơn hoặc bằng 25 MiB. / Image files must be at most 25 MiB.");
     bytes.resize(static_cast<size_t>(size.QuadPart));
     DWORD read = 0;
     if (!bytes.empty() &&
@@ -311,6 +337,7 @@ LoadedContent &LoadedContent::operator=(LoadedContent &&other) noexcept
         path = std::move(other.path);
         displayName = std::move(other.displayName);
         text = std::move(other.text);
+        bytes = std::move(other.bytes);
         image = other.image;
         width = other.width;
         height = other.height;
@@ -330,6 +357,44 @@ void LoadedContent::Clear() noexcept
     path.clear();
     displayName.clear();
     text.clear();
+    std::vector<unsigned char>().swap(bytes);
+}
+
+bool CanonicalLocalPath(const std::wstring &path, bool directory, std::wstring &result,
+                        std::wstring &error)
+{
+    std::wstring resolved;
+    if (!ResolveLocalPath(path, resolved, error))
+        return false;
+    const DWORD attributes = GetFileAttributesW(resolved.c_str());
+    if (attributes == INVALID_FILE_ATTRIBUTES ||
+        ((attributes & FILE_ATTRIBUTE_DIRECTORY) != 0) != directory ||
+        (directory && (attributes & FILE_ATTRIBUTE_REPARSE_POINT)))
+        return Fail(error, L"Chọn tệp hoặc thư mục cục bộ thông thường. / Choose a regular local file or folder.");
+    FileHandle file;
+    file.value = CreateFileW(resolved.c_str(), FILE_READ_ATTRIBUTES,
+                             FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, nullptr,
+                             OPEN_EXISTING, directory ? FILE_FLAG_BACKUP_SEMANTICS : 0, nullptr);
+    if (file.value == INVALID_HANDLE_VALUE || GetFileType(file.value) != FILE_TYPE_DISK)
+        return Fail(error, L"Không xác nhận được đường dẫn cục bộ. / Cannot verify the local path.");
+    const DWORD length = GetFinalPathNameByHandleW(file.value, nullptr, 0, FILE_NAME_NORMALIZED | VOLUME_NAME_DOS);
+    if (!length || length > 32767)
+        return Fail(error, L"Không xác nhận được đường dẫn cục bộ. / Cannot verify the local path.");
+    std::vector<wchar_t> buffer(static_cast<size_t>(length) + 1);
+    const DWORD written = GetFinalPathNameByHandleW(file.value, buffer.data(), static_cast<DWORD>(buffer.size()),
+                                                   FILE_NAME_NORMALIZED | VOLUME_NAME_DOS);
+    if (!written || written >= buffer.size())
+        return Fail(error, L"Không xác nhận được đường dẫn cục bộ. / Cannot verify the local path.");
+    resolved.assign(buffer.data(), written);
+    if (resolved.rfind(L"\\\\?\\", 0) == 0)
+        resolved.erase(0, 4);
+    if (!LocalDrivePath(resolved))
+        return Fail(error, L"Chỉ dùng ổ đĩa cục bộ. / Use a local drive.");
+    while (resolved.size() > 3 && (resolved.back() == L'\\' || resolved.back() == L'/'))
+        resolved.pop_back();
+    result = std::move(resolved);
+    error.clear();
+    return true;
 }
 
 bool LoadLocalContent(const std::wstring &path, LoadedContent &result, std::wstring &error)
@@ -339,16 +404,35 @@ bool LoadLocalContent(const std::wstring &path, LoadedContent &result, std::wstr
         return false;
     const size_t separator = candidate.path.find_last_of(L"\\/");
     candidate.displayName = candidate.path.substr(separator == std::wstring::npos ? 0 : separator + 1);
-    if (!KindForName(candidate.displayName, candidate.kind))
-        return Fail(error, L"Chọn tệp chữ, code hoặc ảnh PNG/JPEG/BMP/GIF. / Choose a text, source code or "
-                           L"PNG/JPEG/BMP/GIF file.");
+    if (DeniedPreviewName(candidate.displayName))
+        return Fail(error, L"Không xem tệp thực thi, gói cài đặt hoặc định dạng nhị phân. / Executables, installer packages and binary formats cannot be previewed.");
+    const bool fallbackText = !KindForName(candidate.displayName, candidate.kind);
+    if (fallbackText) candidate.kind = ContentKind::Code;
     std::vector<BYTE> bytes;
-    if (!ReadLocalFile(candidate.path, candidate.kind == ContentKind::Image ? ImageLimit : TextLimit, bytes,
+    if (!ReadLocalFile(candidate.path, candidate.kind == ContentKind::Image ? ImageLimit :
+                      candidate.kind == ContentKind::Pdf ? PdfLimit : TextLimit, bytes,
                        error))
         return false;
-    if (candidate.kind == ContentKind::Image ? !DecodeImage(bytes, candidate, error)
-                                             : !DecodeText(bytes, candidate.text, error))
+    const size_t finalSeparator = candidate.path.find_last_of(L"\\/");
+    const std::wstring finalName = candidate.path.substr(finalSeparator == std::wstring::npos ? 0 : finalSeparator + 1);
+    if (DeniedPreviewName(finalName))
+        return Fail(error, L"Không xem tệp thực thi, gói cài đặt hoặc định dạng nhị phân. / Executables, installer packages and binary formats cannot be previewed.");
+    if (candidate.kind == ContentKind::Pdf)
+    {
+        if (bytes.size() < 8 || bytes[0] != '%' || bytes[1] != 'P' || bytes[2] != 'D' || bytes[3] != 'F' ||
+            bytes[4] != '-' || bytes[5] < '1' || bytes[5] > '2' || bytes[6] != '.' ||
+            bytes[7] < '0' || bytes[7] > '9')
+            return Fail(error, L"Tệp không có định dạng PDF hợp lệ. / The file is not a valid PDF.");
+        candidate.bytes = std::move(bytes);
+    }
+    else if (candidate.kind == ContentKind::Image ? !DecodeImage(bytes, candidate, error)
+                                                 : !DecodeText(bytes, candidate.text, error))
         return false;
+    if (fallbackText && std::any_of(candidate.text.begin(), candidate.text.end(), [](wchar_t character) {
+            return (character < 0x20 && character != L'\t' && character != L'\r' && character != L'\n') ||
+                    character == 0x7F;
+        }))
+        return Fail(error, L"Tệp có ký tự điều khiển nhị phân, không phải văn bản thuần. / The file contains binary control characters, not plain text.");
     result = std::move(candidate);
     error.clear();
     return true;

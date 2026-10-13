@@ -16,24 +16,26 @@
 #include <sstream>
 #include <string>
 #include <vector>
+#include <wincrypt.h>
 
 namespace
 {
 constexpr wchar_t kAppName[] = L"QuietShare";
-constexpr wchar_t kVersion[] = L"0.3.0";
+constexpr wchar_t kVersion[] = L"0.4.0";
 constexpr wchar_t kUninstallKey[] = L"Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\QuietShare";
 constexpr int kPayloadResource = 301;
 constexpr int kActionButton = 101;
 constexpr int kRunCheckbox = 102;
 constexpr int kCloseButton = 103;
-constexpr COLORREF kBackground = RGB(11, 13, 15);
-constexpr COLORREF kSurface = RGB(24, 27, 30);
-constexpr COLORREF kElevated = RGB(34, 38, 42);
+constexpr int kLanguageButton = 104;
+constexpr COLORREF kBackground = RGB(16, 18, 21);
+constexpr COLORREF kSurface = RGB(25, 29, 33);
+constexpr COLORREF kElevated = RGB(37, 43, 48);
 constexpr COLORREF kHover = RGB(44, 49, 53);
-constexpr COLORREF kAccent = RGB(29, 185, 84);
-constexpr COLORREF kText = RGB(248, 250, 252);
-constexpr COLORREF kMuted = RGB(156, 163, 175);
-constexpr COLORREF kDivider = RGB(48, 52, 58);
+constexpr COLORREF kAccent = RGB(35, 200, 118);
+constexpr COLORREF kText = RGB(242, 245, 247);
+constexpr COLORREF kMuted = RGB(154, 166, 175);
+constexpr COLORREF kDivider = RGB(52, 59, 66);
 HINSTANCE gInstance = nullptr;
 HWND gWindow = nullptr;
 HWND gStatus = nullptr;
@@ -44,6 +46,7 @@ HWND gHeading = nullptr;
 HWND gIntro = nullptr;
 HWND gFolderCaption = nullptr;
 HWND gFolderPath = nullptr;
+HWND gLanguage = nullptr;
 HFONT gFont = nullptr;
 HFONT gTitleFont = nullptr;
 HFONT gSmallFont = nullptr;
@@ -54,9 +57,22 @@ UINT gDpi = 96;
 bool gUninstall = false;
 bool gComplete = false;
 bool gQaVisible = false;
+bool gEnglish = false;
 int gQaExitCode = 0;
 std::wstring gQaReport;
 std::wstring gRoot;
+std::wstring gSmokeRoot;
+bool gSmokeFailCommit = false;
+struct InstalledPayload { const wchar_t *name; int id; bool executable; bool dll; };
+constexpr InstalledPayload kInstalledPayloads[] = {
+    {L"QuietShare.exe", 301, true, false}, {L"Scintilla.dll", 302, true, true},
+    {L"Lexilla.dll", 303, true, true}, {L"pdfium.dll", 304, true, true},
+    {L"THIRD-PARTY.md", 305, false, false}};
+
+const wchar_t *I(const wchar_t *vietnamese, const wchar_t *english)
+{
+    return gEnglish ? english : vietnamese;
+}
 
 struct Handle
 {
@@ -77,7 +93,7 @@ std::wstring ErrorText(DWORD code)
     const DWORD length = FormatMessageW(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM |
                                             FORMAT_MESSAGE_IGNORE_INSERTS,
                                         nullptr, code, 0, reinterpret_cast<wchar_t *>(&message), 0, nullptr);
-    std::wstring text = length && message ? message : L"Lỗi hệ thống không xác định.";
+    std::wstring text = length && message ? message : I(L"Lỗi hệ thống không xác định.", L"Unknown Windows error.");
     if (message)
         LocalFree(message);
     while (!text.empty() && (text.back() == L'\r' || text.back() == L'\n' || text.back() == L' '))
@@ -94,6 +110,13 @@ std::wstring ModulePath()
 
 std::wstring KnownFolder(REFKNOWNFOLDERID id)
 {
+    if (!gSmokeRoot.empty())
+    {
+        if (IsEqualGUID(id, FOLDERID_LocalAppData)) return gSmokeRoot + L"\\LocalAppData";
+        if (IsEqualGUID(id, FOLDERID_Desktop)) return gSmokeRoot + L"\\Desktop";
+        if (IsEqualGUID(id, FOLDERID_Programs)) return gSmokeRoot + L"\\StartMenu";
+        return L"";
+    }
     PWSTR folder = nullptr;
     if (FAILED(SHGetKnownFolderPath(id, KF_FLAG_DONT_VERIFY, nullptr, &folder)))
         return L"";
@@ -142,12 +165,13 @@ bool RegularDirectoryOrAbsent(const std::wstring &path, std::wstring &error)
         const DWORD code = GetLastError();
         if (code == ERROR_FILE_NOT_FOUND || code == ERROR_PATH_NOT_FOUND)
             return true;
-        error = L"Không kiểm tra được thư mục: " + ErrorText(code);
+        error = I(L"Không kiểm tra được thư mục: ", L"Cannot verify the folder: ") + ErrorText(code);
         return false;
     }
     if (!(attributes & FILE_ATTRIBUTE_DIRECTORY) || (attributes & FILE_ATTRIBUTE_REPARSE_POINT))
     {
-        error = L"Thư mục cài đặt phải là thư mục thông thường, không phải liên kết hoặc junction.";
+        error = I(L"Thư mục cài đặt phải là thư mục thông thường, không phải liên kết hoặc junction.",
+                  L"The installation folder must be a regular folder, not a link or junction.");
         return false;
     }
     return true;
@@ -158,7 +182,8 @@ bool ValidateRoot(const std::wstring &root, std::wstring &error)
     const auto expected = ExpectedRoot();
     if (expected.empty() || !SamePath(root, expected))
     {
-        error = L"Đường dẫn không khớp với thư mục cài đặt của QuietShare cho tài khoản này.";
+        error = I(L"Đường dẫn không khớp với thư mục cài đặt của QuietShare cho tài khoản này.",
+                  L"The path does not match QuietShare's installation folder for this account.");
         return false;
     }
     const auto parent = expected.substr(0, expected.find_last_of(L'\\'));
@@ -173,12 +198,13 @@ bool ValidateFile(const std::wstring &path, std::wstring &error)
         const DWORD code = GetLastError();
         if (code == ERROR_FILE_NOT_FOUND || code == ERROR_PATH_NOT_FOUND)
             return true;
-        error = L"Không kiểm tra được tệp: " + ErrorText(code);
+        error = I(L"Không kiểm tra được tệp: ", L"Cannot verify the file: ") + ErrorText(code);
         return false;
     }
     if (attributes & (FILE_ATTRIBUTE_DIRECTORY | FILE_ATTRIBUTE_REPARSE_POINT))
     {
-        error = L"Tệp ứng dụng không phải là tệp thông thường. Thao tác đã dừng.";
+        error = I(L"Tệp ứng dụng không phải là tệp thông thường. Thao tác đã dừng.",
+                  L"The application file is not a regular file. The operation stopped.");
         return false;
     }
     return true;
@@ -186,20 +212,21 @@ bool ValidateFile(const std::wstring &path, std::wstring &error)
 
 bool AppCanBeChanged(const std::wstring &root, std::wstring &error)
 {
-    const auto file = root + L"\\QuietShare.exe";
-    if (!ValidateFile(file, error))
-        return false;
-    if (!Exists(file))
-        return true;
-    Handle check(CreateFileW(file.c_str(), GENERIC_WRITE | DELETE,
+    for (const auto &entry : kInstalledPayloads)
+    {
+        const auto file = root + L"\\" + entry.name;
+        if (!ValidateFile(file, error)) return false;
+        if (!Exists(file)) continue;
+        Handle check(CreateFileW(file.c_str(), GENERIC_WRITE | DELETE,
                              FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, nullptr, OPEN_EXISTING,
                              FILE_ATTRIBUTE_NORMAL, nullptr));
-    if (check.value == INVALID_HANDLE_VALUE)
-    {
-        error = L"Hãy đóng QuietShare trước khi tiếp tục. Nếu ứng dụng đã đóng, hãy kiểm tra quyền ghi vào "
-                L"thư mục cài đặt.\n" +
+        if (check.value == INVALID_HANDLE_VALUE)
+        {
+            error = I(L"Hãy đóng QuietShare trước khi tiếp tục. Nếu ứng dụng đã đóng, hãy kiểm tra quyền ghi vào thư mục cài đặt.\n",
+                      L"Close QuietShare before continuing. If it is closed, check write permissions for the installation folder.\n") +
                 ErrorText(GetLastError());
-        return false;
+            return false;
+        }
     }
     return true;
 }
@@ -224,7 +251,7 @@ Payload AppPayload()
     return ResourcePayload(kPayloadResource);
 }
 
-bool ValidPE(const Payload &payload)
+bool ValidPE(const Payload &payload, bool dll = false)
 {
     if (!payload.bytes || payload.size < sizeof(IMAGE_DOS_HEADER))
         return false;
@@ -232,14 +259,30 @@ bool ValidPE(const Payload &payload)
     if (dos->e_magic != IMAGE_DOS_SIGNATURE || dos->e_lfanew < 0)
         return false;
     const auto offset = static_cast<size_t>(dos->e_lfanew);
-    if (offset > payload.size || payload.size - offset < sizeof(DWORD) + sizeof(IMAGE_FILE_HEADER))
+    if (offset > payload.size || payload.size - offset < sizeof(IMAGE_NT_HEADERS64))
         return false;
     DWORD signature = 0;
     memcpy(&signature, payload.bytes + offset, sizeof(signature));
     const auto file = reinterpret_cast<const IMAGE_FILE_HEADER *>(payload.bytes + offset + sizeof(DWORD));
+    const auto optional = reinterpret_cast<const IMAGE_OPTIONAL_HEADER64 *>(file + 1);
     return signature == IMAGE_NT_SIGNATURE && (file->Characteristics & IMAGE_FILE_EXECUTABLE_IMAGE) &&
-           (file->Machine == IMAGE_FILE_MACHINE_AMD64 || file->Machine == IMAGE_FILE_MACHINE_ARM64 ||
-            file->Machine == IMAGE_FILE_MACHINE_I386);
+           file->Machine == IMAGE_FILE_MACHINE_AMD64 && optional->Magic == IMAGE_NT_OPTIONAL_HDR64_MAGIC &&
+           file->SizeOfOptionalHeader >= sizeof(IMAGE_OPTIONAL_HEADER64) &&
+           ((file->Characteristics & IMAGE_FILE_DLL) != 0) == dll;
+}
+
+bool PayloadsValid(DWORD &total)
+{
+    total = 0;
+    for (const auto &entry : kInstalledPayloads)
+    {
+        const auto payload = ResourcePayload(entry.id);
+        if (!payload.bytes || !payload.size ||
+            (entry.executable ? !ValidPE(payload, entry.dll) : payload.size > 2 * 1024 * 1024))
+            return false;
+        total += payload.size;
+    }
+    return true;
 }
 
 std::vector<std::wstring> ShortcutPaths()
@@ -302,7 +345,7 @@ bool CreateShortcut(const std::wstring &link, const std::wstring &root, std::wst
         shell->Release();
     }
     if (FAILED(result))
-        error = L"Không tạo được lối tắt: " + ErrorText(static_cast<DWORD>(result));
+        error = I(L"Không tạo được lối tắt: ", L"Cannot create the shortcut: ") + ErrorText(static_cast<DWORD>(result));
     return SUCCEEDED(result);
 }
 
@@ -315,11 +358,12 @@ bool SetRegistryString(HKEY key, const wchar_t *name, const std::wstring &value)
 bool RegisterUninstall(const std::wstring &root, DWORD bytes, std::wstring &error)
 {
     HKEY key = nullptr;
-    LONG status = RegCreateKeyExW(HKEY_CURRENT_USER, kUninstallKey, 0, nullptr, REG_OPTION_NON_VOLATILE,
+    LONG status = RegCreateKeyExW(HKEY_CURRENT_USER, kUninstallKey, 0, nullptr,
+                                  gSmokeRoot.empty() ? REG_OPTION_NON_VOLATILE : REG_OPTION_VOLATILE,
                                   KEY_SET_VALUE, nullptr, &key, nullptr);
     if (status != ERROR_SUCCESS)
     {
-        error = L"Không đăng ký được mục gỡ cài đặt: " + ErrorText(status);
+        error = I(L"Không đăng ký được mục gỡ cài đặt: ", L"Cannot register the uninstall entry: ") + ErrorText(status);
         return false;
     }
     const std::wstring command = L"\"" + root + L"\\QuietShare-Setup.exe\" --uninstall";
@@ -338,7 +382,8 @@ bool RegisterUninstall(const std::wstring &root, DWORD bytes, std::wstring &erro
                               sizeof(kb)) == ERROR_SUCCESS;
     RegCloseKey(key);
     if (!ok)
-        error = L"Không ghi đầy đủ thông tin gỡ cài đặt. Bạn có thể chạy lại bộ cài.";
+        error = I(L"Không ghi đầy đủ thông tin gỡ cài đặt. Bạn có thể chạy lại bộ cài.",
+                  L"The uninstall information is incomplete. Run the installer again.");
     return ok;
 }
 
@@ -365,7 +410,7 @@ bool MakeDirectory(const std::wstring &path, std::wstring &error)
 {
     if (CreateDirectoryW(path.c_str(), nullptr) || GetLastError() == ERROR_ALREADY_EXISTS)
         return RegularDirectoryOrAbsent(path, error);
-    error = L"Không tạo được thư mục: " + ErrorText(GetLastError());
+    error = I(L"Không tạo được thư mục: ", L"Cannot create the folder: ") + ErrorText(GetLastError());
     return false;
 }
 
@@ -373,16 +418,18 @@ bool Install(std::wstring &error)
 {
     if (!ValidateRoot(gRoot, error) || !AppCanBeChanged(gRoot, error))
         return false;
-    const auto payload = AppPayload();
-    if (!ValidPE(payload))
+    DWORD installedBytes = 0;
+    if (!PayloadsValid(installedBytes))
     {
-        error = L"Bộ cài thiếu tệp ứng dụng hợp lệ. Hãy lấy lại bộ cài.";
+        error = I(L"Bộ cài thiếu ứng dụng hoặc thư viện Windows x64 hợp lệ. Hãy lấy lại bộ cài.",
+                  L"The installer is missing a valid Windows x64 app or library. Download it again.");
         return false;
     }
     const auto shortcuts = ShortcutPaths();
     if (shortcuts.size() != 2)
     {
-        error = L"Không tìm thấy thư mục Desktop hoặc Start Menu cho tài khoản này.";
+        error = I(L"Không tìm thấy thư mục Desktop hoặc Start Menu cho tài khoản này.",
+                  L"Cannot find the Desktop or Start Menu folder for this account.");
         return false;
     }
     for (const auto &path : shortcuts)
@@ -391,51 +438,97 @@ bool Install(std::wstring &error)
             return false;
         if (!ShortcutBelongsToApp(path, gRoot))
         {
-            error = L"Đã có lối tắt QuietShare trỏ đến ứng dụng khác: " + path;
+            error = I(L"Đã có lối tắt QuietShare trỏ đến ứng dụng khác: ", L"A QuietShare shortcut already points to another app: ") + path;
             return false;
         }
     }
     const auto parent = gRoot.substr(0, gRoot.find_last_of(L'\\'));
     if (!MakeDirectory(parent, error) || !MakeDirectory(gRoot, error))
         return false;
-    const auto app = gRoot + L"\\QuietShare.exe", setup = gRoot + L"\\QuietShare-Setup.exe";
-    const auto appTemp = gRoot + L"\\QuietShare.installing.exe",
-               setupTemp = gRoot + L"\\QuietShare-Setup.installing.exe";
-    if (!ValidateFile(setup, error) || !ValidateFile(appTemp, error) || !ValidateFile(setupTemp, error))
-        return false;
-    if (!WritePayload(appTemp, payload, error))
+    struct StagedFile
     {
-        DeleteFileW(appTemp.c_str());
-        return false;
-    }
-    const auto self = ModulePath();
-    const bool copySetup = !SamePath(self, setup);
-    if (copySetup && !CopyFileW(self.c_str(), setupTemp.c_str(), FALSE))
+        std::wstring target, temporary, backup;
+        Payload payload;
+        bool copySelf = false, backed = false, committed = false;
+    };
+    std::vector<StagedFile> files;
+    for (const auto &entry : kInstalledPayloads)
     {
-        error = L"Không sao chép được bộ gỡ cài đặt: " + ErrorText(GetLastError());
-        DeleteFileW(appTemp.c_str());
-        return false;
+        const auto target = gRoot + L"\\" + entry.name;
+        files.push_back({target, target + L".installing", target + L".rollback", ResourcePayload(entry.id)});
     }
-    if (!MoveFileExW(appTemp.c_str(), app.c_str(), MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH))
+    const auto self = ModulePath(), setup = gRoot + L"\\QuietShare-Setup.exe";
+    if (!SamePath(self, setup))
+        files.push_back({setup, setup + L".installing", setup + L".rollback", {}, true});
+    for (const auto &file : files)
     {
-        error =
-            L"Không thay thế được ứng dụng. Hãy đóng QuietShare rồi thử lại: " + ErrorText(GetLastError());
-        DeleteFileW(appTemp.c_str());
-        if (copySetup)
-            DeleteFileW(setupTemp.c_str());
-        return false;
+        if (!ValidateFile(file.target, error) || !ValidateFile(file.temporary, error) ||
+            !ValidateFile(file.backup, error)) return false;
+        if (Exists(file.backup))
+        {
+            error = I(L"Có bản sao phục hồi từ lần cài đặt chưa hoàn tất. Hãy giữ lại tệp .rollback trước khi thử lại.",
+                      L"A recovery copy remains from an incomplete installation. Preserve the .rollback files before retrying.");
+            return false;
+        }
     }
-    if (copySetup &&
-        !MoveFileExW(setupTemp.c_str(), setup.c_str(), MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH))
+    auto rollback = [&]() {
+        bool restored = true;
+        for (auto file = files.rbegin(); file != files.rend(); ++file)
+        {
+            if (file->committed) restored = DeleteFileW(file->target.c_str()) && restored;
+            if (file->backed)
+                restored = MoveFileExW(file->backup.c_str(), file->target.c_str(), MOVEFILE_WRITE_THROUGH) && restored;
+            DeleteFileW(file->temporary.c_str());
+        }
+        if (!restored) error += I(L"\nBản sao .rollback được giữ để phục hồi. Không xóa chúng.",
+                                  L"\nThe .rollback copies are retained for recovery. Do not delete them.");
+    };
+    // Stage every byte before replacing any running-version file. All paths are fixed and validated.
+    for (auto &file : files)
     {
-        error = L"Không thay thế được bộ gỡ cài đặt: " + ErrorText(GetLastError());
-        DeleteFileW(setupTemp.c_str());
-        return false;
+        if (file.copySelf ? !CopyFileW(self.c_str(), file.temporary.c_str(), FALSE)
+                          : !WritePayload(file.temporary, file.payload, error))
+        {
+            if (error.empty()) error = I(L"Không chuẩn bị được bộ gỡ cài đặt: ", L"Cannot prepare the uninstaller: ") + ErrorText(GetLastError());
+            rollback();
+            return false;
+        }
     }
+    for (auto &file : files)
+    {
+        if (Exists(file.target))
+        {
+            if (!MoveFileExW(file.target.c_str(), file.backup.c_str(), MOVEFILE_WRITE_THROUGH))
+            {
+                error = I(L"Không chuẩn bị được bản sao phục hồi. Đóng QuietShare rồi thử lại: ", L"Cannot prepare a recovery copy. Close QuietShare and retry: ") + ErrorText(GetLastError());
+                rollback();
+                return false;
+            }
+            file.backed = true;
+        }
+        if (!MoveFileExW(file.temporary.c_str(), file.target.c_str(), MOVEFILE_WRITE_THROUGH))
+        {
+            error = I(L"Không thay thế được tệp ứng dụng. Đóng QuietShare rồi thử lại: ", L"Cannot replace an application file. Close QuietShare and retry: ") + ErrorText(GetLastError());
+            rollback();
+            return false;
+        }
+        file.committed = true;
+        if (gSmokeFailCommit)
+        {
+            error = L"QA: simulated commit failure.";
+            rollback();
+            return false;
+        }
+    }
+    for (const auto &file : files)
+        if (file.backed) DeleteFileW(file.backup.c_str());
     for (const auto &shortcut : shortcuts)
         if (!CreateShortcut(shortcut, gRoot, error))
             return false;
-    return RegisterUninstall(gRoot, payload.size, error);
+    WIN32_FILE_ATTRIBUTE_DATA setupInfo{};
+    if (GetFileAttributesExW(setup.c_str(), GetFileExInfoStandard, &setupInfo) && !setupInfo.nFileSizeHigh)
+        installedBytes += setupInfo.nFileSizeLow;
+    return RegisterUninstall(gRoot, installedBytes, error);
 }
 
 bool DeleteExactFile(const std::wstring &file, std::wstring &error)
@@ -447,8 +540,30 @@ bool DeleteExactFile(const std::wstring &file, std::wstring &error)
     const auto code = GetLastError();
     if (code == ERROR_FILE_NOT_FOUND || code == ERROR_PATH_NOT_FOUND)
         return true;
-    error = L"Không xóa được tệp " + file + L": " + ErrorText(code);
+    error = I(L"Không xóa được tệp ", L"Cannot delete file ") + file + L": " + ErrorText(code);
     return false;
+}
+
+bool RemoveInstallation(const std::wstring &root, std::wstring &error)
+{
+    if (!ValidateRoot(root, error) || !AppCanBeChanged(root, error)) return false;
+    std::vector<std::wstring> names{L"QuietShare-Setup.exe"};
+    for (const auto &entry : kInstalledPayloads) names.push_back(entry.name);
+    for (const auto &name : names)
+        if (!ValidateFile(root + L"\\" + name, error)) return false;
+    for (const auto &name : names)
+        if (!DeleteExactFile(root + L"\\" + name, error)) return false;
+    for (const auto &shortcut : ShortcutPaths())
+        if (ShortcutBelongsToApp(shortcut, root) && !DeleteExactFile(shortcut, error)) return false;
+    const LONG registry = RegDeleteKeyW(HKEY_CURRENT_USER, kUninstallKey);
+    if (registry != ERROR_SUCCESS && registry != ERROR_FILE_NOT_FOUND)
+    {
+        error = I(L"Đã xóa ứng dụng nhưng không xóa được mục gỡ cài đặt: ", L"Application files were removed, but the uninstall entry remains: ") + ErrorText(registry);
+        return false;
+    }
+    // Empty app folder only. Never recurse into notes, unrelated files or any directory.
+    RemoveDirectoryW(root.c_str());
+    return true;
 }
 
 bool Launch(const std::wstring &executable, const std::wstring &arguments, std::wstring &error)
@@ -476,7 +591,7 @@ bool StartCleanup(std::wstring &error)
     DWORD length = GetTempPathW(static_cast<DWORD>(tempFolder.size()), tempFolder.data());
     if (!length || length >= tempFolder.size())
     {
-        error = L"Không tìm thấy thư mục tạm.";
+        error = I(L"Không tìm thấy thư mục tạm.", L"Cannot find the temporary folder.");
         return false;
     }
     const auto helper = std::wstring(tempFolder.data(), length) + L"QuietShare-Cleanup-" +
@@ -484,7 +599,7 @@ bool StartCleanup(std::wstring &error)
                         L".exe";
     if (!CopyFileW(ModulePath().c_str(), helper.c_str(), TRUE))
     {
-        error = L"Không tạo được bộ gỡ cài đặt tạm: " + ErrorText(GetLastError());
+        error = I(L"Không tạo được bộ gỡ cài đặt tạm: ", L"Cannot create the temporary uninstaller: ") + ErrorText(GetLastError());
         return false;
     }
     // Inherit a real process handle. Opening a PID in the child races with this installer exiting.
@@ -492,11 +607,11 @@ bool StartCleanup(std::wstring &error)
         OpenProcess(SYNCHRONIZE | PROCESS_QUERY_LIMITED_INFORMATION, TRUE, GetCurrentProcessId()));
     if (waitHandle.value == INVALID_HANDLE_VALUE)
     {
-        error = L"Không chuẩn bị được bộ gỡ cài đặt: " + ErrorText(GetLastError());
+        error = I(L"Không chuẩn bị được bộ gỡ cài đặt: ", L"Cannot prepare the uninstaller: ") + ErrorText(GetLastError());
         DeleteFileW(helper.c_str());
         return false;
     }
-    const auto arguments = L"--cleanup --wait-pid " + std::to_wstring(GetCurrentProcessId()) +
+    const auto arguments = std::wstring(gEnglish ? L"--english --cleanup --wait-pid " : L"--cleanup --wait-pid ") + std::to_wstring(GetCurrentProcessId()) +
                            L" --wait-handle " +
                            std::to_wstring(reinterpret_cast<uintptr_t>(waitHandle.value)) +
                            L" --install-path \"" + gRoot + L"\"";
@@ -507,7 +622,7 @@ bool StartCleanup(std::wstring &error)
     if (!CreateProcessW(helper.c_str(), command.data(), nullptr, nullptr, TRUE, 0, nullptr, nullptr, &startup,
                         &process))
     {
-        error = L"Không mở được bộ gỡ cài đặt: " + ErrorText(GetLastError());
+        error = I(L"Không mở được bộ gỡ cài đặt: ", L"Cannot launch the uninstaller: ") + ErrorText(GetLastError());
         DeleteFileW(helper.c_str());
         return false;
     }
@@ -551,14 +666,15 @@ int Cleanup(DWORD parentPid, HANDLE inheritedParent, const std::wstring &root)
         !ValidateRoot(root, error))
     {
         if (error.empty())
-            error = L"Yêu cầu gỡ cài đặt không hợp lệ.";
+            error = I(L"Yêu cầu gỡ cài đặt không hợp lệ.", L"The uninstall request is invalid.");
         MessageBoxW(nullptr, error.c_str(), L"QuietShare", MB_OK | MB_ICONERROR);
         return 2;
     }
     if (WaitForSingleObject(parent.value, 30000) != WAIT_OBJECT_0)
     {
         MessageBoxW(nullptr,
-                    L"Bộ cài chưa đóng. Hãy đóng các cửa sổ cài đặt rồi chạy lại thao tác gỡ cài đặt.",
+                    I(L"Bộ cài chưa đóng. Hãy đóng các cửa sổ cài đặt rồi chạy lại thao tác gỡ cài đặt.",
+                      L"The installer is still open. Close its windows and run uninstall again."),
                     L"QuietShare", MB_OK | MB_ICONERROR);
         return 3;
     }
@@ -568,44 +684,15 @@ int Cleanup(DWORD parentPid, HANDLE inheritedParent, const std::wstring &root)
         MarkTemporaryImageForDeletion();
         return 4;
     }
-    // All mutations below target the fixed per-user installation, never application/user content folders.
-    const std::vector<std::wstring> installedFiles{L"QuietShare.exe", L"QuietShare-Setup.exe"};
-    for (const auto &name : installedFiles)
-        if (!ValidateFile(root + L"\\" + name, error))
-        {
-            MessageBoxW(nullptr, error.c_str(), L"QuietShare", MB_OK | MB_ICONERROR);
-            MarkTemporaryImageForDeletion();
-            return 5;
-        }
-    for (const auto &name : installedFiles)
-        if (!DeleteExactFile(root + L"\\" + name, error))
-        {
-            MessageBoxW(nullptr, error.c_str(), L"QuietShare", MB_OK | MB_ICONERROR);
-            MarkTemporaryImageForDeletion();
-            return 5;
-        }
-    for (const auto &shortcut : ShortcutPaths())
+    if (!RemoveInstallation(root, error))
     {
-        if (ShortcutBelongsToApp(shortcut, root) && !DeleteExactFile(shortcut, error))
-        {
-            MessageBoxW(nullptr, error.c_str(), L"QuietShare", MB_OK | MB_ICONERROR);
-            MarkTemporaryImageForDeletion();
-            return 6;
-        }
-    }
-    const LONG registry = RegDeleteKeyW(HKEY_CURRENT_USER, kUninstallKey);
-    if (registry != ERROR_SUCCESS && registry != ERROR_FILE_NOT_FOUND)
-    {
-        MessageBoxW(nullptr,
-                    (L"Đã xóa ứng dụng nhưng không xóa được mục gỡ cài đặt: " + ErrorText(registry)).c_str(),
-                    L"QuietShare", MB_OK | MB_ICONERROR);
+        MessageBoxW(nullptr, error.c_str(), L"QuietShare", MB_OK | MB_ICONERROR);
         MarkTemporaryImageForDeletion();
-        return 7;
+        return 5;
     }
-    // RemoveDirectory only removes an empty app installation directory. It never recurses.
-    RemoveDirectoryW(root.c_str());
     MarkTemporaryImageForDeletion();
-    MessageBoxW(nullptr, L"Đã gỡ QuietShare. Ghi chú và cài đặt cá nhân của bạn được giữ lại.", L"QuietShare",
+    MessageBoxW(nullptr, I(L"Đã gỡ QuietShare. Ghi chú và cài đặt cá nhân của bạn được giữ lại.",
+                          L"QuietShare was uninstalled. Your notes and personal settings were preserved."), L"QuietShare",
                 MB_OK | MB_ICONINFORMATION);
     return 0;
 }
@@ -659,12 +746,153 @@ std::string JsonString(const std::wstring &value)
     return result + "\"";
 }
 
+bool FileMatches(const std::wstring &path, const Payload &expected)
+{
+    Handle file(CreateFileW(path.c_str(), GENERIC_READ, FILE_SHARE_READ, nullptr, OPEN_EXISTING,
+                            FILE_ATTRIBUTE_NORMAL, nullptr));
+    LARGE_INTEGER size{};
+    if (file.value == INVALID_HANDLE_VALUE || !GetFileSizeEx(file.value, &size) ||
+        size.QuadPart != expected.size) return false;
+    std::vector<BYTE> bytes(expected.size);
+    DWORD read = 0;
+    return ReadFile(file.value, bytes.data(), expected.size, &read, nullptr) && read == expected.size &&
+           std::equal(bytes.begin(), bytes.end(), expected.bytes);
+}
+
+bool FixtureEncryptedNotes(std::vector<BYTE> &bytes)
+{
+    HMODULE crypt = LoadLibraryExW(L"crypt32.dll", nullptr, LOAD_LIBRARY_SEARCH_SYSTEM32);
+    if (!crypt) return false;
+    using Protect = BOOL(WINAPI *)(DATA_BLOB *, LPCWSTR, DATA_BLOB *, PVOID, CRYPTPROTECT_PROMPTSTRUCT *, DWORD, DATA_BLOB *);
+    const FARPROC address = GetProcAddress(crypt, "CryptProtectData");
+    Protect protect = nullptr;
+    static_assert(sizeof(protect) == sizeof(address), "Windows procedure size");
+    std::memcpy(&protect, &address, sizeof(protect));
+    const char note[] = "QuietShare generated smoke note; no personal content";
+    DATA_BLOB input{sizeof(note) - 1, reinterpret_cast<BYTE *>(const_cast<char *>(note))}, output{};
+    const bool ok = protect && protect(&input, L"QuietShare notes", nullptr, nullptr, nullptr,
+                                      CRYPTPROTECT_UI_FORBIDDEN, &output);
+    if (ok)
+    {
+        bytes.assign(output.pbData, output.pbData + output.cbData);
+        LocalFree(output.pbData);
+    }
+    FreeLibrary(crypt);
+    return ok;
+}
+
+int InstallSmoke(const std::wstring &directory)
+{
+    // Fixed workspace fixture only. The switch never accepts a user's installation path.
+    const auto self = ModulePath();
+    const auto moduleDirectory = self.substr(0, self.find_last_of(L'\\'));
+    const auto expected = FullPath(moduleDirectory + L"\\..\\artifacts\\qa-installer-smoke");
+    const auto requested = FullPath(directory);
+    std::wstring error;
+    if (expected.empty() || !SamePath(requested, expected) || SamePath(requested, ExpectedRoot())) return 40;
+    const auto artifacts = expected.substr(0, expected.find_last_of(L'\\'));
+    if (!RegularDirectoryOrAbsent(artifacts, error) || !RegularDirectoryOrAbsent(expected, error) ||
+        !MakeDirectory(artifacts, error) || !MakeDirectory(expected, error)) return 41;
+    std::vector<std::pair<std::string, bool>> checks;
+    auto check = [&](const char *name, bool ok) { checks.emplace_back(name, ok); return ok; };
+    const auto privateKeyName = L"Software\\QuietShare.QA.InstallSmoke." + std::to_wstring(GetCurrentProcessId());
+    HKEY privateKey = nullptr;
+    if (RegCreateKeyExW(HKEY_CURRENT_USER, privateKeyName.c_str(), 0, nullptr, REG_OPTION_VOLATILE,
+                        KEY_ALL_ACCESS, nullptr, &privateKey, nullptr) != ERROR_SUCCESS) return 42;
+    if (RegOverridePredefKey(HKEY_CURRENT_USER, privateKey) != ERROR_SUCCESS)
+    {
+        RegCloseKey(privateKey);
+        RegDeleteTreeW(HKEY_CURRENT_USER, privateKeyName.c_str());
+        return 43;
+    }
+    check("private_hkcu_override_active", true);
+    gSmokeRoot = expected;
+    gRoot = ExpectedRoot();
+    bool foldersOk = true;
+    for (const auto &folder : {gSmokeRoot + L"\\LocalAppData", gSmokeRoot + L"\\LocalAppData\\Programs",
+                              gSmokeRoot + L"\\LocalAppData\\QuietShare", gSmokeRoot + L"\\Desktop",
+                              gSmokeRoot + L"\\StartMenu"})
+        foldersOk = MakeDirectory(folder, error) && foldersOk;
+    check("sandbox_folder_roots_validated", foldersOk && ValidateRoot(gRoot, error));
+    std::vector<BYTE> notes;
+    const auto notePath = gSmokeRoot + L"\\LocalAppData\\QuietShare\\notes.dpapi";
+    const bool noteOk = FixtureEncryptedNotes(notes) &&
+                        WritePayload(notePath, {notes.data(), static_cast<DWORD>(notes.size())}, error);
+    check("backward_compatible_dpapi_fixture_created", noteOk);
+    const bool installOk = foldersOk && noteOk && Install(error);
+    check("real_install_completed_in_fixture", installOk);
+    bool allBytes = installOk;
+    for (const auto &entry : kInstalledPayloads)
+        allBytes = FileMatches(gRoot + L"\\" + entry.name, ResourcePayload(entry.id)) && allBytes;
+    check("installed_exe_dlls_and_notices_match_embedded_payloads", allBytes);
+    const auto links = ShortcutPaths();
+    bool shortcutsOk = links.size() == 2;
+    for (const auto &link : links) shortcutsOk = Exists(link) && ShortcutBelongsToApp(link, gRoot) && shortcutsOk;
+    check("real_shortcuts_created_in_fixture_directories", shortcutsOk);
+    check("notes_unchanged_after_install", FileMatches(notePath, {notes.data(), static_cast<DWORD>(notes.size())}));
+    HKEY uninstall = nullptr;
+    DWORD estimated = 0, type = 0, size = sizeof(estimated), payloadBytes = 0;
+    PayloadsValid(payloadBytes);
+    WIN32_FILE_ATTRIBUTE_DATA setupInfo{};
+    GetFileAttributesExW((gRoot + L"\\QuietShare-Setup.exe").c_str(), GetFileExInfoStandard, &setupInfo);
+    const bool estimatedOk = RegOpenKeyExW(HKEY_CURRENT_USER, kUninstallKey, 0, KEY_READ, &uninstall) == ERROR_SUCCESS &&
+                             RegQueryValueExW(uninstall, L"EstimatedSize", nullptr, &type,
+                                              reinterpret_cast<BYTE *>(&estimated), &size) == ERROR_SUCCESS &&
+                             type == REG_DWORD && estimated == (payloadBytes + setupInfo.nFileSizeLow + 1023) / 1024;
+    if (uninstall) RegCloseKey(uninstall);
+    check("estimated_size_includes_runtime_dlls_and_setup", estimatedOk);
+    const bool upgradeOk = installOk && Install(error);
+    check("real_upgrade_completed", upgradeOk);
+    check("dpapi_notes_preserved_by_upgrade", FileMatches(notePath, {notes.data(), static_cast<DWORD>(notes.size())}));
+    gSmokeFailCommit = true;
+    const bool rollbackRejected = installOk && !Install(error);
+    gSmokeFailCommit = false;
+    bool rollbackMatch = rollbackRejected;
+    for (const auto &entry : kInstalledPayloads)
+        rollbackMatch = FileMatches(gRoot + L"\\" + entry.name, ResourcePayload(entry.id)) &&
+                         !Exists(gRoot + L"\\" + entry.name + L".installing") &&
+                         !Exists(gRoot + L"\\" + entry.name + L".rollback") && rollbackMatch;
+    check("injected_commit_failure_restores_entire_previous_version", rollbackMatch);
+    const char marker[] = "unrelated generated file must survive uninstall";
+    const Payload markerPayload{reinterpret_cast<const BYTE *>(marker), sizeof(marker) - 1};
+    const auto unrelated = gRoot + L"\\keep-this-test-file.txt";
+    WritePayload(unrelated, markerPayload, error);
+    check("real_exact_uninstall_completed", installOk && RemoveInstallation(gRoot, error));
+    bool removed = !Exists(gRoot + L"\\QuietShare-Setup.exe");
+    for (const auto &entry : kInstalledPayloads) removed = !Exists(gRoot + L"\\" + entry.name) && removed;
+    check("uninstall_removed_only_known_payload_files", removed);
+    bool shortcutsRemoved = true;
+    for (const auto &link : links) shortcutsRemoved = !Exists(link) && shortcutsRemoved;
+    check("fixture_shortcuts_removed", shortcutsRemoved);
+    check("unrelated_file_preserved", FileMatches(unrelated, markerPayload));
+    check("dpapi_notes_preserved_by_uninstall", FileMatches(notePath, {notes.data(), static_cast<DWORD>(notes.size())}));
+    const bool reset = RegOverridePredefKey(HKEY_CURRENT_USER, nullptr) == ERROR_SUCCESS;
+    RegCloseKey(privateKey);
+    const bool deleted = reset && RegDeleteTreeW(HKEY_CURRENT_USER, privateKeyName.c_str()) == ERROR_SUCCESS;
+    check("real_hkcu_restored_private_fixture_key_removed", reset && deleted);
+    gSmokeRoot.clear();
+    gRoot.clear();
+    const size_t passed = std::count_if(checks.begin(), checks.end(), [](const auto &item) { return item.second; });
+    std::ostringstream report;
+    report << "{\n  \"passedChecks\": " << passed << ",\n  \"failedChecks\": " << checks.size() - passed
+           << ",\n  \"scope\": \"Actual installer/upgrade/exact uninstall in fixed project fixture; process-local HKCU override; real per-user installation untouched\",\n  \"checks\": [\n";
+    for (size_t index = 0; index < checks.size(); ++index)
+        report << "    {\"name\": \"" << checks[index].first << "\", \"passed\": "
+               << (checks[index].second ? "true" : "false") << "}" << (index + 1 == checks.size() ? "\n" : ",\n");
+    report << "  ]\n}\n";
+    const auto text = report.str();
+    if (!WritePayload(expected + L"\\installer-smoke.json",
+                       {reinterpret_cast<const BYTE *>(text.data()), static_cast<DWORD>(text.size())}, error)) return 44;
+    return passed == checks.size() ? 0 : 45;
+}
+
 int SelfTest(const std::wstring &reportPath)
 {
     std::wstring error;
     const auto payload = AppPayload();
     const auto root = ExpectedRoot();
-    const bool payloadOk = ValidPE(payload), pathOk = ValidateRoot(root, error);
+    DWORD totalPayloadBytes = 0;
+    const bool payloadOk = ValidPE(payload), runtimeOk = PayloadsValid(totalPayloadBytes), pathOk = ValidateRoot(root, error);
     const auto self = ModulePath();
     DWORD ignored = 0;
     const DWORD versionSize = GetFileVersionInfoSizeW(self.c_str(), &ignored);
@@ -674,15 +902,17 @@ int SelfTest(const std::wstring &reportPath)
     bool versionOk = versionSize && GetFileVersionInfoW(self.c_str(), 0, versionSize, versionData.data()) &&
                      VerQueryValueW(versionData.data(), L"\\", reinterpret_cast<void **>(&info), &infoSize) &&
                      infoSize >= sizeof(VS_FIXEDFILEINFO) && info->dwSignature == 0xFEEF04BD &&
-                     HIWORD(info->dwFileVersionMS) == 0 && LOWORD(info->dwFileVersionMS) == 3 &&
+                     HIWORD(info->dwFileVersionMS) == 0 && LOWORD(info->dwFileVersionMS) == 4 &&
                      info->dwFileVersionLS == 0;
-    const bool ok = payloadOk && pathOk && versionOk;
+    const bool ok = payloadOk && runtimeOk && pathOk && versionOk;
     std::ostringstream report;
     report << "{\n  \"selfTestPassed\": " << (ok ? "true" : "false")
-           << ",\n  \"version\": \"0.3.0\",\n  \"versionResourceVerified\": "
+           << ",\n  \"version\": \"0.4.0\",\n  \"versionResourceVerified\": "
            << (versionOk ? "true" : "false")
            << ",\n  \"payloadResourceId\": 301,\n  \"payloadBytes\": " << payload.size
            << ",\n  \"payloadPortableExecutable\": " << (payloadOk ? "true" : "false")
+           << ",\n  \"runtimePayloadsX64Verified\": " << (runtimeOk ? "true" : "false")
+           << ",\n  \"runtimePayloadCount\": 3,\n  \"totalPayloadBytes\": " << totalPayloadBytes
            << ",\n  \"installRoot\": " << JsonString(root)
            << ",\n  \"fixedInstallPathVerified\": " << (pathOk ? "true" : "false")
            << ",\n  \"installationWrites\": false,\n  \"error\": " << JsonString(error) << "\n}\n";
@@ -842,7 +1072,7 @@ void PaintInstaller(HDC dc)
     DeleteObject(stroke);
     DrawInstallerText(dc, L"QuietShare", {S(76), S(24), S(256), S(56)}, kText, gButtonFont,
                       DT_LEFT | DT_VCENTER | DT_SINGLELINE);
-    DrawInstallerText(dc, L"0.3.0", {S(504), S(24), S(588), S(56)}, kMuted, gSmallFont,
+    DrawInstallerText(dc, kVersion, {S(504), S(24), S(588), S(56)}, kMuted, gSmallFont,
                       DT_RIGHT | DT_VCENTER | DT_SINGLELINE);
     FillRounded(dc, {S(32), S(192), S(588), S(280)}, kSurface, S(12));
     RECT footer{0, S(400), client.right, client.bottom};
@@ -982,7 +1212,7 @@ void SetInstallerFonts()
     for (HWND item : {gIntro, gFolderPath, gStatus, gRun})
         if (item)
             SendMessageW(item, WM_SETFONT, reinterpret_cast<WPARAM>(gFont), FALSE);
-    for (HWND item : {gAction, gClose})
+    for (HWND item : {gAction, gClose, gLanguage})
         if (item)
             SendMessageW(item, WM_SETFONT, reinterpret_cast<WPARAM>(gButtonFont), FALSE);
     if (gHeading)
@@ -1005,6 +1235,35 @@ void LayoutInstaller()
     place(gRun, 32, 352, 424, 32);
     place(gClose, 332, 420, 112, 40);
     place(gAction, 456, 420, 132, 40);
+    place(gLanguage, 444, 24, 44, 32);
+}
+
+void UpdateInstallerLanguage()
+{
+    SetWindowTextW(gWindow, gUninstall ? I(L"QuietShare - Gỡ cài đặt", L"QuietShare - Uninstall")
+                                      : I(L"QuietShare - Cài đặt", L"QuietShare - Install"));
+    SetWindowTextW(gHeading, gUninstall ? I(L"Gỡ cài đặt QuietShare", L"Uninstall QuietShare")
+                                      : I(L"Cài đặt QuietShare", L"Install QuietShare"));
+    SetWindowTextW(gIntro, gUninstall
+        ? I(L"Gỡ ứng dụng khỏi tài khoản Windows hiện tại.\nGhi chú và cài đặt cá nhân của bạn được giữ lại.",
+            L"Remove the app from this Windows account.\nYour notes and personal settings are preserved.")
+        : I(L"Lời nhắc, code và PDF riêng khi chia sẻ màn hình.\nCài đặt cho tài khoản hiện tại, không cần quyền quản trị.",
+            L"Private scripts, code and PDFs during screen sharing.\nInstalls for this account without administrator rights."));
+    SetWindowTextW(gFolderCaption, I(L"THƯ MỤC ỨNG DỤNG", L"APPLICATION FOLDER"));
+    SetWindowTextW(gLanguage, I(L"EN", L"VI"));
+    if (gRun) SetWindowTextW(gRun, I(L"Mở QuietShare sau khi cài đặt", L"Open QuietShare after installation"));
+    SetWindowTextW(gClose, gComplete ? I(L"Đóng", L"Close") : I(L"Hủy", L"Cancel"));
+    SetWindowTextW(gAction, gComplete ? I(L"Hoàn tất", L"Done")
+                                    : gUninstall ? I(L"Gỡ cài đặt", L"Uninstall") : I(L"Cài đặt", L"Install"));
+    SetWindowTextW(gStatus, gComplete
+        ? I(L"Đã cài đặt QuietShare. Bạn có thể mở ứng dụng từ Desktop hoặc Start Menu.",
+            L"QuietShare is installed. Open it from your Desktop or Start Menu.")
+        : gUninstall ? I(L"Hãy đóng QuietShare trước khi gỡ cài đặt.", L"Close QuietShare before uninstalling.")
+                     : I(L"Thêm lối tắt vào Desktop và Start Menu. Phiên bản 0.4.0.",
+                         L"Adds Desktop and Start Menu shortcuts. Version 0.4.0."));
+    if (gRoot.empty())
+        SetWindowTextW(gStatus, I(L"Không tìm được thư mục ứng dụng của tài khoản này.",
+                                  L"Cannot find this account's application folder."));
 }
 
 HWND Label(HWND parent, const wchar_t *text, HFONT font)
@@ -1028,14 +1287,14 @@ LRESULT CALLBACK WindowProc(HWND window, UINT message, WPARAM wParam, LPARAM lPa
                        gUninstall
                            ? L"Gỡ ứng dụng khỏi tài khoản Windows hiện tại.\nGhi chú và cài đặt cá nhân của "
                              L"bạn được giữ lại."
-                           : L"Cửa sổ nhắc chữ riêng khi bạn chia sẻ màn hình.\nCài đặt cho tài "
+                           : L"Lời nhắc, code và PDF riêng khi chia sẻ màn hình.\nCài đặt cho tài "
                              L"khoản hiện tại, không cần quyền quản trị.",
                        gFont);
         gFolderCaption = Label(window, L"THƯ MỤC ỨNG DỤNG", gSmallFont);
         gFolderPath = Label(window, gRoot.c_str(), gFont);
         gStatus = Label(window,
                         gUninstall ? L"Hãy đóng QuietShare trước khi gỡ cài đặt."
-                                   : L"Thêm lối tắt vào Desktop và Start Menu. Phiên bản 0.3.0.",
+                                   : L"Thêm lối tắt vào Desktop và Start Menu. Phiên bản 0.4.0.",
                         gFont);
         if (!gUninstall)
         {
@@ -1055,15 +1314,27 @@ LRESULT CALLBACK WindowProc(HWND window, UINT message, WPARAM wParam, LPARAM lPa
         SendMessageW(gAction, WM_SETFONT, reinterpret_cast<WPARAM>(gButtonFont), TRUE);
         SetWindowSubclass(gClose, InstallerControlProc, 1, 0);
         SetWindowSubclass(gAction, InstallerControlProc, 1, 0);
+        gLanguage = CreateWindowExW(0, L"BUTTON", L"EN", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_PUSHBUTTON,
+                                    0, 0, 0, 0, window, reinterpret_cast<HMENU>(kLanguageButton), gInstance, nullptr);
+        SendMessageW(gLanguage, WM_SETFONT, reinterpret_cast<WPARAM>(gButtonFont), TRUE);
+        SetWindowSubclass(gLanguage, InstallerControlProc, 1, 0);
+        UpdateInstallerLanguage();
         LayoutInstaller();
         if (gRoot.empty())
         {
             EnableWindow(gAction, FALSE);
-            SetWindowTextW(gStatus, L"Không tìm được thư mục ứng dụng của tài khoản này.");
+            SetWindowTextW(gStatus, I(L"Không tìm được thư mục ứng dụng của tài khoản này.",
+                                      L"Cannot find this account's application folder."));
         }
         return 0;
     }
     case WM_COMMAND:
+        if (LOWORD(wParam) == kLanguageButton)
+        {
+            gEnglish = !gEnglish;
+            UpdateInstallerLanguage();
+            return 0;
+        }
         if (LOWORD(wParam) == kCloseButton)
         {
             DestroyWindow(window);
@@ -1086,33 +1357,33 @@ LRESULT CALLBACK WindowProc(HWND window, UINT message, WPARAM wParam, LPARAM lPa
                     DestroyWindow(window);
                 else
                 {
-                    MessageBoxW(window, error.c_str(), L"Chưa gỡ được QuietShare", MB_OK | MB_ICONERROR);
+                    MessageBoxW(window, error.c_str(), I(L"Chưa gỡ được QuietShare", L"Could not uninstall QuietShare"), MB_OK | MB_ICONERROR);
                     EnableWindow(gAction, TRUE);
                 }
                 return 0;
             }
-            SetWindowTextW(gStatus, L"Đang cài đặt...");
+            SetWindowTextW(gStatus, I(L"Đang cài đặt...", L"Installing..."));
             UpdateWindow(window);
             if (!Install(error))
             {
-                SetWindowTextW(gStatus, L"Cài đặt chưa hoàn tất. Hãy kiểm tra lỗi và chạy lại bộ cài.");
-                MessageBoxW(window, error.c_str(), L"Chưa cài được QuietShare", MB_OK | MB_ICONERROR);
+                SetWindowTextW(gStatus, I(L"Cài đặt chưa hoàn tất. Hãy kiểm tra lỗi và chạy lại bộ cài.",
+                                          L"Installation is incomplete. Review the error and retry."));
+                MessageBoxW(window, error.c_str(), I(L"Chưa cài được QuietShare", L"Could not install QuietShare"), MB_OK | MB_ICONERROR);
                 EnableWindow(gAction, TRUE);
                 return 0;
             }
             gComplete = true;
-            SetWindowTextW(gStatus,
-                           L"Đã cài đặt QuietShare. Bạn có thể mở ứng dụng từ Desktop hoặc Start Menu.");
-            SetWindowTextW(gAction, L"Hoàn tất");
+            UpdateInstallerLanguage();
             EnableWindow(gAction, TRUE);
             if (SendMessageW(gRun, BM_GETCHECK, 0, 0) == BST_CHECKED)
             {
                 if (!Launch(gRoot + L"\\QuietShare.exe", L"", error))
-                    MessageBoxW(window, (L"Đã cài đặt nhưng chưa mở được ứng dụng: " + error).c_str(),
+                    MessageBoxW(window, (I(L"Đã cài đặt nhưng chưa mở được ứng dụng: ",
+                                          L"Installed, but could not launch the application: ") + error).c_str(),
                                 L"QuietShare", MB_OK | MB_ICONINFORMATION);
             }
             EnableWindow(gRun, FALSE);
-            SetWindowTextW(GetDlgItem(window, kCloseButton), L"Đóng");
+            SetWindowTextW(GetDlgItem(window, kCloseButton), I(L"Đóng", L"Close"));
             return 0;
         }
         break;
@@ -1172,7 +1443,7 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int show)
     int count = 0;
     LPWSTR *argv = CommandLineToArgvW(GetCommandLineW(), &count);
     bool selfTest = false, cleanup = false;
-    std::wstring reportPath, cleanupRoot;
+    std::wstring reportPath, cleanupRoot, smokeDirectory;
     DWORD waitPid = 0;
     HANDLE waitHandle = nullptr;
     for (int i = 1; argv && i < count; ++i)
@@ -1184,6 +1455,10 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int show)
             selfTest = true;
         else if (arg == L"--qa-visible")
             gQaVisible = true;
+        else if (arg == L"--english")
+            gEnglish = true;
+        else if (arg == L"--qa-install-smoke" && i + 1 < count)
+            smokeDirectory = argv[++i];
         else if (arg == L"--cleanup")
             cleanup = true;
         else if (arg == L"--report" && i + 1 < count)
@@ -1208,7 +1483,8 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int show)
         {
             if (argv)
                 LocalFree(argv);
-            MessageBoxW(nullptr, L"Tham số không hợp lệ. Chạy bộ cài không có tham số để mở cửa sổ cài đặt.",
+            MessageBoxW(nullptr, I(L"Tham số không hợp lệ. Chạy bộ cài không có tham số để mở cửa sổ cài đặt.",
+                                  L"Invalid argument. Launch the installer without arguments to open its window."),
                         L"QuietShare", MB_OK | MB_ICONERROR);
             return 20;
         }
@@ -1224,12 +1500,21 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int show)
     }
     if (selfTest)
         return SelfTest(reportPath);
+    if (!smokeDirectory.empty() && (cleanup || gQaVisible || gUninstall || !reportPath.empty()))
+        return 46;
     const HRESULT com = CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
     if (FAILED(com))
     {
-        MessageBoxW(nullptr, L"Không khởi tạo được dịch vụ Windows để tạo lối tắt.", L"QuietShare",
+        MessageBoxW(nullptr, I(L"Không khởi tạo được dịch vụ Windows để tạo lối tắt.",
+                              L"Cannot initialize Windows shortcut services."), L"QuietShare",
                     MB_OK | MB_ICONERROR);
         return 21;
+    }
+    if (!smokeDirectory.empty())
+    {
+        const int result = InstallSmoke(smokeDirectory);
+        CoUninitialize();
+        return result;
     }
     if (cleanup)
     {
@@ -1284,7 +1569,10 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int show)
     if (dwm)
     {
         using SetAttribute = HRESULT(WINAPI *)(HWND, DWORD, LPCVOID, DWORD);
-        auto setAttribute = reinterpret_cast<SetAttribute>(GetProcAddress(dwm, "DwmSetWindowAttribute"));
+        const FARPROC address = GetProcAddress(dwm, "DwmSetWindowAttribute");
+        SetAttribute setAttribute = nullptr;
+        static_assert(sizeof(setAttribute) == sizeof(address), "Windows procedure size");
+        std::memcpy(&setAttribute, &address, sizeof(setAttribute));
         if (setAttribute)
         {
             const BOOL dark = TRUE;

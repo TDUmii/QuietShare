@@ -10,13 +10,22 @@ dist/*
 !dist/
 !dist/QuietShare.exe
 !dist/QuietShare-Setup.exe
+!dist/Scintilla.dll
+!dist/Lexilla.dll
+!dist/pdfium.dll
 !dist/README.md
 !dist/TEST_REPORT.md
+!dist/TEST_REPORT_v0.4.0.md
+!dist/CHANGELOG.md
 !dist/THIRD-PARTY.md
 !dist/release-inventory.json
 !dist/docs/
 !dist/docs/quietshare-reading.png
 !dist/docs/quietshare-home.png
+!dist/docs/QuietShare_v0.4.0_Codex_Implementation_Plan.md
+!dist/docs/test-evidence-v0.4.0.json
+!dist/dependencies/
+!dist/dependencies/**
 
 # Superseded browser implementation and SDK bootstrap from v0.1
 src/Browser.cpp

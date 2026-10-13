@@ -1,15 +1,17 @@
+param([switch]$SkipContent)
 $ErrorActionPreference = 'Stop'
 $projectRoot = Split-Path -Parent $PSScriptRoot
 $artifactRoot = Join-Path $projectRoot 'artifacts'
 $exe = Join-Path $projectRoot 'dist\QuietShare.exe'
+$qaExe=Join-Path $projectRoot 'build\QuietShare-QA.exe'
 $setup = Join-Path $projectRoot 'dist\QuietShare-Setup.exe'
-& (Join-Path $PSScriptRoot 'run-content.ps1')
+if (!$SkipContent) { & (Join-Path $PSScriptRoot 'run-content.ps1') }
 $runs = @(@('--qa-visible', 'qa-visible'), @('--qa-excluded', 'qa-excluded'), @('--qa-storage', 'qa-storage'))
 foreach ($run in $runs) {
     $directory = Join-Path $artifactRoot $run[1]
     New-Item -ItemType Directory -Path $directory -Force | Out-Null
     $arguments = $run[0] + ' "' + $directory + '"'
-    $process = Start-Process -FilePath $exe -ArgumentList $arguments -WindowStyle Hidden -PassThru -Wait
+    $process = Start-Process -FilePath $qaExe -ArgumentList $arguments -WindowStyle Hidden -PassThru -Wait
     if ($process.ExitCode) { throw "Native QA failed: $($run[1]), exit $($process.ExitCode)" }
     Write-Output "$($run[1]): exit 0"
 }

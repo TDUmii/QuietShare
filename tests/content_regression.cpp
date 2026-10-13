@@ -256,6 +256,27 @@ int Run()
     reject(L"wrong-pair.txt", {0xFF, 0xFE, 0x00, 0xD8, 0x41, 0x00}, "reject_invalid_surrogate_pair");
     reject(L"binary.txt", {0x41, 0, 0x42}, "reject_nul_binary_text");
     reject(L"unknown.bin", {'h', 'i'}, "reject_unknown_extension");
+    const auto fallbackCase = [&](const wchar_t *name, std::vector<BYTE> bytes, const char *check) {
+        Write(Path(name), bytes);
+        Check(check, LoadLocalContent(Path(name), content, error) && content.kind == ContentKind::Code &&
+                         content.text == sample && !content.image && content.bytes.empty() && error.empty());
+    };
+    fallbackCase(L"text.custom", Utf8(sample), "unknown_utf8_plain_monochrome_preserves_unicode_indentation");
+    fallbackCase(L"bom.custom", Utf8(sample, true), "unknown_utf8_bom_plain_fallback");
+    fallbackCase(L"le.custom", Utf16(sample, true), "unknown_utf16_le_bom_plain_fallback");
+    fallbackCase(L"be.custom", Utf16(sample, false), "unknown_utf16_be_bom_plain_fallback");
+    fallbackCase(L"README", Utf8(sample), "extensionless_readme_plain_fallback");
+    reject(L"invalid.custom", {0xC0, 0xAF}, "unknown_invalid_encoding_transactional");
+    for (BYTE character = 0; character < 0x20; ++character)
+        if (character != '\t' && character != '\r' && character != '\n')
+            reject(L"binary.custom", {'A', character, 'B'}, ("unknown_reject_c0_" + std::to_string(character)).c_str());
+    reject(L"del.custom", {'A', 0x7F, 'B'}, "unknown_reject_del_control");
+    reject(L"utf16-control.custom", {0xFF, 0xFE, 'A', 0, 1, 0}, "unknown_utf16_control_rejected_after_decode");
+    for (const auto *extension : {L"exe", L"dll", L"sys", L"com", L"scr", L"msi", L"lnk", L"pif", L"cpl"})
+        reject((L"ascii." + std::wstring(extension)).c_str(), {'h', 'i'},
+               ("ascii_executable_package_rejected_" + std::string(extension, extension + wcslen(extension))).c_str());
+    reject(L"uppercase.EXE", {'h', 'i'}, "executable_extension_case_insensitive");
+    reject(L"oversized.custom", std::vector<BYTE>(5 * 1024 * 1024 + 1, 'a'), "unknown_text_still_capped_5mib");
     Write(Path(L"maximum.txt"), std::vector<BYTE>(5 * 1024 * 1024, 'a'));
     Check("accept_5mib_text_boundary",
           LoadLocalContent(Path(L"maximum.txt"), content, error) && content.text.size() == 5 * 1024 * 1024);
@@ -282,6 +303,8 @@ int Run()
           CopyFileW(executable, Path(L"must-never-run.exe").c_str(), FALSE) != FALSE);
     Check("reject_executable_file",
           !LoadLocalContent(Path(L"must-never-run.exe"), content, error) && content.text == sample);
+    Check("renamed_pe_fixture_created", CopyFileW(executable, Path(L"renamed.custom").c_str(), FALSE) != FALSE);
+    Check("renamed_pe_rejected_as_binary", !LoadLocalContent(Path(L"renamed.custom"), content, error) && content.text == sample);
     Sleep(200);
     Check("executable_not_launched", GetFileAttributesW(marker.c_str()) == INVALID_FILE_ATTRIBUTES);
 

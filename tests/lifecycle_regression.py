@@ -44,6 +44,8 @@ USER32.ShowWindow.argtypes = [wintypes.HWND, ctypes.c_int]
 USER32.ShowWindow.restype = wintypes.BOOL
 USER32.GetWindowLongW.argtypes = [wintypes.HWND, ctypes.c_int]
 USER32.GetWindowLongW.restype = wintypes.LONG
+USER32.IsWindowEnabled.argtypes = [wintypes.HWND]
+USER32.IsWindowEnabled.restype = wintypes.BOOL
 KERNEL32.GlobalAlloc.argtypes = [wintypes.UINT, ctypes.c_size_t]
 KERNEL32.GlobalAlloc.restype = wintypes.HANDLE
 KERNEL32.GlobalLock.argtypes = [wintypes.HANDLE]
@@ -196,7 +198,7 @@ def main() -> int:
         deadline = time.monotonic() + timeout
         while time.monotonic() < deadline:
             windows = app_windows(process.pid)
-            if windows:
+            if windows and USER32.GetDlgItem(windows[0],110):
                 return windows[0]
             if process.poll() is not None:
                 raise RuntimeError(f"PID {process.pid} exited before creating its window: {process.returncode}")
@@ -225,6 +227,12 @@ def main() -> int:
               {"pid": first.pid, "title": title.value})
         editor = USER32.GetDlgItem(window, 110)
         check("editorFound", bool(editor) and window_pid(editor) == first.pid, {"controlId": 110})
+        privacy_deadline = time.monotonic() + 8
+        while time.monotonic() < privacy_deadline and not send(window,0x8000+14,timeout=6000):
+            time.sleep(0.05)
+        check("productionWgcGateReadyBeforeEditing",
+              bool(send(window,0x8000+14,timeout=6000)),
+              "Actual production preflight completed before entering synthetic notes")
         check("unreadableNotesStartsBlank", control_text(editor) == "", "editor is empty")
         backup_paths = list(notes.parent.glob("notes.dpapi.recovery-*"))
         backups = [{"path": str(path), "bytes": path.stat().st_size,
@@ -262,6 +270,14 @@ def main() -> int:
         reopened = launch("reopened")
         reopened_window = wait_window(reopened)
         reopened_editor = USER32.GetDlgItem(reopened_window, 110)
+        # v0.4 private previews remain locked while the actual WGC preflight
+        # runs. Wait for the visible operation's enabled state, not a QA bypass.
+        privacy_deadline = time.monotonic() + 8
+        while time.monotonic() < privacy_deadline and not send(reopened_window,0x8000+14,timeout=6000):
+            time.sleep(0.05)
+        check("productionWgcGateReadyBeforePreview",
+              bool(send(reopened_window,0x8000+14,timeout=6000)),
+              "Actual production preflight completed; no QA application switches")
         check("reopenRestoresExactText", bool(reopened_editor) and control_text(reopened_editor) == expected_text,
               {"pid": reopened.pid, "characters": len(expected_text)})
         check("reopenKeepsPlainTextMode", bool(send(reopened_editor, 0x0400 + 90) & 1), "TM_PLAINTEXT remains set")
@@ -273,7 +289,10 @@ def main() -> int:
         check("sourceDropShowsExactReadonlyPreview",
               line_endings(control_text(reopened_editor)) == line_endings(preview_text)
               and bool(USER32.GetWindowLongW(reopened_editor, -16) & 0x0800),
-              {"fixture": "source-preview.cpp", "readOnlyStyle": True,
+              {"fixture": "source-preview.cpp", "readOnlyStyle": bool(USER32.GetWindowLongW(reopened_editor,-16)&0x0800),
+               "actualCharacters": len(control_text(reopened_editor)), "expectedCharacters": len(preview_text),
+               "codeControlCharacters": send(USER32.GetDlgItem(reopened_window,170),2183),
+               "openEnabledAfterDrop": bool(USER32.IsWindowEnabled(USER32.GetDlgItem(reopened_window,124))),
                "comparison": "only CR/CRLF normalization allowed"})
         time.sleep(1.3)
         check("sourcePreviewDoesNotReplaceSavedDraft",
@@ -327,7 +346,7 @@ def main() -> int:
 
     failed = [item["check"] for item in checks if not item["passed"]]
     report = {
-        "applicationVersion": "0.3.0",
+        "applicationVersion": "0.4.0",
         "passed": not failed,
         "method": "Production EXE with isolated LOCALAPPDATA; PID-bound Win32 control messages and DPAPI decrypt",
         "scope": "Unreadable-file recovery, Unicode autosave, native plaintext mode, single instance, readonly source preview separation and restart restoration",

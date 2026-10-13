@@ -1,4 +1,4 @@
-"""Verify QuietShare 0.3.0 teleprompter GDI captures and export review PNGs.
+"""Verify QuietShare 0.4.0 teleprompter GDI captures and export review PNGs.
 
 This checks one local BitBlt capture path. It cannot establish what Zoom,
 Teams, OBS, another capture API, a remote viewer, or a projector receives.
@@ -26,7 +26,9 @@ REQUIRED_CAPTURES = {
     "qa-visible": ("editing.bmp", "visible.bmp", "large-text.bmp", "scrolling.bmp", "masked.bmp", "compact.bmp", "english.bmp",
                    "minimum-editing.bmp", "minimum-masked.bmp", "wide.bmp", "hover.bmp", "pressed.bmp", "english-editing.bmp", "empty.bmp", "empty-reading.bmp",
                    "dpi-125.bmp", "dpi-150.bmp", "home.bmp", "settings.bmp", "focus.bmp", "code-file.bmp",
-                   "image-file.bmp", "image-focus.bmp", "file-error.bmp"),
+                   "image-file.bmp", "image-focus.bmp", "file-error.bmp", "tabs-overflow.bmp", "code-focus.bmp",
+                   "project-wide.bmp", "project-minimum.bmp", "pdf-file.bmp", "pdf-focus.bmp",
+                   "presentation.bmp", "presentation-en.bmp", "tabs-masked.bmp"),
     "qa-excluded": ("excluded.bmp",),
 }
 
@@ -163,7 +165,7 @@ def main() -> int:
             check(f"{folder}.diagnosticsReadable", False, str(error))
             diagnostic = {}
         expected = {
-            "applicationVersion": "0.3.0",
+            "applicationVersion": "0.4.0",
             "topologyKnown": True,
             "displayCloned": False,
             "privacyApplied": True,
@@ -183,7 +185,7 @@ def main() -> int:
                 expected[field] = True
             for field in ("focusHidesChrome", "homeControlsWork", "settingsControlsWork", "codeFilePreview", "imageFilePreview", "filePreviewPreservesScript"):
                 expected[field] = True
-            for field in ("dropFileHandlerWorks", "imageMaskHidesCanvas", "imageZoomAndPanWork", "focusRestoreButtonWorks"):
+            for field in ("dropFileHandlerWorks", "imageMaskHidesCanvas", "imageZoomAndPanWork", "focusRestoreButtonWorks", "v04TabsProjectPdfFocusFit"):
                 expected[field] = True
         for field, value in expected.items():
             actual = diagnostic.get(field)
@@ -229,8 +231,10 @@ def main() -> int:
                             check(f"{key}.fixtureImage.{label}", near(actual_color, expected_color, 5),
                                   {"expected": expected_color, "actual": actual_color})
                     else:
-                        check(f"{key}.darkInterfacePresent", metrics["darkCardFraction"] >= 0.40,
-                              {"minimum": 0.40, "actual": metrics["darkCardFraction"]})
+                        # Native PDF pages keep their actual white paper background.
+                        minimum_dark = 0.07 if file in ("pdf-file.bmp", "pdf-focus.bmp") else 0.40
+                        check(f"{key}.darkInterfacePresent", metrics["darkCardFraction"] >= minimum_dark,
+                              {"minimum": minimum_dark, "actual": metrics["darkCardFraction"]})
                         check(f"{key}.textLikePixelsPresent",
                               metrics["brightPixelFraction"] >= 0.001 and metrics["distinctColorsAtLeast"] >= 40,
                               {"brightPixelFraction": metrics["brightPixelFraction"],
@@ -247,9 +251,18 @@ def main() -> int:
         key_before, key_after = f"qa-visible/{before}", f"qa-visible/{after}"
         if key_before in images and key_after in images:
             try:
-                difference = changed_fraction(images[key_before], images[key_after])
-                check(f"qa-visible.{before}_to_{after}.changed", difference >= 0.003,
-                      {"minimum": 0.003, "actual": difference})
+                first,second = images[key_before],images[key_after]
+                minimum,scope = 0.003,"whole native window"
+                if before == "editing.bmp":
+                    # Edit/read now share an uncluttered document surface. Verify
+                    # the changing commands rather than require decorative body changes.
+                    rows = min(96,first.height,second.height)
+                    first = Bitmap(first.width,rows,first.rgb[:first.width*rows*3])
+                    second = Bitmap(second.width,rows,second.rgb[:second.width*rows*3])
+                    minimum,scope = 0.01,"native caption and compact command strip"
+                difference = changed_fraction(first,second)
+                check(f"qa-visible.{before}_to_{after}.changed", difference >= minimum,
+                      {"minimum": minimum, "actual": difference,"scope":scope})
             except ValueError as error:
                 check(f"qa-visible.{before}_to_{after}.changed", False, str(error))
 
@@ -295,7 +308,7 @@ def main() -> int:
     installer_report = artifacts / "installer-self-test.json"
     try:
         setup = json.loads(installer_report.read_text(encoding="utf-8-sig"))
-        for field, expected in {"selfTestPassed": True, "version": "0.3.0",
+        for field, expected in {"selfTestPassed": True, "version": "0.4.0",
                                 "versionResourceVerified": True, "payloadResourceId": 301,
                                 "payloadPortableExecutable": True, "fixedInstallPathVerified": True,
                                 "installationWrites": False, "error": ""}.items():
@@ -343,9 +356,10 @@ def main() -> int:
     report = {
         "passed": not failed,
         "method": "GDI BitBlt with SRCCOPY | CAPTUREBLT; synthetic purple underlay and exact window crops",
-        "applicationVersion": "0.3.0",
+        "applicationVersion": "0.4.0",
         "scope": "Local native text teleprompter editing, reading, font controls, timer scroll, pause, mask and compact layout",
         "limits": [
+            "A separate QA executable uses synthetic fixtures and controlled visual/privacy gates. The shipping executable rejects these switches.",
             "Passing checks proves only these local GDI captures at the sampled instants.",
             "Pixel tests detect purple/card/text-like pixels; they do not read or certify text semantics.",
             "API affinity readback is configuration evidence, not a receiver-side privacy guarantee.",

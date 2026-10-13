@@ -9,6 +9,11 @@
 #include <windowsx.h>
 #include "Privacy.h"
 #include "Content.h"
+#include "Documents.h"
+#include "DocumentBar.h"
+#include "Viewers.h"
+#include "DocumentHost.h"
+#include "Mirror.h"
 #include <algorithm>
 #include <commctrl.h>
 #include <commdlg.h>
@@ -27,19 +32,38 @@ namespace
 {
 // QuietShare design tokens. Keep these values in one place so the native shell,
 // owner-drawn controls and RichEdit surface stay visually consistent.
-constexpr COLORREF BG = RGB(11, 13, 15), SIDEBAR = RGB(17, 19, 21), CARD = RGB(24, 27, 30),
-                   ELEVATED = RGB(34, 38, 42), HOVER = RGB(44, 49, 53), ACCENT = RGB(29, 185, 84),
-                   ACCENT_DARK = RGB(22, 93, 49), TEXT = RGB(248, 250, 252), MUTED = RGB(156, 163, 175),
-                   DIVIDER = RGB(48, 52, 58), GREEN = RGB(110, 231, 160), AMBER = RGB(245, 184, 82),
+constexpr COLORREF BG = RGB(16, 18, 21), SIDEBAR = RGB(20, 23, 26), CARD = RGB(25, 29, 33),
+                   ELEVATED = RGB(37, 43, 48), HOVER = RGB(46, 54, 60), ACCENT = RGB(35, 200, 118),
+                   ACCENT_DARK = RGB(22, 93, 49), TEXT = RGB(242, 245, 247), MUTED = RGB(154, 166, 175),
+                   DIVIDER = RGB(52, 59, 66), GREEN = RGB(110, 231, 160), AMBER = RGB(245, 184, 82),
                    DISABLED = RGB(105, 112, 121);
 constexpr int MODE = 100, PLAY = 101, SMALLER = 102, LARGER = 103, SPEED = 104, MASK = 105, TOPMOST = 106,
               LANGUAGE = 107, RESET_ZOOM = 108, EDITOR = 110, NAV_SCRIPT = 120, NAV_READ = 121,
               NAV_HOME = 122, NAV_SETTINGS = 123, OPEN_FILE = 124, FOCUS = 125, OPEN_DROP = 126,
-              HOME_SCRIPT = 127, HOME_SETTINGS = 128, VIEW_FILE = 129, FONT_SLIDER = 130;
-constexpr int NORMAL_SIDEBAR = 176, COMPACT_SIDEBAR = 64, CONTROL_HEIGHT = 36, CONTROL_GAP = 8;
+              HOME_SCRIPT = 127, HOME_SETTINGS = 128, VIEW_FILE = 129, FONT_SLIDER = 130, OPEN_FOLDER = 131, OVERFLOW = 132,
+              FIND = 133, FIND_NEXT = 134, FIND_PREV = 135, FIND_CLOSE = 136,
+              PDF_PREV = 137, PDF_NEXT = 138, NAV_PRESENTATION = 139,
+              VERIFY_PRIVACY = 140, MIRROR_START = 141, MIRROR_STOP = 142, POINTER = 143,
+              RELOAD_FILE = 144, KEEP_FILE = 145, WRAP = 146, FIT_WIDTH = 147,
+              CLOSE_TAB = 148, CLOSE_OTHERS = 149, CLOSE_FILES = 150, SHOW_TREE = 151,
+              INCLUDE_IGNORED = 152, CLOSE_APPLICATION = 153, SOURCE_MONITOR = 160, DEST_MONITOR = 161, FIND_INPUT = 162;
+constexpr int NORMAL_SIDEBAR = 148, COMPACT_SIDEBAR = 60, CONTROL_HEIGHT = 36, CONTROL_GAP = 8;
 constexpr UINT_PTR PRIVACY_TIMER = 1, SCROLL_TIMER = 2, SAVE_TIMER = 3, QA_TIMER = 4;
 HINSTANCE instance;
-HWND window, editor, underlay, tooltips, hoveredButton, imageViewer, fontSlider, filePicker;
+HWND window, editor, underlay, tooltips, hoveredButton, imageViewer, fontSlider, filePicker,
+     findInput, sourceMonitor, destinationMonitor;
+TabManager documents;
+DocumentBar documentBar;
+ProjectTree projectTree;
+DocumentHost documentHost;
+CodeViewer &codeViewer=documentHost.code;
+PdfViewer &pdfViewer=documentHost.pdf;
+std::unique_ptr<MirrorController> mirror;
+std::vector<MonitorInfo> monitors;
+bool findVisible = false, treeVisible = true, projectDrawer = false, mirrorPointer = true, verifying = false, renderedSafe = false;
+DocumentId reloadPending = 0;
+std::wstring viewerError, findMessage;
+constexpr UINT VerifyPrivacyMessage = WM_APP + 12;
 HFONT uiFont, titleFont, brandFont, metaFont;
 HBRUSH bgBrush, cardBrush;
 UINT dpi = 96;
@@ -51,10 +75,10 @@ int fontPoints = 24, speed = 1;
 double scrollRemainder = 0;
 ULONGLONG lastScrollTick = 0;
 std::wstring dataDir;
-enum class Page { Home, Content, Settings };
+enum class Page { Home, Content, Settings, Presentation };
 Page page = Page::Content;
-LoadedContent openedContent;
-bool viewingFile = false, focusMode = false;
+LoadedContent &ActiveContent() { return documents.Active().content; }
+bool viewingFile = false, focusMode = false, scriptReading = false;
 int codePoints = 14, imageZoom = 100, panX = 0, panY = 0;
 std::wstring scriptDraft, importError;
 bool fileDialogProtected = true;
@@ -73,6 +97,7 @@ bool qaLayoutMatrix = true, qaHover = false, qaEmpty = false, qaNativeScrollbar 
 bool qaFocus = false, qaHome = false, qaSettings = false, qaCodeFile = false, qaImageFile = false,
      qaPreviewKeepsScript = false, qaDropped = false, qaImageMask = false, qaImagePan = false,
      qaFocusRestored = false;
+bool qaV04 = true;
 int qaStage = 0;
 LONG qaStartY = 0, qaEndY = 0, qaPausedY = 0;
 std::wstring qaDir, qaContent;
@@ -87,9 +112,20 @@ void Pause();
 void Layout();
 void SetReading(bool value);
 void ShowScript();
+void SaveActiveState();
+void ActivateDocument(DocumentId id);
+void CloseDocument(DocumentId id);
+void ChooseFolder();
+void OverflowMenu();
+void VerifyPrivacy();
+void UpdateDocumentBar();
+void RunFind(bool forward);
+std::wstring SelectedMonitor(HWND combo);
 bool OpenContentPath(const std::wstring &path);
-bool IsImage() { return viewingFile && openedContent.kind == ContentKind::Image; }
-bool IsCode() { return viewingFile && openedContent.kind == ContentKind::Code; }
+bool IsImage() { return viewingFile && ActiveContent().kind == ContentKind::Image; }
+bool IsCode() { return viewingFile && (ActiveContent().kind == ContentKind::Code || documents.Active().language==L"md" || documents.Active().language==L"markdown"); }
+bool IsPdf() { return viewingFile && ActiveContent().kind == ContentKind::Pdf; }
+HWND ContentWindow() { return projectDrawer?projectTree.Handle():IsImage()?imageViewer:IsCode()?codeViewer.Window():IsPdf()?pdfViewer.Window():editor; }
 int &ActiveTextSize() { return IsCode() ? codePoints : fontPoints; }
 
 int S(int value)
@@ -218,10 +254,13 @@ std::wstring InitialNotes()
            L"Ý CHÍNH\r\nDán lời cần nói vào đây bằng Ctrl+V.\r\n\r\n"
            L"KẾT THÚC\r\nCảm ơn mọi người. Mình sẵn sàng nhận câu hỏi.";
 }
-bool Blocked()
+bool IsPrivateContentSafe()
 {
-    return masked || cloned || !topologyKnown || !privacy.applied || storageBlocked;
+    // QA uses only synthetic fixtures; production has no privacy override.
+    return !masked && !cloned && topologyKnown && privacy.applied && !storageBlocked &&
+           !verifying && (qa || (mirror && mirror->IsVerified() && !mirror->Busy()));
 }
+bool Blocked() { return !IsPrivateContentSafe(); }
 void SetTopmost(bool value)
 {
     topmost = value;
@@ -234,14 +273,16 @@ void AdjustFont(int delta)
     if (Blocked())
         return;
     Pause();
-    if (IsImage())
+    if(IsCode()){codeViewer.SetZoom(std::clamp(codeViewer.GetState().zoom+(delta>0?10:-10),25,400));}
+    else if (IsPdf()) { pdfViewer.SetZoom(std::clamp(pdfViewer.GetState().zoom+(delta>0?10:-10),25,400)); }
+    else if (IsImage())
     {
         imageZoom = std::clamp(imageZoom + (delta > 0 ? 10 : -10), 25, 400);
         panX = panY = 0;
         InvalidateRect(imageViewer, nullptr, FALSE);
     }
-    else
-        ActiveTextSize() = std::clamp(ActiveTextSize() + delta, 12, 72);
+    else { ActiveTextSize() = std::clamp(ActiveTextSize() + delta, 12, 72);
+        if(IsCode())codeViewer.SetZoom(ActiveTextSize()*100/14); }
     ApplyTextFormat();
 }
 void ResetFont()
@@ -249,7 +290,8 @@ void ResetFont()
     if (Blocked())
         return;
     Pause();
-    if (IsImage())
+    if (IsPdf()) {pdfViewer.FitPage();}
+    else if (IsImage())
     {
         imageZoom = 100;
         panX = panY = 0;
@@ -257,6 +299,7 @@ void ResetFont()
     }
     else
         ActiveTextSize() = IsCode() ? 14 : 24;
+    if(IsCode())codeViewer.SetZoom(100);
     ApplyTextFormat();
 }
 void DrawTextAt(HDC dc, const std::wstring &text, RECT rect, COLORREF color, HFONT selectedFont,
@@ -350,8 +393,8 @@ void DrawSidebar(HDC dc, int sidebar, int height, bool compact)
     DrawShareGlyph(dc, logo.left + S(2), logo.top + S(3), BG);
     if (!compact)
     {
-        RECT brand{S(60), S(20), S(sidebar - 12), S(52)};
-        DrawTextAt(dc, L"QuietShare", brand, TEXT, brandFont);
+        RECT brand{S(56), S(20), S(sidebar - 8), S(52)};
+        DrawTextAt(dc, L"QuietShare", brand, TEXT, uiFont);
     }
 
     int logicalHeight = MulDiv(height, 96, dpi);
@@ -376,13 +419,13 @@ void DrawSidebar(HDC dc, int sidebar, int height, bool compact)
         RECT state{status.left + S(28), status.top + S(8), status.right - S(8), status.top + S(30)};
         DrawTextAt(dc,
                    masked ? T(L"Đã che", L"Hidden")
-                   : safe ? T(L"Loại trừ capture", L"Capture exclusion")
+                   : safe ? T(L"Đã loại trừ", L"Excluded")
                           : T(L"Đang khóa", L"Locked"),
                    state, stateColor, metaFont, DT_LEFT | DT_VCENTER | DT_SINGLELINE);
         RECT stateHint{status.left + S(28), status.top + S(29), status.right - S(8), status.bottom - S(6)};
         DrawTextAt(dc,
                    masked ? T(L"F8 để mở lại", L"F8 to reveal")
-                   : safe ? T(L"Đang bật", L"Active")
+                   : safe ? T(L"WGC đạt", L"WGC passed")
                           : T(L"Cần kiểm tra", L"Needs attention"),
                    stateHint, MUTED, metaFont, DT_LEFT | DT_VCENTER | DT_SINGLELINE | DT_END_ELLIPSIS);
     }
@@ -404,14 +447,15 @@ void UpdateButtons()
     SetWindowTextW(GetDlgItem(window, MODE), T(reading ? L"Sửa lời" : L"Đọc", reading ? L"Edit" : L"Read"));
     SetWindowTextW(GetDlgItem(window, NAV_SCRIPT), T(L"Lời nhắc", L"Script"));
     SetWindowTextW(GetDlgItem(window, NAV_READ), T(L"Đọc", L"Read"));
-    SetWindowTextW(GetDlgItem(window, NAV_HOME), T(L"Chuẩn bị", L"Home"));
-    SetWindowTextW(GetDlgItem(window, NAV_SETTINGS), T(L"Tùy chỉnh", L"Settings"));
+    SetWindowTextW(GetDlgItem(window, NAV_HOME), T(L"Tổng quan", L"Overview"));
+    SetWindowTextW(GetDlgItem(window, NAV_SETTINGS), T(L"Cài đặt", L"Settings"));
+    SetWindowTextW(GetDlgItem(window, NAV_PRESENTATION),T(L"Trình chiếu",L"Presentation"));
     SetWindowTextW(GetDlgItem(window, OPEN_FILE), T(L"Mở file", L"Open file"));
     SetWindowTextW(GetDlgItem(window, OPEN_DROP), T(L"Mở hoặc thả file", L"Open or drop a file"));
     SetWindowTextW(GetDlgItem(window, HOME_SCRIPT), T(L"Lời nhắc", L"Script"));
-    SetWindowTextW(GetDlgItem(window, HOME_SETTINGS), T(L"Tùy chỉnh", L"Settings"));
+    SetWindowTextW(GetDlgItem(window, HOME_SETTINGS), T(L"Cài đặt", L"Settings"));
     SetWindowTextW(GetDlgItem(window, VIEW_FILE), T(L"Xem file", L"View file"));
-    SetWindowTextW(GetDlgItem(window, FOCUS), focusMode ? L"F11" : T(L"Tập trung", L"Focus"));
+    SetWindowTextW(GetDlgItem(window, FOCUS), T(focusMode?L"Thoát tập trung":L"Tập trung",focusMode?L"Exit focus":L"Focus"));
     SetWindowTextW(GetDlgItem(window, SMALLER), IsImage() ? L"-" : L"A-");
     SetWindowTextW(GetDlgItem(window, LARGER), IsImage() ? L"+" : L"A+");
     SetWindowTextW(GetDlgItem(window, PLAY), T(running ? L"Dừng" : L"Chạy", running ? L"Stop" : L"Start"));
@@ -420,18 +464,33 @@ void UpdateButtons()
     SetWindowTextW(GetDlgItem(window, MASK), masked ? T(L"Mở lại", L"Show") : T(L"Che · F8", L"Hide · F8"));
     SetWindowTextW(GetDlgItem(window, TOPMOST), topmost ? T(L"Ghim", L"Pin") : T(L"Thả", L"Free"));
     SetWindowTextW(GetDlgItem(window, LANGUAGE), english ? L"VI" : L"EN");
-    SetWindowTextW(GetDlgItem(window, RESET_ZOOM), L"100%");
+    int zoom=IsPdf()?pdfViewer.GetState().zoom:IsCode()?codeViewer.GetState().zoom:IsImage()?imageZoom:fontPoints*100/24;
+    std::wstring zoomLabel=std::to_wstring(zoom)+L"%";
+    SetWindowTextW(GetDlgItem(window, RESET_ZOOM),page==Page::Settings&&!IsCode()&&!IsPdf()&&!IsImage()?L"24":zoomLabel.c_str());
+    SetWindowTextW(GetDlgItem(window, OPEN_FOLDER),T(L"Mở dự án",L"Open project"));
+    SetWindowTextW(GetDlgItem(window, VERIFY_PRIVACY),T(L"Kiểm tra WGC",L"Verify WGC privacy"));
+    SetWindowTextW(GetDlgItem(window, MIRROR_START),T(L"Bắt đầu",L"Start"));
+    SetWindowTextW(GetDlgItem(window, MIRROR_STOP),T(L"Dừng",L"Stop"));
+    SetWindowTextW(GetDlgItem(window, POINTER),T(mirrorPointer?L"Con trỏ: bật":L"Con trỏ: tắt",mirrorPointer?L"Pointer: on":L"Pointer: off"));
+    SetWindowTextW(GetDlgItem(window, RELOAD_FILE),T(L"Tải lại",L"Reload"));
+    SetWindowTextW(GetDlgItem(window, KEEP_FILE),T(L"Giữ bản đang xem",L"Keep current preview"));
+    SetWindowTextW(GetDlgItem(window, INCLUDE_IGNORED),T(projectTree.IncludeIgnored()?L"Ẩn thư mục nặng / ẩn":L"Hiện thư mục nặng / ẩn",projectTree.IncludeIgnored()?L"Ignore heavy / hidden folders":L"Include heavy / hidden folders"));
+    for(int id:{OPEN_FOLDER,RELOAD_FILE,KEEP_FILE,INCLUDE_IGNORED,FIND_NEXT,FIND_PREV,FIND_INPUT})
+        EnableWindow(GetDlgItem(window,id),!Blocked());
+    EnableWindow(GetDlgItem(window,VERIFY_PRIVACY),!masked&&!verifying&&!storageBlocked);
+    EnableWindow(GetDlgItem(window,MIRROR_START),!Blocked()&&monitors.size()>1&&SelectedMonitor(sourceMonitor)!=SelectedMonitor(destinationMonitor));
+    EnableWindow(GetDlgItem(window,MIRROR_STOP),mirror&&mirror->Running());
     for (int id : {MODE, PLAY, SMALLER, LARGER, SPEED, RESET_ZOOM, NAV_SCRIPT, NAV_READ, OPEN_FILE, OPEN_DROP,
                    HOME_SCRIPT, VIEW_FILE})
         EnableWindow(GetDlgItem(window, id), !Blocked());
-    EnableWindow(GetDlgItem(window, SMALLER), !Blocked() && (IsImage() ? imageZoom > 25 : ActiveTextSize() > 12));
-    EnableWindow(GetDlgItem(window, LARGER), !Blocked() && (IsImage() ? imageZoom < 400 : ActiveTextSize() < 72));
-    EnableWindow(GetDlgItem(window, PLAY), !Blocked() && !IsImage() && !IsCode());
-    EnableWindow(GetDlgItem(window, SPEED), !Blocked() && !IsImage() && !IsCode());
+    EnableWindow(GetDlgItem(window, SMALLER), !Blocked() && (IsPdf()?pdfViewer.GetState().zoom>25:IsCode()?codeViewer.GetState().zoom>25:IsImage() ? imageZoom > 25 : ActiveTextSize() > 12));
+    EnableWindow(GetDlgItem(window, LARGER), !Blocked() && (IsPdf()?pdfViewer.GetState().zoom<400:IsCode()?codeViewer.GetState().zoom<400:IsImage() ? imageZoom < 400 : ActiveTextSize() < 72));
+    EnableWindow(GetDlgItem(window, PLAY), !Blocked() && !IsImage() && !IsCode()&&!IsPdf());
+    EnableWindow(GetDlgItem(window, SPEED), !Blocked() && !IsImage() && !IsCode()&&!IsPdf());
     if (fontSlider)
     {
-        SendMessageW(fontSlider, TBM_SETRANGE, TRUE, MAKELPARAM(IsImage() ? 25 : 12, IsImage() ? 400 : 72));
-        SendMessageW(fontSlider, TBM_SETPOS, TRUE, IsImage() ? imageZoom : ActiveTextSize());
+        SendMessageW(fontSlider, TBM_SETRANGE, TRUE, MAKELPARAM(IsImage()||IsPdf()||IsCode() ? 25 : 12, IsImage()||IsPdf()||IsCode() ? 400 : 72));
+        SendMessageW(fontSlider, TBM_SETPOS, TRUE, IsPdf()?pdfViewer.GetState().zoom:IsCode()?codeViewer.GetState().zoom:IsImage() ? imageZoom : ActiveTextSize());
         EnableWindow(fontSlider, !Blocked());
     }
     SetTip(NAV_SCRIPT, T(L"Lời nhắc - Ctrl+Enter", L"Script - Ctrl+Enter"));
@@ -451,6 +510,14 @@ void UpdateButtons()
     SetTip(LANGUAGE, english ? L"Chuyển sang tiếng Việt" : L"Switch to English");
     SetTip(NAV_HOME, T(L"Chuẩn bị nội dung", L"Prepare content"));
     SetTip(NAV_SETTINGS, T(L"Tùy chỉnh hiển thị", L"Display settings"));
+    SetTip(NAV_PRESENTATION,T(L"Trình chiếu Smart Mirror",L"Smart Mirror presentation"));
+    SetTip(OPEN_FILE,T(L"Mở nhiều file - Ctrl+O",L"Open multiple files - Ctrl+O"));
+    SetTip(OPEN_FOLDER,T(L"Mở dự án - Ctrl+Shift+O",L"Open project - Ctrl+Shift+O"));
+    SetTip(OVERFLOW,T(L"Các lệnh và tab khác",L"More commands and tab actions"));
+    SetTip(MODE,T(L"Soạn / đọc lời nhắc - Ctrl+Enter",L"Edit / read script - Ctrl+Enter"));
+    SetTip(FIND_PREV,T(L"Kết quả trước",L"Previous match"));
+    SetTip(FIND_NEXT,T(L"Kết quả sau - Enter",L"Next match - Enter"));
+    SetTip(FIND_CLOSE,T(L"Đóng tìm kiếm - Esc",L"Close find - Esc"));
     SetTip(FOCUS, T(L"Ẩn/hiện sidebar và toolbar - F11", L"Hide/show sidebar and toolbar - F11"));
     for (HWND button : buttons)
         InvalidateRect(button, nullptr, FALSE);
@@ -463,93 +530,107 @@ void Pause()
     scrollRemainder = 0;
     UpdateButtons();
 }
+void UpdateDocumentBar()
+{
+    std::vector<TabVisual> tabs;
+    if(!Blocked()) for(const auto &doc:documents.Items())
+        tabs.push_back({doc->id,doc->id?doc->displayName:T(L"Lời nhắc",L"Script"),doc->canonicalPath,(int)doc->type,doc->id==0});
+    documentBar.Update(std::move(tabs),documents.Active().id,!Blocked(),english,dpi,uiFont);
+}
 void Layout()
 {
-    if (!window || !editor) return;
-    RECT client{}; GetClientRect(window, &client);
-    int width = MulDiv(client.right, 96, dpi), height = MulDiv(client.bottom, 96, dpi);
-    compactUi = width < 700; shortUi = height < 380;
-    railWidth = focusMode ? 0 : compactUi ? COMPACT_SIDEBAR : NORMAL_SIDEBAR;
-    int gutter = focusMode ? 12 : compactUi ? 16 : 24;
-    contentLeft = railWidth + gutter; contentRight = width - gutter;
-    fontLabelRect = {};
-    for (HWND button : buttons) ShowWindow(button, SW_HIDE);
-    ShowWindow(fontSlider, SW_HIDE);
-    auto move = [&](int id, int left, int top, int w, int h = CONTROL_HEIGHT) {
-        HWND child = GetDlgItem(window, id);
-        MoveWindow(child, S(left), S(top), S(w), S(h), TRUE); ShowWindow(child, SW_SHOW);
+    if(!window || !editor) return;
+    LONG_PTR style=GetWindowLongPtrW(window,GWL_STYLE);
+    bool caption=(style&WS_CAPTION)==WS_CAPTION;
+    if(caption==focusMode) {
+        SetWindowLongPtrW(window,GWL_STYLE,focusMode?style&~WS_CAPTION:style|WS_CAPTION);
+        SetWindowPos(window,nullptr,0,0,0,0,SWP_NOMOVE|SWP_NOSIZE|SWP_NOZORDER|SWP_NOACTIVATE|SWP_FRAMECHANGED);
+    }
+    RECT client{};GetClientRect(window,&client);
+    int width=MulDiv(client.right,96,dpi),height=MulDiv(client.bottom,96,dpi);
+    compactUi=width<750;shortUi=height<380;
+    railWidth=focusMode?0:compactUi?COMPACT_SIDEBAR:NORMAL_SIDEBAR;
+    int gutter=focusMode?8:12;
+    contentLeft=railWidth+gutter;contentRight=width-gutter;
+    for(HWND button:buttons)ShowWindow(button,SW_HIDE);
+    for(HWND control:{fontSlider,findInput,sourceMonitor,destinationMonitor,documentBar.Window(),projectTree.Handle()})
+        if(control)ShowWindow(control,SW_HIDE);
+    fontLabelRect={};
+    auto move=[&](int id,int left,int top,int w,int h=32){
+        HWND child=GetDlgItem(window,id);MoveWindow(child,S(left),S(top),S(w),S(h),TRUE);ShowWindow(child,SW_SHOW);
     };
-    if (!focusMode)
-    {
-        int y = 72;
-        for (int id : {NAV_HOME, NAV_SCRIPT, NAV_READ, NAV_SETTINGS})
-        { move(id, 12, y, railWidth - 24, 32); y += 40; }
-        move(FOCUS, 12, height < 360 ? height - 48 : height - 128, railWidth - 24, 36);
+    if(!focusMode) {
+        int y=64;for(int id:{NAV_HOME,NAV_SCRIPT,NAV_PRESENTATION,NAV_SETTINGS}){
+            move(id,8,y,railWidth-16,32);y+=40;
+        }
     }
-    contentCardRect = {S(contentLeft), S(56), S(contentRight), S(height - 40)};
-    if (focusMode)
-    {
-        contentCardRect = {S(contentLeft), S(12), S(contentRight), S(height - 12)};
-        move(FOCUS, contentRight - 52, 20, 44, 28);
+    contentCardRect={S(contentLeft),S(48),S(contentRight),S(height-(focusMode?8:24))};
+    if(page==Page::Content || focusMode) {
+        int left=contentLeft;
+        if(!focusMode && treeVisible && !projectTree.Root().empty() && !Blocked() && width>=900) {
+            int treeWidth=176;MoveWindow(projectTree.Handle(),S(left),S(40),S(treeWidth),S(height-64),TRUE);
+            ShowWindow(projectTree.Handle(),SW_SHOW);left+=treeWidth+8;
+        }
+        contentLeft=left;
+        int x=contentRight;
+        auto action=[&](int id,int w=28){x-=w;move(id,x,2,w,28);};
+        action(OVERFLOW);action(MASK);action(FOCUS);
+        if(contentRight-contentLeft>=440)action(TOPMOST);
+        action(LARGER);action(RESET_ZOOM,48);action(SMALLER);
+        if(contentRight-contentLeft>=520)action(OPEN_FILE);
+        if(!viewingFile && contentRight-contentLeft>=430) {
+            action(MODE);if(reading)action(PLAY);
+        }
+        int tabWidth=std::max(64,x-contentLeft-4);
+        MoveWindow(documentBar.Window(),S(contentLeft),0,S(tabWidth),S(32),TRUE);
+        ShowWindow(documentBar.Window(),SW_SHOW);
+        contentCardRect={S(contentLeft),S(40),S(contentRight),S(height-(focusMode?8:24))};
+        if(findVisible && !reloadPending && !Blocked()) {
+            int y=40, inputWidth=std::max(80,contentRight-contentLeft-104);
+            MoveWindow(findInput,S(contentLeft),S(y),S(inputWidth),S(28),TRUE);ShowWindow(findInput,SW_SHOW);
+            move(FIND_PREV,contentRight-96,y,28,28);move(FIND_NEXT,contentRight-64,y,28,28);move(FIND_CLOSE,contentRight-32,y,28,28);
+            contentCardRect.top=S(76);
+        }
+        if(reloadPending && !Blocked()) {
+            move(RELOAD_FILE,contentLeft,40,112,28);move(KEEP_FILE,contentLeft+120,40,144,28);
+            contentCardRect.top=S(76);
+        }
     }
-    else if (page == Page::Home && !Blocked())
-    {
-        dropRect = {S(contentLeft), S(56), S(contentRight), S(height - 112)};
-        move(OPEN_DROP, contentLeft, 56, contentRight - contentLeft, height - 168);
-        int count = openedContent.path.empty() ? 2 : 3;
-        int buttonWidth = (contentRight - contentLeft - (count - 1) * 8) / count;
-        int x = contentLeft;
-        if (count == 3) { move(VIEW_FILE, x, height - 96, buttonWidth, 48); x += buttonWidth + 8; }
-        move(HOME_SCRIPT, x, height - 96, buttonWidth, 48); x += buttonWidth + 8;
-        move(HOME_SETTINGS, x, height - 96, buttonWidth, 48);
+    else if(page==Page::Home) {
+        int w=(contentRight-contentLeft-8)/2;
+        move(OPEN_DROP,contentLeft,64,w);move(OPEN_FOLDER,contentLeft+w+8,64,w);
+        move(HOME_SCRIPT,contentLeft,108,w);move(HOME_SETTINGS,contentLeft+w+8,108,w);
+        move(VERIFY_PRIVACY,contentLeft,160,std::min(220,contentRight-contentLeft));
     }
-    else if (page == Page::Settings && !Blocked())
-    {
-        settingsCardRect = contentCardRect;
-        int x = contentLeft + 16, y = 104;
-        move(SMALLER, x, y, 32); x += 32;
-        fontLabelRect = {S(x), S(y), S(x + 40), S(y + 36)}; x += 40;
-        move(LARGER, x, y, 32); x += 40; move(RESET_ZOOM, x, y, 56);
-        MoveWindow(fontSlider, S(contentLeft + 16), S(148), S(contentRight - contentLeft - 32), S(24), TRUE);
-        ShowWindow(fontSlider, SW_SHOW);
-        move(TOPMOST, contentLeft + 16, 192, 64);
-        move(LANGUAGE, contentLeft + 88, 192, 44);
-        move(OPEN_FILE, contentLeft + 148, 192, 100);
+    else if(page==Page::Settings) {
+        int x=contentLeft+12,y=64;move(SMALLER,x,y,32);x+=32;
+        fontLabelRect={S(x),S(y),S(x+40),S(y+32)};x+=40;move(LARGER,x,y,32);x+=40;move(RESET_ZOOM,x,y,56);
+        MoveWindow(fontSlider,S(contentLeft+12),S(112),S(contentRight-contentLeft-24),S(24),TRUE);ShowWindow(fontSlider,SW_SHOW);
+        move(TOPMOST,contentLeft+12,160,64);move(LANGUAGE,contentLeft+84,160,44);
+        move(INCLUDE_IGNORED,contentLeft+12,208,std::min(260,contentRight-contentLeft-24),28);
     }
-    else
-    {
-        int x = contentLeft, y = reading ? 16 : 56;
-        auto nextRow = [&]() { x = contentLeft; y += CONTROL_HEIGHT + CONTROL_GAP; };
-        auto group = [&](int w) {
-            if (x != contentLeft && x + 16 + w > contentRight) nextRow();
-            else if (x != contentLeft) x += 16;
-        };
-        auto place = [&](int id, int w) { move(id, x, y, w); x += w + CONTROL_GAP; };
-        if (reading && !IsImage() && !IsCode()) { place(PLAY, 68); place(SPEED, 80); }
-        place(MASK, 100); x -= 8; group(168);
-        move(SMALLER, x, y, 32); x += 32;
-        fontLabelRect = {S(x), S(y), S(x + 40), S(y + 36)}; x += 40;
-        move(LARGER, x, y, 32); x += 40; place(RESET_ZOOM, 56); x -= 8;
-        group(116); place(TOPMOST, 64); place(LANGUAGE, 44);
-        int top = y + CONTROL_HEIGHT + (shortUi ? 8 : 16);
-        contentCardRect = {S(contentLeft), S(top), S(contentRight), S(height - 40)};
+    else if(page==Page::Presentation) {
+        int available=contentRight-contentLeft-88;
+        MoveWindow(sourceMonitor,S(contentLeft+88),S(48),S(available),S(160),TRUE);ShowWindow(sourceMonitor,SW_SHOW);
+        MoveWindow(destinationMonitor,S(contentLeft+88),S(88),S(available),S(160),TRUE);ShowWindow(destinationMonitor,SW_SHOW);
+        move(VERIFY_PRIVACY,contentLeft,132,std::min(220,contentRight-contentLeft));
+        move(MIRROR_START,contentLeft,176,84);move(MIRROR_STOP,contentLeft+92,176,84);
+        if(contentRight-contentLeft>=280)move(POINTER,contentLeft+184,176,96);
     }
-    int ew = std::max(1L, contentCardRect.right - contentCardRect.left - S(16));
-    int eh = std::max(1L, contentCardRect.bottom - contentCardRect.top - S(16));
-    MoveWindow(editor, contentCardRect.left + S(8), contentCardRect.top + S(8), ew, eh, TRUE);
-    MoveWindow(imageViewer, contentCardRect.left + S(8), contentCardRect.top + S(8), ew, eh, TRUE);
-    RECT textRect{}; GetClientRect(editor, &textRect);
-    textRect.left += S(compactUi ? 12 : 16); textRect.right -= S(compactUi ? 8 : 12);
-    textRect.top += S(8); textRect.bottom -= S(8);
-    SendMessageW(editor, EM_SETRECT, 0, (LPARAM)&textRect);
-    bool showContent = page == Page::Content && !Blocked();
-    ShowWindow(editor, showContent && !IsImage() ? SW_SHOW : SW_HIDE);
-    ShowWindow(imageViewer, showContent && IsImage() ? SW_SHOW : SW_HIDE);
-    RedrawWindow(editor, nullptr, nullptr, RDW_INVALIDATE | RDW_ERASE | RDW_UPDATENOW);
-    if (focusMode) SetWindowPos(GetDlgItem(window, FOCUS), HWND_TOP, 0, 0, 0, 0,
-                              SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
-    UpdateButtons();
-    RedrawWindow(window, nullptr, nullptr, RDW_INVALIDATE | RDW_ALLCHILDREN | RDW_UPDATENOW);
+    RECT body=contentCardRect;InflateRect(&body,-S(4),-S(4));
+    projectDrawer=!focusMode && page==Page::Content && treeVisible && !projectTree.Root().empty() && !Blocked() && width<900;
+    if(projectDrawer) {
+        MoveWindow(projectTree.Handle(),body.left,body.top,body.right-body.left,body.bottom-body.top,TRUE);
+        ShowWindow(projectTree.Handle(),SW_SHOW);
+    }
+    documentHost.SetBounds(body);
+    RECT textRect{};GetClientRect(editor,&textRect);
+    InflateRect(&textRect,-S(12),-S(8));SendMessageW(editor,EM_SETRECT,0,(LPARAM)&textRect);
+    DocumentType displayType=IsCode()?DocumentType::Code:documents.Active().type;
+    renderedSafe=!Blocked();
+    documentHost.Show(displayType,renderedSafe,page==Page::Content&&!projectDrawer);
+    UpdateButtons();UpdateDocumentBar();
+    RedrawWindow(window,nullptr,nullptr,RDW_INVALIDATE|RDW_ALLCHILDREN|RDW_UPDATENOW);
 }
 void ApplyTextFormat()
 {
@@ -559,7 +640,7 @@ void ApplyTextFormat()
     cf.dwMask = CFM_SIZE | CFM_COLOR | CFM_FACE | CFM_BOLD;
     cf.yHeight = ActiveTextSize() * 20;
     cf.crTextColor = TEXT;
-    wcscpy_s(cf.szFaceName, IsCode() ? L"Consolas" : L"Segoe UI");
+    wcscpy_s(cf.szFaceName, IsCode() ? L"Consolas" : L"Segoe UI Variable");
     SendMessageW(editor, EM_SETCHARFORMAT, SCF_ALL, (LPARAM)&cf);
     CHARRANGE selection{};
     SendMessageW(editor, EM_EXGETSEL, 0, (LPARAM)&selection);
@@ -579,15 +660,16 @@ void RefreshFonts()
 {
     HFONT oldUi = uiFont, oldTitle = titleFont, oldBrand = brandFont, oldMeta = metaFont;
     uiFont = CreateFontW(-S(14), 0, 0, 0, FW_NORMAL, FALSE, FALSE, FALSE, DEFAULT_CHARSET, 0, 0,
-                         CLEARTYPE_QUALITY, 0, L"Segoe UI");
+                         CLEARTYPE_QUALITY, 0, L"Segoe UI Variable");
     titleFont = CreateFontW(-S(22), 0, 0, 0, FW_SEMIBOLD, FALSE, FALSE, FALSE, DEFAULT_CHARSET, 0, 0,
-                            CLEARTYPE_QUALITY, 0, L"Segoe UI");
-    brandFont = CreateFontW(-S(18), 0, 0, 0, FW_SEMIBOLD, FALSE, FALSE, FALSE, DEFAULT_CHARSET, 0, 0,
-                            CLEARTYPE_QUALITY, 0, L"Segoe UI");
+                            CLEARTYPE_QUALITY, 0, L"Segoe UI Variable");
+    brandFont = CreateFontW(-S(16), 0, 0, 0, FW_SEMIBOLD, FALSE, FALSE, FALSE, DEFAULT_CHARSET, 0, 0,
+                            CLEARTYPE_QUALITY, 0, L"Segoe UI Variable");
     metaFont = CreateFontW(-S(13), 0, 0, 0, FW_NORMAL, FALSE, FALSE, FALSE, DEFAULT_CHARSET, 0, 0,
-                           CLEARTYPE_QUALITY, 0, L"Segoe UI");
+                           CLEARTYPE_QUALITY, 0, L"Segoe UI Variable");
     for (HWND button : buttons)
         SendMessageW(button, WM_SETFONT, (WPARAM)uiFont, TRUE);
+    for(HWND control:{findInput,sourceMonitor,destinationMonitor,projectTree.Handle()})if(control)SendMessageW(control,WM_SETFONT,(WPARAM)uiFont,TRUE);
     if (oldUi)
         DeleteObject(oldUi);
     if (oldTitle)
@@ -605,16 +687,17 @@ void SetReading(bool value)
     Pause();
     page = Page::Content;
     reading = value;
+    if(!viewingFile)scriptReading=value;
     SendMessageW(editor, EM_SETREADONLY, reading || viewingFile, 0);
     SendMessageW(editor, EM_SETSEL, 0, 0);
     POINT origin{};
     SendMessageW(editor, EM_SETSCROLLPOS, 0, (LPARAM)&origin);
     Layout();
-    SetFocus(IsImage() ? imageViewer : !reading || IsCode() ? editor : GetDlgItem(window, PLAY));
+    SetFocus(ContentWindow());
 }
 void ToggleRun()
 {
-    if (!reading || Blocked() || IsImage() || IsCode())
+    if (!reading || Blocked() || IsImage() || IsCode() || IsPdf())
         return;
     if (running)
         Pause();
@@ -653,20 +736,29 @@ void ScrollTick()
 }
 void ToggleMask()
 {
-    Pause();
     masked = !masked;
+    Pause();
+    if(masked){documentHost.Hide();SendMessageW(tooltips,TTM_POP,0,0);}
     if (masked && filePicker)
     {
         ShowWindow(filePicker, SW_HIDE);
         PostMessageW(filePicker, WM_COMMAND, IDCANCEL, 0);
     }
+    // Conceal labels, paths, queries and every viewer before native teardown.
     Layout();
+    if(masked && mirror && (mirror->Running()||mirror->Busy()))mirror->Stop();
     RedrawWindow(window, nullptr, nullptr, RDW_INVALIDATE | RDW_ALLCHILDREN | RDW_UPDATENOW);
 }
 void RefreshPrivacy()
 {
+    topologyKnown=false;
+    Pause();
     ShowWindow(editor, SW_HIDE);
     ShowWindow(imageViewer, SW_HIDE);
+    documentHost.Hide();SendMessageW(tooltips,TTM_POP,0,0);
+    if(filePicker){ShowWindow(filePicker,SW_HIDE);PostMessageW(filePicker,WM_COMMAND,IDCANCEL,0);}
+    Layout();
+    if(mirror)mirror->Invalidate();
     privacy = ApplyPrivacy(window);
     topologyKnown = TryGetDisplayCloned(cloned);
     if (Blocked())
@@ -681,55 +773,79 @@ void RefreshPrivacy()
     Layout();
     RedrawWindow(window, nullptr, nullptr, RDW_INVALIDATE | RDW_ALLCHILDREN | RDW_UPDATENOW);
 }
+void SaveActiveState()
+{
+    auto &doc=documents.Active();
+    auto &state=doc.state;
+    if(doc.id==0) {scriptDraft=TextOf(editor);doc.content.text=scriptDraft;scriptReading=reading;}
+    if(IsCode() || IsPdf()) {
+        auto view=IsCode()?codeViewer.GetState():pdfViewer.GetState();
+        state.scrollX=view.scrollX;state.scrollY=view.scrollY;state.zoom=view.zoom;
+        state.page=view.page;state.panX=view.panX;state.panY=view.panY;state.wrap=view.wrap;state.fitWidth=view.fitWidth;
+    } else {
+        POINT scroll{};SendMessageW(editor,EM_GETSCROLLPOS,0,(LPARAM)&scroll);
+        state.scrollX=scroll.x;state.scrollY=scroll.y;
+        state.textPoints=ActiveTextSize();state.zoom=imageZoom;state.panX=panX;state.panY=panY;
+    }
+}
+void RenderDocument()
+{
+    if(Blocked()) {Layout();return;}
+    auto &doc=documents.Active();viewingFile=doc.id!=0;
+    loading=true;SendMessageW(editor,EM_EXLIMITTEXT,0,viewingFile?5*1024*1024:500000);
+    SetWindowTextW(editor,viewingFile?doc.content.text.c_str():scriptDraft.c_str());loading=false;
+    reading=viewingFile?true:scriptReading;
+    SendMessageW(editor,EM_SETREADONLY,reading || viewingFile,0);
+    fontPoints=doc.state.textPoints;codePoints=doc.state.textPoints;
+    imageZoom=doc.state.zoom;panX=doc.state.panX;panY=doc.state.panY;
+    if(IsCode()) {
+        if(!codeViewer.Open(doc.content,viewerError)) {Layout();return;}
+        codeViewer.SetState({doc.state.scrollX,doc.state.scrollY,doc.state.zoom,doc.state.page,doc.state.panX,doc.state.panY,doc.state.wrap});
+    } else if(IsPdf()) {
+        if(!pdfViewer.Open(doc.content,viewerError)) {Layout();return;}
+        pdfViewer.SetState({doc.state.scrollX,doc.state.scrollY,doc.state.zoom,doc.state.page,doc.state.panX,doc.state.panY,doc.state.wrap,doc.state.fitWidth});
+    }
+    ApplyTextFormat();POINT scroll{doc.state.scrollX,doc.state.scrollY};SendMessageW(editor,EM_SETSCROLLPOS,0,(LPARAM)&scroll);
+    page=Page::Content;Layout();SetFocus(ContentWindow());
+}
+void ActivateDocument(DocumentId id)
+{
+    if(Blocked())return;Pause();SaveActiveState();documentHost.CloseExternal();
+    if(compactUi || contentRight-contentLeft<740)treeVisible=false;
+    if(!documents.Activate(id,importError)){RenderDocument();return;}
+    viewingFile=id!=0;RenderDocument();documents.EvictInactiveHeavy();
+}
+void CloseDocument(DocumentId id)
+{
+    if(Blocked() || id==0)return;if(reloadPending==id)reloadPending=0;Pause();SaveActiveState();documentHost.CloseExternal();
+    documents.Close(id);viewingFile=documents.Active().id!=0;RenderDocument();documents.EvictInactiveHeavy();
+}
 void ShowScript()
 {
-    if (Blocked()) return;
-    Pause();
-    if (viewingFile)
-    {
-        viewingFile = false;
-        loading = true;
-        SendMessageW(editor, EM_EXLIMITTEXT, 0, 500000);
-        SetWindowTextW(editor, scriptDraft.c_str());
-        loading = false;
-    }
-    focusMode = false;
-    SetReading(false);
-    ApplyTextFormat();
+    if(Blocked())return;SaveActiveState();documentHost.CloseExternal();documents.Activate(0);
+    if(compactUi || contentRight-contentLeft<740)treeVisible=false;
+    viewingFile=false;focusMode=false;reading=false;scriptReading=false;RenderDocument();
 }
 void ShowOpenedFile()
 {
-    if (Blocked() || openedContent.path.empty()) return;
-    Pause();
-    if (!viewingFile) scriptDraft = TextOf(editor);
-    viewingFile = true;
-    SetWindowTextW(imageViewer, openedContent.displayName.c_str());
-    loading = true;
-    SendMessageW(editor, EM_EXLIMITTEXT, 0, 5 * 1024 * 1024);
-    SetWindowTextW(editor, openedContent.text.c_str());
-    loading = false;
-    panX = panY = 0;
-    ApplyTextFormat();
-    SetReading(true);
-    SetFocus(IsImage() ? imageViewer : editor);
+    if(Blocked() || documents.Active().id==0)return;RenderDocument();
 }
 bool OpenContentPath(const std::wstring &path)
 {
-    if (Blocked()) return false;
-    LoadedContent next;
-    std::wstring error;
-    if (!LoadLocalContent(path, next, error))
-    {
-        importError = error;
-        page = Page::Home;
-        focusMode = false;
-        Layout();
-        return false;
+    if(Blocked())return false;SaveActiveState();DocumentId previous=documents.Active().id;
+    documentHost.CloseExternal();auto result=documents.Open(path,importError);
+    if(result.status==OpenStatus::ReloadRequired) {
+        reloadPending=result.id;findVisible=false;RenderDocument();return false;
     }
-    openedContent = std::move(next);
-    importError.clear();
-    ShowOpenedFile();
-    return true;
+    if(!result) {RenderDocument();return false;}
+    if(compactUi || contentRight-contentLeft<740)treeVisible=false;
+    viewingFile=true;viewerError.clear();RenderDocument();
+    if(!viewerError.empty()) {
+        importError=viewerError;documentHost.CloseExternal();
+        if(result.status==OpenStatus::Opened)documents.Close(result.id);
+        documents.Activate(previous);viewingFile=previous!=0;viewerError.clear();RenderDocument();return false;
+    }
+    importError.clear();documents.EvictInactiveHeavy();return true;
 }
 UINT_PTR CALLBACK FilePickerHook(HWND hook, UINT message, WPARAM, LPARAM)
 {
@@ -749,38 +865,124 @@ UINT_PTR CALLBACK FilePickerHook(HWND hook, UINT message, WPARAM, LPARAM)
 }
 void ChooseFile()
 {
-    if (Blocked()) return;
-    Pause();
-    std::vector<wchar_t> path(32768);
-    OPENFILENAMEW choice{sizeof(choice)};
-    choice.hwndOwner = window;
-    choice.lpstrFilter = T(L"Văn bản / Code / Ảnh\0*.txt;*.md;*.cpp;*.h;*.py;*.js;*.ts;*.tsx;*.json;*.html;*.css;*.png;*.jpg;*.jpeg;*.bmp;*.gif\0Tất cả file\0*.*\0\0",
-                          L"Text / Code / Images\0*.txt;*.md;*.cpp;*.h;*.py;*.js;*.ts;*.tsx;*.json;*.html;*.css;*.png;*.jpg;*.jpeg;*.bmp;*.gif\0All files\0*.*\0\0");
-    choice.lpstrFile = path.data();
-    choice.nMaxFile = (DWORD)path.size();
-    choice.lpstrTitle = T(L"Mở nội dung", L"Open content");
-    choice.Flags = OFN_EXPLORER | OFN_ENABLEHOOK | OFN_FILEMUSTEXIST | OFN_PATHMUSTEXIST |
-                   OFN_NOCHANGEDIR | OFN_DONTADDTORECENT;
-    choice.lpfnHook = FilePickerHook;
-    fileDialogProtected = true;
-    BOOL selected = GetOpenFileNameW(&choice);
-    filePicker = nullptr;
-    if (selected && fileDialogProtected) OpenContentPath(path.data());
-    else if (!fileDialogProtected)
-    {
-        importError = T(L"Không bảo vệ được cửa sổ chọn file. / File picker capture exclusion failed.",
-                        L"Không bảo vệ được cửa sổ chọn file. / File picker capture exclusion failed.");
-        page = Page::Home;
-        Layout();
+    if(Blocked())return;Pause();std::vector<wchar_t> paths(262144);
+    OPENFILENAMEW choice{};choice.lStructSize=sizeof(choice);choice.hwndOwner=window;
+    choice.lpstrFilter=T(L"Nội dung\0*.txt;*.md;*.cpp;*.py;*.js;*.ts;*.json;*.html;*.css;*.png;*.jpg;*.jpeg;*.bmp;*.gif;*.pdf\0Tất cả file\0*.*\0\0",
+                        L"Content\0*.txt;*.md;*.cpp;*.py;*.js;*.ts;*.json;*.html;*.css;*.png;*.jpg;*.jpeg;*.bmp;*.gif;*.pdf\0All files\0*.*\0\0");
+    choice.lpstrFile=paths.data();choice.nMaxFile=(DWORD)paths.size();choice.lpstrTitle=T(L"Mở nội dung",L"Open content");
+    choice.Flags=OFN_EXPLORER|OFN_ENABLEHOOK|OFN_FILEMUSTEXIST|OFN_PATHMUSTEXIST|OFN_NOCHANGEDIR|OFN_DONTADDTORECENT|OFN_ALLOWMULTISELECT;
+    choice.lpfnHook=FilePickerHook;fileDialogProtected=true;BOOL selected=GetOpenFileNameW(&choice);filePicker=nullptr;
+    if(selected && fileDialogProtected) {
+        std::wstring first=paths.data();const wchar_t *next=paths.data()+first.size()+1;
+        if(!*next)OpenContentPath(first);
+        else for(int count=0;*next && count<31;++count){std::wstring name=next;OpenContentPath(first+L"\\"+name);next+=name.size()+1;}
+    } else if(!fileDialogProtected)importError=T(L"Không bảo vệ được cửa sổ chọn file.",L"File picker capture exclusion failed.");
+    Layout();
+}
+int CALLBACK FolderHook(HWND dialog,UINT message,LPARAM,LPARAM)
+{
+    if(message==BFFM_INITIALIZED) {
+        filePicker=dialog;fileDialogProtected=ApplyPrivacy(dialog).applied;
+        if(!fileDialogProtected || Blocked()){ShowWindow(dialog,SW_HIDE);PostMessageW(dialog,WM_COMMAND,IDCANCEL,0);}
+    } return 0;
+}
+void ChooseFolder()
+{
+    if(Blocked())return;Pause();BROWSEINFOW choice{};choice.hwndOwner=window;
+    choice.lpszTitle=T(L"Mở thư mục dự án cục bộ",L"Open a local project folder");
+    choice.ulFlags=BIF_RETURNONLYFSDIRS|BIF_NEWDIALOGSTYLE;choice.lpfn=FolderHook;fileDialogProtected=true;
+    HRESULT apartment=CoInitializeEx(nullptr,COINIT_APARTMENTTHREADED);
+    PIDLIST_ABSOLUTE folder=SHBrowseForFolderW(&choice);filePicker=nullptr;
+    if(folder && fileDialogProtected && !Blocked()) {
+        wchar_t path[32768]{};if(SHGetPathFromIDListEx(folder,path,32768,0) && projectTree.OpenFolder(path,importError)) {
+            treeVisible=true;page=Page::Content;focusMode=false;
+            TreeView_Expand(projectTree.Handle(),TreeView_GetRoot(projectTree.Handle()),TVE_EXPAND);
+        }
     }
+    CoTaskMemFree(folder);if(SUCCEEDED(apartment))CoUninitialize();Layout();
+    if(!Blocked() && IsWindowVisible(projectTree.Handle()))SetFocus(projectTree.Handle());
+}
+std::wstring SelectedMonitor(HWND combo)
+{
+    int index=(int)SendMessageW(combo,CB_GETCURSEL,0,0);
+    return index>=0 && index<(int)monitors.size()?monitors[index].stableId:L"";
+}
+void UpdateMonitors()
+{
+    auto source=SelectedMonitor(sourceMonitor),destination=SelectedMonitor(destinationMonitor);
+    monitors=EnumerateMonitors();
+    for(HWND combo:{sourceMonitor,destinationMonitor})SendMessageW(combo,CB_RESETCONTENT,0,0);
+    int src=0,dst=monitors.size()>1?1:0;
+    for(size_t i=0;i<monitors.size();++i) {
+        const auto &monitor=monitors[i];std::wstring label=monitor.name+L"  "+std::to_wstring(monitor.bounds.right-monitor.bounds.left)+L"x"+std::to_wstring(monitor.bounds.bottom-monitor.bounds.top);
+        SendMessageW(sourceMonitor,CB_ADDSTRING,0,(LPARAM)label.c_str());SendMessageW(destinationMonitor,CB_ADDSTRING,0,(LPARAM)label.c_str());
+        if(monitor.stableId==source)src=(int)i;if(monitor.stableId==destination)dst=(int)i;
+    }
+    SendMessageW(sourceMonitor,CB_SETCURSEL,src,0);SendMessageW(destinationMonitor,CB_SETCURSEL,dst,0);
+}
+void VerifyPrivacy()
+{
+    if(qa || verifying || !mirror || masked || storageBlocked)return;
+    verifying=true;documentHost.Hide();Layout();privacy=ApplyPrivacy(window);topologyKnown=TryGetDisplayCloned(cloned);
+    bool basic=privacy.applied && topologyKnown && !cloned;
+    if(basic)mirror->Verify(window,SelectedMonitor(sourceMonitor));
+    else mirror->Invalidate();
+    verifying=false;Layout();
+}
+void RunFind(bool forward)
+{
+    if(Blocked())return;std::wstring query=TextOf(findInput);if(query.empty())return;
+    bool found=false;
+    if(IsCode())found=codeViewer.Find(query,forward);
+    else if(IsPdf())found=pdfViewer.Find(query,forward);
+    else {
+        CHARRANGE selection{};SendMessageW(editor,EM_EXGETSEL,0,(LPARAM)&selection);
+        FINDTEXTEXW search{};search.chrg={forward?selection.cpMax:selection.cpMin,forward?-1:0};search.lpstrText=query.c_str();
+        auto result=SendMessageW(editor,EM_FINDTEXTEXW,forward?FR_DOWN:0,(LPARAM)&search);
+        if(result<0){search.chrg={forward?0:GetWindowTextLengthW(editor),forward?-1:0};result=SendMessageW(editor,EM_FINDTEXTEXW,forward?FR_DOWN:0,(LPARAM)&search);}
+        if(result>=0){SendMessageW(editor,EM_EXSETSEL,0,(LPARAM)&search.chrgText);SendMessageW(editor,EM_SCROLLCARET,0,0);found=true;}
+    }
+    findMessage=found?L"":IsPdf()&&!pdfViewer.HasText()?T(L"PDF ảnh không có lớp chữ để tìm.",L"This scanned PDF has no searchable text."):
+                                      T(L"Không tìm thấy. Thử từ khác.",L"No match. Try another term.");
+    InvalidateRect(window,nullptr,FALSE);
+}
+void OverflowMenu()
+{
+    HMENU menu=CreatePopupMenu();bool safe=!Blocked();
+    auto item=[&](int id,const wchar_t*vn,const wchar_t*en,bool enabled=true){AppendMenuW(menu,MF_OWNERDRAW|(enabled?0:MF_GRAYED),id,(LPCWSTR)T(vn,en));};
+    item(OPEN_FILE,L"Mở file...   Ctrl+O",L"Open files...   Ctrl+O",safe);
+    item(OPEN_FOLDER,L"Mở dự án...   Ctrl+Shift+O",L"Open project...   Ctrl+Shift+O",safe);
+    item(FIND,L"Tìm...   Ctrl+F",L"Find...   Ctrl+F",safe&&!IsImage());
+    item(WRAP,L"Bật/tắt xuống dòng",L"Toggle line wrap",safe&&IsCode());
+    item(MODE,L"Soạn / Đọc   Ctrl+Enter",L"Edit / Read   Ctrl+Enter",safe);
+    item(PLAY,L"Chạy / Dừng cuộn   Space",L"Start / stop scrolling   Space",safe&&!IsImage()&&!IsCode()&&!IsPdf());
+    item(SPEED,L"Đổi tốc độ cuộn",L"Change scroll speed",safe);
+    AppendMenuW(menu,MF_SEPARATOR,0,nullptr);
+    item(PDF_PREV,L"Trang PDF trước",L"Previous PDF page",safe&&IsPdf());item(PDF_NEXT,L"Trang PDF sau",L"Next PDF page",safe&&IsPdf());
+    item(FIT_WIDTH,L"PDF vừa chiều ngang",L"Fit PDF width",safe&&IsPdf());
+    item(TOPMOST,L"Ghim / Bỏ ghim",L"Pin / unpin");item(FOCUS,L"Tập trung   F11",L"Focus   F11");
+    item(SHOW_TREE,L"Ẩn / Hiện cây thư mục",L"Hide / show project tree",safe);
+    item(LANGUAGE,L"English / Tiếng Việt",L"Tiếng Việt / English");
+    AppendMenuW(menu,MF_SEPARATOR,0,nullptr);
+    item(CLOSE_TAB,L"Đóng tab   Ctrl+W",L"Close tab   Ctrl+W",safe&&viewingFile);
+    item(CLOSE_OTHERS,L"Đóng các tab khác",L"Close other tabs",safe);
+    item(CLOSE_FILES,L"Đóng mọi file",L"Close all file tabs",safe);
+    item(VERIFY_PRIVACY,L"Kiểm tra WGC",L"Verify WGC privacy",!masked);
+    AppendMenuW(menu,MF_SEPARATOR,0,nullptr);
+    item(CLOSE_APPLICATION,L"Đóng ứng dụng   Alt+F4",L"Close application   Alt+F4");
+    RECT r{};GetWindowRect(GetDlgItem(window,OVERFLOW),&r);
+    if(mirror)mirror->SetPublicMenuOwner(window);
+    int selected=TrackPopupMenu(menu,TPM_RETURNCMD|TPM_RIGHTALIGN,r.right,r.bottom,0,window,nullptr);
+    if(mirror)mirror->SetPublicMenuOwner(nullptr);
+    DestroyMenu(menu);if(selected)SendMessageW(window,WM_COMMAND,selected,0);
 }
 void ToggleFocus()
 {
     focusMode = !focusMode;
-    if (focusMode && !Blocked()) SetReading(true);
+    if (focusMode && !Blocked()) { if(!viewingFile)SetReading(true); }
     page = Page::Content;
     Layout();
-    SetFocus(IsImage() ? imageViewer : editor);
+    SetFocus(ContentWindow());
 }
 LRESULT CALLBACK ImageProc(HWND h, UINT message, WPARAM wp, LPARAM lp)
 {
@@ -795,7 +997,7 @@ LRESULT CALLBACK ImageProc(HWND h, UINT message, WPARAM wp, LPARAM lp)
         FillRect(buffer, &bounds, cardBrush);
         if (!Blocked() && IsImage())
         {
-            DrawImage(buffer, openedContent, bounds, imageZoom, CARD, panX, panY);
+            DrawImage(buffer, ActiveContent(), bounds, imageZoom, CARD, panX, panY);
         }
         BitBlt(dc,0,0,bounds.right,bounds.bottom,buffer,0,0,SRCCOPY);
         SelectObject(buffer,old); DeleteObject(bitmap); DeleteDC(buffer);
@@ -852,86 +1054,90 @@ void DrawCenteredMessage(HDC dc, RECT bounds, const wchar_t *heading, const wcha
 }
 void Paint(HDC dc)
 {
-    RECT client{};
-    GetClientRect(window, &client);
-    FillRect(dc, &client, bgBrush);
-    if (!focusMode) DrawSidebar(dc, railWidth, client.bottom, compactUi);
-    RECT title{S(contentLeft), S(12), S(contentRight), S(40)};
-    if (!focusMode && (!reading || page != Page::Content))
-    {
-        DrawTextAt(dc, page == Page::Home ? T(L"Chuẩn bị nội dung", L"Prepare content")
-                      : page == Page::Settings ? T(L"Tùy chỉnh", L"Settings")
-                                               : T(L"Nhắc chữ riêng", L"Private teleprompter"),
-                   title, TEXT, titleFont);
+    RECT client{};GetClientRect(window,&client);FillRect(dc,&client,bgBrush);
+    if(!focusMode)DrawSidebar(dc,railWidth,client.bottom,compactUi);
+    RECT title{S(contentLeft),S(12),S(contentRight),S(40)};
+    if(!focusMode && page!=Page::Content)DrawTextAt(dc,page==Page::Home?T(L"Tổng quan",L"Overview"):
+        page==Page::Settings?T(L"Cài đặt",L"Settings"):T(L"Trình chiếu",L"Presentation"),title,TEXT,titleFont);
+    if(page==Page::Content || focusMode) {
+        FillRect(dc,&contentCardRect,cardBrush);
+        if(Blocked()) {
+            const wchar_t *heading=storageBlocked?T(L"Lời nhắc đang khóa",L"Script locked"):
+                masked?T(L"Đã che nội dung",L"Content hidden"):
+                cloned?T(L"Đang dùng Duplicate",L"Duplicate display mode"):
+                verifying?T(L"Đang kiểm tra WGC",L"Verifying WGC privacy"):
+                !topologyKnown?T(L"Chưa xác định màn hình",L"Display layout unknown"):T(L"Chưa xác minh capture",L"Capture not verified");
+            const wchar_t *body=storageBlocked?T(L"Bản lưu cũ được giữ nguyên. Kiểm tra quyền đọc tệp lời nhắc.",L"Old script preserved. Check access to the saved script."):
+                masked?T(L"F8 để mở lại.",L"F8 to reveal."):
+                cloned?T(L"Win+P > Extend, hoặc chia sẻ riêng một cửa sổ.",L"Use Win+P > Extend, or share an individual window."):
+                T(L"Về Tổng quan hoặc Trình chiếu và bấm Kiểm tra WGC. Nội dung chỉ mở sau khi canary đạt.",L"Open Overview or Presentation and verify WGC. Content opens only after the canary passes.");
+            DrawCenteredMessage(dc,contentCardRect,heading,body);
+        }
     }
-    if (page != Page::Home || Blocked()) FillRoundRect(dc, contentCardRect, CARD, S(24));
-    if (page == Page::Settings && !Blocked() && !focusMode)
-    {
-        RECT summary{S(contentLeft + 16), S(68), S(contentRight - 16), S(96)};
-        std::wstring text = IsImage() ? T(L"Ảnh · Phóng/thu", L"Image · Zoom")
-                            : IsCode() ? T(L"Code · Cỡ chữ", L"Code · Text size")
-                                       : T(L"Lời nhắc · Cỡ chữ", L"Script · Text size");
-        DrawTextAt(dc, text, summary, TEXT, brandFont);
+    else if(page==Page::Home) {
+        RECT formats{S(contentLeft),S(208),S(contentRight),S(244)};
+        DrawTextAt(dc,T(L"Văn bản · Code · Ảnh · PDF",L"Text · Code · Images · PDF"),formats,MUTED,metaFont,DT_LEFT|DT_WORDBREAK);
+        RECT status{S(contentLeft),S(248),S(contentRight),client.bottom-S(36)};
+        std::wstring text=verifying?T(L"Đang kiểm tra canary bằng WGC...",L"Checking the WGC canary..."):
+            privacy.applied?T(L"Windows đã nhận loại trừ capture. Người xem chưa được xác minh.",L"Windows accepted capture exclusion. Viewer unverified."):
+                             T(L"Windows chưa nhận loại trừ capture. Nội dung đang khóa.",L"Capture exclusion unavailable. Content locked.");
+        if(!qa && mirror)text+=L"\n"+mirror->Status(english);
+        DrawTextAt(dc,text,status,MUTED,metaFont,DT_LEFT|DT_WORDBREAK);
     }
-    if (!focusMode && fontLabelRect.right > fontLabelRect.left)
-    {
-        RECT zoomSurface = fontLabelRect; zoomSurface.left -= S(32); zoomSurface.right += S(32);
-        FillRoundRect(dc, zoomSurface, ELEVATED, S(16));
-        std::wstring label = IsImage() ? std::to_wstring(imageZoom) + L"%" : std::to_wstring(ActiveTextSize());
-        DrawTextAt(dc, label, fontLabelRect, TEXT, uiFont, DT_CENTER | DT_VCENTER | DT_SINGLELINE);
+    else if(page==Page::Settings) {
+        RECT summary{S(contentLeft+12),S(44),S(contentRight-12),S(64)};
+        DrawTextAt(dc,IsImage()||IsPdf()?T(L"Phóng / thu",L"Zoom"):T(L"Cỡ chữ",L"Text size"),summary,MUTED,metaFont);
     }
-    if (Blocked())
-    {
-        const wchar_t *heading = storageBlocked ? T(L"Lời nhắc đang khóa", L"Script locked")
-                                 : masked       ? T(L"Đã che nội dung", L"Content hidden")
-                                 : cloned       ? T(L"Đang dùng Duplicate", L"Duplicate display mode")
-                                 : !topologyKnown
-                                     ? T(L"Chưa xác định màn hình", L"Display layout unknown")
-                                     : T(L"Chưa bật loại trừ capture", L"Capture exclusion unavailable");
-        const wchar_t *cover =
-            storageBlocked ? T(L"Bản lưu cũ được giữ nguyên. Đóng app và kiểm tra quyền đọc tệp lời nhắc.",
-                               L"The old script was preserved. Close the app and check file access.")
-            : masked ? T(L"Bấm F8 hoặc Mở lại để đọc tiếp.", L"Press F8 or Show to continue.")
-            : cloned ? T(L"Win+P > Extend để giữ lời nhắc trên màn hình của bạn.",
-                         L"Use Win+P > Extend to keep the script on your private display.")
-            : !topologyKnown ? T(L"Nội dung sẽ mở khi xác định được cấu hình màn hình.",
-                                 L"Content will open when the display layout is known.")
-                             : T(L"Windows chưa áp dụng được cơ chế loại trừ capture.",
-                                 L"Windows could not apply capture exclusion.");
-        DrawCenteredMessage(dc, contentCardRect, heading, cover);
+    else if(page==Page::Presentation) {
+        DrawTextAt(dc,T(L"Nguồn",L"Source"),{S(contentLeft),S(48),S(contentLeft+80),S(76)},MUTED,metaFont);
+        DrawTextAt(dc,T(L"Đích",L"Destination"),{S(contentLeft),S(88),S(contentLeft+80),S(116)},MUTED,metaFont);
+        RECT status{S(contentLeft),S(220),S(contentRight),client.bottom-S(24)};
+        std::wstring text=mirror?mirror->Status(english):L"";
+        if(monitors.size()<2)text+=T(L"\nCần hai màn hình ở chế độ Extend để chiếu.",L"\nTwo displays in Extend are required for projection.");
+        else text+=T(L"\nĐầu nhận vật lý chưa được xác minh.",L"\nPhysical receiver unverified.");
+        if(mirror && mirror->Running())text+=L"\nFPS: "+std::to_wstring((int)mirror->Fps());
+        DrawTextAt(dc,text,status,MUTED,metaFont,DT_LEFT|DT_WORDBREAK);
     }
-    if (focusMode) return;
-    RECT footer{S(contentLeft), client.bottom - S(32), S(contentRight), client.bottom - S(8)};
-    std::wstring footerText =
-        masked       ? T(L"Đã che nội dung · F8 để mở lại", L"Content hidden · F8 to reveal")
-        : Blocked()  ? T(L"Nội dung đang khóa", L"Content is locked")
-        : saveFailed ? T(L"Không lưu được lời nhắc trên máy", L"Could not save the script")
-        : savedNoteRecovered && !dirty && !reading ? T(L"Không đọc được lời cũ · Đã giữ bản dự phòng",
-                                                       L"Old script unreadable · recovery copy preserved")
-        : dirty    ? T(L"Đang lưu...", L"Saving...")
-        : !reading ? T(L"Sửa nội dung · Tự lưu trên máy", L"Edit the script · Saved locally")
-        : running  ? T(L"Đang cuộn · F8 che nhanh", L"Scrolling · F8 hides quickly")
-                   : T(L"Sẵn sàng đọc · F8 che nhanh", L"Ready to read · F8 hides quickly");
-    bool storageStatus = saveFailed || dirty || (savedNoteRecovered && !reading);
-    if (!Blocked() && page == Page::Home && !storageStatus)
-    {
-        footerText = importError;
-        size_t split = footerText.find(L" / ");
-        if (split != std::wstring::npos) footerText = english ? footerText.substr(split + 3) : footerText.substr(0,split);
+    if(fontLabelRect.right>fontLabelRect.left) {
+        std::wstring label=IsPdf()?std::to_wstring(pdfViewer.GetState().zoom)+L"%":IsCode()?std::to_wstring(codeViewer.GetState().zoom)+L"%":IsImage()?std::to_wstring(imageZoom)+L"%":std::to_wstring(ActiveTextSize());
+        DrawTextAt(dc,label,fontLabelRect,TEXT,uiFont,DT_CENTER|DT_VCENTER|DT_SINGLELINE);
     }
-    else if (!Blocked() && viewingFile && !storageStatus) footerText = openedContent.displayName;
-    else if (!Blocked() && page == Page::Settings && !storageStatus) footerText.clear();
-    DrawTextAt(dc, footerText, footer, saveFailed || (Blocked() && !masked) || !importError.empty() ? AMBER : MUTED, metaFont,
-               DT_LEFT | DT_VCENTER | DT_SINGLELINE | DT_END_ELLIPSIS);
+    if(focusMode)return;
+    RECT footer{S(contentLeft),client.bottom-S(22),S(contentRight),client.bottom-S(2)};
+    std::wstring label=Blocked()?T(L"Nội dung đang khóa",L"Content locked"):
+        saveFailed?T(L"Không lưu được lời nhắc",L"Script save failed"):
+        savedNoteRecovered&&!dirty&&!reading?T(L"Đã giữ bản dự phòng lời nhắc cũ",L"Old script recovery copy preserved"):
+        dirty?T(L"Đang lưu...",L"Saving..."):!findMessage.empty()?findMessage:
+        !importError.empty()?importError:IsPdf()?std::to_wstring(pdfViewer.GetState().page+1)+L" / "+std::to_wstring(pdfViewer.PageCount()):
+        viewingFile?ActiveContent().displayName:page==Page::Content?T(L"Lời nhắc · Tự lưu trên máy",L"Script · Saved locally"):L"";
+    size_t split=label.find(L" / ");if(split!=std::wstring::npos && !IsPdf())label=english?label.substr(split+3):label.substr(0,split);
+    DrawTextAt(dc,label,footer,saveFailed||!importError.empty()?AMBER:MUTED,metaFont,DT_LEFT|DT_VCENTER|DT_SINGLELINE|DT_END_ELLIPSIS);
+}
+void DrawActionIcon(HDC dc,int id,RECT r,COLORREF color)
+{
+    int x=(r.left+r.right)/2,y=(r.top+r.bottom)/2,k=S(6);
+    HPEN pen=CreatePen(PS_SOLID,std::max(1,S(2)),color);auto old=SelectObject(dc,pen);auto brush=SelectObject(dc,GetStockObject(NULL_BRUSH));
+    auto line=[&](int a,int b,int c,int d){MoveToEx(dc,a,b,nullptr);LineTo(dc,c,d);};
+    if(id==SMALLER || id==LARGER){line(x-k,y,x+k,y);if(id==LARGER)line(x,y-k,x,y+k);}
+    else if(id==FOCUS){Rectangle(dc,x-k,y-k,x+k,y+k);if(focusMode){line(x-k-2,y,x+2,y);line(x-k-2,y,x-k+1,y-3);line(x-k-2,y,x-k+1,y+3);}}
+    else if(id==MASK){Ellipse(dc,x-k-2,y-S(4),x+k+2,y+S(4));Ellipse(dc,x-2,y-2,x+2,y+2);if(masked)line(x-k,y+k,x+k,y-k);}
+    else if(id==TOPMOST){Rectangle(dc,x-S(3),y-k,x+S(3),y+1);line(x-k,y+1,x+k,y+1);line(x,y+1,x,y+k);}
+    else if(id==OPEN_FILE){Rectangle(dc,x-k,y-k,x+S(3),y+k);line(x+4,y,x+10,y);line(x+7,y-3,x+7,y+3);}
+    else if(id==PLAY){if(running){line(x-S(3),y-k,x-S(3),y+k);line(x+S(3),y-k,x+S(3),y+k);}else{POINT p[]={{x-S(4),y-k},{x+k,y},{x-S(4),y+k}};Polygon(dc,p,3);}}
+    else if(id==MODE){Rectangle(dc,x-k,y-k,x+k,y+k);line(x-S(3),y-2,x+S(3),y-2);line(x-S(3),y+2,x+S(3),y+2);}
+    else if(id==OVERFLOW){for(int i=-1;i<=1;i++)Ellipse(dc,x+i*S(5)-1,y-1,x+i*S(5)+2,y+2);}
+    else if(id==FIND_CLOSE){line(x-k,y-k,x+k,y+k);line(x-k,y+k,x+k,y-k);}
+    else if(id==FIND_PREV || id==FIND_NEXT){int d=id==FIND_PREV?1:-1;line(x+d*3,y-k,x-d*3,y);line(x-d*3,y,x+d*3,y+k);}
+    SelectObject(dc,brush);SelectObject(dc,old);DeleteObject(pen);
 }
 void DrawButton(DRAWITEMSTRUCT *item)
 {
     bool disabled = (item->itemState & ODS_DISABLED) != 0;
-    bool nav = item->CtlID == NAV_SCRIPT || item->CtlID == NAV_READ || item->CtlID == NAV_HOME || item->CtlID == NAV_SETTINGS;
-    bool activeNav = (item->CtlID == NAV_SCRIPT && page == Page::Content && !reading) ||
+    bool nav = item->CtlID == NAV_SCRIPT || item->CtlID == NAV_READ || item->CtlID == NAV_HOME || item->CtlID == NAV_SETTINGS || item->CtlID==NAV_PRESENTATION;
+    bool activeNav = (item->CtlID == NAV_SCRIPT && page == Page::Content) ||
                      (item->CtlID == NAV_READ && page == Page::Content && reading) ||
                      (item->CtlID == NAV_HOME && page == Page::Home) ||
-                     (item->CtlID == NAV_SETTINGS && page == Page::Settings);
+                     (item->CtlID == NAV_SETTINGS && page == Page::Settings) || (item->CtlID==NAV_PRESENTATION && page==Page::Presentation);
     bool primary = item->CtlID == PLAY || item->CtlID == OPEN_FILE;
     bool pressed = (item->itemState & ODS_SELECTED) != 0;
     bool hover = hoveredButton == item->hwndItem && !disabled;
@@ -951,7 +1157,8 @@ void DrawButton(DRAWITEMSTRUCT *item)
     RECT button = item->rcItem;
     InflateRect(&button, -1, -1);
     if (!zoom || hover || pressed)
-        FillRoundRect(item->hDC, button, color, S(16));
+        FillRoundRect(item->hDC, button, color, S(8));
+    bool strip=page==Page::Content || focusMode;
     if (nav)
     {
         COLORREF iconColor = disabled ? DISABLED : (activeNav ? GREEN : MUTED);
@@ -966,21 +1173,11 @@ void DrawButton(DRAWITEMSTRUCT *item)
                        DT_LEFT | DT_VCENTER | DT_SINGLELINE | DT_END_ELLIPSIS);
         }
     }
-    else if (item->CtlID == OPEN_DROP)
-    {
-        RECT heading = button;
-        int middle = (button.bottom + button.top) / 2;
-        heading.top = middle - S(32); heading.bottom = middle;
-        DrawTextAt(item->hDC, TextOf(item->hwndItem), heading, TEXT, brandFont,
-                   DT_CENTER | DT_VCENTER | DT_SINGLELINE);
-        RECT detail{button.left + S(16),middle + S(8),button.right - S(16),middle + S(32)};
-        DrawTextAt(item->hDC, openedContent.path.empty() ? T(L"Text · Code · Ảnh", L"Text · Code · Images")
-                                                     : openedContent.displayName,
-                   detail, MUTED, metaFont, DT_CENTER | DT_VCENTER | DT_SINGLELINE | DT_END_ELLIPSIS);
-    }
+    else if(strip && (item->CtlID==FOCUS || item->CtlID==MASK || item->CtlID==TOPMOST || item->CtlID==SMALLER || item->CtlID==LARGER || item->CtlID==MODE || item->CtlID==PLAY || item->CtlID==OPEN_FILE || item->CtlID==OVERFLOW || item->CtlID==FIND_CLOSE || item->CtlID==FIND_PREV || item->CtlID==FIND_NEXT))
+        DrawActionIcon(item->hDC,item->CtlID,button,disabled?DISABLED:TEXT);
     else
     {
-        DrawTextAt(item->hDC, item->CtlID == FOCUS && compactUi ? L"F11" : TextOf(item->hwndItem), button,
+        DrawTextAt(item->hDC, TextOf(item->hwndItem), button,
                    disabled  ? DISABLED
                    : primary ? (pressed ? TEXT : BG)
                              : TEXT,
@@ -1030,8 +1227,35 @@ LRESULT CALLBACK ButtonProc(HWND control, UINT message, WPARAM wp, LPARAM lp, UI
         InvalidateRect(control, nullptr, FALSE);
     return result;
 }
+LRESULT CALLBACK MonitorComboProc(HWND control,UINT message,WPARAM wp,LPARAM lp,UINT_PTR,DWORD_PTR)
+{
+    if(message==WM_PAINT) {
+        PAINTSTRUCT paint{};HDC dc=BeginPaint(control,&paint);RECT bounds{};GetClientRect(control,&bounds);
+        FillRoundRect(dc,bounds,ELEVATED,S(8));
+        int index=(int)SendMessageW(control,CB_GETCURSEL,0,0);std::wstring text;
+        if(index>=0) {
+            int length=(int)SendMessageW(control,CB_GETLBTEXTLEN,index,0);
+            if(length>=0 && length<512){text.resize(length+1);SendMessageW(control,CB_GETLBTEXT,index,(LPARAM)text.data());text.resize(length);}
+        }
+        RECT label=bounds;label.left+=S(10);label.right-=S(28);
+        DrawTextAt(dc,text,label,TEXT,uiFont,DT_LEFT|DT_VCENTER|DT_SINGLELINE|DT_END_ELLIPSIS);
+        int x=bounds.right-S(14),y=(bounds.top+bounds.bottom)/2;
+        HPEN pen=CreatePen(PS_SOLID,std::max(1,S(1)),GetFocus()==control?ACCENT:DIVIDER);
+        auto old=SelectObject(dc,pen),brush=SelectObject(dc,GetStockObject(NULL_BRUSH));
+        RoundRect(dc,bounds.left,bounds.top,bounds.right,bounds.bottom,S(8),S(8));
+        SelectObject(dc,brush);SelectObject(dc,old);DeleteObject(pen);
+        pen=CreatePen(PS_SOLID,std::max(1,S(2)),MUTED);old=SelectObject(dc,pen);
+        MoveToEx(dc,x-S(3),y-S(2),nullptr);LineTo(dc,x,y+S(2));LineTo(dc,x+S(3),y-S(2));
+        SelectObject(dc,old);DeleteObject(pen);EndPaint(control,&paint);return 0;
+    }
+    if(message==WM_ERASEBKGND)return 1;
+    LRESULT result=DefSubclassProc(control,message,wp,lp);
+    if(message==WM_SETFOCUS || message==WM_KILLFOCUS || message==CB_SETCURSEL)InvalidateRect(control,nullptr,FALSE);
+    return result;
+}
 LRESULT CALLBACK EditorProc(HWND control, UINT message, WPARAM wp, LPARAM lp)
 {
+    if(Blocked() && (message==WM_COPY || message==WM_CUT || message==WM_PASTE))return 0;
     if (message == WM_PASTE && (Blocked() || reading || viewingFile)) return 0;
     if (message == WM_PASTE && !reading && !viewingFile && !Blocked())
     {
@@ -1081,7 +1305,7 @@ LRESULT CALLBACK EditorProc(HWND control, UINT message, WPARAM wp, LPARAM lp)
         ToggleRun();
         return 0;
     }
-    if (message == WM_KEYDOWN && wp == VK_F8 && !f8Registered)
+    if (message == WM_KEYDOWN && wp == VK_F8 && !f8Registered && !(lp & (1L<<30)))
     {
         ToggleMask();
         return 0;
@@ -1179,7 +1403,7 @@ bool CompactFits()
             return false;
     }
     return rect.left >= 0 && rect.right <= client.right && rect.top >= 0 &&
-           rect.bottom <= client.bottom - S(focusMode ? 0 : 32) && rect.bottom - rect.top >= S(80);
+           rect.bottom <= client.bottom - S(focusMode ? 4 : 24) && rect.bottom - rect.top >= S(80);
 }
 void WriteQa()
 {
@@ -1187,7 +1411,7 @@ void WriteQa()
     GetWindowDisplayAffinity(window, &actual);
     auto boolean = [](bool value) -> std::wstring { return value ? L"true" : L"false"; };
     std::wstring report =
-        L"{\n  \"applicationVersion\": \"0.3.0\",\n  \"windowsBuild\": " + std::to_wstring(WindowsBuild()) +
+        L"{\n  \"applicationVersion\": \"0.4.0\",\n  \"windowsBuild\": " + std::to_wstring(WindowsBuild()) +
         L",\n  \"displayCloned\": " + boolean(cloned) + L",\n  \"topologyKnown\": " + boolean(topologyKnown) +
         L",\n  \"privacyApplied\": " + boolean(privacy.applied) +
         L",\n  \"requestedAffinity\": 17,\n  \"actualAffinity\": " + std::to_wstring(actual) +
@@ -1215,7 +1439,8 @@ void WriteQa()
         L",\n  \"imageMaskHidesCanvas\": " + boolean(qaImageMask) +
         L",\n  \"imageZoomAndPanWork\": " + boolean(qaImagePan) +
         L",\n  \"focusRestoreButtonWorks\": " + boolean(qaFocusRestored) +
-        L",\n  \"dpiMatrixMethod\": \"Simulated logical scaling at 96, 120 and 144 DPI; not a physical "
+        L",\n  \"v04TabsProjectPdfFocusFit\": " + boolean(qaV04) +
+        L",\n  \"dpiMatrixMethod\": \"Simulated logical scaling at 96, 120, 144 and 192 DPI; not a physical "
         L"monitor test\"\n}\n";
     std::string bytes = Utf8(report);
     qaPass = WriteBytes(qaDir + L"\\diagnostics.json", bytes.data(), (DWORD)bytes.size()) && qaPass;
@@ -1239,7 +1464,7 @@ void FinishQa()
                  qaCompact && qaUnchanged && qaEditReturned && qaLanguage && qaLayoutMatrix && qaHover &&
                  qaEmpty && qaNativeScrollbar && qaFocus && qaHome && qaSettings && qaCodeFile &&
                  qaImageFile && qaPreviewKeepsScript && qaDropped && qaImageMask && qaImagePan &&
-                 qaFocusRestored;
+                 qaFocusRestored && qaV04;
     if (qaStorage)
         qaPass = qaPass && qaRoundtrip && qaPlaintextAbsent && qaAutosave;
     WriteQa();
@@ -1326,7 +1551,7 @@ void QaTick()
             const UINT actualDpi = dpi;
             // Check real HWND geometry across both languages, every presentation
             // state, and three logical scales. This never changes user notes.
-            for (UINT scale : {96U, 120U, 144U})
+            for (UINT scale : {96U, 120U, 144U, 192U})
             {
                 dpi = scale;
                 RefreshFonts();
@@ -1346,7 +1571,7 @@ void QaTick()
                             qaLayoutMatrix = CompactFits() && qaLayoutMatrix;
                         }
                         masked = false;
-                        for (Page surface : {Page::Home, Page::Settings})
+                        for (Page surface : {Page::Home, Page::Settings, Page::Presentation})
                         {
                             page = surface; Layout(); qaLayoutMatrix = CompactFits() && qaLayoutMatrix;
                         }
@@ -1426,11 +1651,14 @@ void QaTick()
         ActiveTextSize() = beforeSize; ApplyTextFormat();
         Capture(L"settings.bmp");
         ShowScript(); SetReading(true); ToggleFocus();
-        qaFocus = focusMode && !IsWindowVisible(GetDlgItem(window,NAV_READ)) &&
-                  !IsWindowVisible(GetDlgItem(window,PLAY)) && CompactFits();
+        RECT strip{};GetWindowRect(documentBar.Window(),&strip);
+        RECT focusButton{};GetWindowRect(GetDlgItem(window,FOCUS),&focusButton);
+        qaFocus = focusMode && !(GetWindowLongPtrW(window,GWL_STYLE)&WS_CAPTION) && !IsWindowVisible(GetDlgItem(window,NAV_SCRIPT)) &&
+                  IsWindowVisible(documentBar.Window()) && strip.bottom-strip.top==S(32) &&
+                  focusButton.right-focusButton.left==S(28) && CompactFits();
         Capture(L"focus.bmp");
         SendMessageW(window,WM_COMMAND,MAKEWPARAM(FOCUS,BN_CLICKED),0);
-        qaFocusRestored = !focusMode && IsWindowVisible(GetDlgItem(window,NAV_READ)) &&
+        qaFocusRestored = !focusMode && (GetWindowLongPtrW(window,GWL_STYLE)&WS_CAPTION)==WS_CAPTION && IsWindowVisible(GetDlgItem(window,NAV_SCRIPT)) &&
                           IsWindowVisible(GetDlgItem(window,PLAY));
         {
             const std::wstring codePath = qaDir + L"\\example.cpp";
@@ -1448,7 +1676,7 @@ void QaTick()
                                (codePath.size()+1)*sizeof(wchar_t));
                     GlobalUnlock(dropped);
                     SendMessageW(window,WM_DROPFILES,(WPARAM)dropped,0);
-                    qaDropped = viewingFile && openedContent.displayName == L"example.cpp";
+                    qaDropped = viewingFile && ActiveContent().displayName == L"example.cpp";
                 }
                 else GlobalFree(dropped);
             }
@@ -1479,16 +1707,64 @@ void QaTick()
             Capture(L"file-error.bmp");
             importError.clear(); ShowScript();
         }
+        {
+            // Synthetic native renderer fixtures; the shipping EXE rejects QA switches.
+            for(int n=0;n<8;n++) {
+                const auto file=qaDir+L"\\sample-"+std::to_wstring(n)+L".py";
+                const std::string text="# QuietShare sample\ndef explain(value):\n    return value + 1\n";
+                WriteBytes(file,text.data(),(DWORD)text.size());
+                qaV04=OpenContentPath(file)&&qaV04;
+            }
+            qaV04=documents.Count()>=9&&documentBar.Overflowing()&&qaV04;
+            Capture(L"tabs-overflow.bmp");ToggleFocus();Capture(L"code-focus.bmp");
+            const UINT actualDpi=dpi;
+            for(UINT scale:{96U,120U,144U,192U})for(bool language:{false,true}) {
+                dpi=scale;english=language;RefreshFonts();
+                for(int width:{430,460,640,840,1080}) {
+                    SetWindowPos(window,nullptr,0,0,S(width),S(width<500?320:560),SWP_NOMOVE|SWP_NOZORDER|SWP_NOACTIVATE);
+                    Layout();RECT strip{};GetClientRect(documentBar.Window(),&strip);
+                    qaV04=strip.bottom==S(32)&&CompactFits()&&qaV04;
+                }
+            }
+            dpi=actualDpi;english=false;RefreshFonts();ToggleFocus();
+            SetWindowPos(window,nullptr,0,0,S(1080),S(560),SWP_NOMOVE|SWP_NOZORDER|SWP_NOACTIVATE);
+            qaV04=projectTree.OpenFolder(qaDir,importError)&&qaV04;
+            treeVisible=true;TreeView_Expand(projectTree.Handle(),TreeView_GetRoot(projectTree.Handle()),TVE_EXPAND);Layout();
+            Capture(L"project-wide.bmp");
+            SetWindowPos(window,nullptr,0,0,S(430),S(320),SWP_NOMOVE|SWP_NOZORDER|SWP_NOACTIVATE);Layout();
+            qaV04=projectDrawer&&!IsWindowVisible(codeViewer.Window())&&qaV04;Capture(L"project-minimum.bmp");
+            treeVisible=false;SetWindowPos(window,nullptr,0,0,S(840),S(560),SWP_NOMOVE|SWP_NOZORDER|SWP_NOACTIVATE);
+            qaV04=OpenContentPath(qaDir+L"\\..\\qa-viewers\\unicode.pdf")&&IsPdf()&&qaV04;
+            Capture(L"pdf-file.bmp");ToggleFocus();Capture(L"pdf-focus.bmp");ToggleFocus();
+            page=Page::Presentation;Layout();Capture(L"presentation.bmp");
+            english=true;Layout();Capture(L"presentation-en.bmp");
+            english=false;page=Page::Content;Layout();ToggleMask();Capture(L"tabs-masked.bmp");ToggleMask();
+            ShowScript();
+        }
         FinishQa();
         break;
     }
+}
+void PublicThumbnail(HWND owner,int width,int height,bool live)
+{
+    width=std::clamp(width,64,512);height=std::clamp(height,48,320);
+    HDC screen=GetDC(owner),dc=CreateCompatibleDC(screen);
+    HBITMAP bitmap=CreateCompatibleBitmap(screen,width,height);auto old=SelectObject(dc,bitmap);
+    RECT bounds{0,0,width,height};FillRect(dc,&bounds,bgBrush);
+    DrawShareGlyph(dc,width/2-S(15),height/2-S(13),ACCENT);
+    if(live){POINT origin{};DwmSetIconicLivePreviewBitmap(owner,bitmap,&origin,DWM_SIT_DISPLAYFRAME);}
+    else DwmSetIconicThumbnail(owner,bitmap,DWM_SIT_DISPLAYFRAME);
+    SelectObject(dc,old);DeleteObject(bitmap);DeleteDC(dc);ReleaseDC(owner,screen);
 }
 LRESULT CALLBACK Proc(HWND h, UINT message, WPARAM wp, LPARAM lp)
 {
     switch (message)
     {
+    case WM_DWMSENDICONICTHUMBNAIL:PublicThumbnail(h,HIWORD(lp),LOWORD(lp),false);return 0;
+    case WM_DWMSENDICONICLIVEPREVIEWBITMAP:PublicThumbnail(h,320,180,true);return 0;
     case WM_CREATE: {
         window = h;
+        mirror=std::make_unique<MirrorController>();
         privacy = ApplyPrivacy(h);
         topologyKnown = TryGetDisplayCloned(cloned);
         if (qaVisual)
@@ -1499,13 +1775,22 @@ LRESULT CALLBACK Proc(HWND h, UINT message, WPARAM wp, LPARAM lp)
             {SPEED, L"Vừa"},           {MASK, L"Che · F8"}, {SMALLER, L"A-"}, {LARGER, L"A+"},
             {RESET_ZOOM, L"100%"}, {TOPMOST, L"Ghim"}, {LANGUAGE, L"EN"}, {FOCUS, L"Tập trung"},
             {OPEN_FILE, L"Mở file"}, {OPEN_DROP, L"Mở hoặc thả file"}, {HOME_SCRIPT, L"Lời nhắc"},
-            {HOME_SETTINGS, L"Tùy chỉnh"}, {VIEW_FILE, L"Xem file"}};
+            {HOME_SETTINGS, L"Cài đặt"}, {VIEW_FILE, L"Xem file"},
+            {OPEN_FOLDER,L"Mở dự án"},{OVERFLOW,L"Thêm"},{FIND,L"Tìm"},{FIND_PREV,L"Trước"},
+            {FIND_NEXT,L"Sau"},{FIND_CLOSE,L"Đóng"},{PDF_PREV,L"Trang trước"},{PDF_NEXT,L"Trang sau"},
+            {NAV_PRESENTATION,L"Trình chiếu"},{VERIFY_PRIVACY,L"Kiểm tra WGC"},{MIRROR_START,L"Bắt đầu"},
+            {MIRROR_STOP,L"Dừng"},{POINTER,L"Con trỏ"},{RELOAD_FILE,L"Tải lại"},{KEEP_FILE,L"Giữ bản đang xem"},
+            {INCLUDE_IGNORED,L"Hiện thư mục đang bỏ qua"}};
         for (const auto &label : labels)
         {
             buttons.push_back(CreateWindowW(L"BUTTON", label.second,
                                             WS_CHILD | WS_VISIBLE | WS_TABSTOP | WS_CLIPSIBLINGS | BS_OWNERDRAW, 0, 0, 0, 0, h,
                                             (HMENU)(INT_PTR)label.first, instance, nullptr));
             SetWindowSubclass(buttons.back(), ButtonProc, 1, 0);
+            if(label.first==OPEN_FILE || label.first==OPEN_DROP || label.first==OPEN_FOLDER ||
+               label.first==NAV_SCRIPT || label.first==HOME_SCRIPT || label.first==MODE ||
+               label.first==PLAY || label.first==MIRROR_START)
+                EnableWindow(buttons.back(),FALSE);
         }
         // Native tooltips preserve readable names for the automatic compact rail.
         tooltips =
@@ -1534,6 +1819,23 @@ LRESULT CALLBACK Proc(HWND h, UINT message, WPARAM wp, LPARAM lp)
                                       0, 0, 0, 0, h, (HMENU)FONT_SLIDER, instance, nullptr);
         SetWindowTheme(fontSlider, L"DarkMode_Explorer", nullptr);
         SetWindowSubclass(fontSlider, ButtonProc, 1, 0);
+        if(!documentHost.Create(h,editor,imageViewer,viewerError))return -1;
+        if(!documentBar.Create(h,instance) || !projectTree.Create(h,172))return -1;
+        HWND treeTip=TreeView_GetToolTips(projectTree.Handle());if(treeTip && !ApplyPrivacy(treeTip).applied)
+            SetWindowLongPtrW(projectTree.Handle(),GWL_STYLE,GetWindowLongPtrW(projectTree.Handle(),GWL_STYLE)|TVS_NOTOOLTIPS);
+        ApplyPrivacy(tooltips);
+        findInput=CreateWindowExW(0,L"EDIT",L"",WS_CHILD|WS_TABSTOP|ES_AUTOHSCROLL,0,0,0,0,h,(HMENU)FIND_INPUT,instance,nullptr);
+        sourceMonitor=CreateWindowExW(0,L"COMBOBOX",L"",WS_CHILD|WS_TABSTOP|CBS_DROPDOWNLIST|CBS_OWNERDRAWFIXED|CBS_HASSTRINGS|WS_VSCROLL,0,0,0,0,h,(HMENU)SOURCE_MONITOR,instance,nullptr);
+        destinationMonitor=CreateWindowExW(0,L"COMBOBOX",L"",WS_CHILD|WS_TABSTOP|CBS_DROPDOWNLIST|CBS_OWNERDRAWFIXED|CBS_HASSTRINGS|WS_VSCROLL,0,0,0,0,h,(HMENU)DEST_MONITOR,instance,nullptr);
+        for(HWND combo:{sourceMonitor,destinationMonitor})SetWindowSubclass(combo,MonitorComboProc,1,0);
+        std::vector<HWND> publicLists;
+        for(HWND combo:{sourceMonitor,destinationMonitor}) {
+            COMBOBOXINFO info{};info.cbSize=sizeof(info);
+            if(GetComboBoxInfo(combo,&info))publicLists.push_back(info.hwndList);
+        }
+        mirror->SetPublicPopups(publicLists);
+        for(HWND control:{findInput,sourceMonitor,destinationMonitor})SetWindowTheme(control,L"DarkMode_Explorer",nullptr);
+        UpdateMonitors();
         DragAcceptFiles(h, TRUE);
         SendMessageW(editor, EM_SETTEXTMODE, TM_PLAINTEXT | TM_MULTICODEPAGE, 0);
         editorProc = (WNDPROC)SetWindowLongPtrW(editor, GWLP_WNDPROC, (LONG_PTR)EditorProc);
@@ -1555,6 +1857,7 @@ LRESULT CALLBACK Proc(HWND h, UINT message, WPARAM wp, LPARAM lp)
         else
             content = InitialNotes();
         SetWindowTextW(editor, content.c_str());
+        scriptDraft=content;documents.Get(0)->content.text=content;
         loading = false;
         qaContent = TextOf(editor);
         RefreshFonts();
@@ -1564,7 +1867,8 @@ LRESULT CALLBACK Proc(HWND h, UINT message, WPARAM wp, LPARAM lp)
         if (!qa)
         {
             f8Registered = RegisterHotKey(h, 2, MOD_NOREPEAT, VK_F8) != 0;
-            SetTimer(h, PRIVACY_TIMER, 1200, nullptr);
+            SetTimer(h, PRIVACY_TIMER, 250, nullptr);
+            SetTimer(h, 5, 33, nullptr);
         }
         else
         {
@@ -1612,11 +1916,71 @@ LRESULT CALLBACK Proc(HWND h, UINT message, WPARAM wp, LPARAM lp)
     }
     case WM_ERASEBKGND:
         return 1;
+    case WM_MEASUREITEM: {
+        auto measure=(MEASUREITEMSTRUCT*)lp;
+        if(measure->CtlType==ODT_MENU){measure->itemWidth=S(280);measure->itemHeight=S(28);return TRUE;}
+        if(measure->CtlType==ODT_COMBOBOX){measure->itemHeight=S(28);return TRUE;}
+        break;
+    }
     case WM_DRAWITEM:
+        if(((DRAWITEMSTRUCT*)lp)->CtlType==ODT_COMBOBOX) {
+            auto draw=(DRAWITEMSTRUCT*)lp;bool selected=draw->itemState&ODS_SELECTED;
+            HBRUSH brush=CreateSolidBrush(selected?ACCENT_DARK:ELEVATED);FillRect(draw->hDC,&draw->rcItem,brush);DeleteObject(brush);
+            if(draw->itemID!=(UINT)-1) {
+                wchar_t text[512]{};int length=(int)SendMessageW(draw->hwndItem,CB_GETLBTEXTLEN,draw->itemID,0);
+                if(length>=0 && length<512)SendMessageW(draw->hwndItem,CB_GETLBTEXT,draw->itemID,(LPARAM)text);
+                RECT label=draw->rcItem;label.left+=S(10);label.right-=S(10);DrawTextAt(draw->hDC,text,label,TEXT,uiFont);
+            }
+            return TRUE;
+        }
+        if(((DRAWITEMSTRUCT*)lp)->CtlType==ODT_MENU) {
+            auto draw=(DRAWITEMSTRUCT*)lp;bool selected=draw->itemState&ODS_SELECTED;
+            HBRUSH brush=CreateSolidBrush(selected?HOVER:CARD);FillRect(draw->hDC,&draw->rcItem,brush);DeleteObject(brush);
+            RECT text=draw->rcItem;text.left+=S(12);text.right-=S(12);
+            DrawTextAt(draw->hDC,(LPCWSTR)draw->itemData,text,draw->itemState&ODS_DISABLED?DISABLED:TEXT,uiFont);
+            return TRUE;
+        }
         DrawButton((DRAWITEMSTRUCT *)lp);
         return TRUE;
+    case VerifyPrivacyMessage:VerifyPrivacy();return 0;
+    case WM_APP+14:
+        if(mirror && !qa)mirror->Tick();
+        if(Blocked()) {
+            documentHost.Hide();SendMessageW(tooltips,TTM_POP,0,0);
+            if(filePicker){ShowWindow(filePicker,SW_HIDE);PostMessageW(filePicker,WM_COMMAND,IDCANCEL,0);}
+            if(renderedSafe)Layout();
+            return 0;
+        }
+        return 1;
+    case WM_APP+15:
+        // Read-only diagnostics expose numeric state only after the common gate.
+        if(Blocked())return 0;
+        switch(wp) {
+        case 1:return (LRESULT)documents.Count();
+        case 2:return (LRESULT)documents.Active().id;
+        case 3:return (LRESULT)documents.Active().type;
+        case 4:return IsCode()?codeViewer.GetState().zoom:
+            documents.Active().type==DocumentType::Pdf?pdfViewer.GetState().zoom:
+            documents.Active().type==DocumentType::Image?imageZoom:fontPoints*100/24;
+        case 5:return pdfViewer.GetState().page+1;
+        case 6:return pdfViewer.PageCount();
+        case 7:return documentBar.Offset();
+        case 8:return 32;
+        case 9:return (LRESULT)projectTree.NodeCount();
+        }
+        return 0;
+    case WM_APP+16:
+        if(!Blocked())UpdateButtons();
+        return 0;
+    case DocumentActivateMessage:ActivateDocument((DocumentId)wp);return 0;
+    case DocumentCloseMessage:CloseDocument((DocumentId)wp);return 0;
     case WM_NOTIFY: {
         auto notification = (NMHDR *)lp;
+        if(notification->hwndFrom==codeViewer.Window() && notification->code==2018 && !Blocked())UpdateButtons();
+        std::wstring projectFile;
+        if(!Blocked() && projectTree.HandleNotify(notification,projectFile,importError)) {
+            if(!projectFile.empty())OpenContentPath(projectFile);return 0;
+        }
         if (notification->hwndFrom == fontSlider && notification->code == NM_CUSTOMDRAW)
         {
             auto draw = (NMCUSTOMDRAW *)lp;
@@ -1643,13 +2007,16 @@ LRESULT CALLBACK Proc(HWND h, UINT message, WPARAM wp, LPARAM lp)
                     FillRoundRect(draw->hdc,ring,GREEN,S(20));
                     InflateRect(&ring,-S(2),-S(2)); FillRoundRect(draw->hdc,ring,CARD,S(16));
                 }
-                FillRoundRect(draw->hdc,handle,!IsWindowEnabled(fontSlider) ? DISABLED
-                    : hoveredButton == fontSlider ? GREEN : TEXT,S(14));
+                FillRoundRect(draw->hdc,handle,!IsWindowEnabled(fontSlider) ? DIVIDER : ACCENT,S(14));
+                InflateRect(&handle,-S(2),-S(2));
+                FillRoundRect(draw->hdc,handle,hoveredButton == fontSlider ? BG : ELEVATED,S(10));
                 return CDRF_SKIPDEFAULT;
             }
         }
         break;
     }
+    case WM_CTLCOLOREDIT:
+    case WM_CTLCOLORLISTBOX:
     case WM_CTLCOLORSTATIC:
         SetBkColor((HDC)wp, CARD);
         SetTextColor((HDC)wp, TEXT);
@@ -1659,32 +2026,30 @@ LRESULT CALLBACK Proc(HWND h, UINT message, WPARAM wp, LPARAM lp)
         {
             int value = (int)SendMessageW(fontSlider, TBM_GETPOS, 0, 0);
             Pause();
-            if (IsImage()) { imageZoom = value; panX = panY = 0; InvalidateRect(imageViewer,nullptr,FALSE); }
-            else ActiveTextSize() = value;
+            if(IsCode())codeViewer.SetZoom(value);
+            else if(IsPdf())pdfViewer.SetZoom(value);
+            else if (IsImage()) { imageZoom = value; panX = panY = 0; InvalidateRect(imageViewer,nullptr,FALSE); }
+            else {ActiveTextSize() = value;if(IsCode())codeViewer.SetZoom(value*100/14);}
             ApplyTextFormat();
         }
         return 0;
     case WM_DROPFILES: {
-        HDROP drop = (HDROP)wp;
-        UINT count = DragQueryFileW(drop, 0xFFFFFFFF, nullptr, 0);
-        if (count == 1)
-        {
-            UINT length = DragQueryFileW(drop, 0, nullptr, 0);
-            std::vector<wchar_t> path(length + 1);
-            DragQueryFileW(drop,0,path.data(),length+1);
-            OpenContentPath(path.data());
+        HDROP drop=(HDROP)wp;UINT count=DragQueryFileW(drop,0xFFFFFFFF,nullptr,0);
+        if(!Blocked())for(UINT i=0;i<std::min<UINT>(count,31);i++) {
+            UINT length=DragQueryFileW(drop,i,nullptr,0);std::vector<wchar_t> path(length+1);
+            DragQueryFileW(drop,i,path.data(),length+1);OpenContentPath(path.data());
         }
-        else if (!Blocked())
-        {
-            importError = L"Mở một file mỗi lần. / Open one file at a time.";
-            page = Page::Home; focusMode = false; Layout();
-        }
-        DragFinish(drop); return 0;
+        if(count>31)importError=T(L"Tối đa 31 file mỗi lần.",L"Up to 31 files per drop.");
+        DragFinish(drop);Layout();return 0;
     }
     case WM_COMMAND:
+        if((LOWORD(wp)==SOURCE_MONITOR || LOWORD(wp)==DEST_MONITOR) && HIWORD(wp)==CBN_SELCHANGE) {
+            documentHost.Hide();if(mirror)mirror->Invalidate();Layout();return 0;
+        }
+        if(LOWORD(wp)==FIND_INPUT && HIWORD(wp)==EN_CHANGE){findMessage.clear();return 0;}
         if (LOWORD(wp) == EDITOR && HIWORD(wp) == EN_CHANGE && !loading && !viewingFile)
         {
-            dirty = true;
+            dirty = true;scriptDraft=TextOf(editor);documents.Get(0)->content.text=scriptDraft;
             SetTimer(h, SAVE_TIMER, 900, nullptr);
             InvalidateRect(h, nullptr, FALSE);
         }
@@ -1692,8 +2057,11 @@ LRESULT CALLBACK Proc(HWND h, UINT message, WPARAM wp, LPARAM lp)
             return 0;
         switch (LOWORD(wp))
         {
+        case CLOSE_APPLICATION:PostMessageW(h,WM_CLOSE,0,0);break;
         case NAV_HOME:
             Pause(); focusMode = false; page = Page::Home; Layout(); break;
+        case NAV_PRESENTATION:
+            Pause();focusMode=false;page=Page::Presentation;Layout();break;
         case NAV_SETTINGS:
         case HOME_SETTINGS:
             Pause(); focusMode = false; page = Page::Settings; Layout(); break;
@@ -1707,6 +2075,32 @@ LRESULT CALLBACK Proc(HWND h, UINT message, WPARAM wp, LPARAM lp)
         case MODE:
             SetReading(!reading);
             break;
+        case VERIFY_PRIVACY:VerifyPrivacy();break;
+        case MIRROR_START:
+            if(!mirror || masked)break;
+            documentHost.Hide();verifying=true;Layout();
+            mirror->Start(SelectedMonitor(sourceMonitor),SelectedMonitor(destinationMonitor),mirrorPointer);
+            verifying=false;Layout();break;
+        case MIRROR_STOP:documentHost.Hide();if(mirror)mirror->Stop();Layout();break;
+        case POINTER:mirrorPointer=!mirrorPointer;UpdateButtons();break;
+        case OPEN_FOLDER:ChooseFolder();break;
+        case OVERFLOW:OverflowMenu();break;
+        case FIND:if(!Blocked()&&!IsImage()&&!reloadPending){findVisible=true;Layout();SetFocus(findInput);}break;
+        case FIND_NEXT:RunFind(true);break;
+        case FIND_PREV:RunFind(false);break;
+        case FIND_CLOSE:findVisible=false;Layout();SetFocus(ContentWindow());break;
+        case PDF_PREV:if(!Blocked()&&IsPdf())pdfViewer.GoToPage(pdfViewer.GetState().page-1);UpdateButtons();break;
+        case PDF_NEXT:if(!Blocked()&&IsPdf())pdfViewer.GoToPage(pdfViewer.GetState().page+1);UpdateButtons();break;
+        case FIT_WIDTH:if(!Blocked()&&IsPdf())pdfViewer.FitWidth();UpdateButtons();break;
+        case WRAP:if(!Blocked()&&IsCode()){codeViewer.SetWrap(!codeViewer.GetState().wrap);UpdateButtons();}break;
+        case CLOSE_TAB:CloseDocument(documents.Active().id);break;
+        case CLOSE_OTHERS:if(!Blocked()){SaveActiveState();documentHost.CloseExternal();documents.CloseOthers(documents.Active().id);RenderDocument();}break;
+        case CLOSE_FILES:if(!Blocked()){SaveActiveState();documentHost.CloseExternal();documents.CloseAllFiles();viewingFile=false;reading=false;RenderDocument();}break;
+        case SHOW_TREE:treeVisible=!treeVisible;Layout();break;
+        case INCLUDE_IGNORED:if(!Blocked())projectTree.SetIncludeIgnored(!projectTree.IncludeIgnored(),importError);UpdateButtons();break;
+        case RELOAD_FILE:
+            if(!Blocked()&&reloadPending){SaveActiveState();documentHost.CloseExternal();documents.Reload(reloadPending,importError);reloadPending=0;RenderDocument();}break;
+        case KEEP_FILE:reloadPending=0;Layout();break;
         case OPEN_FILE:
         case OPEN_DROP:
             ChooseFile(); break;
@@ -1746,13 +2140,25 @@ LRESULT CALLBACK Proc(HWND h, UINT message, WPARAM wp, LPARAM lp)
         if (wp == 2)
             ToggleMask();
         return 0;
+    case WM_POWERBROADCAST:
     case WM_DISPLAYCHANGE:
     case WM_DWMCOMPOSITIONCHANGED:
     case WM_DEVICECHANGE:
-        RefreshPrivacy();
+        RefreshPrivacy();UpdateMonitors();
         return 0;
     case WM_TIMER:
-        if (wp == SCROLL_TIMER)
+        if(wp==5 && mirror) {
+            mirror->Tick();
+            if(renderedSafe!=IsPrivateContentSafe()) {
+                if(Blocked()) {
+                    documentHost.Hide();SendMessageW(tooltips,TTM_POP,0,0);
+                    if(filePicker){ShowWindow(filePicker,SW_HIDE);PostMessageW(filePicker,WM_COMMAND,IDCANCEL,0);}
+                }
+                Layout();
+            }
+            if(page==Page::Presentation)InvalidateRect(h,nullptr,FALSE);
+        }
+        else if (wp == SCROLL_TIMER)
             ScrollTick();
         else if (wp == SAVE_TIMER)
         {
@@ -1770,7 +2176,7 @@ LRESULT CALLBACK Proc(HWND h, UINT message, WPARAM wp, LPARAM lp)
             if (!affinityOk || cloned != previousCloned || topologyKnown != previousKnown)
                 RefreshPrivacy();
         }
-        else if (wp == QA_TIMER)
+        else if (wp == QA_TIMER && qa)
             QaTick();
         return 0;
     case WM_CLOSE:
@@ -1785,12 +2191,15 @@ LRESULT CALLBACK Proc(HWND h, UINT message, WPARAM wp, LPARAM lp)
         DestroyWindow(h);
         return 0;
     case WM_DESTROY:
-        for (UINT_PTR timer : {PRIVACY_TIMER, SCROLL_TIMER, SAVE_TIMER, QA_TIMER})
+        for (UINT_PTR timer : {PRIVACY_TIMER, SCROLL_TIMER, SAVE_TIMER, QA_TIMER,(UINT_PTR)5})
             KillTimer(h, timer);
+        if(mirror)mirror->Stop();
+        documentHost.CloseExternal();
         if (f8Registered)
             UnregisterHotKey(h, 2);
         if (underlay)
             DestroyWindow(underlay);
+        window=nullptr;editor=nullptr;
         PostQuitMessage(qa && !qaPass ? 30 : 0);
         return 0;
     }
@@ -1802,6 +2211,9 @@ int WINAPI wWinMain(HINSTANCE inst, HINSTANCE, LPWSTR, int show)
     instance = inst;
     int count = 0;
     LPWSTR *args = CommandLineToArgvW(GetCommandLineW(), &count);
+#ifndef QUIETSHARE_QA
+    if(count>1){LocalFree(args);return 2;}
+#endif
     for (int i = 1; i < count; ++i)
     {
         std::wstring flag = args[i];
@@ -1829,7 +2241,10 @@ int WINAPI wWinMain(HINSTANCE inst, HINSTANCE, LPWSTR, int show)
         dataDir = qaDir + L"\\Data";
     }
     else
+    {
         dataDir = GetLocalDataDirectory();
+        page = Page::Home;
+    }
     if (dataDir.empty())
         return 4;
     CreateDirectoryW(dataDir.c_str(), nullptr);
@@ -1841,7 +2256,7 @@ int WINAPI wWinMain(HINSTANCE inst, HINSTANCE, LPWSTR, int show)
             return 7;
         if (GetLastError() == ERROR_ALREADY_EXISTS)
         {
-            HWND existing = FindWindowW(L"QuietSharePrivate", L"QuietShare - Nhắc chữ riêng");
+            HWND existing = FindWindowW(L"QuietSharePrivate", nullptr);
             if (existing)
             {
                 ShowWindow(existing, SW_RESTORE);
@@ -1911,6 +2326,10 @@ int WINAPI wWinMain(HINSTANCE inst, HINSTANCE, LPWSTR, int show)
     RefreshFonts();
     BOOL dark = TRUE;
     DwmSetWindowAttribute(window, 20, &dark, sizeof(dark));
+    BOOL privatePreview=TRUE;
+    DwmSetWindowAttribute(window,DWMWA_FORCE_ICONIC_REPRESENTATION,&privatePreview,sizeof(privatePreview));
+    DwmSetWindowAttribute(window,DWMWA_HAS_ICONIC_BITMAP,&privatePreview,sizeof(privatePreview));
+    DwmSetWindowAttribute(window,DWMWA_DISALLOW_PEEK,&privatePreview,sizeof(privatePreview));
     DWORD rounded = 2;
     DwmSetWindowAttribute(window, 33, &rounded, sizeof(rounded));
     COLORREF border = DIVIDER;
@@ -1925,19 +2344,37 @@ int WINAPI wWinMain(HINSTANCE inst, HINSTANCE, LPWSTR, int show)
     }
     Layout();
     UpdateWindow(window);
+    if(!qa)PostMessageW(window,VerifyPrivacyMessage,0,0);
     if (!qa && !Blocked())
         SetFocus(GetDlgItem(window, OPEN_DROP));
     MSG message{};
     int result;
     while ((result = GetMessageW(&message, nullptr, 0, 0)) > 0)
     {
+        if(message.message==WM_KEYDOWN) {
+            bool control=(GetKeyState(VK_CONTROL)&0x8000)!=0,shift=(GetKeyState(VK_SHIFT)&0x8000)!=0;
+            if(control && message.wParam==L'O'){shift?ChooseFolder():ChooseFile();continue;}
+            if(control && message.wParam==L'F'){SendMessageW(window,WM_COMMAND,FIND,0);continue;}
+            if(control && message.wParam==L'W'){CloseDocument(documents.Active().id);continue;}
+            if(control && message.wParam==VK_TAB && !Blocked()) {
+                SaveActiveState();documentHost.CloseExternal();documents.Cycle(shift?-1:1,importError);
+                viewingFile=documents.Active().id!=0;RenderDocument();continue;
+            }
+            if(control && message.wParam==L'C' && IsPdf()) {if(!Blocked())pdfViewer.CopySelection();continue;}
+            if(control && message.wParam==L'0'){ResetFont();continue;}
+            if(control && (message.wParam==VK_ADD || message.wParam==VK_OEM_PLUS)){AdjustFont(2);continue;}
+            if(control && (message.wParam==VK_SUBTRACT || message.wParam==VK_OEM_MINUS)){AdjustFont(-2);continue;}
+            if(message.hwnd==findInput && message.wParam==VK_RETURN){RunFind(!shift);continue;}
+            if(message.wParam==VK_ESCAPE && findVisible){findVisible=false;Layout();SetFocus(ContentWindow());continue;}
+            if(message.wParam==VK_SPACE && reading && !viewingFile && message.hwnd!=findInput && !Blocked()){ToggleRun();continue;}
+        }
         if (message.message == WM_KEYDOWN && message.wParam == VK_F11)
         { ToggleFocus(); continue; }
         if (message.message == WM_KEYDOWN && message.wParam == VK_ESCAPE && focusMode)
         { ToggleFocus(); continue; }
         if (message.message == WM_KEYDOWN && message.wParam == VK_TAB)
             SendMessageW(window, WM_CHANGEUISTATE, MAKEWPARAM(UIS_CLEAR, UISF_HIDEFOCUS), 0);
-        if (message.message == WM_KEYDOWN && message.wParam == VK_F8 && !f8Registered)
+        if (message.message == WM_KEYDOWN && message.wParam == VK_F8 && !f8Registered && !(message.lParam & (1L<<30)))
         {
             ToggleMask();
             continue;
