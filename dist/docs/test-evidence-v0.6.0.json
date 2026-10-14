@@ -1,5 +1,5 @@
 {
-  "version": "0.5.0",
+  "version": "0.6.0",
   "platform": "win-x64",
   "windowsBuild": 26200,
   "baselineV03": {
@@ -10,7 +10,7 @@
     "releasePE": 7,
     "status": "PASS before changes"
   },
-  "passed": 930,
+  "passed": 999,
   "failed": 0,
   "suites": [
     {
@@ -1309,7 +1309,7 @@
     },
     {
       "name": "Native UI / fixtures / DPAPI / resources",
-      "passed": 232,
+      "passed": 236,
       "failed": 0,
       "notTested": 0,
       "checks": [
@@ -1958,6 +1958,22 @@
           "status": "PASS"
         },
         {
+          "name": "qa-visible/layout-minimal.bmp.validBmpAndReviewPng",
+          "status": "PASS"
+        },
+        {
+          "name": "qa-visible/layout-minimal.bmp.windowPixelsVisible",
+          "status": "PASS"
+        },
+        {
+          "name": "qa-visible/layout-minimal.bmp.darkInterfacePresent",
+          "status": "PASS"
+        },
+        {
+          "name": "qa-visible/layout-minimal.bmp.textLikePixelsPresent",
+          "status": "PASS"
+        },
+        {
           "name": "qa-visible/pdf-file.bmp.validBmpAndReviewPng",
           "status": "PASS"
         },
@@ -2254,11 +2270,11 @@
           "status": "PASS"
         },
         {
-          "name": "QuietShare.exe.fileVersion0.5.0",
+          "name": "QuietShare.exe.fileVersion0.6.0",
           "status": "PASS"
         },
         {
-          "name": "QuietShare.exe.productVersion0.5.0",
+          "name": "QuietShare.exe.productVersion0.6.0",
           "status": "PASS"
         },
         {
@@ -2266,11 +2282,11 @@
           "status": "PASS"
         },
         {
-          "name": "QuietShare-Setup.exe.fileVersion0.5.0",
+          "name": "QuietShare-Setup.exe.fileVersion0.6.0",
           "status": "PASS"
         },
         {
-          "name": "QuietShare-Setup.exe.productVersion0.5.0",
+          "name": "QuietShare-Setup.exe.productVersion0.6.0",
           "status": "PASS"
         },
         {
@@ -2625,7 +2641,7 @@
     },
     {
       "name": "Shipping EXE / multi-view integration",
-      "passed": 148,
+      "passed": 179,
       "failed": 0,
       "notTested": 5,
       "checks": [
@@ -3162,15 +3178,127 @@
           "status": "PASS"
         },
         {
-          "name": "narrowProjectDrawerShowsStructure",
+          "name": "narrowExplorerAndScriptStayVisible",
           "status": "PASS"
         },
         {
-          "name": "narrowFileOpenRevealsViewer",
+          "name": "narrowFileOpenKeepsExplorerAndCode",
+          "status": "PASS"
+        },
+        {
+          "name": "narrowFileOpenKeepsExpandedProject",
+          "status": "PASS"
+        },
+        {
+          "name": "narrowExplorerAndCodeDoNotOverlap",
           "status": "PASS"
         },
         {
           "name": "resizeRestoresTreeAlongsideCode",
+          "status": "PASS"
+        },
+        {
+          "name": "explorerSplitterStoresExactWidth",
+          "status": "PASS"
+        },
+        {
+          "name": "explorerSplitterResizesBothPanes",
+          "status": "PASS"
+        },
+        {
+          "name": "explorerSplitterOwnsDrag",
+          "status": "PASS"
+        },
+        {
+          "name": "hidingExplorerCancelsDrag",
+          "status": "PASS"
+        },
+        {
+          "name": "hiddenExplorerMouseMoveKeepsWidth",
+          "status": "PASS"
+        },
+        {
+          "name": "focusCancelsExplorerDrag",
+          "status": "PASS"
+        },
+        {
+          "name": "focusReturnsPreferredExplorerWidth",
+          "status": "PASS"
+        },
+        {
+          "name": "narrowResizeClampsWithoutForgettingWidth",
+          "status": "PASS"
+        },
+        {
+          "name": "wideResizeRestoresPreferredExplorerWidth",
+          "status": "PASS"
+        },
+        {
+          "name": "activityCanBeHiddenIndependently",
+          "status": "PASS"
+        },
+        {
+          "name": "activityHidePreservesDocumentAndProject",
+          "status": "PASS"
+        },
+        {
+          "name": "tabsCanBeHiddenIndependently",
+          "status": "PASS"
+        },
+        {
+          "name": "tabsHidePreservesDocumentAndProject",
+          "status": "PASS"
+        },
+        {
+          "name": "toolbarCanBeHiddenIndependently",
+          "status": "PASS"
+        },
+        {
+          "name": "toolbarHidePreservesDocumentAndProject",
+          "status": "PASS"
+        },
+        {
+          "name": "statusCanBeHiddenIndependently",
+          "status": "PASS"
+        },
+        {
+          "name": "statusHidePreservesDocumentAndProject",
+          "status": "PASS"
+        },
+        {
+          "name": "layoutButtonSurvivesHiddenBars",
+          "status": "PASS"
+        },
+        {
+          "name": "activityRailHidden",
+          "status": "PASS"
+        },
+        {
+          "name": "tabBarHidden",
+          "status": "PASS"
+        },
+        {
+          "name": "toolbarHidden",
+          "status": "PASS"
+        },
+        {
+          "name": "layoutPreferencesApplyAcrossPages",
+          "status": "PASS"
+        },
+        {
+          "name": "resetLayoutRestoresAllBarsAndWidth",
+          "status": "PASS"
+        },
+        {
+          "name": "protectedLayoutMenuOpens",
+          "status": "PASS"
+        },
+        {
+          "name": "layoutMenuCaptureExclusion",
+          "status": "PASS"
+        },
+        {
+          "name": "layoutMenuPreservesWgcGate",
           "status": "PASS"
         },
         {
@@ -3202,6 +3330,10 @@
           "status": "PASS"
         },
         {
+          "name": "layoutPreferencesWrittenLocally",
+          "status": "PASS"
+        },
+        {
           "name": "productionFirstExitClean",
           "status": "PASS"
         },
@@ -3215,6 +3347,14 @@
         },
         {
           "name": "DPAPIRestartRestoresDraftOnly",
+          "status": "PASS"
+        },
+        {
+          "name": "restartRestoresLayoutPreferences",
+          "status": "PASS"
+        },
+        {
+          "name": "resetRestoresNavigationAfterRestart",
           "status": "PASS"
         },
         {
@@ -3245,10 +3385,130 @@
     },
     {
       "name": "Optional browser / rendered WGC surface / lifecycle",
-      "passed": 44,
+      "passed": 78,
       "failed": 0,
       "notTested": 0,
       "checks": [
+        {
+          "name": "inputExplicitHttps",
+          "status": "PASS"
+        },
+        {
+          "name": "inputExplicitHttpLocalPort",
+          "status": "PASS"
+        },
+        {
+          "name": "inputUppercaseHttps",
+          "status": "PASS"
+        },
+        {
+          "name": "inputTrimOuterWhitespace",
+          "status": "PASS"
+        },
+        {
+          "name": "inputBareDomain",
+          "status": "PASS"
+        },
+        {
+          "name": "inputBareDomainPath",
+          "status": "PASS"
+        },
+        {
+          "name": "inputBareLocalhostPort",
+          "status": "PASS"
+        },
+        {
+          "name": "inputPlainWordSearch",
+          "status": "PASS"
+        },
+        {
+          "name": "inputSpaceSearch",
+          "status": "PASS"
+        },
+        {
+          "name": "inputVietnameseUtf8",
+          "status": "PASS"
+        },
+        {
+          "name": "inputReservedQueryCharacters",
+          "status": "PASS"
+        },
+        {
+          "name": "inputDotInPhraseStaysSearch",
+          "status": "PASS"
+        },
+        {
+          "name": "inputEmojiUtf8",
+          "status": "PASS"
+        },
+        {
+          "name": "inputRejectScript",
+          "status": "PASS"
+        },
+        {
+          "name": "inputRejectNumericUnsafeScheme",
+          "status": "PASS"
+        },
+        {
+          "name": "inputRejectData",
+          "status": "PASS"
+        },
+        {
+          "name": "inputRejectFile",
+          "status": "PASS"
+        },
+        {
+          "name": "inputRejectExternalProtocol",
+          "status": "PASS"
+        },
+        {
+          "name": "inputRejectCredentials",
+          "status": "PASS"
+        },
+        {
+          "name": "inputRejectEmptyHost",
+          "status": "PASS"
+        },
+        {
+          "name": "inputRejectMalformedHttps",
+          "status": "PASS"
+        },
+        {
+          "name": "inputRejectBlank",
+          "status": "PASS"
+        },
+        {
+          "name": "inputRejectInteriorControl",
+          "status": "PASS"
+        },
+        {
+          "name": "inputRejectOversize",
+          "status": "PASS"
+        },
+        {
+          "name": "inputRejectOversizeEncodedQuery",
+          "status": "PASS"
+        },
+        {
+          "name": "inputRejectInvalidUtf16",
+          "status": "PASS"
+        },
+        {
+          "name": "strictNavigationDoesNotAcceptSearch",
+          "status": "PASS"
+        },
+        {
+          "name": "strictNavigationDoesNotAcceptUnsafeScheme",
+          "status": "PASS"
+        },
+        {
+          "name": "strictNavigationAcceptsResolvedSearch",
+          "status": "PASS"
+        },
+        {
+          "name": "browserInputRegressionExit",
+          "status": "PASS"
+        },
         {
           "name": "noExistingUserApp",
           "status": "PASS"
@@ -3311,6 +3571,14 @@
         },
         {
           "name": "scriptSchemeRejected",
+          "status": "PASS"
+        },
+        {
+          "name": "fileSchemeRejected",
+          "status": "PASS"
+        },
+        {
+          "name": "externalSchemeRejected",
           "status": "PASS"
         },
         {
@@ -3399,6 +3667,14 @@
         },
         {
           "name": "separateProfilePreservesSyntheticCookie",
+          "status": "PASS"
+        },
+        {
+          "name": "addressBarVietnameseSearchNavigatesGoogle",
+          "status": "PASS"
+        },
+        {
+          "name": "googleShortcutNavigatesHome",
           "status": "PASS"
         },
         {
@@ -3586,20 +3862,20 @@
   ],
   "files": {
     "QuietShare.exe": {
-      "bytes": 776192,
-      "sha256": "508424f291daa5d952f370827c8b80d4a0b1bf8a47a5d6ebcd29cd1e2a536dd6",
+      "bytes": 792576,
+      "sha256": "630998d957d1f5c44d4aebe3215db65042e25dc0213aedd61d228ed024aacf90",
       "x64PE": true,
       "machine": "0x8664",
       "optionalHeaderMagic": "0x20b",
       "fileVersion": [
         0,
-        5,
+        6,
         0,
         0
       ],
       "productVersion": [
         0,
-        5,
+        6,
         0,
         0
       ],
@@ -3622,20 +3898,20 @@
       ]
     },
     "QuietShare-Setup.exe": {
-      "bytes": 12402176,
-      "sha256": "b0ad92693bc2593d33787e7dd9121d930c5fef909988a7a45750faacd19313b3",
+      "bytes": 12418560,
+      "sha256": "da08214275ec32ceb87f5b4bcedffe64228745bd34cf874c86763a41741761c3",
       "x64PE": true,
       "machine": "0x8664",
       "optionalHeaderMagic": "0x20b",
       "fileVersion": [
         0,
-        5,
+        6,
         0,
         0
       ],
       "productVersion": [
         0,
-        5,
+        6,
         0,
         0
       ],
@@ -3711,7 +3987,7 @@
   },
   "monitorCount": 1,
   "actualWgcCanary": true,
-  "canaryElapsedMs": 344,
+  "canaryElapsedMs": 328,
   "listedVideoControllers": [
     {
       "Name": "Parsec Virtual Display Adapter",
@@ -3723,11 +3999,12 @@
     }
   ],
   "pdfCooperativeBudgetMs": 750,
-  "pdfStressObservedMs": 1360,
+  "pdfStressObservedMs": 1359,
   "browser": {
     "metrics": {
-      "coldStartAndCanaryMs": 1078,
-      "chatgptPublicHttpsLoaded": true
+      "coldStartAndCanaryMs": 3047,
+      "chatgptPublicHttpsLoaded": true,
+      "googleSearchPublicHttpsLoaded": true
     },
     "notTested": [
       "ChatGPT authenticated session and third-party OAuth",

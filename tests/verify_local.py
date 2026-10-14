@@ -1,4 +1,4 @@
-"""Verify QuietShare 0.5.0 teleprompter GDI captures and export review PNGs.
+"""Verify QuietShare 0.6.0 teleprompter GDI captures and export review PNGs.
 
 This checks one local BitBlt capture path. It cannot establish what Zoom,
 Teams, OBS, another capture API, a remote viewer, or a projector receives.
@@ -27,7 +27,7 @@ REQUIRED_CAPTURES = {
                    "minimum-editing.bmp", "minimum-masked.bmp", "wide.bmp", "hover.bmp", "pressed.bmp", "english-editing.bmp", "empty.bmp", "empty-reading.bmp",
                    "dpi-125.bmp", "dpi-150.bmp", "home.bmp", "settings.bmp", "focus.bmp", "code-file.bmp",
                    "image-file.bmp", "image-focus.bmp", "file-error.bmp", "tabs-overflow.bmp", "code-focus.bmp",
-                   "project-wide.bmp", "project-medium.bmp", "project-minimum.bmp", "pdf-file.bmp", "pdf-focus.bmp",
+                   "project-wide.bmp", "project-medium.bmp", "project-minimum.bmp", "layout-minimal.bmp", "pdf-file.bmp", "pdf-focus.bmp",
                    "presentation.bmp", "presentation-en.bmp", "tabs-masked.bmp","browser-off.bmp","browser-off-en.bmp","browser-minimum.bmp"),
     "qa-excluded": ("excluded.bmp",),
 }
@@ -165,7 +165,7 @@ def main() -> int:
             check(f"{folder}.diagnosticsReadable", False, str(error))
             diagnostic = {}
         expected = {
-            "applicationVersion": "0.5.0",
+            "applicationVersion": "0.6.0",
             "topologyKnown": True,
             "displayCloned": False,
             "privacyApplied": True,
@@ -256,10 +256,12 @@ def main() -> int:
                 if before == "editing.bmp":
                     # Edit/read now share an uncluttered document surface. Verify
                     # the changing commands rather than require decorative body changes.
-                    rows = min(96,first.height,second.height)
-                    first = Bitmap(first.width,rows,first.rgb[:first.width*rows*3])
-                    second = Bitmap(second.width,rows,second.rgb[:second.width*rows*3])
-                    minimum,scope = 0.01,"native caption and compact command strip"
+                    # Tabs and tools occupy separate rows below the native caption.
+                    top, bottom = 32, min(112,first.height,second.height)
+                    rows = bottom-top
+                    first = Bitmap(first.width,rows,first.rgb[top*first.width*3:bottom*first.width*3])
+                    second = Bitmap(second.width,rows,second.rgb[top*second.width*3:bottom*second.width*3])
+                    minimum,scope = 0.01,"native tabs and toolbar below the caption"
                 difference = changed_fraction(first,second)
                 check(f"qa-visible.{before}_to_{after}.changed", difference >= minimum,
                       {"minimum": minimum, "actual": difference,"scope":scope})
@@ -308,7 +310,7 @@ def main() -> int:
     installer_report = artifacts / "installer-self-test.json"
     try:
         setup = json.loads(installer_report.read_text(encoding="utf-8-sig"))
-        for field, expected in {"selfTestPassed": True, "version": "0.5.0",
+        for field, expected in {"selfTestPassed": True, "version": "0.6.0",
                                 "versionResourceVerified": True, "payloadResourceId": 301,
                                 "payloadPortableExecutable": True, "fixedInstallPathVerified": True,
                                 "installationWrites": False, "error": ""}.items():
@@ -356,7 +358,7 @@ def main() -> int:
     report = {
         "passed": not failed,
         "method": "GDI BitBlt with SRCCOPY | CAPTUREBLT; synthetic purple underlay and exact window crops",
-        "applicationVersion": "0.5.0",
+        "applicationVersion": "0.6.0",
         "scope": "Local native text teleprompter editing, reading, font controls, timer scroll, pause, mask and compact layout",
         "limits": [
             "A separate QA executable uses synthetic fixtures and controlled visual/privacy gates. The shipping executable rejects these switches.",

@@ -6,6 +6,7 @@ from ctypes import wintypes
 import hashlib,json,os,subprocess,sys,time,threading,shutil
 from pathlib import Path
 from http.server import BaseHTTPRequestHandler,ThreadingHTTPServer
+from urllib.parse import urlsplit,parse_qs
 sys.dont_write_bytecode=True
 import lifecycle_regression as native
 ROOT,EXE,USER32=native.ROOT,native.EXE,native.USER32
@@ -52,6 +53,15 @@ def main():
     server=ThreadingHTTPServer(('127.0.0.1',0),Site);thread=threading.Thread(target=server.serve_forever,daemon=True);thread.start()
     base='http://127.0.0.1:'+str(server.server_port)
     try:
+        compiler=shutil.which('g++.exe') or shutil.which('g++')
+        if not compiler:raise RuntimeError('MinGW-w64 is required for the browser input regression.')
+        input_exe=folder/'browser-input-regression.exe'
+        subprocess.run([compiler,'-std=c++17','-O2','-static','-static-libgcc','-static-libstdc++','-DUNICODE','-D_UNICODE',
+            '-D_WIN32_WINNT=0x0A00',str(ROOT/'tests/browser_input_regression.cpp'),str(ROOT/'src/Browser.cpp'),
+            '-I'+str(ROOT/'vendor/webview2/build/native/include'),'-o',str(input_exe),'-lole32','-luuid','-luser32'],check=True)
+        input_result=subprocess.run([str(input_exe)],capture_output=True,text=True)
+        for item in json.loads(input_result.stdout)['checks']:check(item['name'],item['passed'])
+        check('browserInputRegressionExit',input_result.returncode==0)
         check('noExistingUserApp',not native.app_windows())
         startup=subprocess.STARTUPINFO();startup.dwFlags|=subprocess.STARTF_USESHOWWINDOW;startup.wShowWindow=0
         app=subprocess.Popen([str(EXE)],cwd=EXE.parent,env=env,startupinfo=startup)
@@ -83,8 +93,9 @@ def main():
         cmd(156);check('backRestoresFirstPage',wait(lambda:native.control_text(address)==base+'/first'))
         cmd(157);check('forwardRestoresSecondPage',wait(lambda:native.control_text(address)==base+'/second'))
         count=hits.count('/second');cmd(158);check('reloadHitsLocalPageAgain',wait(lambda:hits.count('/second')>count))
-        native.set_control_text(address,'javascript:alert(1)');cmd(165)
-        check('scriptSchemeRejected',q(10)==2 and q(12)==1 and native.control_text(address)==base+'/second')
+        for label,value in [('script','javascript:alert(1)'),('file','file:///C:/QuietShare-synthetic.txt'),('external','ms-excel:ofe|u|https://example.com')]:
+            native.set_control_text(address,value);cmd(165)
+            check(label+'SchemeRejected',q(10)==2 and q(12)==1 and native.control_text(address)==base+'/second')
         original_windows=set()
         @native.ENUM_PROC
         def baseline(hwnd,_):
@@ -136,6 +147,18 @@ def main():
         check('separateProfilePreservesSyntheticCookie',wait(lambda:any(cookies)))
         cmd(159)
         metrics['chatgptPublicHttpsLoaded']=wait(lambda:native.control_text(address).startswith('https://chatgpt.com') and q(13)==1,20)
+        query='QuietShare nội dung mẫu'
+        native.set_control_text(address,query);cmd(165)
+        def query_address():
+            current=urlsplit(native.control_text(address))
+            return current.scheme=='https' and current.hostname in ('www.google.com','google.com') and current.path=='/search' and parse_qs(current.query).get('q')==[query]
+        check('addressBarVietnameseSearchNavigatesGoogle',wait(query_address,12))
+        metrics['googleSearchPublicHttpsLoaded']=wait(lambda:query_address() and q(13)==1,12)
+        cmd(166)
+        def google_home():
+            current=urlsplit(native.control_text(address))
+            return current.scheme=='https' and current.hostname in ('www.google.com','google.com') and current.path in ('','/')
+        check('googleShortcutNavigatesHome',wait(google_home,12))
         native.send(window,0x7E,0,0)
         check('displayChangeClosesBrowser',q(10)==0 and q(11)==0)
         native.send(window,0x10,timeout=6000);app.wait(timeout=8)

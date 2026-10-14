@@ -19,7 +19,7 @@ dist/*
 !dist/TEST_REPORT_v0.4.0.md
 !dist/TEST_REPORT_v0.4.1.md
 !dist/TEST_REPORT_v0.4.2.md
-!dist/TEST_REPORT_v0.5.0.md
+!dist/TEST_REPORT_v0.6.0.md
 !dist/CHANGELOG.md
 !dist/THIRD-PARTY.md
 !dist/release-inventory.json
@@ -28,13 +28,14 @@ dist/*
 !dist/docs/quietshare-home.png
 !dist/docs/quietshare-settings.png
 !dist/docs/quietshare-project.png
+!dist/docs/quietshare-layout.png
 !dist/docs/Browser_Integration_Study.md
 !dist/docs/quietshare-browser.png
 !dist/docs/QuietShare_v0.4.0_Codex_Implementation_Plan.md
 !dist/docs/test-evidence-v0.4.0.json
 !dist/docs/test-evidence-v0.4.1.json
 !dist/docs/test-evidence-v0.4.2.json
-!dist/docs/test-evidence-v0.5.0.json
+!dist/docs/test-evidence-v0.6.0.json
 !dist/dependencies/
 !dist/dependencies/**
 
@@ -42,3 +43,5 @@ dist/*
 prepare-sdk.ps1
 tests/make_fixtures.py
 QuietShare-v0.1.0-win-x64.zip
+
+!dist/docs/QuietShare_v0.6.0_Implementation_Plan.md

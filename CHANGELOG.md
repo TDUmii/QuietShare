@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.6.0
+
+- Explorer giữ nguyên thư mục, các nhánh mở và lựa chọn khi mở file, đổi tab hoặc resize; cây và nội dung vẫn hiện cạnh nhau trong cửa sổ hẹp. Kéo đường phân cách để chỉnh độ rộng, dùng Ctrl+B hoặc nút đóng trên tiêu đề để ẩn/hiện.
+- Nút Bố cục bật/tắt riêng thanh icon, Explorer, tab, công cụ và trạng thái. Các lựa chọn và độ rộng được lưu cục bộ; có lệnh khôi phục mặc định. F11 giữ các nút cần thiết, ẩn tab và khôi phục bố cục khi thoát.
+- Ô địa chỉ nhận URL HTTP/HTTPS, tên miền, localhost có cổng và từ khóa tìm Google, bao gồm tiếng Việt. Thêm nút Google, giữ nút ChatGPT và mở Google mặc định khi bật trình duyệt.
+- Bo góc nhẹ các vùng nội dung, căn chỉnh các thanh nhất quán và giảm repaint khi hover/resize để giao diện ổn định hơn.
+- Explorer preserves the folder, expanded branches and selection when opening files, switching tabs or resizing; the tree and content remain side by side in narrow windows. Drag the divider to resize it; use Ctrl+B or the header close button to hide/show it.
+- Layout independently toggles the activity bar, Explorer, tabs, toolbar and status bar. Choices and width are saved locally, with a reset command. F11 keeps essential actions, hides tabs and restores the chosen layout on exit.
+- Address entry accepts HTTP/HTTPS URLs, domains, localhost with a port, and Google search terms including Vietnamese. Added a Google shortcut alongside ChatGPT and Google as the default browser destination.
+- Softly rounded content surfaces, consistent bar alignment and fewer unnecessary hover/resize repaints improve the desktop interface.
+
 ## 0.5.0
 
 - Optional on-demand WebView2 browser with URL entry, Back/Forward/Reload and ChatGPT shortcut; disabled at every app startup.

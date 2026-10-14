@@ -145,10 +145,10 @@ LRESULT CALLBACK DocumentBar::Proc(HWND h,UINT message,WPARAM wp,LPARAM lp) {
     case WM_MOUSEMOVE: {
         MSG msg{h,message,wp,lp,0,{}}; SendMessageW(self->tooltip_,TTM_RELAYEVENT,0,(LPARAM)&msg);
         TRACKMOUSEEVENT track{sizeof(track),TME_LEAVE,h,0}; TrackMouseEvent(&track);
-        self->hovered_=-1; RECT c{}; GetClientRect(h,&c);int arrows=self->Overflowing()?MulDiv(22,self->dpi_,96):0;
+        int previousHover=self->hovered_;self->hovered_=-1; RECT c{}; GetClientRect(h,&c);int arrows=self->Overflowing()?MulDiv(22,self->dpi_,96):0;
         POINT point{GET_X_LPARAM(lp),GET_Y_LPARAM(lp)};
         for(size_t i=0;i<self->rects_.size();i++) { RECT r=self->rects_[i]; OffsetRect(&r,arrows-self->offset_,0);if(PtInRect(&r,point))self->hovered_=(int)i; }
-        InvalidateRect(h,nullptr,FALSE);return 0;
+        if(previousHover!=self->hovered_)InvalidateRect(h,nullptr,FALSE);return 0;
     }
     case WM_MOUSELEAVE:self->hovered_=-1;SendMessageW(self->tooltip_,TTM_POP,0,0);InvalidateRect(h,nullptr,FALSE);return 0;
     case WM_KEYDOWN:

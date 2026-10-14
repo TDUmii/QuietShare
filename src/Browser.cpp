@@ -64,6 +64,43 @@ bool NormalizeWebAddress(const std::wstring& input,std::wstring& output){
     auto host=address.substr(start,end-start);if(host.empty()||host.find(L'@')!=std::wstring::npos)return false;
     output=address;return true;
 }
+bool ResolveWebInput(const std::wstring& input,std::wstring& output){
+    output.clear();if(input.size()>4096)return false;
+    auto begin=input.find_first_not_of(L" \t\r\n"),end=input.find_last_not_of(L" \t\r\n");
+    if(begin==std::wstring::npos)return false;
+    std::wstring value=input.substr(begin,end-begin+1),lower=value;
+    std::transform(lower.begin(),lower.end(),lower.begin(),::towlower);
+    for(wchar_t c:value)if(c<32||c==127)return false;
+    if(lower.rfind(L"https://",0)==0||lower.rfind(L"http://",0)==0)return NormalizeWebAddress(value,output);
+    auto authority=value.substr(0,value.find_first_of(L"/?#")),host=authority;
+    const auto colon=authority.find(L':');
+    bool port=false;
+    if(colon!=std::wstring::npos){
+        const auto digits=authority.substr(colon+1);
+        port=!digits.empty()&&digits.size()<=5&&std::all_of(digits.begin(),digits.end(),[](wchar_t c){return c>=L'0'&&c<=L'9';});
+        host=authority.substr(0,colon);
+    }
+    std::wstring hostLower=host;std::transform(hostLower.begin(),hostLower.end(),hostLower.begin(),::towlower);
+    const bool bareHost=host.find(L'.')!=std::wstring::npos||hostLower==L"localhost";
+    // A scheme must never turn into a request to an external/native application.
+    if(colon!=std::wstring::npos&&!(bareHost&&port)){
+        const bool scheme=colon>0&&std::iswalpha(value[0])&&std::all_of(value.begin(),value.begin()+colon,
+            [](wchar_t c){return std::iswalnum(c)||c==L'+'||c==L'-'||c==L'.';});
+        if(scheme)return false;
+    }
+    if(bareHost&&value.find_first_of(L" \t\r\n")==std::wstring::npos&&(colon==std::wstring::npos||port))
+        return NormalizeWebAddress(L"https://"+value,output);
+    const int bytes=WideCharToMultiByte(CP_UTF8,WC_ERR_INVALID_CHARS,value.data(),static_cast<int>(value.size()),nullptr,0,nullptr,nullptr);
+    if(!bytes)return false;
+    std::string utf8(bytes,'\0');
+    if(WideCharToMultiByte(CP_UTF8,WC_ERR_INVALID_CHARS,value.data(),static_cast<int>(value.size()),utf8.data(),bytes,nullptr,nullptr)!=bytes)return false;
+    std::wstring address=L"https://www.google.com/search?q=";constexpr wchar_t hex[]=L"0123456789ABCDEF";
+    for(unsigned char c:utf8){
+        if((c>='a'&&c<='z')||(c>='A'&&c<='Z')||(c>='0'&&c<='9')||c=='-'||c=='_'||c=='.'||c=='~')address+=wchar_t(c);
+        else{address+=L'%';address+=hex[c>>4];address+=hex[c&15];}
+    }
+    return NormalizeWebAddress(address,output);
+}
 struct Browser::Impl:std::enable_shared_from_this<Browser::Impl> {
     HWND parent=nullptr;RECT bounds{};bool enabled=false,ready=false,verified=false,visible=false,probing=false,locked=false,suspendPending=false;
     unsigned generation=0,pid=0;UINT64 navigationId=0;int error=0;bool loaded=false;std::wstring address,pending,notice;
@@ -189,7 +226,7 @@ bool Browser::MountProbe(HWND probe){auto s=impl;if(!s->controller||!s->enabled)
 }
 void Browser::FinishProbe(bool passed){auto s=impl;if(!s->enabled)return;s->probing=false;s->verified=passed&&!s->locked;s->ready=s->verified;if(!passed)s->Fail();s->Notify();}
 void Browser::Navigate(const std::wstring& value){auto s=impl;std::wstring address;if(!s->ready||s->locked||!s->web)return;
-    if(!NormalizeWebAddress(value,address)){s->notice=L"address";s->Notify();return;}s->loaded=false;s->notice.clear();s->web->Navigate(address.c_str());}
+    if(!ResolveWebInput(value,address)){s->notice=L"address";s->Notify();return;}s->loaded=false;s->notice.clear();s->web->Navigate(address.c_str());}
 void Browser::Back(){if(Ready()&&!impl->locked)impl->web->GoBack();}void Browser::Forward(){if(Ready()&&!impl->locked)impl->web->GoForward();}void Browser::Reload(){if(Ready()&&!impl->locked)impl->web->Reload();}
 void Browser::Focus(){if(Ready()&&impl->visible)impl->controller->MoveFocus(COREWEBVIEW2_MOVE_FOCUS_REASON_PROGRAMMATIC);}
 bool Browser::Enabled()const{return impl->enabled;}bool Browser::Ready()const{return impl->ready;}bool Browser::Verified()const{return impl->verified;}
@@ -204,8 +241,8 @@ std::wstring Browser::Status(bool en)const{
     if(State()==3)return en?L"Browser unavailable. Check the WebView2 Runtime or retry enabling.":L"Không mở được trình duyệt. Kiểm tra WebView2 Runtime hoặc bật lại.";
     if(State()==1)return en?L"Starting browser and verifying its rendered surface...":L"Đang mở trình duyệt và kiểm tra vùng render...";
     if(State()==4)return en?L"Browser hidden. Disable and enable to verify again.":L"Trình duyệt đã che. Tắt và bật lại để kiểm tra lại.";
-    if(impl->notice==L"address")return en?L"Enter an HTTP or HTTPS address.":L"Nhập địa chỉ HTTP hoặc HTTPS.";
+    if(impl->notice==L"address")return en?L"Enter search terms or an HTTP / HTTPS web address.":L"Nhập từ khóa tìm kiếm hoặc địa chỉ web HTTP / HTTPS.";
     if(impl->notice==L"navigation")return en?L"Page could not load. Check the connection or reload.":L"Không tải được trang. Kiểm tra kết nối hoặc tải lại.";
-    return en?L"Web · Separate profile · Text chat":L"Web · Hồ sơ riêng · Chat bằng chữ";
+    return en?L"Web · Separate profile":L"Web · Hồ sơ riêng";
 }
 }

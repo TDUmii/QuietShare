@@ -1,12 +1,12 @@
 # QuietShare - duyệt web tùy chọn / optional browsing
 
-Trạng thái: đã triển khai trong 0.5.0. / Status: implemented in 0.5.0.
+Trạng thái: triển khai từ 0.5.0, cập nhật tìm kiếm trong 0.6.0. / Status: introduced in 0.5.0, search updated in 0.6.0.
 
 ## Thiết kế / Design
 
-Một WebView2 Win32 trong vùng nội dung của QuietShare, dùng chế độ Window to Visual. Mặc định tắt ở mỗi lần khởi động; chỉ tạo environment/controller khi người dùng bật. Có URL, Back, Forward, Reload và nút ChatGPT. Không tự mở trình duyệt ngoài app cho URL người dùng nhập.
+Một WebView2 Win32 trong vùng nội dung của QuietShare, dùng chế độ Window to Visual. Mặc định tắt ở mỗi lần khởi động; chỉ tạo environment/controller khi người dùng bật. Có ô địa chỉ/tìm kiếm, Back, Forward, Reload và nút Google/ChatGPT. Địa chỉ HTTP/HTTPS mở trực tiếp; từ khóa được mã hóa UTF-8 để tìm Google. Bộ xử lý từ khóa chỉ áp dụng cho nội dung người dùng nhập; navigation và popup vẫn kiểm tra URL HTTP/HTTPS chặt chẽ. Không tự mở trình duyệt ngoài app cho URL người dùng nhập.
 
-One on-demand Win32 WebView2 in QuietShare's content area, using Window to Visual hosting. It starts disabled, with URL entry, Back/Forward/Reload and ChatGPT. [Microsoft - Hosting modes](https://learn.microsoft.com/en-us/microsoft-edge/webview2/concepts/windowed-vs-visual-hosting).
+One on-demand Win32 WebView2 in QuietShare's content area, using Window to Visual hosting. It starts disabled, with URL/search entry, Back/Forward/Reload and Google/ChatGPT shortcuts. User queries become UTF-8 encoded Google searches; navigation and popup handlers retain strict HTTP/HTTPS validation. [Microsoft - Hosting modes](https://learn.microsoft.com/en-us/microsoft-edge/webview2/concepts/windowed-vs-visual-hosting).
 
 Chỉ đóng gói loader x64 194.912 byte, pin SHA-256 và SDK 1.0.4258.31. Runtime Evergreen dùng bản cài riêng trên Windows. Nếu thiếu hoặc quá cũ, vùng web báo không khả dụng; phần đọc file vẫn hoạt động. README có đường dẫn cài/cập nhật runtime chính thức.
 
@@ -33,6 +33,6 @@ The browser must pass an actual positive/excluded WGC render test before user na
 
 ## Bằng chứng và giới hạn kiểm thử / Evidence and limits
 
-Xem [báo cáo 0.5.0](../TEST_REPORT_v0.5.0.md) và [bằng chứng đã lọc](test-evidence-v0.5.0.json). Kiểm thử shipping EXE dùng profile riêng, HTTP fixture cục bộ và WGC thực. Trang ChatGPT công khai qua HTTPS đã tải thành công; không đăng nhập tài khoản cá nhân hoặc gửi tin nhắn khi kiểm thử.
+Xem [báo cáo 0.6.0](../TEST_REPORT_v0.6.0.md) và [bằng chứng đã lọc](test-evidence-v0.6.0.json). Kiểm thử shipping EXE dùng profile riêng, HTTP fixture cục bộ và WGC thực, kiểm tra chuyển đến tìm kiếm Google bằng tiếng Việt cùng các shortcut. Bằng chứng ghi riêng trạng thái tải HTTPS công khai; không đăng nhập tài khoản cá nhân hoặc gửi tin nhắn khi kiểm thử.
 
 Authenticated ChatGPT chat, third-party OAuth, client-certificate sites, a clean machine without Evergreen Runtime, physical Extend/Duplicate and meeting receivers remain unverified. Capture exclusion is not DRM or protection against external cameras. [Microsoft - SetWindowDisplayAffinity](https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-setwindowdisplayaffinity).

@@ -322,7 +322,8 @@ int wmain(int argc, wchar_t **argv)
     check("pdfOrdinaryCommandPreserved",
           PeekMessageW(&pending, owner, WM_COMMAND, WM_COMMAND, PM_REMOVE) && pending.wParam == 777);
     confidenceLost = true;
-    Sleep(17);
+    // Cross two coarse Windows tick intervals before asserting the 16 ms gate poll.
+    Sleep(40);
     check("pdfFreshOwnerConfidenceMasks", !pdf.RenderCurrentPage() &&
                                               !(GetWindowLongPtrW(pdf.Window(), GWL_STYLE) & WS_VISIBLE) &&
                                               pdf.CachedBytes() == 0);

@@ -33,4 +33,6 @@ private:
     struct Impl;std::shared_ptr<Impl> impl;
 };
 bool NormalizeWebAddress(const std::wstring& input,std::wstring& output);
+// Address-bar input only. Navigation events still use the strict URL validator.
+bool ResolveWebInput(const std::wstring& input,std::wstring& output);
 }

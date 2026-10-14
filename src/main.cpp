@@ -51,7 +51,8 @@ constexpr int MODE = 100, PLAY = 101, SMALLER = 102, LARGER = 103, SPEED = 104, 
               CLOSE_TAB = 148, CLOSE_OTHERS = 149, CLOSE_FILES = 150, SHOW_TREE = 151,
               INCLUDE_IGNORED = 152, CLOSE_APPLICATION = 153, NAV_BROWSER=154, BROWSER_TOGGLE=155,
               WEB_BACK=156,WEB_FORWARD=157,WEB_RELOAD=158,WEB_CHATGPT=159,
-              SOURCE_MONITOR = 160, DEST_MONITOR = 161, FIND_INPUT = 162, SIZE_INPUT = 163, WEB_ADDRESS=164,WEB_GO=165;
+              SOURCE_MONITOR = 160, DEST_MONITOR = 161, FIND_INPUT = 162, SIZE_INPUT = 163, WEB_ADDRESS=164,WEB_GO=165,WEB_GOOGLE=166,
+              LAYOUT_MENU=180,SHOW_ACTIVITY=181,SHOW_TABS=182,SHOW_TOOLBAR=183,SHOW_STATUS=184,RESET_LAYOUT=185;
 constexpr int NORMAL_SIDEBAR = 44, COMPACT_SIDEBAR = 44, CONTROL_HEIGHT = 36, CONTROL_GAP = 8;
 constexpr UINT_PTR PRIVACY_TIMER = 1, SCROLL_TIMER = 2, SAVE_TIMER = 3, QA_TIMER = 4;
 HINSTANCE instance;
@@ -73,7 +74,10 @@ CodeViewer &codeViewer=documentHost.code;
 PdfViewer &pdfViewer=documentHost.pdf;
 std::unique_ptr<MirrorController> mirror;
 std::vector<MonitorInfo> monitors;
-bool findVisible = false, treeVisible = true, projectDrawer = false, mirrorPointer = true, verifying = false, renderedSafe = false;
+bool findVisible = false, treeVisible = true, mirrorPointer = true, verifying = false, renderedSafe = false;
+bool activityVisible=true,tabsVisible=true,toolbarVisible=true,statusVisible=true,splitterDragging=false,splitterHovered=false;
+int explorerWidth=208;
+RECT explorerRect{},splitterRect{};
 DocumentId reloadPending = 0;
 std::wstring viewerError, findMessage;
 constexpr UINT VerifyPrivacyMessage = WM_APP + 12;
@@ -139,7 +143,7 @@ bool OpenContentPath(const std::wstring &path);
 bool IsImage() { return viewingFile && ActiveContent().kind == ContentKind::Image; }
 bool IsCode() { return viewingFile && (ActiveContent().kind == ContentKind::Code || documents.Active().language==L"md" || documents.Active().language==L"markdown"); }
 bool IsPdf() { return viewingFile && ActiveContent().kind == ContentKind::Pdf; }
-HWND ContentWindow() { return projectDrawer?projectTree.Handle():IsImage()?imageViewer:IsCode()?codeViewer.Window():IsPdf()?pdfViewer.Window():editor; }
+HWND ContentWindow() { return IsImage()?imageViewer:IsCode()?codeViewer.Window():IsPdf()?pdfViewer.Window():editor; }
 int &ActiveTextSize() { return IsCode() ? codePoints : fontPoints; }
 
 int S(int value)
@@ -275,6 +279,24 @@ bool IsPrivateContentSafe()
            !verifying && (qa || (mirror && mirror->IsVerified() && !mirror->Busy()));
 }
 bool Blocked() { return !IsPrivateContentSafe(); }
+void SaveLayoutPreferences()
+{
+    if(qa)return;
+    const DWORD values[]={1,activityVisible,tabsVisible,toolbarVisible,statusVisible,treeVisible,(DWORD)explorerWidth};
+    const auto temporary=dataDir+L"\\layout.tmp";
+    if(WriteBytes(temporary,values,sizeof(values)))
+        MoveFileExW(temporary.c_str(),(dataDir+L"\\layout.dat").c_str(),MOVEFILE_REPLACE_EXISTING|MOVEFILE_WRITE_THROUGH);
+}
+void LoadLayoutPreferences()
+{
+    if(qa)return;
+    const auto bytes=ReadBytes(dataDir+L"\\layout.dat");DWORD values[7]{};
+    if(bytes.size()!=sizeof(values))return;
+    CopyMemory(values,bytes.data(),sizeof(values));
+    if(values[0]!=1 || values[6]<112 || values[6]>420)return;
+    for(int i=1;i<=5;i++)if(values[i]>1)return;
+    activityVisible=values[1];tabsVisible=values[2];toolbarVisible=values[3];statusVisible=values[4];treeVisible=values[5];explorerWidth=values[6];
+}
 void SetTopmost(bool value)
 {
     topmost = value;
@@ -423,14 +445,19 @@ void UpdateButtons()
 {
     SetWindowTextW(GetDlgItem(window,BROWSER_TOGGLE),T(browser.Enabled()?L"Tắt trình duyệt":L"Bật trình duyệt",browser.Enabled()?L"Disable browser":L"Enable browser"));
     SetWindowTextW(GetDlgItem(window,WEB_CHATGPT),L"ChatGPT");
+    SetWindowTextW(GetDlgItem(window,WEB_GOOGLE),L"Google");
     SetWindowTextW(GetDlgItem(window,WEB_GO),T(L"Mở",L"Go"));
     SetWindowTextW(GetDlgItem(window,NAV_BROWSER),T(L"Trình duyệt",L"Browser"));
-    for(int id:{WEB_ADDRESS,WEB_GO,WEB_CHATGPT,WEB_RELOAD})EnableWindow(GetDlgItem(window,id),browser.Ready()&&!Blocked());
+    for(int id:{WEB_ADDRESS,WEB_GO,WEB_CHATGPT,WEB_GOOGLE,WEB_RELOAD})EnableWindow(GetDlgItem(window,id),browser.Ready()&&!Blocked());
     EnableWindow(GetDlgItem(window,WEB_BACK),browser.Ready()&&!Blocked()&&browser.CanBack());
     EnableWindow(GetDlgItem(window,WEB_FORWARD),browser.Ready()&&!Blocked()&&browser.CanForward());
     EnableWindow(GetDlgItem(window,BROWSER_TOGGLE),browser.Enabled()||!Blocked());
     SetTip(NAV_BROWSER,T(L"Trình duyệt tùy chọn",L"Optional browser"));
     SetTip(WEB_BACK,T(L"Quay lại",L"Back"));SetTip(WEB_FORWARD,T(L"Tiến tới",L"Forward"));SetTip(WEB_RELOAD,T(L"Tải lại trang",L"Reload page"));
+    SendMessageW(webAddress,EM_SETCUEBANNER,TRUE,(LPARAM)T(L"Tìm trên Google hoặc nhập địa chỉ web",L"Search Google or enter a web address"));
+    SetWindowTextW(GetDlgItem(window,LAYOUT_MENU),T(L"Bố cục",L"Layout"));
+    SetTip(LAYOUT_MENU,T(L"Bố cục: thanh bên, tab, công cụ, trạng thái",L"Layout: activity bar, tabs, toolbar and status bar"));
+    SetTip(SHOW_TREE,T(L"Ẩn Explorer - Ctrl+B",L"Hide Explorer - Ctrl+B"));
     SetWindowTextW(window, L"QuietShare");
     SetWindowTextW(GetDlgItem(window, MODE), T(reading ? L"Sửa lời" : L"Đọc", reading ? L"Edit" : L"Read"));
     SetWindowTextW(GetDlgItem(window, NAV_SCRIPT), T(L"Lời nhắc", L"Script"));
@@ -546,51 +573,63 @@ void Layout()
     RECT client{};GetClientRect(window,&client);
     int width=MulDiv(client.right,96,dpi),height=MulDiv(client.bottom,96,dpi);
     compactUi=width<750;shortUi=height<380;
-    railWidth=focusMode?0:compactUi?COMPACT_SIDEBAR:NORMAL_SIDEBAR;
+    railWidth=focusMode||!activityVisible?0:compactUi?COMPACT_SIDEBAR:NORMAL_SIDEBAR;
     int gutter=focusMode?8:12;
     contentLeft=railWidth+gutter;contentRight=width-gutter;
-    for(HWND button:buttons)ShowWindow(button,SW_HIDE);
-    for(HWND control:{fontSlider,sizeInput,findInput,webAddress,sourceMonitor,destinationMonitor,documentBar.Window(),projectTree.Handle()})
-        if(control)ShowWindow(control,SW_HIDE);
-    fontLabelRect={};
+    std::vector<HWND> visibleControls;
+    auto reveal=[&](HWND control){visibleControls.push_back(control);};
+    fontLabelRect={};explorerRect={};splitterRect={};
+    const int bottom=height-(!focusMode&&statusVisible?24:8);
     auto move=[&](int id,int left,int top,int w,int h=32){
-        HWND child=GetDlgItem(window,id);MoveWindow(child,S(left),S(top),S(w),S(h),TRUE);ShowWindow(child,SW_SHOW);
+        HWND child=GetDlgItem(window,id);MoveWindow(child,S(left),S(top),S(w),S(h),TRUE);reveal(child);
     };
-    if(!focusMode) {
+    if(!focusMode&&activityVisible) {
         int y=56;for(int id:{NAV_HOME,NAV_SCRIPT,NAV_PRESENTATION,NAV_BROWSER,NAV_SETTINGS}){
             move(id,6,y,railWidth-12,32);y+=36;
         }
     }
-    contentCardRect={S(contentLeft),S(48),S(contentRight),S(height-(focusMode?8:24))};
+    contentCardRect={S(contentLeft),S(48),S(contentRight),S(bottom)};
     if(page==Page::Content || focusMode) {
         int left=contentLeft;
-        if(!focusMode && treeVisible && !projectTree.Root().empty() && !Blocked() && width>=740) {
-            int treeWidth=std::clamp(width/4,176,240);MoveWindow(projectTree.Handle(),S(left),S(40),S(treeWidth),S(height-64),TRUE);
-            ShowWindow(projectTree.Handle(),SW_SHOW);left+=treeWidth+8;
+        if(!focusMode && treeVisible && !projectTree.Root().empty() && !Blocked()) {
+            const int treeWidth=std::clamp(explorerWidth,112,std::max(112,contentRight-left-192));
+            explorerRect={S(left),S(4),S(left+treeWidth),S(bottom)};
+            MoveWindow(projectTree.Handle(),S(left+4),S(40),S(treeWidth-8),S(std::max(80,bottom-44)),TRUE);
+            reveal(projectTree.Handle());move(SHOW_TREE,left+treeWidth-28,6,24,24);
+            splitterRect={S(left+treeWidth),S(4),S(left+treeWidth+8),S(bottom)};left+=treeWidth+8;
         }
         contentLeft=left;
         int x=contentRight;
         auto action=[&](int id,int w=28){x-=w;move(id,x,2,w,28);};
         action(OVERFLOW);action(MASK);action(FOCUS);
-        if(contentRight-contentLeft>=440)action(TOPMOST);
-        action(LARGER);action(RESET_ZOOM,48);action(SMALLER);
-        if(contentRight-contentLeft>=520)action(OPEN_FILE);
-        if(!viewingFile && contentRight-contentLeft>=430) {
-            action(MODE);if(reading)action(PLAY);
+        if(!focusMode)action(LAYOUT_MENU);
+        if(!focusMode&&tabsVisible) {
+            MoveWindow(documentBar.Window(),S(contentLeft),0,S(std::max(64,x-contentLeft-4)),S(32),TRUE);
+            reveal(documentBar.Window());
         }
-        int tabWidth=std::max(64,x-contentLeft-4);
-        MoveWindow(documentBar.Window(),S(contentLeft),0,S(tabWidth),S(32),TRUE);
-        ShowWindow(documentBar.Window(),SW_SHOW);
-        contentCardRect={S(contentLeft),S(40),S(contentRight),S(height-(focusMode?8:24))};
+        int bodyTop=40;
+        if(!focusMode&&toolbarVisible) {
+            int toolX=contentLeft;
+            for(int id:{SMALLER,RESET_ZOOM,LARGER,OPEN_FILE,TOPMOST}) {
+                const int w=id==RESET_ZOOM?48:28;
+                if(toolX+w>contentRight)break;
+                move(id,toolX,36,w,28);toolX+=w+4;
+            }
+            if(!viewingFile&&toolX+28<=contentRight){move(MODE,toolX,36,28,28);toolX+=32;}
+            if(reading&&!viewingFile&&toolX+28<=contentRight)move(PLAY,toolX,36,28,28);
+            bodyTop=72;
+        }
+        contentCardRect={S(contentLeft),S(bodyTop),S(contentRight),S(bottom)};
         if(findVisible && !reloadPending && !Blocked()) {
-            int y=40, inputWidth=std::max(80,contentRight-contentLeft-104);
-            MoveWindow(findInput,S(contentLeft),S(y),S(inputWidth),S(28),TRUE);ShowWindow(findInput,SW_SHOW);
+            int y=bodyTop, inputWidth=std::max(80,contentRight-contentLeft-104);
+            MoveWindow(findInput,S(contentLeft),S(y),S(inputWidth),S(28),TRUE);reveal(findInput);
             move(FIND_PREV,contentRight-96,y,28,28);move(FIND_NEXT,contentRight-64,y,28,28);move(FIND_CLOSE,contentRight-32,y,28,28);
-            contentCardRect.top=S(76);
+            contentCardRect.top=S(bodyTop+36);
         }
         if(reloadPending && !Blocked()) {
-            move(RELOAD_FILE,contentLeft,40,112,28);move(KEEP_FILE,contentLeft+120,40,144,28);
-            contentCardRect.top=S(76);
+            const int w=std::min(112,(contentRight-contentLeft-8)/2);
+            move(RELOAD_FILE,contentLeft,bodyTop,w,28);move(KEEP_FILE,contentLeft+w+8,bodyTop,contentRight-contentLeft-w-8,28);
+            contentCardRect.top=S(bodyTop+36);
         }
     }
     else if(page==Page::Home) {
@@ -602,7 +641,7 @@ void Layout()
     else if(page==Page::Settings) {
         int x=contentLeft+12,y=64;move(SMALLER,x,y,32);x+=32;
         x+=4;move(SIZE_INPUT,x,y,64);x+=64;fontLabelRect={S(x),S(y),S(x+28),S(y+32)};x+=32;move(LARGER,x,y,32);x+=40;move(RESET_ZOOM,x,y,56);
-        MoveWindow(fontSlider,S(contentLeft+12),S(112),S(contentRight-contentLeft-24),S(24),TRUE);ShowWindow(fontSlider,SW_SHOW);
+        MoveWindow(fontSlider,S(contentLeft+12),S(112),S(contentRight-contentLeft-24),S(24),TRUE);reveal(fontSlider);
         move(TOPMOST,contentLeft+12,160,64);move(LANGUAGE,contentLeft+84,160,44);
         move(INCLUDE_IGNORED,contentLeft+12,shortUi?200:208,std::min(260,contentRight-contentLeft-24),shortUi?24:28);
         move(BROWSER_TOGGLE,contentLeft+12,shortUi?232:248,std::min(200,contentRight-contentLeft-24),shortUi?24:28);
@@ -610,37 +649,48 @@ void Layout()
     else if(page==Page::Browser) {
         int x=contentLeft,y=48;
         for(int id:{WEB_BACK,WEB_FORWARD,WEB_RELOAD}){move(id,x,y,28,28);x+=32;}
+        move(WEB_GOOGLE,x,y,64,28);x+=68;
         move(WEB_CHATGPT,x,y,76,28);
-        move(BROWSER_TOGGLE,contentRight-152,y,152,28);
-        int addressY=84,addressWidth=std::max(48,contentRight-contentLeft-56);
+        const bool narrow=contentRight-contentLeft<412;
+        move(BROWSER_TOGGLE,contentRight-152,narrow?84:y,152,28);
+        int addressY=narrow?120:84,addressWidth=std::max(48,contentRight-contentLeft-56);
         MoveWindow(webAddress,S(contentLeft),S(addressY),S(addressWidth),S(28),TRUE);
-        if(!Blocked()){ShowWindow(webAddress,SW_SHOW);move(WEB_GO,contentRight-48,addressY,48,28);}
-        contentCardRect={S(contentLeft),S(120),S(contentRight),S(height-(focusMode?8:24))};
-        move(MASK,contentRight-28,8,28,28);
+        if(!Blocked()){reveal(webAddress);move(WEB_GO,contentRight-48,addressY,48,28);}
+        contentCardRect={S(contentLeft),S(addressY+36),S(contentRight),S(bottom)};
     }
     else if(page==Page::Presentation) {
         int available=contentRight-contentLeft-88;
-        MoveWindow(sourceMonitor,S(contentLeft+88),S(48),S(available),S(160),TRUE);ShowWindow(sourceMonitor,SW_SHOW);
-        MoveWindow(destinationMonitor,S(contentLeft+88),S(88),S(available),S(160),TRUE);ShowWindow(destinationMonitor,SW_SHOW);
+        MoveWindow(sourceMonitor,S(contentLeft+88),S(48),S(available),S(160),TRUE);reveal(sourceMonitor);
+        MoveWindow(destinationMonitor,S(contentLeft+88),S(88),S(available),S(160),TRUE);reveal(destinationMonitor);
         move(VERIFY_PRIVACY,contentLeft,132,std::min(220,contentRight-contentLeft));
         move(MIRROR_START,contentLeft,176,84);move(MIRROR_STOP,contentLeft+92,176,84);
         if(contentRight-contentLeft>=280)move(POINTER,contentLeft+184,176,96);
     }
+    if(!focusMode&&page!=Page::Content) {
+        move(LAYOUT_MENU,contentRight-28,8,28,28);
+        if(page==Page::Browser)move(MASK,contentRight-60,8,28,28);
+    }
+    if(splitterRect.right<=splitterRect.left&&(splitterDragging||splitterHovered)) {
+        splitterDragging=splitterHovered=false;
+        if(GetCapture()==window)ReleaseCapture();
+    }
     RECT body=contentCardRect;InflateRect(&body,-S(4),-S(4));
-    projectDrawer=!focusMode && page==Page::Content && treeVisible && !projectTree.Root().empty() && !Blocked() && width<740;
-    if(projectDrawer) {
-        MoveWindow(projectTree.Handle(),body.left,body.top,body.right-body.left,body.bottom-body.top,TRUE);
-        ShowWindow(projectTree.Handle(),SW_SHOW);
+    std::vector<HWND> shellControls=buttons;
+    for(HWND control:{fontSlider,sizeInput,findInput,webAddress,sourceMonitor,destinationMonitor,documentBar.Window(),projectTree.Handle()})shellControls.push_back(control);
+    for(HWND control:shellControls)if(control) {
+        const bool visible=std::find(visibleControls.begin(),visibleControls.end(),control)!=visibleControls.end();
+        const bool wasVisible=(GetWindowLongPtrW(control,GWL_STYLE)&WS_VISIBLE)!=0;
+        if(visible!=wasVisible)ShowWindow(control,visible?SW_SHOW:SW_HIDE);
     }
     documentHost.SetBounds(body);
     RECT textRect{};GetClientRect(editor,&textRect);
     InflateRect(&textRect,-S(12),-S(8));SendMessageW(editor,EM_SETRECT,0,(LPARAM)&textRect);
     DocumentType displayType=IsCode()?DocumentType::Code:documents.Active().type;
     renderedSafe=!Blocked();
-    documentHost.Show(displayType,renderedSafe,page==Page::Content&&!projectDrawer);
+    documentHost.Show(displayType,renderedSafe,page==Page::Content);
     browser.SetBounds(body);browser.Show(page==Page::Browser&&renderedSafe&&!IsIconic(window));
     UpdateButtons();UpdateDocumentBar();
-    RedrawWindow(window,nullptr,nullptr,RDW_INVALIDATE|RDW_ALLCHILDREN|RDW_UPDATENOW);
+    RedrawWindow(window,nullptr,nullptr,RDW_INVALIDATE|RDW_ALLCHILDREN);
 }
 void ApplyTextFormat()
 {
@@ -865,7 +915,6 @@ void RenderDocument()
 void ActivateDocument(DocumentId id)
 {
     if(Blocked())return;Pause();SaveActiveState();documentHost.CloseExternal();
-    if(projectDrawer)treeVisible=false;
     if(!documents.Activate(id,importError)){RenderDocument();return;}
     viewingFile=id!=0;RenderDocument();documents.EvictInactiveHeavy();
 }
@@ -877,7 +926,6 @@ void CloseDocument(DocumentId id)
 void ShowScript()
 {
     if(Blocked())return;SaveActiveState();documentHost.CloseExternal();documents.Activate(0);
-    if(projectDrawer)treeVisible=false;
     viewingFile=false;focusMode=false;reading=false;scriptReading=false;RenderDocument();
 }
 void ShowOpenedFile()
@@ -892,7 +940,6 @@ bool OpenContentPath(const std::wstring &path)
         reloadPending=result.id;findVisible=false;RenderDocument();return false;
     }
     if(!result) {RenderDocument();return false;}
-    if(projectDrawer)treeVisible=false;
     viewingFile=true;viewerError.clear();RenderDocument();
     if(!viewerError.empty()) {
         importError=viewerError;documentHost.CloseExternal();
@@ -1008,6 +1055,24 @@ void OverflowMenu()
     int selected=menu.Show(window,r,dpi,uiFont,std::move(entries));
     if(selected)SendMessageW(window,WM_COMMAND,selected,0);
 }
+void LayoutMenu()
+{
+    std::vector<ToolMenuItem> entries={
+        {SHOW_ACTIVITY,T(L"Thanh điều hướng",L"Activity bar"),true,0xeb51,activityVisible},
+        {SHOW_TREE,T(L"Explorer   Ctrl+B",L"Explorer   Ctrl+B"),!Blocked(),0xeaf7,treeVisible},
+        {SHOW_TABS,T(L"Thanh tab",L"Tab bar"),true,0xea7f,tabsVisible},
+        {SHOW_TOOLBAR,T(L"Thanh công cụ",L"Toolbar"),true,0xeb51,toolbarVisible},
+        {SHOW_STATUS,T(L"Thanh trạng thái",L"Status bar"),true,0xeb01,statusVisible},
+        {RESET_LAYOUT,T(L"Khôi phục bố cục",L"Reset layout"),true,0xeb37},
+        {NAV_HOME,T(L"Tổng quan",L"Overview"),true,0xeb06},
+        {NAV_SCRIPT,T(L"Lời nhắc",L"Script"),!Blocked(),0xeaf0},
+        {NAV_BROWSER,T(L"Trình duyệt",L"Browser"),true,0xeb01},
+        {NAV_PRESENTATION,T(L"Trình chiếu",L"Presentation"),true,0xea7a},
+        {NAV_SETTINGS,T(L"Cài đặt",L"Settings"),true,0xeb51}};
+    RECT anchor{};GetWindowRect(GetDlgItem(window,LAYOUT_MENU),&anchor);
+    ToolMenu menu;const int selected=menu.Show(window,anchor,dpi,uiFont,std::move(entries));
+    if(selected)SendMessageW(window,WM_COMMAND,selected,0);
+}
 void ToggleFocus()
 {
     focusMode = !focusMode;
@@ -1087,12 +1152,21 @@ void DrawCenteredMessage(HDC dc, RECT bounds, const wchar_t *heading, const wcha
 void Paint(HDC dc)
 {
     RECT client{};GetClientRect(window,&client);FillRect(dc,&client,bgBrush);
-    if(!focusMode)DrawSidebar(dc,railWidth,client.bottom,true);
+    if(!focusMode&&activityVisible)DrawSidebar(dc,railWidth,client.bottom,true);
     RECT title{S(contentLeft),S(12),S(contentRight),S(40)};
     if(!focusMode && page!=Page::Content)DrawTextAt(dc,page==Page::Home?T(L"Tổng quan",L"Overview"):
         page==Page::Settings?T(L"Cài đặt",L"Settings"):page==Page::Browser?T(L"Trình duyệt",L"Browser"):T(L"Trình chiếu",L"Presentation"),title,TEXT,titleFont);
     if(page==Page::Content || focusMode) {
-        FillRect(dc,&contentCardRect,cardBrush);
+        FillRoundRect(dc,contentCardRect,CARD,S(12));
+        if(explorerRect.right>explorerRect.left) {
+            FillRoundRect(dc,explorerRect,CARD,S(12));
+            RECT header=explorerRect;header.left+=S(12);header.right-=S(32);header.bottom=header.top+S(32);
+            DrawTextAt(dc,L"Explorer",header,MUTED,metaFont,DT_LEFT|DT_VCENTER|DT_SINGLELINE|DT_END_ELLIPSIS);
+            if(splitterHovered||splitterDragging) {
+                RECT line=splitterRect;line.left+=S(3);line.right-=S(3);
+                FillRoundRect(dc,line,ACCENT,S(2));
+            }
+        }
         if(Blocked()) {
             const wchar_t *heading=storageBlocked?T(L"Lời nhắc đang khóa",L"Script locked"):
                 masked?T(L"Đã che nội dung",L"Content hidden"):
@@ -1107,7 +1181,7 @@ void Paint(HDC dc)
         }
     }
     else if(page==Page::Browser) {
-        FillRect(dc,&contentCardRect,cardBrush);
+        FillRoundRect(dc,contentCardRect,CARD,S(12));
         if(!Blocked()) {
             RECT input{};GetWindowRect(webAddress,&input);MapWindowPoints(nullptr,window,(POINT*)&input,2);InflateRect(&input,1,1);
             HPEN border=CreatePen(PS_SOLID,1,DIVIDER);auto old=SelectObject(dc,border),brush=SelectObject(dc,GetStockObject(NULL_BRUSH));
@@ -1152,7 +1226,7 @@ void Paint(HDC dc)
         std::wstring label=IsPdf()||IsCode()||IsImage()?L"%":L"pt";
         DrawTextAt(dc,label,fontLabelRect,TEXT,uiFont,DT_CENTER|DT_VCENTER|DT_SINGLELINE);
     }
-    if(focusMode)return;
+    if(focusMode||!statusVisible)return;
     RECT footer{S(contentLeft),client.bottom-S(22),S(contentRight),client.bottom-S(2)};
     std::wstring label=Blocked()?T(L"Nội dung đang khóa",L"Content locked"):page==Page::Browser?(browser.Ready()?browser.Status(english):L""):
         saveFailed?T(L"Không lưu được lời nhắc",L"Script save failed"):
@@ -1167,7 +1241,7 @@ void DrawActionIcon(HDC dc,int id,RECT r,COLORREF color)
 {
     wchar_t glyph=id==SMALLER?0xeb3b:id==LARGER?0xea60:id==FOCUS?(focusMode?0xeb4d:0xeb4c):
         id==MASK?(masked?0xeae7:0xea70):id==TOPMOST?0xeb2b:id==OPEN_FILE?0xea7f:
-        id==PLAY?(running?0xead1:0xeb2c):id==MODE?0xea73:id==OVERFLOW?0xea7c:
+        id==PLAY?(running?0xead1:0xeb2c):id==MODE?0xea73:id==OVERFLOW?0xea7c:id==LAYOUT_MENU?0xebeb:id==SHOW_TREE?0xea76:
         id==FIND_CLOSE?0xea76:id==FIND_PREV?0xeab5:0xeab6;
     DrawCodicon(dc,glyph,r,color,S(16));
 }
@@ -1210,7 +1284,7 @@ void DrawButton(DRAWITEMSTRUCT *item)
     else if(item->CtlID==WEB_BACK||item->CtlID==WEB_FORWARD||item->CtlID==WEB_RELOAD) {
         DrawCodicon(item->hDC,item->CtlID==WEB_BACK?0xea9b:item->CtlID==WEB_FORWARD?0xea9c:0xeb37,button,disabled?DISABLED:TEXT,S(16));
     }
-    else if(strip && (item->CtlID==FOCUS || item->CtlID==MASK || item->CtlID==TOPMOST || item->CtlID==SMALLER || item->CtlID==LARGER || item->CtlID==MODE || item->CtlID==PLAY || item->CtlID==OPEN_FILE || item->CtlID==OVERFLOW || item->CtlID==FIND_CLOSE || item->CtlID==FIND_PREV || item->CtlID==FIND_NEXT))
+    else if(item->CtlID==LAYOUT_MENU||item->CtlID==SHOW_TREE || (strip && (item->CtlID==FOCUS || item->CtlID==MASK || item->CtlID==TOPMOST || item->CtlID==SMALLER || item->CtlID==LARGER || item->CtlID==MODE || item->CtlID==PLAY || item->CtlID==OPEN_FILE || item->CtlID==OVERFLOW || item->CtlID==FIND_CLOSE || item->CtlID==FIND_PREV || item->CtlID==FIND_NEXT)))
         DrawActionIcon(item->hDC,item->CtlID,button,disabled?DISABLED:TEXT);
     else
     {
@@ -1441,7 +1515,7 @@ bool CompactFits()
             return false;
     }
     return rect.left >= 0 && rect.right <= client.right && rect.top >= 0 &&
-           rect.bottom <= client.bottom - S(focusMode ? 4 : 24) && rect.bottom - rect.top >= S(80);
+           rect.bottom <= client.bottom - S(focusMode||!statusVisible ? 4 : 24) && rect.bottom - rect.top >= S(80);
 }
 void WriteQa()
 {
@@ -1449,7 +1523,7 @@ void WriteQa()
     GetWindowDisplayAffinity(window, &actual);
     auto boolean = [](bool value) -> std::wstring { return value ? L"true" : L"false"; };
     std::wstring report =
-        L"{\n  \"applicationVersion\": \"0.5.0\",\n  \"windowsBuild\": " + std::to_wstring(WindowsBuild()) +
+        L"{\n  \"applicationVersion\": \"0.6.0\",\n  \"windowsBuild\": " + std::to_wstring(WindowsBuild()) +
         L",\n  \"displayCloned\": " + boolean(cloned) + L",\n  \"topologyKnown\": " + boolean(topologyKnown) +
         L",\n  \"privacyApplied\": " + boolean(privacy.applied) +
         L",\n  \"requestedAffinity\": 17,\n  \"actualAffinity\": " + std::to_wstring(actual) +
@@ -1695,10 +1769,9 @@ void QaTick()
         qaV04=CompactFits()&&!browser.Enabled()&&qaV04;
         SetWindowPos(window,nullptr,0,0,browserSize.right-browserSize.left,browserSize.bottom-browserSize.top,SWP_NOMOVE|SWP_NOZORDER|SWP_NOACTIVATE);
         ShowScript(); SetReading(true); ToggleFocus();
-        RECT strip{};GetWindowRect(documentBar.Window(),&strip);
         RECT focusButton{};GetWindowRect(GetDlgItem(window,FOCUS),&focusButton);
         qaFocus = focusMode && !(GetWindowLongPtrW(window,GWL_STYLE)&WS_CAPTION) && !IsWindowVisible(GetDlgItem(window,NAV_SCRIPT)) &&
-                  IsWindowVisible(documentBar.Window()) && strip.bottom-strip.top==S(32) &&
+                  !IsWindowVisible(documentBar.Window()) && !IsWindowVisible(GetDlgItem(window,SMALLER)) &&
                   focusButton.right-focusButton.left==S(28) && CompactFits();
         Capture(L"focus.bmp");
         SendMessageW(window,WM_COMMAND,MAKEWPARAM(FOCUS,BN_CLICKED),0);
@@ -1766,8 +1839,8 @@ void QaTick()
                 dpi=scale;english=language;RefreshFonts();
                 for(int width:{430,460,640,840,1080}) {
                     SetWindowPos(window,nullptr,0,0,S(width),S(width<500?320:560),SWP_NOMOVE|SWP_NOZORDER|SWP_NOACTIVATE);
-                    Layout();RECT strip{};GetClientRect(documentBar.Window(),&strip);
-                    qaV04=strip.bottom==S(32)&&CompactFits()&&qaV04;
+                    Layout();RECT exit{};GetClientRect(GetDlgItem(window,FOCUS),&exit);
+                    qaV04=!IsWindowVisible(documentBar.Window())&&exit.bottom==S(28)&&CompactFits()&&qaV04;
                 }
             }
             dpi=actualDpi;english=false;RefreshFonts();ToggleFocus();
@@ -1788,10 +1861,22 @@ void QaTick()
             qaV04=OpenContentPath(project+L"\\src\\main.py")&&qaV04;
             Capture(L"project-wide.bmp");
             SetWindowPos(window,nullptr,0,0,S(840),S(560),SWP_NOMOVE|SWP_NOZORDER|SWP_NOACTIVATE);Layout();
-            qaV04=OpenContentPath(project+L"\\src\\main.py")&&treeVisible&&!projectDrawer&&IsWindowVisible(projectTree.Handle())&&IsWindowVisible(codeViewer.Window())&&qaV04;
+            qaV04=OpenContentPath(project+L"\\src\\main.py")&&treeVisible&&IsWindowVisible(projectTree.Handle())&&IsWindowVisible(codeViewer.Window())&&qaV04;
             Capture(L"project-medium.bmp");
+            activityVisible=tabsVisible=toolbarVisible=statusVisible=false;Layout();
+            qaV04=IsWindowVisible(codeViewer.Window())&&IsWindowVisible(projectTree.Handle())&&CompactFits()&&qaV04;
+            Capture(L"layout-minimal.bmp");
+            activityVisible=tabsVisible=toolbarVisible=statusVisible=true;Layout();
             SetWindowPos(window,nullptr,0,0,S(430),S(320),SWP_NOMOVE|SWP_NOZORDER|SWP_NOACTIVATE);Layout();
-            qaV04=projectDrawer&&!IsWindowVisible(codeViewer.Window())&&qaV04;Capture(L"project-minimum.bmp");
+            qaV04=treeVisible&&IsWindowVisible(projectTree.Handle())&&IsWindowVisible(codeViewer.Window())&&qaV04;Capture(L"project-minimum.bmp");
+            for(UINT scale:{96U,120U,144U,192U})for(bool language:{false,true}) {
+                dpi=scale;english=language;RefreshFonts();
+                for(int width:{430,640,1080}) {
+                    SetWindowPos(window,nullptr,0,0,S(width),S(width<500?320:560),SWP_NOMOVE|SWP_NOZORDER|SWP_NOACTIVATE);Layout();
+                    qaV04=IsWindowVisible(projectTree.Handle())&&IsWindowVisible(codeViewer.Window())&&CompactFits()&&qaV04;
+                }
+            }
+            dpi=actualDpi;english=false;RefreshFonts();
             treeVisible=false;SetWindowPos(window,nullptr,0,0,S(840),S(560),SWP_NOMOVE|SWP_NOZORDER|SWP_NOACTIVATE);
             qaV04=OpenContentPath(qaDir+L"\\..\\qa-viewers\\unicode.pdf")&&IsPdf()&&qaV04;
             Capture(L"pdf-file.bmp");ToggleFocus();Capture(L"pdf-focus.bmp");ToggleFocus();
@@ -1841,7 +1926,8 @@ LRESULT CALLBACK Proc(HWND h, UINT message, WPARAM wp, LPARAM lp)
             {NAV_PRESENTATION,L"Trình chiếu"},{VERIFY_PRIVACY,L"Kiểm tra WGC"},{MIRROR_START,L"Bắt đầu"},
             {MIRROR_STOP,L"Dừng"},{POINTER,L"Con trỏ"},{RELOAD_FILE,L"Tải lại"},{KEEP_FILE,L"Giữ bản đang xem"},
             {INCLUDE_IGNORED,L"Hiện thư mục đang bỏ qua"},{NAV_BROWSER,L"Trình duyệt"},{BROWSER_TOGGLE,L"Bật trình duyệt"},
-            {WEB_BACK,L"Quay lại"},{WEB_FORWARD,L"Tiến tới"},{WEB_RELOAD,L"Tải lại"},{WEB_CHATGPT,L"ChatGPT"},{WEB_GO,L"Mở"}};
+            {WEB_BACK,L"Quay lại"},{WEB_FORWARD,L"Tiến tới"},{WEB_RELOAD,L"Tải lại"},{WEB_CHATGPT,L"ChatGPT"},{WEB_GOOGLE,L"Google"},{WEB_GO,L"Mở"},
+            {LAYOUT_MENU,L"Bố cục"},{SHOW_TREE,L"Ẩn Explorer"}};
         for (const auto &label : labels)
         {
             buttons.push_back(CreateWindowW(L"BUTTON", label.second,
@@ -1892,7 +1978,7 @@ LRESULT CALLBACK Proc(HWND h, UINT message, WPARAM wp, LPARAM lp)
             SetWindowLongPtrW(projectTree.Handle(),GWL_STYLE,GetWindowLongPtrW(projectTree.Handle(),GWL_STYLE)|TVS_NOTOOLTIPS);
         ApplyPrivacy(tooltips);
         findInput=CreateWindowExW(0,L"EDIT",L"",WS_CHILD|WS_TABSTOP|ES_AUTOHSCROLL,0,0,0,0,h,(HMENU)FIND_INPUT,instance,nullptr);
-        webAddress=CreateWindowExW(0,L"EDIT",L"https://chatgpt.com",WS_CHILD|WS_TABSTOP|ES_AUTOHSCROLL,0,0,0,0,h,(HMENU)WEB_ADDRESS,instance,nullptr);
+        webAddress=CreateWindowExW(0,L"EDIT",L"https://www.google.com",WS_CHILD|WS_TABSTOP|ES_AUTOHSCROLL,0,0,0,0,h,(HMENU)WEB_ADDRESS,instance,nullptr);
         SendMessageW(webAddress,EM_SETLIMITTEXT,4096,0);SetWindowTheme(webAddress,L"DarkMode_Explorer",nullptr);
         sourceMonitor=CreateWindowExW(0,L"COMBOBOX",L"",WS_CHILD|WS_TABSTOP|CBS_DROPDOWNLIST|CBS_OWNERDRAWFIXED|CBS_HASSTRINGS|WS_VSCROLL,0,0,0,0,h,(HMENU)SOURCE_MONITOR,instance,nullptr);
         destinationMonitor=CreateWindowExW(0,L"COMBOBOX",L"",WS_CHILD|WS_TABSTOP|CBS_DROPDOWNLIST|CBS_OWNERDRAWFIXED|CBS_HASSTRINGS|WS_VSCROLL,0,0,0,0,h,(HMENU)DEST_MONITOR,instance,nullptr);
@@ -1970,6 +2056,38 @@ LRESULT CALLBACK Proc(HWND h, UINT message, WPARAM wp, LPARAM lp)
         if(!Blocked()&&GetFocus()!=webAddress&&!browser.Address().empty())SetWindowTextW(webAddress,browser.Address().c_str());
         Layout();return 0;
     case WM_MOVE:browser.ParentMoved();return 0;
+    case WM_SETCURSOR:
+        if(LOWORD(lp)==HTCLIENT) {
+            POINT point{};GetCursorPos(&point);ScreenToClient(h,&point);
+            if(splitterDragging||PtInRect(&splitterRect,point)){SetCursor(LoadCursorW(nullptr,IDC_SIZEWE));return TRUE;}
+        }
+        break;
+    case WM_LBUTTONDOWN: {
+        POINT point{GET_X_LPARAM(lp),GET_Y_LPARAM(lp)};
+        if(!Blocked()&&PtInRect(&splitterRect,point)){splitterDragging=true;SetCapture(h);return 0;}
+        if(focusMode&&point.y<S(32)){SendMessageW(h,WM_NCLBUTTONDOWN,HTCAPTION,0);return 0;}
+        break;
+    }
+    case WM_MOUSEMOVE: {
+        POINT point{GET_X_LPARAM(lp),GET_Y_LPARAM(lp)};
+        if(splitterDragging&&GetCapture()==h) {
+            if(Blocked()||splitterRect.right<=splitterRect.left){ReleaseCapture();return 0;}
+            const int left=MulDiv(explorerRect.left,96,dpi);
+            const int next=std::clamp(MulDiv(point.x,96,dpi)-left,112,std::min(420,std::max(112,contentRight-left-192)));
+            if(next!=explorerWidth){explorerWidth=next;Layout();}
+            return 0;
+        }
+        const bool hover=PtInRect(&splitterRect,point);
+        if(hover!=splitterHovered){splitterHovered=hover;InvalidateRect(h,&splitterRect,FALSE);}
+        if(hover){TRACKMOUSEEVENT track{sizeof(track),TME_LEAVE,h,0};TrackMouseEvent(&track);}
+        break;
+    }
+    case WM_MOUSELEAVE:
+        if(splitterHovered){splitterHovered=false;InvalidateRect(h,&splitterRect,FALSE);}return 0;
+    case WM_LBUTTONUP:
+        if(splitterDragging){ReleaseCapture();SaveLayoutPreferences();return 0;}break;
+    case WM_CAPTURECHANGED:
+        if(splitterDragging){splitterDragging=false;InvalidateRect(h,&splitterRect,FALSE);}return 0;
     case WM_SIZE:
         if (wp == SIZE_MINIMIZED)
             Pause();
@@ -2062,6 +2180,9 @@ LRESULT CALLBACK Proc(HWND h, UINT message, WPARAM wp, LPARAM lp)
         case 13:return browser.Loaded()?1:0;
         case 14:return browser.ErrorCode();
         case 15:return browser.Suspended()?1:0;
+        case 16:return (activityVisible?1:0)|(tabsVisible?2:0)|(toolbarVisible?4:0)|(statusVisible?8:0)|(treeVisible?16:0);
+        case 17:return explorerWidth;
+        case 18:return splitterDragging&&GetCapture()==h;
         }
         return 0;
     case WM_APP+16:
@@ -2170,6 +2291,7 @@ LRESULT CALLBACK Proc(HWND h, UINT message, WPARAM wp, LPARAM lp)
             Layout();break;
         case WEB_GO:if(!Blocked()){browser.Navigate(TextOf(webAddress));browser.Focus();}break;
         case WEB_CHATGPT:if(!Blocked())browser.Navigate(L"https://chatgpt.com");break;
+        case WEB_GOOGLE:if(!Blocked())browser.Navigate(L"https://www.google.com");break;
         case WEB_BACK:if(!Blocked())browser.Back();break;
         case WEB_FORWARD:if(!Blocked())browser.Forward();break;
         case WEB_RELOAD:if(!Blocked())browser.Reload();break;
@@ -2212,7 +2334,15 @@ LRESULT CALLBACK Proc(HWND h, UINT message, WPARAM wp, LPARAM lp)
         case CLOSE_TAB:CloseDocument(documents.Active().id);break;
         case CLOSE_OTHERS:if(!Blocked()){SaveActiveState();documentHost.CloseExternal();documents.CloseOthers(documents.Active().id);RenderDocument();}break;
         case CLOSE_FILES:if(!Blocked()){SaveActiveState();documentHost.CloseExternal();documents.CloseAllFiles();viewingFile=false;reading=false;RenderDocument();}break;
-        case SHOW_TREE:treeVisible=!treeVisible;Layout();break;
+        case LAYOUT_MENU:LayoutMenu();break;
+        case SHOW_TREE:treeVisible=!treeVisible;SaveLayoutPreferences();Layout();break;
+        case SHOW_ACTIVITY:activityVisible=!activityVisible;SaveLayoutPreferences();Layout();break;
+        case SHOW_TABS:tabsVisible=!tabsVisible;SaveLayoutPreferences();Layout();break;
+        case SHOW_TOOLBAR:toolbarVisible=!toolbarVisible;SaveLayoutPreferences();Layout();break;
+        case SHOW_STATUS:statusVisible=!statusVisible;SaveLayoutPreferences();Layout();break;
+        case RESET_LAYOUT:
+            activityVisible=tabsVisible=toolbarVisible=statusVisible=treeVisible=true;explorerWidth=208;
+            SaveLayoutPreferences();Layout();break;
         case INCLUDE_IGNORED:if(!Blocked())projectTree.SetIncludeIgnored(!projectTree.IncludeIgnored(),importError);UpdateButtons();break;
         case RELOAD_FILE:
             if(!Blocked()&&reloadPending){SaveActiveState();documentHost.CloseExternal();documents.Reload(reloadPending,importError);reloadPending=0;RenderDocument();}break;
@@ -2390,6 +2520,7 @@ int WINAPI wWinMain(HINSTANCE inst, HINSTANCE, LPWSTR, int show)
     if (dataDir.empty())
         return 4;
     CreateDirectoryW(dataDir.c_str(), nullptr);
+    LoadLayoutPreferences();
     HANDLE singleInstance = nullptr;
     if (!qa)
     {
@@ -2496,7 +2627,7 @@ int WINAPI wWinMain(HINSTANCE inst, HINSTANCE, LPWSTR, int show)
         if(message.message==WM_KEYDOWN) {
             bool control=(GetKeyState(VK_CONTROL)&0x8000)!=0,shift=(GetKeyState(VK_SHIFT)&0x8000)!=0;
             if(control && message.wParam==L'O'){shift?ChooseFolder():ChooseFile();continue;}
-            if(control && message.wParam==L'B' && !Blocked()) {treeVisible=!treeVisible;Layout();continue;}
+            if(control && message.wParam==L'B' && !Blocked()) {treeVisible=!treeVisible;SaveLayoutPreferences();Layout();continue;}
             if(!control && message.hwnd==projectTree.Handle() && message.wParam==VK_RETURN && !Blocked()) {
                 const auto file=projectTree.SelectedFile();
                 if(!file.empty())OpenContentPath(file);

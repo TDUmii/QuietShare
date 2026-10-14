@@ -5,7 +5,7 @@
 #include <string>
 #include <vector>
 namespace quietshare {
-struct ToolMenuItem { int id;std::wstring label;bool enabled;wchar_t icon; };
+struct ToolMenuItem { int id;std::wstring label;bool enabled;wchar_t icon;bool checked=false; };
 class ToolMenu {
     std::vector<ToolMenuItem> items;
     HWND popup=nullptr;
@@ -38,7 +38,7 @@ class ToolMenu {
             for(size_t i=0;i<self->items.size();++i){const auto &item=self->items[i];RECT r{self->S(5),self->S(5)+int(i)*self->row,bounds.right-self->S(5),self->S(5)+int(i+1)*self->row};
                 if(int(i)==self->current&&item.enabled){brush=CreateSolidBrush(RGB(4,57,94));FillRect(dc,&r,brush);DeleteObject(brush);}
                 auto color=item.enabled?RGB(204,204,204):RGB(115,115,115);
-                RECT icon=r;icon.right=icon.left+self->S(32);DrawCodicon(dc,item.icon,icon,color,self->S(16));
+                RECT icon=r;icon.right=icon.left+self->S(32);DrawCodicon(dc,item.checked?0xeab2:item.icon,icon,color,self->S(16));
                 RECT text=r;text.left+=self->S(36);text.right-=self->S(12);auto old=SelectObject(dc,self->font);SetTextColor(dc,color);SetBkMode(dc,TRANSPARENT);
                 size_t split=item.label.find(L"   ");std::wstring label=item.label.substr(0,split);DrawTextW(dc,label.c_str(),-1,&text,DT_LEFT|DT_VCENTER|DT_SINGLELINE);
                 if(split!=std::wstring::npos){SetTextColor(dc,item.enabled?RGB(160,160,160):RGB(115,115,115));DrawTextW(dc,item.label.c_str()+split+3,-1,&text,DT_RIGHT|DT_VCENTER|DT_SINGLELINE);}
@@ -58,6 +58,8 @@ public:
         int y=std::clamp(anchor.bottom,info.rcWork.top,std::max(info.rcWork.top,info.rcWork.bottom-height));
         popup=CreateWindowExW(WS_EX_TOOLWINDOW|WS_EX_TOPMOST,type.lpszClassName,L"",WS_POPUP|WS_BORDER,x,y,width,height,parent,nullptr,type.hInstance,this);
         if(!popup)return 0;
+        HRGN region=CreateRoundRectRgn(0,0,width+1,height+1,S(12),S(12));
+        if(region&&!SetWindowRgn(popup,region,TRUE))DeleteObject(region);
         DWORD affinity=0;
         if(!SetWindowDisplayAffinity(popup,0x11)||!GetWindowDisplayAffinity(popup,&affinity)||affinity!=0x11){Finish(false);return 0;}
         ShowWindow(popup,SW_SHOW);SetFocus(popup);Move(1);
