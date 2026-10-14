@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.5.0
+
+- Optional on-demand WebView2 browser with URL entry, Back/Forward/Reload and ChatGPT shortcut; disabled at every app startup.
+- Separate local web profile, explicit runtime teardown on disable, and background suspension requests while reading files.
+- Actual browser-rendered positive/excluded WGC canary before navigating to user pages; native black backing cannot satisfy the browser marker test.
+- F8 masks the browser and address; topology changes close browsing and require a fresh check. Pending initialization callbacks cannot revive a disabled browser.
+- Controlled navigation/popups and disabled uploads/downloads, device/screen permissions, native script dialogs/context menus, autofill, password-save UI and DevTools.
+- Bundled only the pinned 195 KB WebView2 loader; Evergreen Runtime remains a separate shared prerequisite. Existing offline readers do not load WebView2 when browsing is off.
+
 ## 0.4.4
 
 - Narrower 44 px navigation rail, 18 px navigation icons and a centered 24 px logo.

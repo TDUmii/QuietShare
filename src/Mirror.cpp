@@ -233,7 +233,8 @@ struct CanaryWindows
     CanaryPaint publicPaint{}, markerPaint{};
     HWND underlay=nullptr, overlay=nullptr;
     RECT region{};
-    ~CanaryWindows() { if(overlay)DestroyWindow(overlay); if(underlay)DestroyWindow(underlay); }
+    std::function<void()> unmount;
+    ~CanaryWindows() { if(unmount)unmount();if(overlay)DestroyWindow(overlay); if(underlay)DestroyWindow(underlay); }
     bool Create(const MonitorInfo &monitor)
     {
         if(monitor.bounds.right-monitor.bounds.left<300 || monitor.bounds.bottom-monitor.bounds.top<230) return false;
@@ -626,7 +627,7 @@ struct MirrorController::Impl
 
 MirrorController::MirrorController():impl(new Impl) {}
 MirrorController::~MirrorController() {impl->Clear();}
-bool MirrorController::Verify(HWND privateWindow,const std::wstring &sourceId)
+bool MirrorController::Verify(HWND privateWindow,const std::wstring &sourceId,const std::function<bool(HWND)>& mountSurface)
 {
     // Verify pumps close/F8 messages. Keep the native resources alive until this
     // stack unwinds even if WM_DESTROY deletes the controller during that pump.
@@ -648,6 +649,14 @@ bool MirrorController::Verify(HWND privateWindow,const std::wstring &sourceId)
     if(s.epoch!=attempt)return false;
     CanaryWindows canary;
     if(!canary.Create(*source))return finish(State::CanaryFailed);
+    if(mountSurface) {
+        // Black native backing cannot satisfy the positive marker test. Only
+        // the mounted browser's SVG canary can produce the expected pixels.
+        canary.markerPaint={RGB(0,0,0),RGB(0,0,0),false};
+        InvalidateRect(canary.overlay,nullptr,FALSE);UpdateWindow(canary.overlay);
+        canary.unmount=[mountSurface](){mountSurface(nullptr);};
+        if(!mountSurface(canary.overlay))return finish(State::CanaryFailed);
+    }
     bool markerSeen=false,protectedOverlay=false;
     int exclusionFrames=0;
     const ULONGLONG started=GetTickCount64();

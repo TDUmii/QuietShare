@@ -1,4 +1,4 @@
-# QuietShare 0.4.4
+# QuietShare 0.5.0
 
 QuietShare là ứng dụng desktop để đọc lời nhắc, xem code, ảnh và PDF trong một cửa sổ riêng khi thuyết trình. App chạy offline trên Windows 10/11 x64, với giao diện tiếng Việt và tiếng Anh.
 
@@ -13,6 +13,7 @@ QuietShare is an offline Windows 10/11 x64 desktop app for private scripts, code
 - **Nhiều tab**: mở nhiều file hoặc kéo thả một nhóm file; giữ scroll, zoom và trang PDF theo tab. Lời nhắc có tab riêng, không bị file xem trước ghi đè. Tối đa 32 tab, gồm lời nhắc.
 - **Code có màu cú pháp**: số dòng, monospace, giữ thụt dòng, chọn/sao chép, tìm kiếm và xuống dòng tùy chọn. Lexer hỗ trợ Python, C/C++, C#, Java, JavaScript/TypeScript, HTML, CSS, JSON, XML, YAML, Markdown, SQL, Bash/PowerShell, Rust và Go. Code chỉ được xem, không thực thi.
 - **Cây dự án**: duyệt thư mục cục bộ khi cần; mặc định bỏ qua thư mục ẩn và `.git`, `node_modules`, `.venv`, `dist`, `build`. Có thể đổi bộ lọc trong Cài đặt.
+- **Trình duyệt tùy chọn**: bật khi cần mở ChatGPT hoặc web HTTP/HTTPS. Có ô địa chỉ, quay lại, tiến tới và tải lại; mặc định tắt khi khởi động. Hồ sơ đăng nhập riêng của QuietShare được giữ trên máy.
 - **PDF trong app**: xem từng trang, vừa khung/vừa chiều ngang, zoom 25-400%, chọn/sao chép và tìm chữ khi có lớp văn bản. PDF scan vẫn xem được; PDF có mật khẩu chưa được hỗ trợ.
 - **Lời nhắc và ảnh**: tự lưu lời nhắc bằng Windows DPAPI, soạn/đọc và cuộn ở ba tốc độ; ảnh có zoom và kéo để di chuyển.
 - **Tập trung**: F11 ẩn sidebar và giữ một thanh tab/lệnh mỏng ở trên. Lệnh bổ sung nằm trong menu **⋯**, ngoài vùng nội dung.
@@ -25,8 +26,10 @@ Văn bản/code hỗ trợ UTF-8 hoặc UTF-16 có BOM, tối đa 5 MiB. App nh�
 ### Cài đặt
 
 1. Cần **Windows 10 phiên bản 2004 (build 19041) trở lên hoặc Windows 11, x64**, với DWM và Windows Graphics Capture hoạt động.
-2. Tải [QuietShare 0.4.4](https://github.com/TDUmii/QuietShare/releases/tag/v0.4.4), giải nén toàn bộ gói và chạy `QuietShare-Setup.exe`. Bộ cài dùng tài khoản hiện tại, không cần quyền quản trị.
-3. Để dùng portable, chạy `QuietShare.exe` trong thư mục đã giải nén. Giữ `Scintilla.dll`, `Lexilla.dll` và `pdfium.dll` cạnh EXE; không chỉ sao chép riêng EXE.
+2. Tải [QuietShare 0.5.0](https://github.com/TDUmii/QuietShare/releases/tag/v0.5.0), giải nén toàn bộ gói và chạy `QuietShare-Setup.exe`. Bộ cài dùng tài khoản hiện tại, không cần quyền quản trị.
+3. Để dùng portable, chạy `QuietShare.exe` trong thư mục đã giải nén. Giữ `Scintilla.dll`, `Lexilla.dll`, `pdfium.dll` và `WebView2Loader.dll` cạnh EXE; không chỉ sao chép riêng EXE.
+
+Để dùng web, máy cần **Microsoft Edge WebView2 Evergreen Runtime** hiện hành. Nếu trình duyệt không mở được, cài/cập nhật từ [Microsoft WebView2](https://developer.microsoft.com/en-us/microsoft-edge/webview2/), rồi tắt/bật trình duyệt lại. Các chức năng đọc file vẫn dùng được khi không có runtime.
 
 Đóng QuietShare trước khi nâng cấp bằng bộ cài mới. Nâng cấp và gỡ app giữ lại lời nhắc đã tự lưu. Nút **EN / VI** trong bộ cài đổi ngôn ngữ.
 
@@ -48,6 +51,10 @@ Hộp chọn file/dự án là cửa sổ native được bảo vệ của Quiet
 
 Ctrl+Alt+Q gọi QuietShare lên khi bị che hoặc thu nhỏ, kể cả lúc không ghim. Phím tắt không mở Alt+Tab và giữ focus ở ứng dụng đang dùng. Nếu đang che bằng F8, nội dung vẫn được che. Rê chuột vào nút Ghim để xem trạng thái phím tắt; app khác dùng cùng tổ hợp có thể khiến đăng ký không thành công.
 
+Để dùng web: chọn icon quả địa cầu hoặc vào **Cài đặt > Bật trình duyệt**, bấm **Bật trình duyệt**, chờ kiểm tra vùng WebView2 rồi nhập URL và nhấn Enter hoặc **Mở**. Nút **ChatGPT** mở `https://chatgpt.com`; đăng nhập trong trang web khi cần. **Tắt trình duyệt** đóng engine web, giữ cookie của hồ sơ riêng để lần sau đăng nhập thuận tiện. Chuyển sang đọc file sẽ ẩn và yêu cầu tạm ngưng web; mở lại để tiếp tục. F8 che cả web và ô địa chỉ. Thay đổi màn hình tắt web để yêu cầu kiểm tra mới.
+
+Web trong bản này dành cho đọc và chat bằng chữ. Tải lên/tải xuống file, camera, microphone, chia sẻ màn hình, thông báo, DevTools và menu native bị tắt. Dropdown HTML native có thể chọn bằng phím mũi tên; dropdown do website vẽ vẫn dùng bình thường. Popup tự phát bị chặn; link mở cửa sổ mới do người dùng bấm chuyển vào cùng vùng web. Luồng đăng nhập OAuth cần popup riêng có thể không tương thích.
+
 Để dùng **Smart Mirror**: chuyển **Win+P > Extend**, đặt toàn bộ QuietShare trên màn hình nguồn, vào **Trình chiếu**, chọn **Nguồn** và **Đích** khác nhau, rồi bấm **Kiểm tra WGC** và **Bắt đầu**. Hai màn hình phải thuộc cùng GPU trong phiên bản này. **Con trỏ** chọn có hiện con trỏ; **Dừng** kết thúc chiếu. Một màn hình vẫn có thể kiểm tra WGC để dùng cửa sổ riêng, nhưng không thể bắt đầu Smart Mirror.
 
 **Duplicate luôn khóa nội dung riêng.** Kiểm tra thất bại, thay đổi màn hình hoặc capture mất an toàn sẽ dừng chiếu và khóa nội dung. “Windows đã nhận” xác nhận trạng thái API; “người xem chưa được xác minh” vẫn cần kiểm tra từ phía người nhận trong đúng Zoom/Meet/Teams/OBS hoặc máy chiếu sẽ dùng. Dùng nội dung mẫu trước buổi chia sẻ. Phần mềm không ngăn máy ảnh bên ngoài chụp màn hình.
@@ -58,6 +65,8 @@ Ctrl+Alt+Q gọi QuietShare lên khi bị che hoặc thu nhỏ, kể cả lúc k
 
 ![Cây dự án và code / Project Explorer and code](docs/quietshare-project.png)
 
+![Trình duyệt tùy chọn / Optional browser](docs/quietshare-browser.png)
+
 ## English
 
 ### Features
@@ -65,6 +74,7 @@ Ctrl+Alt+Q gọi QuietShare lên khi bị che hoặc thu nhỏ, kể cả lúc k
 - **Multiple tabs**: open/drop several files and keep scroll, zoom and PDF page per tab. The permanent script remains independent of read-only previews. Up to 32 tabs, including the script.
 - **Syntax-colored code**: line numbers, monospace indentation, selection/copy, find and optional wrapping. Lexers cover Python, C/C++, C#, Java, JavaScript/TypeScript, HTML, CSS, JSON, XML, YAML, Markdown, SQL, Bash/PowerShell, Rust and Go. Code is never executed.
 - **Project tree**: browse local folders lazily. Hidden folders and `.git`, `node_modules`, `.venv`, `dist`, `build` are ignored by default; change the filter in Settings.
+- **Optional browser**: enable only when needed for ChatGPT or HTTP/HTTPS pages. Includes address entry, Back, Forward and Reload; starts disabled. QuietShare keeps its own login profile locally.
 - **In-app PDFs**: page navigation, fit-page/fit-width, 25-400% zoom, selection/copy and find when a text layer exists. Image-only scans remain viewable; password-protected PDFs are unsupported.
 - **Scripts and images**: local Windows DPAPI autosave, editing/reading and three auto-scroll speeds; image zoom and dragging to pan.
 - **Focus**: F11 hides the sidebar while retaining one slim top tab/command strip. Extra actions remain accessible through **⋯**, outside the content area.
@@ -77,8 +87,10 @@ Text/code support UTF-8 or BOM-marked UTF-16, up to 5 MiB. Supported extensions 
 ### Install
 
 1. Use **Windows 10 version 2004 (build 19041) or later, or Windows 11, x64**, with working DWM and Windows Graphics Capture.
-2. Download [QuietShare 0.4.4](https://github.com/TDUmii/QuietShare/releases/tag/v0.4.4), extract the complete package and run `QuietShare-Setup.exe`. It installs for the current account without administrator rights.
-3. For portable use, run `QuietShare.exe` in the extracted folder. Keep `Scintilla.dll`, `Lexilla.dll` and `pdfium.dll` beside it; copying only the EXE is insufficient.
+2. Download [QuietShare 0.5.0](https://github.com/TDUmii/QuietShare/releases/tag/v0.5.0), extract the complete package and run `QuietShare-Setup.exe`. It installs for the current account without administrator rights.
+3. For portable use, run `QuietShare.exe` in the extracted folder. Keep `Scintilla.dll`, `Lexilla.dll`, `pdfium.dll` and `WebView2Loader.dll` beside it; copying only the EXE is insufficient.
+
+Web browsing requires a current **Microsoft Edge WebView2 Evergreen Runtime**. If it cannot start, install/update the runtime from [Microsoft WebView2](https://developer.microsoft.com/en-us/microsoft-edge/webview2/) and toggle the browser off/on. Offline file readers remain available without it.
 
 Close QuietShare before upgrading with a new installer. Upgrading/uninstalling preserve the autosaved script. Use the installer's **EN / VI** button to change its language.
 
@@ -99,6 +111,10 @@ The file/project picker is a capture-protected QuietShare native window. Use **D
 9. F8 hides every viewer, tab name and project tree, and stops auto-scroll and Smart Mirror. Press F8 to reveal; run **Verify WGC privacy** first if verification is requested.
 
 Ctrl+Alt+Q recalls a covered or minimized QuietShare window, including when unpinned. It preserves the current application's focus and does not open Alt+Tab. F8-masked content remains masked. Hover the Pin button to see shortcut availability; another application's registration can occupy the same combination.
+
+For web: select the globe icon or **Settings > Enable browser**, press **Enable browser**, wait for the rendered WebView2 capture check, then enter an address and press Enter or **Go**. **ChatGPT** opens `https://chatgpt.com`; sign in on the page when needed. **Disable browser** closes the web engine while retaining its separate profile cookies. Switching to file reading hides the browser and requests suspension; return to resume. F8 hides web content and its address. A display change closes web browsing until a fresh check.
+
+This browser is for reading and text chat. File uploads/downloads, camera, microphone, screen sharing, notifications, DevTools and native context menus are disabled. Native HTML selects support arrow-key selection; website-rendered dropdowns remain usable. Unsolicited popups are blocked; user-initiated new-window links navigate in the same protected view. OAuth flows requiring a separate popup may be incompatible.
 
 For **Smart Mirror**, choose **Win+P > Extend**, place the entire QuietShare window on the source display, open **Presentation**, choose different **Source** and **Destination** displays, then press **Verify WGC privacy** and **Start**. Both displays must use the same GPU in this version. **Pointer** controls cursor visibility; **Stop** ends projection. A single display can run the WGC preflight for private-window use but cannot start Smart Mirror.
 

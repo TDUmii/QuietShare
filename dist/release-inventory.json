@@ -1,14 +1,14 @@
 {
-  "version": "0.4.4",
+  "version": "0.5.0",
   "platform": "win-x64",
   "passed": true,
   "checks": {
     "QuietShare.exe.x64PE": true,
-    "QuietShare.exe.fileVersion0.4.4": true,
-    "QuietShare.exe.productVersion0.4.4": true,
+    "QuietShare.exe.fileVersion0.5.0": true,
+    "QuietShare.exe.productVersion0.5.0": true,
     "QuietShare-Setup.exe.x64PE": true,
-    "QuietShare-Setup.exe.fileVersion0.4.4": true,
-    "QuietShare-Setup.exe.productVersion0.4.4": true,
+    "QuietShare-Setup.exe.fileVersion0.5.0": true,
+    "QuietShare-Setup.exe.productVersion0.5.0": true,
     "installerPayloadMatchesPortableExe": true,
     "Scintilla.dll.x64PE": true,
     "Scintilla.dll.pinnedHashAndSize": true,
@@ -19,6 +19,9 @@
     "pdfium.dll.x64PE": true,
     "pdfium.dll.pinnedHashAndSize": true,
     "pdfium.dll.installerPayloadParity": true,
+    "browserLoaderPinnedHashAndSize": true,
+    "browserLoaderX64PE": true,
+    "browserLoaderInstallerParity": true,
     "installerFullNoticeParity": true,
     "sourceNoticeMatchesDist": true,
     "codiconsPinnedFontHash": true,
@@ -28,25 +31,26 @@
     "QuietShare-Setup.exe.systemImportsOnly": true,
     "Scintilla.dll.systemImportsOnly": true,
     "Lexilla.dll.systemImportsOnly": true,
-    "pdfium.dll.systemImportsOnly": true
+    "pdfium.dll.systemImportsOnly": true,
+    "WebView2Loader.dll.systemImportsOnly": true
   },
   "files": {
     "QuietShare.exe": {
-      "bytes": 700416,
-      "sha256": "bd3659db17f2f7b6b0261317f3d69b5913a44261f8c0849e4a9cee1a2ceadc1a",
+      "bytes": 776192,
+      "sha256": "508424f291daa5d952f370827c8b80d4a0b1bf8a47a5d6ebcd29cd1e2a536dd6",
       "x64PE": true,
       "machine": "0x8664",
       "optionalHeaderMagic": "0x20b",
       "fileVersion": [
         0,
-        4,
-        4,
+        5,
+        0,
         0
       ],
       "productVersion": [
         0,
-        4,
-        4,
+        5,
+        0,
         0
       ],
       "imports": [
@@ -68,21 +72,21 @@
       ]
     },
     "QuietShare-Setup.exe": {
-      "bytes": 12129280,
-      "sha256": "b05960391d167cade19763543454bd4ce0fdce78fffad94179431416112f02d3",
+      "bytes": 12402176,
+      "sha256": "b0ad92693bc2593d33787e7dd9121d930c5fef909988a7a45750faacd19313b3",
       "x64PE": true,
       "machine": "0x8664",
       "optionalHeaderMagic": "0x20b",
       "fileVersion": [
         0,
-        4,
-        4,
+        5,
+        0,
         0
       ],
       "productVersion": [
         0,
-        4,
-        4,
+        5,
+        0,
         0
       ],
       "imports": [
@@ -138,6 +142,17 @@
         "GDI32.dll",
         "USER32.dll"
       ]
+    },
+    "WebView2Loader.dll": {
+      "bytes": 194912,
+      "sha256": "3426dcc55fdfb8b5e7ac623cf33b4ccf283fbf68a0c5a65bddfdb4d749a8abee",
+      "version": "1.0.4258.31",
+      "x64PE": true,
+      "machine": "0x8664",
+      "optionalHeaderMagic": "0x20b",
+      "imports": [
+        "KERNEL32.dll"
+      ]
     }
   },
   "errors": {},
@@ -145,6 +160,6 @@
     "QuietShare.exe": "NotSigned",
     "QuietShare-Setup.exe": "NotSigned"
   },
-  "runtime": "Native Win32 with pinned x64 Scintilla, Lexilla and non-V8/non-XFA PDFium; Windows WIC, WGC and D3D11",
-  "method": "PE headers, VERSIONINFO and setup RCDATA 301-305 byte parity; dependency SHA-256/size manifest verification; no EXE execution"
+  "runtime": "Native Win32 with pinned x64 viewer DLLs and on-demand WebView2 loader; optional shared Evergreen Runtime; Windows WIC, WGC and D3D11",
+  "method": "PE headers, VERSIONINFO and setup RCDATA 301-306 byte parity; dependency SHA-256/size manifest verification; no EXE execution"
 }

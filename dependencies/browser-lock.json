@@ -1,0 +1,11 @@
+{
+  "sdkVersion": "1.0.4258.31",
+  "sdkUrl": "https://api.nuget.org/v3-flatcontainer/microsoft.web.webview2/1.0.4258.31/microsoft.web.webview2.1.0.4258.31.nupkg",
+  "sdkSha256": "56f7f4b8bf9aee4b8efefbbdd4f67d5f74ebd1b100ed0806da71bf76af481aa9",
+  "loader": {
+    "file": "WebView2Loader.dll",
+    "bytes": 194912,
+    "sha256": "3426dcc55fdfb8b5e7ac623cf33b4ccf283fbf68a0c5a65bddfdb4d749a8abee"
+  },
+  "runtime": "Evergreen WebView2 Runtime, installed separately; never loaded at app startup"
+}

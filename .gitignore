@@ -13,12 +13,13 @@ dist/*
 !dist/Scintilla.dll
 !dist/Lexilla.dll
 !dist/pdfium.dll
+!dist/WebView2Loader.dll
 !dist/README.md
 !dist/TEST_REPORT.md
 !dist/TEST_REPORT_v0.4.0.md
 !dist/TEST_REPORT_v0.4.1.md
 !dist/TEST_REPORT_v0.4.2.md
-!dist/TEST_REPORT_v0.4.4.md
+!dist/TEST_REPORT_v0.5.0.md
 !dist/CHANGELOG.md
 !dist/THIRD-PARTY.md
 !dist/release-inventory.json
@@ -28,17 +29,16 @@ dist/*
 !dist/docs/quietshare-settings.png
 !dist/docs/quietshare-project.png
 !dist/docs/Browser_Integration_Study.md
+!dist/docs/quietshare-browser.png
 !dist/docs/QuietShare_v0.4.0_Codex_Implementation_Plan.md
 !dist/docs/test-evidence-v0.4.0.json
 !dist/docs/test-evidence-v0.4.1.json
 !dist/docs/test-evidence-v0.4.2.json
-!dist/docs/test-evidence-v0.4.4.json
+!dist/docs/test-evidence-v0.5.0.json
 !dist/dependencies/
 !dist/dependencies/**
 
 # Superseded browser implementation and SDK bootstrap from v0.1
-src/Browser.cpp
-src/Browser.h
 prepare-sdk.ps1
 tests/make_fixtures.py
 QuietShare-v0.1.0-win-x64.zip

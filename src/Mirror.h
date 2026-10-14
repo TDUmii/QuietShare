@@ -7,6 +7,7 @@
 #endif
 #include <windows.h>
 #include <memory>
+#include <functional>
 #include <string>
 #include <vector>
 
@@ -39,7 +40,8 @@ public:
     ~MirrorController();
     MirrorController(const MirrorController &) = delete;
     MirrorController &operator=(const MirrorController &) = delete;
-    bool Verify(HWND privateWindow, const std::wstring &sourceId);
+    bool Verify(HWND privateWindow, const std::wstring &sourceId,
+                const std::function<bool(HWND)>& mountSurface = {});
     // Only root-owned fixed-label monitor lists and the scoped fixed command
     // menu may bypass affinity checks. File-picker popup surfaces never do.
     void SetPublicPopups(const std::vector<HWND> &monitorLists);

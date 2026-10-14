@@ -1,37 +1,38 @@
-# QuietShare - duyệt web khi cần / on-demand browsing
+# QuietShare - duyệt web tùy chọn / optional browsing
 
-Trạng thái: nghiên cứu thiết kế, chưa có trình duyệt trong bản 0.4.4. / Status: design research; browsing is not enabled in 0.4.4.
+Trạng thái: đã triển khai trong 0.5.0. / Status: implemented in 0.5.0.
 
-## Quyết định đề xuất / Proposed decision
+## Thiết kế / Design
 
-Dùng Microsoft WebView2 Win32 nhúng vào vùng nội dung được bảo vệ hiện có. Chỉ khởi tạo khi người dùng chọn mở web; không chạy trình duyệt nền khi chỉ đọc lời nhắc, code hoặc ảnh. Một tab web với Back, Forward, Reload, URL và zoom đủ cho lần tích hợp đầu. Không tự mở Edge/Chrome ngoài app vì cửa sổ đó không thuộc phạm vi bảo vệ của QuietShare.
+Một WebView2 Win32 trong vùng nội dung của QuietShare, dùng chế độ Window to Visual. Mặc định tắt ở mỗi lần khởi động; chỉ tạo environment/controller khi người dùng bật. Có URL, Back, Forward, Reload và nút ChatGPT. Không tự mở trình duyệt ngoài app cho URL người dùng nhập.
 
-Use a Win32 WebView2 hosted inside the existing protected content area, initialized only on demand. Start with one web tab, Back/Forward/Reload, URL and zoom. An external Edge/Chrome window falls outside QuietShare's protection, so it is not an automatic fallback.
+One on-demand Win32 WebView2 in QuietShare's content area, using Window to Visual hosting. It starts disabled, with URL entry, Back/Forward/Reload and ChatGPT. [Microsoft - Hosting modes](https://learn.microsoft.com/en-us/microsoft-edge/webview2/concepts/windowed-vs-visual-hosting).
 
-WebView2 hỗ trợ web hiện đại mà không cần tự đóng gói Chromium. Bản production phải dùng WebView2 Runtime; Edge Stable không thay thế runtime. Chọn Evergreen để có cập nhật bảo mật, kiểm tra runtime trước khi mở web và hỗ trợ cài theo tài khoản hiện tại khi thiếu. Phần đọc file vẫn hoạt động offline khi không có runtime. Nguồn: [Microsoft - Runtime distribution](https://learn.microsoft.com/en-us/microsoft-edge/webview2/concepts/distribution).
+Chỉ đóng gói loader x64 194.912 byte, pin SHA-256 và SDK 1.0.4258.31. Runtime Evergreen dùng bản cài riêng trên Windows. Nếu thiếu hoặc quá cũ, vùng web báo không khả dụng; phần đọc file vẫn hoạt động. README có đường dẫn cài/cập nhật runtime chính thức.
 
-WebView2 provides a modern web engine with an Evergreen runtime that receives security updates. Detect a missing runtime and offer per-user installation; keep existing offline readers independent of it. Production uses the WebView2 Runtime rather than Edge Stable. Source: [Runtime distribution](https://learn.microsoft.com/en-us/microsoft-edge/webview2/concepts/distribution).
+The package includes only the 194,912-byte pinned loader. Browsing requires a separate current Evergreen Runtime; offline readers remain independent. [Microsoft - Runtime distribution](https://learn.microsoft.com/en-us/microsoft-edge/webview2/concepts/distribution).
 
-## Giới hạn phạm vi / Scope boundaries
+## Tài nguyên và dữ liệu / Resources and data
 
-- Chỉ nhận URL HTTP/HTTPS rõ ràng; không tự chạy giao thức ngoài app, file://, script hoặc lệnh hệ thống. Website vẫn có thể giao tiếp Internet theo hành vi của website.
-- Hồ sơ WebView2 riêng của QuietShare trong thư mục dữ liệu của tài khoản, không dùng dữ liệu/cookie của trình duyệt cá nhân. Không ghi URL, cookie, nội dung trang hoặc thông tin đăng nhập vào Git, báo cáo kiểm thử hay log phát hành. [Microsoft - User data folders](https://learn.microsoft.com/en-us/microsoft-edge/webview2/concepts/user-data-folder).
-- Không cho website gọi host object, đọc dự án/lời nhắc hoặc dùng cầu nối native. Kiểm tra origin và thông điệp nếu sau này thật sự cần cầu nối. [Microsoft - Develop secure WebView2 apps](https://learn.microsoft.com/en-us/microsoft-edge/webview2/concepts/security).
-- Tắt menu mặc định, DevTools và hộp thoại script mặc định; mọi UI cần thiết phải đi qua cửa sổ được bảo vệ của app. Chặn quyền camera, microphone, location, capture màn hình, notification và tải xuống trong lần đầu. [Microsoft - WebView2 settings](https://learn.microsoft.com/en-us/microsoft-edge/webview2/reference/win32/icorewebview2settings).
-- Xử lý NewWindowRequested trước khi điều hướng: chặn popup tự phát; link người dùng bấm mở trong vùng web có kiểm soát. Login/OAuth cần popup không được tuyên bố hỗ trợ trước khi kiểm thử riêng. Mặc định của WebView2 có thể tạo popup nếu host không xử lý. [Microsoft - NewWindowRequested](https://learn.microsoft.com/en-us/microsoft-edge/webview2/reference/win32/icorewebview2newwindowrequestedeventargs).
+- Tắt browser đóng controller, thả environment và các COM object. Kiểm thử theo dõi process web thực và xác nhận process kết thúc.
+- Đọc file hoặc thu nhỏ sẽ ẩn browser và yêu cầu TrySuspend; trở lại browser sẽ Resume. Đã kiểm tra IsSuspended thực trên runtime của máy kiểm thử. Không vẽ lại bounds không đổi.
+- Hồ sơ riêng trong thư mục dữ liệu QuietShare của tài khoản. Cookie được giữ khi tắt/bật để đăng nhập thuận tiện; không dùng hồ sơ Edge cá nhân. Khởi động app vẫn tắt browser dù đã có hồ sơ web.
+- URL, nội dung trang, cookie, thông tin đăng nhập và dữ liệu profile không được xuất vào Git hay bằng chứng phát hành. Chỉ số thời gian và tên kiểm tra được xuất; fixture/profile thô chỉ ở artifacts bị ignore.
 
-Accept explicit HTTP/HTTPS URLs, use a dedicated QuietShare profile, expose no native host objects, and control all popup/dialog/permission/download paths. Do not import the user's browser profile or publish web data. Login flows that require popups need separate compatibility and privacy validation.
+Disabling closes web objects and tests confirm browser-process exit. Hidden browsing requests suspension and resumes on return. A separate profile preserves cookies while every app startup remains opt-in. [Microsoft - TrySuspend](https://learn.microsoft.com/en-us/microsoft-edge/webview2/reference/win32/icorewebview2_3), [User data folders](https://learn.microsoft.com/en-us/microsoft-edge/webview2/concepts/user-data-folder).
 
-## Điều kiện bắt buộc trước khi phát hành / Release gate
+## Bảo vệ và giới hạn / Protection and boundaries
 
-WDA_EXCLUDEFROMCAPTURE chỉ áp dụng cho top-level HWND thuộc process gọi; không được suy luận rằng mọi cửa sổ renderer/popup đều được bảo vệ chỉ vì HWND chính nhận API thành công. Microsoft cũng không coi API này là biện pháp bảo mật tuyệt đối. [Microsoft - SetWindowDisplayAffinity](https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-setwindowdisplayaffinity).
+1. Trước URL thật, chỉ nạp canary tĩnh vào WebView2. Kiểm tra chính sách DOM đã chạy, rồi gắn controller vào cửa sổ thử tổng hợp. Nền native đen không thể tạo marker: WGC phải thấy SVG thực từ browser ở pha không bảo vệ, rồi thấy nền công khai sau khi áp dụng WDA 0x11 ở pha bảo vệ. Sau khi đạt mới đưa controller về cửa sổ chính và cho điều hướng.
+2. F8 ẩn controller và địa chỉ, dừng điều hướng, yêu cầu suspend. Thay đổi màn hình đóng browser để lần bật tiếp theo kiểm tra lại. Generation và weak-state callbacks ngăn khởi tạo muộn làm sống lại browser đã tắt.
+3. Chỉ chấp nhận HTTP/HTTPS, không mở file:// hoặc giao thức ngoài. Không expose host objects/web-message bridge. Camera, microphone, location, notification, screen capture và native download đều bị từ chối.
+4. Tắt DevTools, menu native, autofill/password-save UI và browser accelerators có thể mở UI ngoài. Chặn file picker, drop/paste file, native select/date/color picker và datalist/tooltip bằng chính sách DOM cài trước document; vẫn cho phép Tab và chỉnh select/date bằng phím khi an toàn. Tắt in web và nút lưu/in của PDF web. Client-certificate và HTTP Basic credential dialogs bị hủy; form đăng nhập HTML thông thường vẫn dùng được.
+5. Popup tự phát bị chặn. Link mở cửa sổ mới do người dùng bấm điều hướng trong cùng vùng web. Alert được xử lý không tạo dialog; confirm/prompt không được tự chấp nhận. OAuth cần popup riêng có thể không tương thích.
 
-The top-level affinity result alone does not prove exclusion for browser-rendered surfaces or newly created windows. Validate the actual rendered browser output and every UI path before exposing personal pages.
+The browser must pass an actual positive/excluded WGC render test before user navigation. F8, lifecycle generations and topology invalidation prevent unintended revival. Native UI/permission paths are restricted. This is a focused browser for reading and text chat, with one web view. [Microsoft - Security](https://learn.microsoft.com/en-us/microsoft-edge/webview2/concepts/security), [NewWindowRequested](https://learn.microsoft.com/en-us/microsoft-edge/webview2/reference/win32/icorewebview2newwindowrequestedeventargs).
 
-1. Trước URL người dùng, render trang fixture có canary trong WebView2 rồi chạy WGC kiểm tra chính vùng đó. Nếu thấy canary hoặc không kiểm chứng được thì giữ vùng web khóa, không điều hướng tới nội dung riêng.
-2. Thử GPU composition, video, fullscreen, select dropdown, tooltip, context menu, alert/confirm, permission, download, upload, popup và crash/restart renderer. Không mở popup hay file chooser của process khác không được bảo vệ.
-3. F8 và mất điều kiện bảo vệ phải ẩn controller tức thì, dừng điều hướng đang chờ và giữ khóa tới khi kiểm chứng lại. Callback bất đồng bộ phải kiểm tra generation/lifetime để không phục hồi web sau khi đã che hoặc đóng tab.
-4. Thử một màn hình, Extend, Duplicate, đổi GPU/DPI, sleep/resume và người nhận thực trong Zoom/Meet/Teams/OBS. Duplicate tiếp tục khóa như hiện tại.
-5. Đo khởi động chỉ đọc file (không có process web), RAM khi mở/đóng web, resize và cuộn. Kiểm thử thiếu runtime, cài mới, nâng cấp và gỡ cài đặt mà không mất lời nhắc.
+## Bằng chứng và giới hạn kiểm thử / Evidence and limits
 
-These are acceptance criteria, not completed tests. No browser-protection, login-compatibility or performance claim has been verified by this study.
+Xem [báo cáo 0.5.0](../TEST_REPORT_v0.5.0.md) và [bằng chứng đã lọc](test-evidence-v0.5.0.json). Kiểm thử shipping EXE dùng profile riêng, HTTP fixture cục bộ và WGC thực. Trang ChatGPT công khai qua HTTPS đã tải thành công; không đăng nhập tài khoản cá nhân hoặc gửi tin nhắn khi kiểm thử.
+
+Authenticated ChatGPT chat, third-party OAuth, client-certificate sites, a clean machine without Evergreen Runtime, physical Extend/Duplicate and meeting receivers remain unverified. Capture exclusion is not DRM or protection against external cameras. [Microsoft - SetWindowDisplayAffinity](https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-setwindowdisplayaffinity).

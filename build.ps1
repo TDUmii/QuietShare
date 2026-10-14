@@ -9,6 +9,7 @@ $projectRoot = $PSScriptRoot
 $buildDir = Join-Path $projectRoot 'build'
 $distDir = Join-Path $projectRoot 'dist'
 & (Join-Path $projectRoot 'prepare-viewers.ps1')
+& (Join-Path $projectRoot 'prepare-browser.ps1')
 New-Item -ItemType Directory -Path $buildDir,$distDir -Force | Out-Null
 Copy-Item -LiteralPath (Join-Path $projectRoot 'THIRD-PARTY.md') -Destination (Join-Path $distDir 'THIRD-PARTY.md') -Force
 $compiler = Join-Path $CompilerRoot 'g++.exe'
@@ -33,11 +34,11 @@ function Compile-Resource([string]$source, [string]$output) {
 Push-Location (Join-Path $projectRoot 'src')
 try {
     Compile-Resource 'app.rc' '../build/app.res'
-    & $compiler '-std=c++17' '-O2' '-s' '-static' '-static-libgcc' '-static-libstdc++' '-municode' '-mwindows' '-DUNICODE' '-D_UNICODE' '-D_WIN32_WINNT=0x0A00' 'main.cpp' 'Privacy.cpp' 'Content.cpp' 'Documents.cpp' 'DocumentBar.cpp' 'DocumentHost.cpp' 'Viewers.cpp' 'Mirror.cpp' '-I../vendor/viewers/scintilla/include' '-I../vendor/viewers/lexilla/include' '-I../vendor/viewers/pdfium/include' (Join-Path $buildDir 'app.res') '-o' (Join-Path $distDir 'QuietShare.exe') '-lcomctl32' '-ldwmapi' '-lcrypt32' '-lshell32' '-luser32' '-lgdi32' '-luxtheme' '-lcomdlg32' '-lwindowscodecs' '-lole32' '-luuid' '-lmsimg32' '-ld3d11' '-ldxgi' '-lruntimeobject'
+    & $compiler '-std=c++17' '-O2' '-s' '-static' '-static-libgcc' '-static-libstdc++' '-municode' '-mwindows' '-DUNICODE' '-D_UNICODE' '-D_WIN32_WINNT=0x0A00' 'main.cpp' 'Browser.cpp' 'Privacy.cpp' 'Content.cpp' 'Documents.cpp' 'DocumentBar.cpp' 'DocumentHost.cpp' 'Viewers.cpp' 'Mirror.cpp' '-I../vendor/webview2/build/native/include' '-I../vendor/viewers/scintilla/include' '-I../vendor/viewers/lexilla/include' '-I../vendor/viewers/pdfium/include' (Join-Path $buildDir 'app.res') '-o' (Join-Path $distDir 'QuietShare.exe') '-lcomctl32' '-ldwmapi' '-lcrypt32' '-lshell32' '-luser32' '-lgdi32' '-luxtheme' '-lcomdlg32' '-lwindowscodecs' '-lole32' '-luuid' '-lmsimg32' '-ld3d11' '-ldxgi' '-lruntimeobject'
     if ($LASTEXITCODE) { throw 'Application compilation failed.' }
-    & $compiler '-std=c++17' '-O2' '-DQUIETSHARE_QA' '-s' '-static' '-static-libgcc' '-static-libstdc++' '-municode' '-mwindows' '-DUNICODE' '-D_UNICODE' '-D_WIN32_WINNT=0x0A00' 'main.cpp' 'Privacy.cpp' 'Content.cpp' 'Documents.cpp' 'DocumentBar.cpp' 'DocumentHost.cpp' 'Viewers.cpp' 'Mirror.cpp' '-I../vendor/viewers/scintilla/include' '-I../vendor/viewers/lexilla/include' '-I../vendor/viewers/pdfium/include' (Join-Path $buildDir 'app.res') '-o' (Join-Path $buildDir 'QuietShare-QA.exe') '-lcomctl32' '-ldwmapi' '-lcrypt32' '-lshell32' '-luser32' '-lgdi32' '-luxtheme' '-lcomdlg32' '-lwindowscodecs' '-lole32' '-luuid' '-lmsimg32' '-ld3d11' '-ldxgi' '-lruntimeobject'
+    & $compiler '-std=c++17' '-O2' '-DQUIETSHARE_QA' '-s' '-static' '-static-libgcc' '-static-libstdc++' '-municode' '-mwindows' '-DUNICODE' '-D_UNICODE' '-D_WIN32_WINNT=0x0A00' 'main.cpp' 'Browser.cpp' 'Privacy.cpp' 'Content.cpp' 'Documents.cpp' 'DocumentBar.cpp' 'DocumentHost.cpp' 'Viewers.cpp' 'Mirror.cpp' '-I../vendor/webview2/build/native/include' '-I../vendor/viewers/scintilla/include' '-I../vendor/viewers/lexilla/include' '-I../vendor/viewers/pdfium/include' (Join-Path $buildDir 'app.res') '-o' (Join-Path $buildDir 'QuietShare-QA.exe') '-lcomctl32' '-ldwmapi' '-lcrypt32' '-lshell32' '-luser32' '-lgdi32' '-luxtheme' '-lcomdlg32' '-lwindowscodecs' '-lole32' '-luuid' '-lmsimg32' '-ld3d11' '-ldxgi' '-lruntimeobject'
     if ($LASTEXITCODE) { throw 'QA application compilation failed.' }
-    foreach ($runtimeName in @('Scintilla.dll','Lexilla.dll','pdfium.dll')) { Copy-Item -LiteralPath (Join-Path $distDir $runtimeName) -Destination (Join-Path $buildDir $runtimeName) -Force }
+    foreach ($runtimeName in @('Scintilla.dll','Lexilla.dll','pdfium.dll','WebView2Loader.dll')) { Copy-Item -LiteralPath (Join-Path $distDir $runtimeName) -Destination (Join-Path $buildDir $runtimeName) -Force }
     if (Test-Path -LiteralPath 'Installer.cpp') {
         Compile-Resource 'installer.rc' '../build/installer.res'
         & $compiler '-std=c++17' '-O2' '-s' '-static' '-static-libgcc' '-static-libstdc++' '-municode' '-mwindows' '-DUNICODE' '-D_UNICODE' 'Installer.cpp' (Join-Path $buildDir 'installer.res') '-o' (Join-Path $distDir 'QuietShare-Setup.exe') '-lole32' '-lshell32' '-luuid' '-ladvapi32' '-lcomctl32' '-luser32' '-lgdi32' '-lversion'
@@ -61,7 +62,7 @@ public static class QuietShareBuildResources {
         if ($resourceUpdate -eq [IntPtr]::Zero) { throw 'Cannot open installer resource update.' }
         $resourceCommitted = $false
         try {
-            $payloadNames = @('QuietShare.exe','Scintilla.dll','Lexilla.dll','pdfium.dll','THIRD-PARTY.md')
+            $payloadNames = @('QuietShare.exe','Scintilla.dll','Lexilla.dll','pdfium.dll','THIRD-PARTY.md','WebView2Loader.dll')
             for ($index = 0; $index -lt $payloadNames.Count; $index++) {
                 $payloadBytes = [IO.File]::ReadAllBytes((Join-Path $distDir $payloadNames[$index]))
                 if (-not [QuietShareBuildResources]::UpdateResource($resourceUpdate,[IntPtr]10,[IntPtr](301+$index),1033,$payloadBytes,$payloadBytes.Length)) {

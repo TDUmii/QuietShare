@@ -7,7 +7,7 @@ if (!(Test-Path -LiteralPath $SetupPath)) { throw 'Build QuietShare-Setup.exe be
 function Get-AccountState {
     $localData = [Environment]::GetFolderPath('LocalApplicationData')
     $accountRoot = Join-Path $localData 'Programs\QuietShare'
-    $paths = @('QuietShare.exe','QuietShare-Setup.exe','Scintilla.dll','Lexilla.dll','pdfium.dll','THIRD-PARTY.md') | ForEach-Object { Join-Path $accountRoot $_ }
+    $paths = @('QuietShare.exe','QuietShare-Setup.exe','Scintilla.dll','Lexilla.dll','pdfium.dll','WebView2Loader.dll','THIRD-PARTY.md') | ForEach-Object { Join-Path $accountRoot $_ }
     $paths += Join-Path $localData 'QuietShare\notes.dpapi'
     $paths += Join-Path ([Environment]::GetFolderPath('Desktop')) 'QuietShare.lnk'
     $paths += Join-Path ([Environment]::GetFolderPath('Programs')) 'QuietShare.lnk'

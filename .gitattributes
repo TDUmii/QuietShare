@@ -10,5 +10,7 @@ THIRD-PARTY.md -text whitespace=cr-at-eol,-blank-at-eol,-blank-at-eof
 dist/THIRD-PARTY.md -text whitespace=cr-at-eol,-blank-at-eol,-blank-at-eof
 dependencies/licenses/** whitespace=-blank-at-eol,-blank-at-eof
 dist/dependencies/licenses/** whitespace=-blank-at-eol,-blank-at-eof
+dependencies/WebView2-LICENSE.txt whitespace=-blank-at-eol,-blank-at-eof
+dist/dependencies/WebView2-LICENSE.txt whitespace=-blank-at-eol,-blank-at-eof
 docs/QuietShare_v0.4.0_Codex_Implementation_Plan.md -text
 dist/docs/QuietShare_v0.4.0_Codex_Implementation_Plan.md -text

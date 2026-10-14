@@ -1,4 +1,4 @@
-"""Verify QuietShare 0.4.4 Windows EXE metadata/resources without running apps."""
+"""Verify QuietShare 0.5.0 Windows EXE metadata/resources without running apps."""
 
 from pathlib import Path
 import ctypes
@@ -13,7 +13,7 @@ import os
 
 
 ROOT = Path(__file__).resolve().parents[1]
-EXPECTED_VERSION = (0, 4, 4, 0)
+EXPECTED_VERSION = (0, 5, 0, 0)
 KERNEL = ctypes.WinDLL("kernel32", use_last_error=True)
 VERSION = ctypes.WinDLL("version", use_last_error=True)
 KERNEL.LoadLibraryExW.argtypes = [wintypes.LPCWSTR, wintypes.HANDLE, wintypes.DWORD]
@@ -133,8 +133,8 @@ def main() -> int:
             files[name] = {"bytes": len(data), "sha256": hashlib.sha256(data).hexdigest(),
                            **metadata, **versions}
             checks[name + ".x64PE"] = metadata["x64PE"]
-            checks[name + ".fileVersion0.4.4"] = versions["fileVersion"] == EXPECTED_VERSION
-            checks[name + ".productVersion0.4.4"] = versions["productVersion"] == EXPECTED_VERSION
+            checks[name + ".fileVersion0.5.0"] = versions["fileVersion"] == EXPECTED_VERSION
+            checks[name + ".productVersion0.5.0"] = versions["productVersion"] == EXPECTED_VERSION
             if path == app_path:
                 app = data
         except (OSError, ValueError, struct.error) as error:
@@ -156,6 +156,12 @@ def main() -> int:
         checks[name+".pinnedHashAndSize"] = digest == runtime["sha256"] and len(data) == runtime["bytes"]
         checks[name+".installerPayloadParity"] = resource(setup_path,index) == data
     notice = (ROOT / "dist" / "THIRD-PARTY.md").read_bytes()
+    browser_lock=json.loads((ROOT/"dependencies/browser-lock.json").read_text(encoding="utf-8"))
+    loader=browser_lock['loader'];loader_data=(ROOT/'dist'/loader['file']).read_bytes()
+    files[loader['file']]={'bytes':len(loader_data),'sha256':hashlib.sha256(loader_data).hexdigest(),'version':browser_lock['sdkVersion'],**pe_metadata(loader_data)}
+    checks['browserLoaderPinnedHashAndSize']=files[loader['file']]['sha256']==loader['sha256'] and len(loader_data)==loader['bytes']
+    checks['browserLoaderX64PE']=files[loader['file']]['x64PE']
+    checks['browserLoaderInstallerParity']=resource(setup_path,306)==loader_data
     checks["installerFullNoticeParity"] = resource(setup_path,305) == notice
     checks["sourceNoticeMatchesDist"] = (ROOT / "THIRD-PARTY.md").read_bytes() == notice
     codicons = (ROOT / "assets/codicons/codicon.ttf").read_bytes()
@@ -164,7 +170,7 @@ def main() -> int:
     checks["installerEmbeddedCodiconsParity"] = resource(setup_path,401) == codicons
     system_imports = {"advapi32.dll","comctl32.dll","comdlg32.dll","crypt32.dll","d3d11.dll",
                       "dwmapi.dll","dxgi.dll","gdi32.dll","imm32.dll","kernel32.dll","msimg32.dll",
-                      "ole32.dll","oleaut32.dll","shell32.dll","ucrtbase.dll","user32.dll","uxtheme.dll","version.dll",
+                      "ole32.dll","oleaut32.dll","shell32.dll","ucrtbase.dll","msvcrt.dll","user32.dll","uxtheme.dll","version.dll",
                       "api-ms-win-core-winrt-l1-1-0.dll","api-ms-win-core-winrt-string-l1-1-0.dll"}
     for name in files:
         imports = import_names((ROOT / "dist" / name).read_bytes())
@@ -178,15 +184,15 @@ def main() -> int:
         cwd=ROOT,env=signing_env,check=True,capture_output=True,text=True)
     authenticode = {item["file"]:item["status"] for item in json.loads(signing.stdout)}
     report = {
-        "version": "0.4.4",
+        "version": "0.5.0",
         "platform": "win-x64",
         "passed": bool(checks) and all(checks.values()),
         "checks": checks,
         "files": files,
         "errors": errors,
         "authenticode": authenticode,
-        "runtime": "Native Win32 with pinned x64 Scintilla, Lexilla and non-V8/non-XFA PDFium; Windows WIC, WGC and D3D11",
-        "method": "PE headers, VERSIONINFO and setup RCDATA 301-305 byte parity; dependency SHA-256/size manifest verification; no EXE execution",
+        "runtime": "Native Win32 with pinned x64 viewer DLLs and on-demand WebView2 loader; optional shared Evergreen Runtime; Windows WIC, WGC and D3D11",
+        "method": "PE headers, VERSIONINFO and setup RCDATA 301-306 byte parity; dependency SHA-256/size manifest verification; no EXE execution",
     }
     target = ROOT / "artifacts" / "release-inventory.json"
     target.parent.mkdir(parents=True, exist_ok=True)

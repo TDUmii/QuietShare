@@ -1,5 +1,5 @@
 {
-  "version": "0.4.4",
+  "version": "0.5.0",
   "platform": "win-x64",
   "windowsBuild": 26200,
   "baselineV03": {
@@ -10,7 +10,7 @@
     "releasePE": 7,
     "status": "PASS before changes"
   },
-  "passed": 870,
+  "passed": 930,
   "failed": 0,
   "suites": [
     {
@@ -1309,7 +1309,7 @@
     },
     {
       "name": "Native UI / fixtures / DPAPI / resources",
-      "passed": 220,
+      "passed": 232,
       "failed": 0,
       "notTested": 0,
       "checks": [
@@ -2038,6 +2038,54 @@
           "status": "PASS"
         },
         {
+          "name": "qa-visible/browser-off.bmp.validBmpAndReviewPng",
+          "status": "PASS"
+        },
+        {
+          "name": "qa-visible/browser-off.bmp.windowPixelsVisible",
+          "status": "PASS"
+        },
+        {
+          "name": "qa-visible/browser-off.bmp.darkInterfacePresent",
+          "status": "PASS"
+        },
+        {
+          "name": "qa-visible/browser-off.bmp.textLikePixelsPresent",
+          "status": "PASS"
+        },
+        {
+          "name": "qa-visible/browser-off-en.bmp.validBmpAndReviewPng",
+          "status": "PASS"
+        },
+        {
+          "name": "qa-visible/browser-off-en.bmp.windowPixelsVisible",
+          "status": "PASS"
+        },
+        {
+          "name": "qa-visible/browser-off-en.bmp.darkInterfacePresent",
+          "status": "PASS"
+        },
+        {
+          "name": "qa-visible/browser-off-en.bmp.textLikePixelsPresent",
+          "status": "PASS"
+        },
+        {
+          "name": "qa-visible/browser-minimum.bmp.validBmpAndReviewPng",
+          "status": "PASS"
+        },
+        {
+          "name": "qa-visible/browser-minimum.bmp.windowPixelsVisible",
+          "status": "PASS"
+        },
+        {
+          "name": "qa-visible/browser-minimum.bmp.darkInterfacePresent",
+          "status": "PASS"
+        },
+        {
+          "name": "qa-visible/browser-minimum.bmp.textLikePixelsPresent",
+          "status": "PASS"
+        },
+        {
           "name": "qa-excluded.diagnosticsReadable",
           "status": "PASS"
         },
@@ -2197,7 +2245,7 @@
     },
     {
       "name": "Release PE / imports / embedded payloads",
-      "passed": 26,
+      "passed": 30,
       "failed": 0,
       "notTested": 0,
       "checks": [
@@ -2206,11 +2254,11 @@
           "status": "PASS"
         },
         {
-          "name": "QuietShare.exe.fileVersion0.4.4",
+          "name": "QuietShare.exe.fileVersion0.5.0",
           "status": "PASS"
         },
         {
-          "name": "QuietShare.exe.productVersion0.4.4",
+          "name": "QuietShare.exe.productVersion0.5.0",
           "status": "PASS"
         },
         {
@@ -2218,11 +2266,11 @@
           "status": "PASS"
         },
         {
-          "name": "QuietShare-Setup.exe.fileVersion0.4.4",
+          "name": "QuietShare-Setup.exe.fileVersion0.5.0",
           "status": "PASS"
         },
         {
-          "name": "QuietShare-Setup.exe.productVersion0.4.4",
+          "name": "QuietShare-Setup.exe.productVersion0.5.0",
           "status": "PASS"
         },
         {
@@ -2266,6 +2314,18 @@
           "status": "PASS"
         },
         {
+          "name": "browserLoaderPinnedHashAndSize",
+          "status": "PASS"
+        },
+        {
+          "name": "browserLoaderX64PE",
+          "status": "PASS"
+        },
+        {
+          "name": "browserLoaderInstallerParity",
+          "status": "PASS"
+        },
+        {
           "name": "installerFullNoticeParity",
           "status": "PASS"
         },
@@ -2303,6 +2363,10 @@
         },
         {
           "name": "pdfium.dll.systemImportsOnly",
+          "status": "PASS"
+        },
+        {
+          "name": "WebView2Loader.dll.systemImportsOnly",
           "status": "PASS"
         }
       ]
@@ -3180,6 +3244,190 @@
       ]
     },
     {
+      "name": "Optional browser / rendered WGC surface / lifecycle",
+      "passed": 44,
+      "failed": 0,
+      "notTested": 0,
+      "checks": [
+        {
+          "name": "noExistingUserApp",
+          "status": "PASS"
+        },
+        {
+          "name": "shippingWindowStarts",
+          "status": "PASS"
+        },
+        {
+          "name": "realWgcBaseGate",
+          "status": "PASS"
+        },
+        {
+          "name": "browserOffByDefault",
+          "status": "PASS"
+        },
+        {
+          "name": "noBrowserProfileBeforeEnable",
+          "status": "PASS"
+        },
+        {
+          "name": "browserPageDoesNotStartRuntime",
+          "status": "PASS"
+        },
+        {
+          "name": "browserStartsAndPassesRenderedCanary",
+          "status": "PASS"
+        },
+        {
+          "name": "localWebActuallyLoads",
+          "status": "PASS"
+        },
+        {
+          "name": "dedicatedBrowserProcess",
+          "status": "PASS"
+        },
+        {
+          "name": "dedicatedProfileCreatedOnlyOnEnable",
+          "status": "PASS"
+        },
+        {
+          "name": "addressReflectsPage",
+          "status": "PASS"
+        },
+        {
+          "name": "navigateSecondPage",
+          "status": "PASS"
+        },
+        {
+          "name": "backRestoresFirstPage",
+          "status": "PASS"
+        },
+        {
+          "name": "forwardRestoresSecondPage",
+          "status": "PASS"
+        },
+        {
+          "name": "reloadHitsLocalPageAgain",
+          "status": "PASS"
+        },
+        {
+          "name": "scriptSchemeRejected",
+          "status": "PASS"
+        },
+        {
+          "name": "policyFixtureLoads",
+          "status": "PASS"
+        },
+        {
+          "name": "policyScriptCompletesWithoutModalInterruption",
+          "status": "PASS"
+        },
+        {
+          "name": "unsolicitedPopupDoesNotNavigate",
+          "status": "PASS"
+        },
+        {
+          "name": "geolocationPermissionDenied",
+          "status": "PASS"
+        },
+        {
+          "name": "noNewNativeDialogFromScriptOrUpload",
+          "status": "PASS"
+        },
+        {
+          "name": "basicAuthenticationFixtureReached",
+          "status": "PASS"
+        },
+        {
+          "name": "basicAuthenticationDoesNotOpenCredentialDialog",
+          "status": "PASS"
+        },
+        {
+          "name": "F8MasksBrowserAndAddress",
+          "status": "PASS"
+        },
+        {
+          "name": "F8RestoresVerifiedBrowser",
+          "status": "PASS"
+        },
+        {
+          "name": "scriptReaderHidesWebButKeepsSession",
+          "status": "PASS"
+        },
+        {
+          "name": "hiddenBrowserActuallySuspends",
+          "status": "PASS"
+        },
+        {
+          "name": "browserSessionReturns",
+          "status": "PASS"
+        },
+        {
+          "name": "visibleBrowserResumes",
+          "status": "PASS"
+        },
+        {
+          "name": "narrowBrowserKeepsControls",
+          "status": "PASS"
+        },
+        {
+          "name": "ownedBrowserProcessCanBeObserved",
+          "status": "PASS"
+        },
+        {
+          "name": "disableReleasesBrowserObjects",
+          "status": "PASS"
+        },
+        {
+          "name": "disabledBrowserProcessExits",
+          "status": "PASS"
+        },
+        {
+          "name": "cancelPendingEnable:0",
+          "status": "PASS"
+        },
+        {
+          "name": "cancelPendingEnable:1",
+          "status": "PASS"
+        },
+        {
+          "name": "cancelPendingEnable:2",
+          "status": "PASS"
+        },
+        {
+          "name": "reEnableRunsFreshCanary",
+          "status": "PASS"
+        },
+        {
+          "name": "separateProfilePreservesSyntheticCookie",
+          "status": "PASS"
+        },
+        {
+          "name": "displayChangeClosesBrowser",
+          "status": "PASS"
+        },
+        {
+          "name": "restartWithExistingWebProfile",
+          "status": "PASS"
+        },
+        {
+          "name": "restartStillDefaultsBrowserOff",
+          "status": "PASS"
+        },
+        {
+          "name": "offlineReadersStartWithoutBrowserLoader",
+          "status": "PASS"
+        },
+        {
+          "name": "missingLoaderFailsOnlyOptionalBrowser",
+          "status": "PASS"
+        },
+        {
+          "name": "fileReaderWorksAfterBrowserUnavailable",
+          "status": "PASS"
+        }
+      ]
+    },
+    {
       "name": "Settings / slider live paint",
       "passed": 16,
       "failed": 0,
@@ -3338,21 +3586,21 @@
   ],
   "files": {
     "QuietShare.exe": {
-      "bytes": 700416,
-      "sha256": "bd3659db17f2f7b6b0261317f3d69b5913a44261f8c0849e4a9cee1a2ceadc1a",
+      "bytes": 776192,
+      "sha256": "508424f291daa5d952f370827c8b80d4a0b1bf8a47a5d6ebcd29cd1e2a536dd6",
       "x64PE": true,
       "machine": "0x8664",
       "optionalHeaderMagic": "0x20b",
       "fileVersion": [
         0,
-        4,
-        4,
+        5,
+        0,
         0
       ],
       "productVersion": [
         0,
-        4,
-        4,
+        5,
+        0,
         0
       ],
       "imports": [
@@ -3374,21 +3622,21 @@
       ]
     },
     "QuietShare-Setup.exe": {
-      "bytes": 12129280,
-      "sha256": "b05960391d167cade19763543454bd4ce0fdce78fffad94179431416112f02d3",
+      "bytes": 12402176,
+      "sha256": "b0ad92693bc2593d33787e7dd9121d930c5fef909988a7a45750faacd19313b3",
       "x64PE": true,
       "machine": "0x8664",
       "optionalHeaderMagic": "0x20b",
       "fileVersion": [
         0,
-        4,
-        4,
+        5,
+        0,
         0
       ],
       "productVersion": [
         0,
-        4,
-        4,
+        5,
+        0,
         0
       ],
       "imports": [
@@ -3444,6 +3692,17 @@
         "GDI32.dll",
         "USER32.dll"
       ]
+    },
+    "WebView2Loader.dll": {
+      "bytes": 194912,
+      "sha256": "3426dcc55fdfb8b5e7ac623cf33b4ccf283fbf68a0c5a65bddfdb4d749a8abee",
+      "version": "1.0.4258.31",
+      "x64PE": true,
+      "machine": "0x8664",
+      "optionalHeaderMagic": "0x20b",
+      "imports": [
+        "KERNEL32.dll"
+      ]
     }
   },
   "authenticode": {
@@ -3452,7 +3711,7 @@
   },
   "monitorCount": 1,
   "actualWgcCanary": true,
-  "canaryElapsedMs": 343,
+  "canaryElapsedMs": 344,
   "listedVideoControllers": [
     {
       "Name": "Parsec Virtual Display Adapter",
@@ -3465,5 +3724,17 @@
   ],
   "pdfCooperativeBudgetMs": 750,
   "pdfStressObservedMs": 1360,
+  "browser": {
+    "metrics": {
+      "coldStartAndCanaryMs": 1078,
+      "chatgptPublicHttpsLoaded": true
+    },
+    "notTested": [
+      "ChatGPT authenticated session and third-party OAuth",
+      "Physical meeting receivers and two physical monitors",
+      "Missing Evergreen Runtime on a clean machine"
+    ],
+    "profile": "Separate local profile; never exported"
+  },
   "screenshots": "Native renderer with synthetic data in a separate QA build; not HTML mockups or receiver evidence"
 }

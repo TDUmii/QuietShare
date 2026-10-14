@@ -16,6 +16,7 @@
 #include "Mirror.h"
 #include "ToolMenu.h"
 #include "LocalPicker.h"
+#include "Browser.h"
 #include <algorithm>
 #include <commctrl.h>
 #include <commdlg.h>
@@ -48,7 +49,9 @@ constexpr int MODE = 100, PLAY = 101, SMALLER = 102, LARGER = 103, SPEED = 104, 
               VERIFY_PRIVACY = 140, MIRROR_START = 141, MIRROR_STOP = 142, POINTER = 143,
               RELOAD_FILE = 144, KEEP_FILE = 145, WRAP = 146, FIT_WIDTH = 147,
               CLOSE_TAB = 148, CLOSE_OTHERS = 149, CLOSE_FILES = 150, SHOW_TREE = 151,
-              INCLUDE_IGNORED = 152, CLOSE_APPLICATION = 153, SOURCE_MONITOR = 160, DEST_MONITOR = 161, FIND_INPUT = 162, SIZE_INPUT = 163;
+              INCLUDE_IGNORED = 152, CLOSE_APPLICATION = 153, NAV_BROWSER=154, BROWSER_TOGGLE=155,
+              WEB_BACK=156,WEB_FORWARD=157,WEB_RELOAD=158,WEB_CHATGPT=159,
+              SOURCE_MONITOR = 160, DEST_MONITOR = 161, FIND_INPUT = 162, SIZE_INPUT = 163, WEB_ADDRESS=164,WEB_GO=165;
 constexpr int NORMAL_SIDEBAR = 44, COMPACT_SIDEBAR = 44, CONTROL_HEIGHT = 36, CONTROL_GAP = 8;
 constexpr UINT_PTR PRIVACY_TIMER = 1, SCROLL_TIMER = 2, SAVE_TIMER = 3, QA_TIMER = 4;
 HINSTANCE instance;
@@ -62,6 +65,9 @@ std::wstring sizeError;
 TabManager documents;
 DocumentBar documentBar;
 ProjectTree projectTree;
+Browser browser;
+HWND webAddress=nullptr;
+unsigned browserNavigationGeneration=0;
 DocumentHost documentHost;
 CodeViewer &codeViewer=documentHost.code;
 PdfViewer &pdfViewer=documentHost.pdf;
@@ -82,7 +88,7 @@ int fontPoints = 24, speed = 1;
 double scrollRemainder = 0;
 ULONGLONG lastScrollTick = 0;
 std::wstring dataDir;
-enum class Page { Home, Content, Settings, Presentation };
+enum class Page { Home, Content, Settings, Presentation, Browser };
 Page page = Page::Content;
 LoadedContent &ActiveContent() { return documents.Active().content; }
 bool viewingFile = false, focusMode = false, scriptReading = false;
@@ -415,6 +421,16 @@ void SetTip(int id, const wchar_t *text)
 }
 void UpdateButtons()
 {
+    SetWindowTextW(GetDlgItem(window,BROWSER_TOGGLE),T(browser.Enabled()?L"Tắt trình duyệt":L"Bật trình duyệt",browser.Enabled()?L"Disable browser":L"Enable browser"));
+    SetWindowTextW(GetDlgItem(window,WEB_CHATGPT),L"ChatGPT");
+    SetWindowTextW(GetDlgItem(window,WEB_GO),T(L"Mở",L"Go"));
+    SetWindowTextW(GetDlgItem(window,NAV_BROWSER),T(L"Trình duyệt",L"Browser"));
+    for(int id:{WEB_ADDRESS,WEB_GO,WEB_CHATGPT,WEB_RELOAD})EnableWindow(GetDlgItem(window,id),browser.Ready()&&!Blocked());
+    EnableWindow(GetDlgItem(window,WEB_BACK),browser.Ready()&&!Blocked()&&browser.CanBack());
+    EnableWindow(GetDlgItem(window,WEB_FORWARD),browser.Ready()&&!Blocked()&&browser.CanForward());
+    EnableWindow(GetDlgItem(window,BROWSER_TOGGLE),browser.Enabled()||!Blocked());
+    SetTip(NAV_BROWSER,T(L"Trình duyệt tùy chọn",L"Optional browser"));
+    SetTip(WEB_BACK,T(L"Quay lại",L"Back"));SetTip(WEB_FORWARD,T(L"Tiến tới",L"Forward"));SetTip(WEB_RELOAD,T(L"Tải lại trang",L"Reload page"));
     SetWindowTextW(window, L"QuietShare");
     SetWindowTextW(GetDlgItem(window, MODE), T(reading ? L"Sửa lời" : L"Đọc", reading ? L"Edit" : L"Read"));
     SetWindowTextW(GetDlgItem(window, NAV_SCRIPT), T(L"Lời nhắc", L"Script"));
@@ -534,14 +550,14 @@ void Layout()
     int gutter=focusMode?8:12;
     contentLeft=railWidth+gutter;contentRight=width-gutter;
     for(HWND button:buttons)ShowWindow(button,SW_HIDE);
-    for(HWND control:{fontSlider,sizeInput,findInput,sourceMonitor,destinationMonitor,documentBar.Window(),projectTree.Handle()})
+    for(HWND control:{fontSlider,sizeInput,findInput,webAddress,sourceMonitor,destinationMonitor,documentBar.Window(),projectTree.Handle()})
         if(control)ShowWindow(control,SW_HIDE);
     fontLabelRect={};
     auto move=[&](int id,int left,int top,int w,int h=32){
         HWND child=GetDlgItem(window,id);MoveWindow(child,S(left),S(top),S(w),S(h),TRUE);ShowWindow(child,SW_SHOW);
     };
     if(!focusMode) {
-        int y=56;for(int id:{NAV_HOME,NAV_SCRIPT,NAV_PRESENTATION,NAV_SETTINGS}){
+        int y=56;for(int id:{NAV_HOME,NAV_SCRIPT,NAV_PRESENTATION,NAV_BROWSER,NAV_SETTINGS}){
             move(id,6,y,railWidth-12,32);y+=36;
         }
     }
@@ -588,7 +604,19 @@ void Layout()
         x+=4;move(SIZE_INPUT,x,y,64);x+=64;fontLabelRect={S(x),S(y),S(x+28),S(y+32)};x+=32;move(LARGER,x,y,32);x+=40;move(RESET_ZOOM,x,y,56);
         MoveWindow(fontSlider,S(contentLeft+12),S(112),S(contentRight-contentLeft-24),S(24),TRUE);ShowWindow(fontSlider,SW_SHOW);
         move(TOPMOST,contentLeft+12,160,64);move(LANGUAGE,contentLeft+84,160,44);
-        move(INCLUDE_IGNORED,contentLeft+12,208,std::min(260,contentRight-contentLeft-24),28);
+        move(INCLUDE_IGNORED,contentLeft+12,shortUi?200:208,std::min(260,contentRight-contentLeft-24),shortUi?24:28);
+        move(BROWSER_TOGGLE,contentLeft+12,shortUi?232:248,std::min(200,contentRight-contentLeft-24),shortUi?24:28);
+    }
+    else if(page==Page::Browser) {
+        int x=contentLeft,y=48;
+        for(int id:{WEB_BACK,WEB_FORWARD,WEB_RELOAD}){move(id,x,y,28,28);x+=32;}
+        move(WEB_CHATGPT,x,y,76,28);
+        move(BROWSER_TOGGLE,contentRight-152,y,152,28);
+        int addressY=84,addressWidth=std::max(48,contentRight-contentLeft-56);
+        MoveWindow(webAddress,S(contentLeft),S(addressY),S(addressWidth),S(28),TRUE);
+        if(!Blocked()){ShowWindow(webAddress,SW_SHOW);move(WEB_GO,contentRight-48,addressY,48,28);}
+        contentCardRect={S(contentLeft),S(120),S(contentRight),S(height-(focusMode?8:24))};
+        move(MASK,contentRight-28,8,28,28);
     }
     else if(page==Page::Presentation) {
         int available=contentRight-contentLeft-88;
@@ -610,6 +638,7 @@ void Layout()
     DocumentType displayType=IsCode()?DocumentType::Code:documents.Active().type;
     renderedSafe=!Blocked();
     documentHost.Show(displayType,renderedSafe,page==Page::Content&&!projectDrawer);
+    browser.SetBounds(body);browser.Show(page==Page::Browser&&renderedSafe&&!IsIconic(window));
     UpdateButtons();UpdateDocumentBar();
     RedrawWindow(window,nullptr,nullptr,RDW_INVALIDATE|RDW_ALLCHILDREN|RDW_UPDATENOW);
 }
@@ -650,7 +679,7 @@ void RefreshFonts()
                            CLEARTYPE_QUALITY, 0, L"Segoe UI Variable");
     for (HWND button : buttons)
         SendMessageW(button, WM_SETFONT, (WPARAM)uiFont, TRUE);
-    for(HWND control:{findInput,sizeInput,sourceMonitor,destinationMonitor,projectTree.Handle()})if(control)SendMessageW(control,WM_SETFONT,(WPARAM)uiFont,TRUE);
+    for(HWND control:{findInput,sizeInput,webAddress,sourceMonitor,destinationMonitor,projectTree.Handle()})if(control)SendMessageW(control,WM_SETFONT,(WPARAM)uiFont,TRUE);
     if (oldUi)
         DeleteObject(oldUi);
     if (oldTitle)
@@ -762,7 +791,7 @@ void ToggleMask()
 {
     masked = !masked;
     Pause();
-    if(masked){documentHost.Hide();SendMessageW(tooltips,TTM_POP,0,0);}
+    if(masked){browser.Lock();documentHost.Hide();SendMessageW(tooltips,TTM_POP,0,0);}
     if (masked && filePicker)
     {
         ShowWindow(filePicker, SW_HIDE);
@@ -775,6 +804,7 @@ void ToggleMask()
 }
 void RefreshPrivacy()
 {
+    browser.Disable();
     topologyKnown=false;
     Pause();
     ShowWindow(editor, SW_HIDE);
@@ -1060,7 +1090,7 @@ void Paint(HDC dc)
     if(!focusMode)DrawSidebar(dc,railWidth,client.bottom,true);
     RECT title{S(contentLeft),S(12),S(contentRight),S(40)};
     if(!focusMode && page!=Page::Content)DrawTextAt(dc,page==Page::Home?T(L"Tổng quan",L"Overview"):
-        page==Page::Settings?T(L"Cài đặt",L"Settings"):T(L"Trình chiếu",L"Presentation"),title,TEXT,titleFont);
+        page==Page::Settings?T(L"Cài đặt",L"Settings"):page==Page::Browser?T(L"Trình duyệt",L"Browser"):T(L"Trình chiếu",L"Presentation"),title,TEXT,titleFont);
     if(page==Page::Content || focusMode) {
         FillRect(dc,&contentCardRect,cardBrush);
         if(Blocked()) {
@@ -1075,6 +1105,17 @@ void Paint(HDC dc)
                 T(L"Về Tổng quan hoặc Trình chiếu và bấm Kiểm tra WGC. Nội dung chỉ mở sau khi canary đạt.",L"Open Overview or Presentation and verify WGC. Content opens only after the canary passes.");
             DrawCenteredMessage(dc,contentCardRect,heading,body);
         }
+    }
+    else if(page==Page::Browser) {
+        FillRect(dc,&contentCardRect,cardBrush);
+        if(!Blocked()) {
+            RECT input{};GetWindowRect(webAddress,&input);MapWindowPoints(nullptr,window,(POINT*)&input,2);InflateRect(&input,1,1);
+            HPEN border=CreatePen(PS_SOLID,1,DIVIDER);auto old=SelectObject(dc,border),brush=SelectObject(dc,GetStockObject(NULL_BRUSH));
+            Rectangle(dc,input.left,input.top,input.right,input.bottom);SelectObject(dc,brush);SelectObject(dc,old);DeleteObject(border);
+        }
+        if(Blocked()||!browser.Ready())DrawCenteredMessage(dc,contentCardRect,
+            Blocked()?T(L"Nội dung đang che",L"Content hidden"):T(L"Web",L"Web"),
+            Blocked()?T(L"F8 để mở lại hoặc kiểm tra WGC.",L"Press F8 to reveal or verify WGC."):browser.Status(english).c_str());
     }
     else if(page==Page::Home) {
         RECT formats{S(contentLeft),S(208),S(contentRight),S(244)};
@@ -1113,7 +1154,7 @@ void Paint(HDC dc)
     }
     if(focusMode)return;
     RECT footer{S(contentLeft),client.bottom-S(22),S(contentRight),client.bottom-S(2)};
-    std::wstring label=Blocked()?T(L"Nội dung đang khóa",L"Content locked"):
+    std::wstring label=Blocked()?T(L"Nội dung đang khóa",L"Content locked"):page==Page::Browser?(browser.Ready()?browser.Status(english):L""):
         saveFailed?T(L"Không lưu được lời nhắc",L"Script save failed"):
         savedNoteRecovered&&!dirty&&!reading?T(L"Đã giữ bản dự phòng lời nhắc cũ",L"Old script recovery copy preserved"):
         dirty?T(L"Đang lưu...",L"Saving..."):!sizeError.empty()?sizeError:!findMessage.empty()?findMessage:
@@ -1133,12 +1174,12 @@ void DrawActionIcon(HDC dc,int id,RECT r,COLORREF color)
 void DrawButton(DRAWITEMSTRUCT *item)
 {
     bool disabled = (item->itemState & ODS_DISABLED) != 0;
-    bool nav = item->CtlID == NAV_SCRIPT || item->CtlID == NAV_READ || item->CtlID == NAV_HOME || item->CtlID == NAV_SETTINGS || item->CtlID==NAV_PRESENTATION;
+    bool nav = item->CtlID == NAV_SCRIPT || item->CtlID == NAV_READ || item->CtlID == NAV_HOME || item->CtlID == NAV_SETTINGS || item->CtlID==NAV_PRESENTATION || item->CtlID==NAV_BROWSER;
     bool activeNav = (item->CtlID == NAV_SCRIPT && page == Page::Content) ||
                      (item->CtlID == NAV_READ && page == Page::Content && reading) ||
                      (item->CtlID == NAV_HOME && page == Page::Home) ||
-                     (item->CtlID == NAV_SETTINGS && page == Page::Settings) || (item->CtlID==NAV_PRESENTATION && page==Page::Presentation);
-    bool primary = item->CtlID == PLAY || item->CtlID == OPEN_FILE;
+                     (item->CtlID == NAV_SETTINGS && page == Page::Settings) || (item->CtlID==NAV_PRESENTATION && page==Page::Presentation) || (item->CtlID==NAV_BROWSER&&page==Page::Browser);
+    bool primary = item->CtlID == PLAY || item->CtlID == OPEN_FILE || (item->CtlID==BROWSER_TOGGLE&&!browser.Enabled());
     bool pressed = (item->itemState & ODS_SELECTED) != 0;
     bool hover = hoveredButton == item->hwndItem && !disabled;
     bool zoom = item->CtlID == SMALLER || item->CtlID == LARGER;
@@ -1158,13 +1199,16 @@ void DrawButton(DRAWITEMSTRUCT *item)
     InflateRect(&button, -1, -1);
     if (!zoom || hover || pressed)
         FillRoundRect(item->hDC, button, color, S(8));
-    bool strip=page==Page::Content || focusMode;
+    bool strip=page==Page::Content || page==Page::Browser || focusMode;
     if (nav)
     {
         COLORREF iconColor = disabled ? DISABLED : (activeNav ? TEXT : MUTED);
         wchar_t glyph=item->CtlID==NAV_HOME?0xeb06:item->CtlID==NAV_SCRIPT?0xeaf0:
-            item->CtlID==NAV_SETTINGS?0xeb51:0xea7a;
+            item->CtlID==NAV_SETTINGS?0xeb51:item->CtlID==NAV_BROWSER?0xeb01:0xea7a;
         DrawCodicon(item->hDC,glyph,button,iconColor,S(18));
+    }
+    else if(item->CtlID==WEB_BACK||item->CtlID==WEB_FORWARD||item->CtlID==WEB_RELOAD) {
+        DrawCodicon(item->hDC,item->CtlID==WEB_BACK?0xea9b:item->CtlID==WEB_FORWARD?0xea9c:0xeb37,button,disabled?DISABLED:TEXT,S(16));
     }
     else if(strip && (item->CtlID==FOCUS || item->CtlID==MASK || item->CtlID==TOPMOST || item->CtlID==SMALLER || item->CtlID==LARGER || item->CtlID==MODE || item->CtlID==PLAY || item->CtlID==OPEN_FILE || item->CtlID==OVERFLOW || item->CtlID==FIND_CLOSE || item->CtlID==FIND_PREV || item->CtlID==FIND_NEXT))
         DrawActionIcon(item->hDC,item->CtlID,button,disabled?DISABLED:TEXT);
@@ -1405,7 +1449,7 @@ void WriteQa()
     GetWindowDisplayAffinity(window, &actual);
     auto boolean = [](bool value) -> std::wstring { return value ? L"true" : L"false"; };
     std::wstring report =
-        L"{\n  \"applicationVersion\": \"0.4.4\",\n  \"windowsBuild\": " + std::to_wstring(WindowsBuild()) +
+        L"{\n  \"applicationVersion\": \"0.5.0\",\n  \"windowsBuild\": " + std::to_wstring(WindowsBuild()) +
         L",\n  \"displayCloned\": " + boolean(cloned) + L",\n  \"topologyKnown\": " + boolean(topologyKnown) +
         L",\n  \"privacyApplied\": " + boolean(privacy.applied) +
         L",\n  \"requestedAffinity\": 17,\n  \"actualAffinity\": " + std::to_wstring(actual) +
@@ -1565,7 +1609,7 @@ void QaTick()
                             qaLayoutMatrix = CompactFits() && qaLayoutMatrix;
                         }
                         masked = false;
-                        for (Page surface : {Page::Home, Page::Settings, Page::Presentation})
+                        for (Page surface : {Page::Home, Page::Settings, Page::Presentation,Page::Browser})
                         {
                             page = surface; Layout(); qaLayoutMatrix = CompactFits() && qaLayoutMatrix;
                         }
@@ -1644,6 +1688,12 @@ void QaTick()
         qaSettings = qaSettings && ActiveTextSize()==32;
         ActiveTextSize() = beforeSize; ApplyTextFormat();
         Capture(L"settings.bmp");
+        page=Page::Browser;Layout();Capture(L"browser-off.bmp");
+        english=true;Layout();Capture(L"browser-off-en.bmp");english=false;
+        RECT browserSize{};GetWindowRect(window,&browserSize);
+        SetWindowPos(window,nullptr,0,0,S(430),S(320),SWP_NOMOVE|SWP_NOZORDER|SWP_NOACTIVATE);Layout();Capture(L"browser-minimum.bmp");
+        qaV04=CompactFits()&&!browser.Enabled()&&qaV04;
+        SetWindowPos(window,nullptr,0,0,browserSize.right-browserSize.left,browserSize.bottom-browserSize.top,SWP_NOMOVE|SWP_NOZORDER|SWP_NOACTIVATE);
         ShowScript(); SetReading(true); ToggleFocus();
         RECT strip{};GetWindowRect(documentBar.Window(),&strip);
         RECT focusButton{};GetWindowRect(GetDlgItem(window,FOCUS),&focusButton);
@@ -1790,7 +1840,8 @@ LRESULT CALLBACK Proc(HWND h, UINT message, WPARAM wp, LPARAM lp)
             {FIND_NEXT,L"Sau"},{FIND_CLOSE,L"Đóng"},{PDF_PREV,L"Trang trước"},{PDF_NEXT,L"Trang sau"},
             {NAV_PRESENTATION,L"Trình chiếu"},{VERIFY_PRIVACY,L"Kiểm tra WGC"},{MIRROR_START,L"Bắt đầu"},
             {MIRROR_STOP,L"Dừng"},{POINTER,L"Con trỏ"},{RELOAD_FILE,L"Tải lại"},{KEEP_FILE,L"Giữ bản đang xem"},
-            {INCLUDE_IGNORED,L"Hiện thư mục đang bỏ qua"}};
+            {INCLUDE_IGNORED,L"Hiện thư mục đang bỏ qua"},{NAV_BROWSER,L"Trình duyệt"},{BROWSER_TOGGLE,L"Bật trình duyệt"},
+            {WEB_BACK,L"Quay lại"},{WEB_FORWARD,L"Tiến tới"},{WEB_RELOAD,L"Tải lại"},{WEB_CHATGPT,L"ChatGPT"},{WEB_GO,L"Mở"}};
         for (const auto &label : labels)
         {
             buttons.push_back(CreateWindowW(L"BUTTON", label.second,
@@ -1841,6 +1892,8 @@ LRESULT CALLBACK Proc(HWND h, UINT message, WPARAM wp, LPARAM lp)
             SetWindowLongPtrW(projectTree.Handle(),GWL_STYLE,GetWindowLongPtrW(projectTree.Handle(),GWL_STYLE)|TVS_NOTOOLTIPS);
         ApplyPrivacy(tooltips);
         findInput=CreateWindowExW(0,L"EDIT",L"",WS_CHILD|WS_TABSTOP|ES_AUTOHSCROLL,0,0,0,0,h,(HMENU)FIND_INPUT,instance,nullptr);
+        webAddress=CreateWindowExW(0,L"EDIT",L"https://chatgpt.com",WS_CHILD|WS_TABSTOP|ES_AUTOHSCROLL,0,0,0,0,h,(HMENU)WEB_ADDRESS,instance,nullptr);
+        SendMessageW(webAddress,EM_SETLIMITTEXT,4096,0);SetWindowTheme(webAddress,L"DarkMode_Explorer",nullptr);
         sourceMonitor=CreateWindowExW(0,L"COMBOBOX",L"",WS_CHILD|WS_TABSTOP|CBS_DROPDOWNLIST|CBS_OWNERDRAWFIXED|CBS_HASSTRINGS|WS_VSCROLL,0,0,0,0,h,(HMENU)SOURCE_MONITOR,instance,nullptr);
         destinationMonitor=CreateWindowExW(0,L"COMBOBOX",L"",WS_CHILD|WS_TABSTOP|CBS_DROPDOWNLIST|CBS_OWNERDRAWFIXED|CBS_HASSTRINGS|WS_VSCROLL,0,0,0,0,h,(HMENU)DEST_MONITOR,instance,nullptr);
         for(HWND combo:{sourceMonitor,destinationMonitor})SetWindowSubclass(combo,MonitorComboProc,1,0);
@@ -1899,6 +1952,24 @@ LRESULT CALLBACK Proc(HWND h, UINT message, WPARAM wp, LPARAM lp)
         }
         return 0;
     }
+    case BrowserProbeMessage: {
+        if(wp!=browser.Generation()||!browser.Enabled()||!mirror)return 0;
+        if(Blocked()){browser.Lock();return 0;}
+        verifying=true;documentHost.Hide();Layout();
+        const unsigned generation=browser.Generation();
+        const bool passed=mirror->Verify(h,SelectedMonitor(sourceMonitor),[](HWND probe){return browser.MountProbe(probe);});
+        verifying=false;
+        if(window&&browser.Enabled()&&generation==browser.Generation())browser.FinishProbe(passed&&!masked&&topologyKnown&&!cloned);
+        Layout();return 0;
+    }
+    case BrowserChangedMessage:
+        if(wp!=browser.Generation())return 0;
+        if(browser.Ready()&&!Blocked()&&browserNavigationGeneration!=browser.Generation()) {
+            browserNavigationGeneration=browser.Generation();browser.Navigate(TextOf(webAddress));
+        }
+        if(!Blocked()&&GetFocus()!=webAddress&&!browser.Address().empty())SetWindowTextW(webAddress,browser.Address().c_str());
+        Layout();return 0;
+    case WM_MOVE:browser.ParentMoved();return 0;
     case WM_SIZE:
         if (wp == SIZE_MINIMIZED)
             Pause();
@@ -1985,6 +2056,12 @@ LRESULT CALLBACK Proc(HWND h, UINT message, WPARAM wp, LPARAM lp)
         case 7:return documentBar.Offset();
         case 8:return 32;
         case 9:return (LRESULT)projectTree.NodeCount();
+        case 10:return browser.State();
+        case 11:return browser.BrowserProcessId();
+        case 12:return browser.Verified()?1:0;
+        case 13:return browser.Loaded()?1:0;
+        case 14:return browser.ErrorCode();
+        case 15:return browser.Suspended()?1:0;
         }
         return 0;
     case WM_APP+16:
@@ -2086,6 +2163,16 @@ LRESULT CALLBACK Proc(HWND h, UINT message, WPARAM wp, LPARAM lp)
             return 0;
         switch (LOWORD(wp))
         {
+        case NAV_BROWSER:Pause();focusMode=false;page=Page::Browser;Layout();break;
+        case BROWSER_TOGGLE:
+            if(browser.Enabled())browser.Disable();
+            else if(!Blocked()&&!qa){browserNavigationGeneration=0;focusMode=false;page=Page::Browser;browser.Enable(h,dataDir+L"\\WebProfile");}
+            Layout();break;
+        case WEB_GO:if(!Blocked()){browser.Navigate(TextOf(webAddress));browser.Focus();}break;
+        case WEB_CHATGPT:if(!Blocked())browser.Navigate(L"https://chatgpt.com");break;
+        case WEB_BACK:if(!Blocked())browser.Back();break;
+        case WEB_FORWARD:if(!Blocked())browser.Forward();break;
+        case WEB_RELOAD:if(!Blocked())browser.Reload();break;
         case CLOSE_APPLICATION:PostMessageW(h,WM_CLOSE,0,0);break;
         case NAV_HOME:
             Pause(); focusMode = false; page = Page::Home; Layout(); break;
@@ -2201,7 +2288,7 @@ LRESULT CALLBACK Proc(HWND h, UINT message, WPARAM wp, LPARAM lp)
             mirror->Tick();
             if(renderedSafe!=IsPrivateContentSafe()) {
                 if(Blocked()) {
-                    documentHost.Hide();SendMessageW(tooltips,TTM_POP,0,0);
+                    browser.Lock();documentHost.Hide();SendMessageW(tooltips,TTM_POP,0,0);
                     if(filePicker){ShowWindow(filePicker,SW_HIDE);PostMessageW(filePicker,WM_COMMAND,IDCANCEL,0);}
                 }
                 Layout();
@@ -2244,6 +2331,7 @@ LRESULT CALLBACK Proc(HWND h, UINT message, WPARAM wp, LPARAM lp)
         DestroyWindow(h);
         return 0;
     case WM_DESTROY:
+        browser.Disable();
         for (UINT_PTR timer : {PRIVACY_TIMER, SCROLL_TIMER, SAVE_TIMER, QA_TIMER,(UINT_PTR)5})
             KillTimer(h, timer);
         if(mirror)mirror->Stop();
@@ -2426,6 +2514,7 @@ int WINAPI wWinMain(HINSTANCE inst, HINSTANCE, LPWSTR, int show)
             if(control && (message.wParam==VK_ADD || message.wParam==VK_OEM_PLUS)){AdjustFont(2);continue;}
             if(control && (message.wParam==VK_SUBTRACT || message.wParam==VK_OEM_MINUS)){AdjustFont(-2);continue;}
             if(message.hwnd==findInput && message.wParam==VK_RETURN){RunFind(!shift);continue;}
+            if(message.hwnd==webAddress && message.wParam==VK_RETURN){if(!Blocked()){browser.Navigate(TextOf(webAddress));browser.Focus();}continue;}
             if(message.wParam==VK_ESCAPE && findVisible){findVisible=false;Layout();SetFocus(ContentWindow());continue;}
             if(message.wParam==VK_SPACE && reading && !viewingFile && message.hwnd!=findInput && !Blocked()){ToggleRun();continue;}
         }
