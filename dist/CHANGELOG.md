@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.4.4
+
+- Narrower 44 px navigation rail, 18 px navigation icons and a centered 24 px logo.
+- Project Explorer remains beside content from 740 px client width; opening or switching files no longer hides it at medium window sizes.
+- Project Explorer adapts between 176 and 240 px and includes native hierarchy guides. Narrow windows use a full-width tree until a file is opened.
+- Ctrl+B toggles the project tree. Folder expansion, tab switching, resizing and protected folder selection are covered by native regression checks.
+- Fixed Enter being intercepted by dialog navigation before the project tree could open the selected file; Enter also toggles the selected directory.
+- Added a sourced WebView2 integration study; browser support is a proposal and is not enabled in this release.
+
 ## 0.4.3
 
 - Replaced shell file/project dialogs with a capture-protected native local picker, bounded folder navigation, multi-file selection and no Explorer auxiliary surfaces.

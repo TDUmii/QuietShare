@@ -192,7 +192,7 @@ def main() -> int:
         native.set_control_text(edit, query_text)
         command(134)
 
-    def modifier_key(vk,expected_active,shift=False):
+    def modifier_key(vk,expected_active,shift=False,wait_condition=None):
         # Shared keyboard state belongs only to this test thread and owned app.
         # No SendInput/keybd_event or physical input reaches other applications.
         pending=wintypes.MSG()
@@ -210,7 +210,7 @@ def main() -> int:
             if shift:state[0x10]=state[0xA0]=0x80
             if not USER32.SetKeyboardState(state):return None
             USER32.PostMessageW(code,WM_KEYDOWN,vk,1)
-            return bool(wait_for(lambda:query(2)==expected_active,4))
+            return bool(wait_for(wait_condition or (lambda:query(2)==expected_active),4))
         finally:
             USER32.SetKeyboardState(original)
             USER32.AttachThreadInput(current,target,False)
@@ -261,6 +261,10 @@ def main() -> int:
             path.write_bytes(b"\xff\xfe" + text.encode("utf-16-le") if name == "util.cpp" else text.encode("utf-8"))
             paths.append(path)
         make_png(fixtures / "image.png")
+        project_source=fixtures / "aaa-project-src"
+        (project_source / "nested").mkdir(parents=True)
+        (project_source / "main.py").write_text("# Project tree fixture\nprint('preview')\n",encoding="utf-8")
+        (project_source / "nested" / "leaf.py").write_text("value = 1\n",encoding="utf-8")
         subprocess.run([sys.executable, str(ROOT / "tests" / "viewer_fixtures.py"), str(fixtures)], check=True,
                        stdout=subprocess.DEVNULL)
         (fixtures / "guide.pdf").write_bytes((fixtures / "many.pdf").read_bytes())
@@ -432,6 +436,48 @@ def main() -> int:
         check("protectedNativeProjectPickerOpens", bool(picker))
         USER32.PostMessageW(picker,WM_COMMAND,1,0)
         check("nativeProjectPickerLoadsTree", bool(wait_for(lambda:not owned_popup(app.pid,"QuietShareLocalPicker") and query(9)>1,5)))
+        scale=USER32.GetDpiForWindow(window)/96
+        root_item=send(tree,0x110A,0)
+        first_child=send(tree,0x110A,4,root_item)
+        check("projectRootExpandedWithRealEntries", bool(root_item and first_child))
+        before_expand=query(9)
+        send(tree,0x1102,2,first_child)
+        nested_item=send(tree,0x110A,4,first_child)
+        check("shippingProjectExpandsNestedDirectory", query(9)==before_expand+2 and bool(nested_item))
+        send(tree,0x1102,2,nested_item)
+        leaf_item=send(tree,0x110A,4,nested_item)
+        check("shippingProjectExpandsSecondLevel", bool(leaf_item) and query(9)==before_expand+3)
+        send(tree,0x110B,9,nested_item)
+        USER32.PostMessageW(tree,WM_KEYDOWN,0x0D,1)
+        check("projectTreeEnterCollapsesFolder", bool(wait_for(lambda:not (send(tree,0x1127,nested_item,0x20)&0x20),4)))
+        USER32.PostMessageW(tree,WM_KEYDOWN,0x0D,1)
+        check("projectTreeEnterExpandsFolder", bool(wait_for(lambda:send(tree,0x1127,nested_item,0x20)&0x20,4)))
+        send(tree,0x110B,9,leaf_item)
+        USER32.PostMessageW(tree,WM_KEYDOWN,0x0D,1)
+        check("projectTreeEnterOpensNestedFile", bool(wait_for(lambda:query(1)==4,4)))
+        USER32.SetWindowPos(window,None,0,0,round(840*scale),round(560*scale),0x16)
+        time.sleep(0.15)
+        multi_drop(window,[paths[0]])
+        check("projectTreeAndCodeRemainVisibleAt840", visible(tree) and visible(code))
+        tree_bounds,code_bounds=rect(tree,window),rect(code,window)
+        check("projectTreeDoesNotOverlapViewer", tree_bounds[2]<=code_bounds[0] and tree_bounds[2]-tree_bounds[0]>=176*scale)
+        activate(0)
+        check("projectTreeRemainsVisibleSwitchingTabs", visible(tree) and visible(editor))
+        command(151)
+        check("projectTreeToggleHidesOnlyExplorer", not visible(tree) and visible(editor))
+        command(151)
+        check("projectTreeToggleRestoresExplorer", visible(tree) and visible(editor))
+        check("projectCtrlBHidesExplorer", modifier_key(ord('B'),0,wait_condition=lambda:not visible(tree)) is True)
+        check("projectCtrlBRestoresExplorer", modifier_key(ord('B'),0,wait_condition=lambda:visible(tree)) is True)
+        USER32.SetWindowPos(window,None,0,0,round(460*scale),round(360*scale),0x16)
+        time.sleep(0.15)
+        check("narrowProjectDrawerShowsStructure", visible(tree) and not visible(editor))
+        multi_drop(window,[paths[0]])
+        check("narrowFileOpenRevealsViewer", not visible(tree) and visible(code))
+        USER32.SetWindowPos(window,None,0,0,round(840*scale),round(560*scale),0x16)
+        time.sleep(0.15)
+        command(151)
+        check("resizeRestoresTreeAlongsideCode", visible(tree) and visible(code))
         command(124)
         picker=wait_for(lambda:owned_popup(app.pid,"QuietShareLocalPicker"),3)
         check("pickerCanReopenAfterProjectSelection", bool(picker))

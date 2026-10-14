@@ -18,7 +18,7 @@ dist/*
 !dist/TEST_REPORT_v0.4.0.md
 !dist/TEST_REPORT_v0.4.1.md
 !dist/TEST_REPORT_v0.4.2.md
-!dist/TEST_REPORT_v0.4.3.md
+!dist/TEST_REPORT_v0.4.4.md
 !dist/CHANGELOG.md
 !dist/THIRD-PARTY.md
 !dist/release-inventory.json
@@ -26,11 +26,13 @@ dist/*
 !dist/docs/quietshare-reading.png
 !dist/docs/quietshare-home.png
 !dist/docs/quietshare-settings.png
+!dist/docs/quietshare-project.png
+!dist/docs/Browser_Integration_Study.md
 !dist/docs/QuietShare_v0.4.0_Codex_Implementation_Plan.md
 !dist/docs/test-evidence-v0.4.0.json
 !dist/docs/test-evidence-v0.4.1.json
 !dist/docs/test-evidence-v0.4.2.json
-!dist/docs/test-evidence-v0.4.3.json
+!dist/docs/test-evidence-v0.4.4.json
 !dist/dependencies/
 !dist/dependencies/**
 

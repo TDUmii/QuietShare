@@ -1,4 +1,4 @@
-# QuietShare 0.4.3
+# QuietShare 0.4.4
 
 QuietShare là ứng dụng desktop để đọc lời nhắc, xem code, ảnh và PDF trong một cửa sổ riêng khi thuyết trình. App chạy offline trên Windows 10/11 x64, với giao diện tiếng Việt và tiếng Anh.
 
@@ -25,7 +25,7 @@ Văn bản/code hỗ trợ UTF-8 hoặc UTF-16 có BOM, tối đa 5 MiB. App nh�
 ### Cài đặt
 
 1. Cần **Windows 10 phiên bản 2004 (build 19041) trở lên hoặc Windows 11, x64**, với DWM và Windows Graphics Capture hoạt động.
-2. Tải [QuietShare 0.4.3](https://github.com/TDUmii/QuietShare/releases/tag/v0.4.3), giải nén toàn bộ gói và chạy `QuietShare-Setup.exe`. Bộ cài dùng tài khoản hiện tại, không cần quyền quản trị.
+2. Tải [QuietShare 0.4.4](https://github.com/TDUmii/QuietShare/releases/tag/v0.4.4), giải nén toàn bộ gói và chạy `QuietShare-Setup.exe`. Bộ cài dùng tài khoản hiện tại, không cần quyền quản trị.
 3. Để dùng portable, chạy `QuietShare.exe` trong thư mục đã giải nén. Giữ `Scintilla.dll`, `Lexilla.dll` và `pdfium.dll` cạnh EXE; không chỉ sao chép riêng EXE.
 
 Đóng QuietShare trước khi nâng cấp bằng bộ cài mới. Nâng cấp và gỡ app giữ lại lời nhắc đã tự lưu. Nút **EN / VI** trong bộ cài đổi ngôn ngữ.
@@ -35,7 +35,7 @@ Văn bản/code hỗ trợ UTF-8 hoặc UTF-16 có BOM, tối đa 5 MiB. App nh�
 1. Đợi kiểm tra capture khi mở app. Nếu nội dung đang khóa, bấm **Kiểm tra WGC** tại **Tổng quan**; nếu cần đổi màn hình nguồn, mở **Trình chiếu** và chọn **Nguồn** trước. App kiểm tra một marker thử, không dùng nội dung cá nhân; chỉ hiện nội dung khi kiểm tra đạt.
 2. Chọn **Lời nhắc** để soạn. Ctrl+Enter chuyển soạn/đọc; dùng nút chạy hoặc **⋯ > Chạy / Dừng cuộn**. **⋯ > Đổi tốc độ cuộn** chọn Chậm/Vừa/Nhanh. Chỉ lời nhắc được tự lưu và khôi phục khi mở lại app.
 3. Dùng **Mở hoặc thả file**, Ctrl+O hoặc kéo thả nhiều file. Ctrl+Tab / Ctrl+Shift+Tab chuyển tab; dấu **×**, chuột giữa hoặc Ctrl+W đóng tab file. **⋯** có lệnh đóng tab khác/mọi file, luôn giữ lời nhắc. Mở lại file đã thay đổi sẽ có lựa chọn **Tải lại** hoặc **Giữ bản đang xem**.
-4. Ctrl+Shift+O hoặc **Mở dự án** chọn thư mục. Mở rộng thư mục rồi nhấp đúp file, hoặc dùng phím mũi tên và Enter. **⋯ > Ẩn / Hiện cây thư mục** đổi giữa cây và nội dung. Cây bỏ qua junction/symlink và giới hạn thư mục lớn; mở thư mục con riêng nếu app yêu cầu.
+4. Ctrl+Shift+O hoặc **Mở dự án** chọn thư mục. Mở rộng thư mục rồi nhấp đúp file, hoặc dùng phím mũi tên và Enter. Cây dự án và nội dung nằm cạnh nhau khi cửa sổ đủ rộng; mở file hoặc chuyển tab vẫn giữ cây. **Ctrl+B** hoặc **⋯ > Ẩn / Hiện cây thư mục** bật/tắt cây. Ở cửa sổ rất hẹp, cây chiếm vùng nội dung; mở file để đọc, Ctrl+B để trở lại cây. Cây bỏ qua junction/symlink và giới hạn thư mục lớn; mở thư mục con riêng nếu app yêu cầu.
 5. Dùng **− / +**, Ctrl+`−` / Ctrl+`+`, Ctrl rồi lăn chuột hoặc **Cài đặt** để đổi cỡ chữ/zoom. Ctrl+`0` đưa chữ/code về cỡ mặc định, ảnh/PDF về vừa khung. Kéo ảnh hoặc dùng phím mũi tên để di chuyển.
 
 Trong **Cài đặt**, nhập trực tiếp cỡ chữ rồi nhấn Enter: lời nhắc/văn bản 8-200 pt; code/ảnh/PDF 25-400% zoom. Thanh trượt hiển thị giá trị và phần màu ngay khi kéo. PDF áp dụng mức zoom khi thả chuột để tránh dựng lại trang nặng ở từng bước.
@@ -56,6 +56,8 @@ Ctrl+Alt+Q gọi QuietShare lên khi bị che hoặc thu nhỏ, kể cả lúc k
 
 ![Cỡ chữ và thanh trượt / Text size and slider](docs/quietshare-settings.png)
 
+![Cây dự án và code / Project Explorer and code](docs/quietshare-project.png)
+
 ## English
 
 ### Features
@@ -75,7 +77,7 @@ Text/code support UTF-8 or BOM-marked UTF-16, up to 5 MiB. Supported extensions 
 ### Install
 
 1. Use **Windows 10 version 2004 (build 19041) or later, or Windows 11, x64**, with working DWM and Windows Graphics Capture.
-2. Download [QuietShare 0.4.3](https://github.com/TDUmii/QuietShare/releases/tag/v0.4.3), extract the complete package and run `QuietShare-Setup.exe`. It installs for the current account without administrator rights.
+2. Download [QuietShare 0.4.4](https://github.com/TDUmii/QuietShare/releases/tag/v0.4.4), extract the complete package and run `QuietShare-Setup.exe`. It installs for the current account without administrator rights.
 3. For portable use, run `QuietShare.exe` in the extracted folder. Keep `Scintilla.dll`, `Lexilla.dll` and `pdfium.dll` beside it; copying only the EXE is insufficient.
 
 Close QuietShare before upgrading with a new installer. Upgrading/uninstalling preserve the autosaved script. Use the installer's **EN / VI** button to change its language.
@@ -85,7 +87,7 @@ Close QuietShare before upgrading with a new installer. Upgrading/uninstalling p
 1. Wait for the capture check at launch. If content is locked, press **Verify WGC privacy** on **Overview**; to change the source display, open **Presentation** and select **Source** first. The app checks a synthetic marker without your personal content and reveals content only after success.
 2. Select **Script** to prepare your notes. Ctrl+Enter switches editing/reading; use the play action or **⋯ > Start / stop scrolling**. **⋯ > Change scroll speed** cycles Slow/Medium/Fast. Only the script is autosaved/restored on launch.
 3. Use **Open or drop a file**, Ctrl+O or multi-file drag/drop. Ctrl+Tab / Ctrl+Shift+Tab switches tabs; **×**, middle-click or Ctrl+W closes a file tab. **⋯** can close other/all file tabs while retaining the script. Reopening a changed file offers **Reload** or **Keep current preview**.
-4. Ctrl+Shift+O or **Open project** selects a folder. Expand folders, then double-click a file or navigate with arrows and Enter. **⋯ > Hide / show project tree** switches between tree and content. Junctions/symlinks are skipped and large folders are bounded; open a subfolder separately if requested.
+4. Ctrl+Shift+O or **Open project** selects a folder. Expand folders, then double-click a file or navigate with arrows and Enter. Project Explorer and content sit side by side when the window is wide enough; opening files or switching tabs keeps the tree visible. **Ctrl+B** or **⋯ > Hide / show project tree** toggles Explorer. In very narrow windows, the tree fills the content area; open a file to read it and press Ctrl+B to return to the tree. Junctions/symlinks are skipped and large folders are bounded; open a subfolder separately if requested.
 5. Use **− / +**, Ctrl+`−` / Ctrl+`+`, Ctrl plus the wheel, or **Settings** to adjust text size/zoom. Ctrl+`0` restores default script/code size and fits images/PDFs. Drag images or use arrows to pan.
 
 In **Settings**, type a size and press Enter: scripts/text support 8-200 pt; code/images/PDF use 25-400% zoom. The slider value and fill update while dragging. PDFs apply the zoom on release to avoid rendering expensive pages at every step.

@@ -285,7 +285,7 @@ bool ProjectTree::Create(HWND parent, int controlId)
     INITCOMMONCONTROLSEX common{sizeof(common), ICC_TREEVIEW_CLASSES};
     InitCommonControlsEx(&common);
     window_ = CreateWindowExW(0, WC_TREEVIEWW, L"", WS_CHILD | WS_TABSTOP | TVS_HASBUTTONS | TVS_LINESATROOT |
-                              TVS_SHOWSELALWAYS | TVS_NOTOOLTIPS | TVS_DISABLEDRAGDROP,
+                              TVS_SHOWSELALWAYS | TVS_NOTOOLTIPS | TVS_DISABLEDRAGDROP | TVS_HASLINES,
                               0, 0, 0, 0, parent, reinterpret_cast<HMENU>(static_cast<INT_PTR>(controlId)),
                               GetModuleHandleW(nullptr), nullptr);
     if (!window_)

@@ -1,6 +1,6 @@
-# QuietShare v0.4.3 - Test report
+# QuietShare v0.4.4 - Test report
 
-Build and automated validation completed on Windows build 26200 x64. **849 checks PASS, 0 FAIL.** Physical receiver sign-off remains **NOT TESTED**. The original v0.3 baseline passed before changes; its results are retained in the sanitized evidence.
+Build and automated validation completed on Windows build 26200 x64. **870 checks PASS, 0 FAIL.** Physical receiver sign-off remains **NOT TESTED**. The original v0.3 baseline passed before changes; its results are retained in the sanitized evidence.
 
 Host video controllers: Parsec Virtual Display Adapter (driver 0.45.0.0); NVIDIA GeForce GTX 1660 Ti (driver 32.0.15.9597). WGC captured the enumerated desktop display; D3D renderer readback used WARP software. A physical destination and its controller mapping were not observed.
 
@@ -25,21 +25,21 @@ Requires Windows, Python 3, MinGW-w64 GCC 13.1.0 (or compatible x64 toolchain) a
 | Scintilla / Lexilla / PDFium | 151 | 0 | PASS |
 | WGC / canary / cancellation | 52 | 0 | PASS |
 | D3D11 production renderer / WARP | 16 | 0 | PASS |
-| Native UI / fixtures / DPAPI / resources | 216 | 0 | PASS |
+| Native UI / fixtures / DPAPI / resources | 220 | 0 | PASS |
 | Release PE / imports / embedded payloads | 26 | 0 | PASS |
 | Shipping EXE / script lifecycle | 42 | 0 | PASS |
 | Native scrollbar / separate QA EXE | 17 | 0 | PASS |
-| Shipping EXE / multi-view integration | 131 | 0 | PASS |
+| Shipping EXE / multi-view integration | 148 | 0 | PASS |
 | Settings / slider live paint | 16 | 0 | PASS |
 | Installer / upgrade / uninstall / rollback | 19 | 0 | PASS |
-| **Total** | **849** | **0** | **PASS** |
+| **Total** | **870** | **0** | **PASS** |
 
-Detailed sanitized check names and payload metadata: [test-evidence-v0.4.3.json](docs/test-evidence-v0.4.3.json). Raw fixtures, pixels, temporary profiles and diagnostics are local-only and excluded from Git and the portable package; temporary payloads can be cleaned after the final evidence is exported.
+Detailed sanitized check names and payload metadata: [test-evidence-v0.4.4.json](docs/test-evidence-v0.4.4.json). Raw fixtures, pixels, temporary profiles and diagnostics are local-only and excluded from Git and the portable package; temporary payloads can be cleaned after the final evidence is exported.
 
 ## What the checks establish
 
 - **Core and persistence:** native plaintext script, Unicode DPAPI autosave/restart, corrupt-note recovery, single instance, read-only file previews, image orientation/transparency/zoom/pan and script preservation. Installer smoke installs, upgrades, rolls back and uninstalls in a fixed fixture, checks exact payload hashes, and verifies that the actual account's files, notes, shortcuts and registry are unchanged.
-- **Tabs and project:** eight files plus script in the shipping EXE, invalid-file isolation, canonical case-insensitive deduplication, explicit reload/keep, close/middle-click/close-all, per-tab scroll/zoom/page, lazy folder expansion and hidden/heavy-directory filtering. Reparse/junction recursion and enumeration/tab/memory limits are checked in native module fixtures.
+- **Tabs and project:** eight files plus script in the shipping EXE, invalid-file isolation, canonical case-insensitive deduplication, explicit reload/keep, close/middle-click/close-all, per-tab scroll/zoom/page, lazy folder expansion and hidden/heavy-directory filtering. Shipping checks cover two-level expansion, Enter file/folder actions, Ctrl+B, side-by-side tree/content at medium width, preserved tree on tab changes, a narrow drawer and resize recovery. Reparse/junction recursion and enumeration/tab/memory limits are checked in native module fixtures.
 - **Code:** actual Scintilla class and Lexilla token-style IDs for Python, C++, JS, JSON, HTML and CSS; distinct comments/keywords/strings, contrast at least 4.5:1, Unicode/UTF-16 BOM input, line numbers, wrapping/find, Ctrl+wheel/reset and unknown-text null-lexer fallback. No code is executed.
 - **PDF:** PDFium rendering inside the native canvas, 1-page and 120-page documents, image-only and mixed text/image PDFs, Vietnamese text-layer search/selection, invalid/password documents, zoom/fit/navigation/pan, 40 open/render/close cycles, bitmap/GDI release and recovery after size/time limits. Cross-thread sent close during render/find safely cancels; nested replacement/page/state changes are rejected until the active PDF call unwinds.
 - **Focus and UI:** one 32px logical strip with no Windows caption in F11; restored caption on exit, compact exit action, overflowing tabs and content below controls at 826x553 and 430x320. Shell layouts cover VI/EN at simulated 96/120/144/192 DPI (240 normal-page/state combinations and 40 focus combinations). These are logical-scale tests, not physical multi-DPI monitor observations. Native captures of all pages, code, image, PDF, empty/error/masked states and focus were visually inspected.
@@ -54,7 +54,7 @@ Detailed sanitized check names and payload metadata: [test-evidence-v0.4.3.json]
 
 | Area | Status | Evidence / boundary |
 |---|---|---|
-| Current Windows x64 build, all automated suites | PASS | 849 checks, final binaries and embedded installer payloads match |
+| Current Windows x64 build, all automated suites | PASS | 870 checks, final binaries and embedded installer payloads match |
 | Native UI screenshots and compact layouts | PASS | Actual native renderer; harmless synthetic data; no simulated HTML screens |
 | WDA apply/readback and actual local WGC canary | PASS | Protected/unprotected controls; same WGC capture method |
 | Synthetic failure classification and cancellation | PASS | No manual physical-Duplicate claim |
@@ -78,8 +78,8 @@ Detailed sanitized check names and payload metadata: [test-evidence-v0.4.3.json]
 
 | File | Bytes | SHA-256 |
 |---|---:|---|
-| `QuietShare.exe` | 699,392 | `878634b4f8e67285961232a8c34554a83c9c6b0eb5164b9aaf97ad1fe309dac5` |
-| `QuietShare-Setup.exe` | 12,128,256 | `61a324ea4c352a567746f9cd2b4f444530174b93c9a6cdb9bfd6b1466b57071c` |
+| `QuietShare.exe` | 700,416 | `bd3659db17f2f7b6b0261317f3d69b5913a44261f8c0849e4a9cee1a2ceadc1a` |
+| `QuietShare-Setup.exe` | 12,129,280 | `b05960391d167cade19763543454bd4ce0fdce78fffad94179431416112f02d3` |
 | `Scintilla.dll` | 1,131,880 | `a6957ae53a5bc92b3bdfe24c938c80df248a0a1f7a4c937ec5222646a52402fa` |
 | `Lexilla.dll` | 1,400,168 | `3487bc191eb25b8475f55975341190817c9d37296e9ffa2e0179804eb7a2f087` |
 | `pdfium.dll` | 7,512,064 | `ae913f407e8d3f5cdbf08a9869564d647b13e132e01eb376c0a5a33b7a227a45` |

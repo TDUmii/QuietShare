@@ -49,7 +49,7 @@ constexpr int MODE = 100, PLAY = 101, SMALLER = 102, LARGER = 103, SPEED = 104, 
               RELOAD_FILE = 144, KEEP_FILE = 145, WRAP = 146, FIT_WIDTH = 147,
               CLOSE_TAB = 148, CLOSE_OTHERS = 149, CLOSE_FILES = 150, SHOW_TREE = 151,
               INCLUDE_IGNORED = 152, CLOSE_APPLICATION = 153, SOURCE_MONITOR = 160, DEST_MONITOR = 161, FIND_INPUT = 162, SIZE_INPUT = 163;
-constexpr int NORMAL_SIDEBAR = 60, COMPACT_SIDEBAR = 60, CONTROL_HEIGHT = 36, CONTROL_GAP = 8;
+constexpr int NORMAL_SIDEBAR = 44, COMPACT_SIDEBAR = 44, CONTROL_HEIGHT = 36, CONTROL_GAP = 8;
 constexpr UINT_PTR PRIVACY_TIMER = 1, SCROLL_TIMER = 2, SAVE_TIMER = 3, QA_TIMER = 4;
 HINSTANCE instance;
 HWND window, editor, underlay, tooltips, hoveredButton, imageViewer, fontSlider, filePicker,
@@ -359,9 +359,10 @@ void DrawSidebar(HDC dc, int sidebar, int height, bool compact)
     FillRect(dc, &divider, brush);
     DeleteObject(brush);
 
-    RECT logo{S(16), S(20), S(48), S(52)};
-    FillRoundRect(dc, logo, ACCENT, S(8));
-    DrawCodicon(dc,0xeaf0,logo,TEXT,S(24));
+    int logoLeft=(sidebar-24)/2;
+    RECT logo{S(logoLeft), S(20), S(logoLeft+24), S(44)};
+    FillRoundRect(dc, logo, ACCENT, S(6));
+    DrawCodicon(dc,0xeaf0,logo,TEXT,S(16));
     if (!compact)
     {
         RECT brand{S(56), S(20), S(sidebar - 8), S(52)};
@@ -380,7 +381,7 @@ void DrawSidebar(HDC dc, int sidebar, int height, bool compact)
     HBRUSH dotBrush = CreateSolidBrush(stateColor);
     HGDIOBJ oldBrush = SelectObject(dc, dotBrush);
     HGDIOBJ oldPen = SelectObject(dc, GetStockObject(NULL_PEN));
-    int dotX = compact ? 28 : 24;
+    int dotX = compact ? (sidebar-8)/2 : 24;
     Ellipse(dc, S(dotX), status.top + S(16), S(dotX + 8), status.top + S(24));
     SelectObject(dc, oldPen);
     SelectObject(dc, oldBrush);
@@ -540,15 +541,15 @@ void Layout()
         HWND child=GetDlgItem(window,id);MoveWindow(child,S(left),S(top),S(w),S(h),TRUE);ShowWindow(child,SW_SHOW);
     };
     if(!focusMode) {
-        int y=64;for(int id:{NAV_HOME,NAV_SCRIPT,NAV_PRESENTATION,NAV_SETTINGS}){
-            move(id,8,y,railWidth-16,32);y+=40;
+        int y=56;for(int id:{NAV_HOME,NAV_SCRIPT,NAV_PRESENTATION,NAV_SETTINGS}){
+            move(id,6,y,railWidth-12,32);y+=36;
         }
     }
     contentCardRect={S(contentLeft),S(48),S(contentRight),S(height-(focusMode?8:24))};
     if(page==Page::Content || focusMode) {
         int left=contentLeft;
-        if(!focusMode && treeVisible && !projectTree.Root().empty() && !Blocked() && width>=900) {
-            int treeWidth=176;MoveWindow(projectTree.Handle(),S(left),S(40),S(treeWidth),S(height-64),TRUE);
+        if(!focusMode && treeVisible && !projectTree.Root().empty() && !Blocked() && width>=740) {
+            int treeWidth=std::clamp(width/4,176,240);MoveWindow(projectTree.Handle(),S(left),S(40),S(treeWidth),S(height-64),TRUE);
             ShowWindow(projectTree.Handle(),SW_SHOW);left+=treeWidth+8;
         }
         contentLeft=left;
@@ -598,7 +599,7 @@ void Layout()
         if(contentRight-contentLeft>=280)move(POINTER,contentLeft+184,176,96);
     }
     RECT body=contentCardRect;InflateRect(&body,-S(4),-S(4));
-    projectDrawer=!focusMode && page==Page::Content && treeVisible && !projectTree.Root().empty() && !Blocked() && width<900;
+    projectDrawer=!focusMode && page==Page::Content && treeVisible && !projectTree.Root().empty() && !Blocked() && width<740;
     if(projectDrawer) {
         MoveWindow(projectTree.Handle(),body.left,body.top,body.right-body.left,body.bottom-body.top,TRUE);
         ShowWindow(projectTree.Handle(),SW_SHOW);
@@ -834,7 +835,7 @@ void RenderDocument()
 void ActivateDocument(DocumentId id)
 {
     if(Blocked())return;Pause();SaveActiveState();documentHost.CloseExternal();
-    if(compactUi || contentRight-contentLeft<740)treeVisible=false;
+    if(projectDrawer)treeVisible=false;
     if(!documents.Activate(id,importError)){RenderDocument();return;}
     viewingFile=id!=0;RenderDocument();documents.EvictInactiveHeavy();
 }
@@ -846,7 +847,7 @@ void CloseDocument(DocumentId id)
 void ShowScript()
 {
     if(Blocked())return;SaveActiveState();documentHost.CloseExternal();documents.Activate(0);
-    if(compactUi || contentRight-contentLeft<740)treeVisible=false;
+    if(projectDrawer)treeVisible=false;
     viewingFile=false;focusMode=false;reading=false;scriptReading=false;RenderDocument();
 }
 void ShowOpenedFile()
@@ -861,7 +862,7 @@ bool OpenContentPath(const std::wstring &path)
         reloadPending=result.id;findVisible=false;RenderDocument();return false;
     }
     if(!result) {RenderDocument();return false;}
-    if(compactUi || contentRight-contentLeft<740)treeVisible=false;
+    if(projectDrawer)treeVisible=false;
     viewingFile=true;viewerError.clear();RenderDocument();
     if(!viewerError.empty()) {
         importError=viewerError;documentHost.CloseExternal();
@@ -965,7 +966,7 @@ void OverflowMenu()
         item(FIT_WIDTH,L"PDF vừa chiều ngang",L"Fit PDF width",safe);
     }
     item(TOPMOST,L"Ghim / Bỏ ghim",L"Pin / unpin");item(FOCUS,L"Tập trung   F11",L"Focus   F11");
-    item(SHOW_TREE,L"Ẩn / Hiện cây thư mục",L"Hide / show project tree",safe);
+    item(SHOW_TREE,L"Ẩn / Hiện cây thư mục   Ctrl+B",L"Hide / show project tree   Ctrl+B",safe);
     item(LANGUAGE,L"English / Tiếng Việt",L"Tiếng Việt / English");
     item(CLOSE_TAB,L"Đóng tab   Ctrl+W",L"Close tab   Ctrl+W",safe&&viewingFile);
     item(CLOSE_OTHERS,L"Đóng các tab khác",L"Close other tabs",safe);
@@ -1163,7 +1164,7 @@ void DrawButton(DRAWITEMSTRUCT *item)
         COLORREF iconColor = disabled ? DISABLED : (activeNav ? TEXT : MUTED);
         wchar_t glyph=item->CtlID==NAV_HOME?0xeb06:item->CtlID==NAV_SCRIPT?0xeaf0:
             item->CtlID==NAV_SETTINGS?0xeb51:0xea7a;
-        DrawCodicon(item->hDC,glyph,button,iconColor,S(24));
+        DrawCodicon(item->hDC,glyph,button,iconColor,S(18));
     }
     else if(strip && (item->CtlID==FOCUS || item->CtlID==MASK || item->CtlID==TOPMOST || item->CtlID==SMALLER || item->CtlID==LARGER || item->CtlID==MODE || item->CtlID==PLAY || item->CtlID==OPEN_FILE || item->CtlID==OVERFLOW || item->CtlID==FIND_CLOSE || item->CtlID==FIND_PREV || item->CtlID==FIND_NEXT))
         DrawActionIcon(item->hDC,item->CtlID,button,disabled?DISABLED:TEXT);
@@ -1404,7 +1405,7 @@ void WriteQa()
     GetWindowDisplayAffinity(window, &actual);
     auto boolean = [](bool value) -> std::wstring { return value ? L"true" : L"false"; };
     std::wstring report =
-        L"{\n  \"applicationVersion\": \"0.4.3\",\n  \"windowsBuild\": " + std::to_wstring(WindowsBuild()) +
+        L"{\n  \"applicationVersion\": \"0.4.4\",\n  \"windowsBuild\": " + std::to_wstring(WindowsBuild()) +
         L",\n  \"displayCloned\": " + boolean(cloned) + L",\n  \"topologyKnown\": " + boolean(topologyKnown) +
         L",\n  \"privacyApplied\": " + boolean(privacy.applied) +
         L",\n  \"requestedAffinity\": 17,\n  \"actualAffinity\": " + std::to_wstring(actual) +
@@ -1721,9 +1722,24 @@ void QaTick()
             }
             dpi=actualDpi;english=false;RefreshFonts();ToggleFocus();
             SetWindowPos(window,nullptr,0,0,S(1080),S(560),SWP_NOMOVE|SWP_NOZORDER|SWP_NOACTIVATE);
-            qaV04=projectTree.OpenFolder(qaDir,importError)&&qaV04;
+            const auto project=qaDir+L"\\demo-project";
+            CreateDirectoryW(project.c_str(),nullptr);CreateDirectoryW((project+L"\\src").c_str(),nullptr);
+            CreateDirectoryW((project+L"\\src\\utils").c_str(),nullptr);
+            const std::string source="# QuietShare sample\ndef explain(value):\n    return value + 1\n";
+            WriteBytes(project+L"\\src\\main.py",source.data(),(DWORD)source.size());
+            WriteBytes(project+L"\\src\\utils\\helpers.py",source.data(),(DWORD)source.size());
+            const std::string readme="# Demo project\nLocal read-only preview.\n";
+            WriteBytes(project+L"\\README.md",readme.data(),(DWORD)readme.size());
+            qaV04=projectTree.OpenFolder(project,importError)&&qaV04;
             treeVisible=true;TreeView_Expand(projectTree.Handle(),TreeView_GetRoot(projectTree.Handle()),TVE_EXPAND);Layout();
+            auto sourceItem=TreeView_GetChild(projectTree.Handle(),TreeView_GetRoot(projectTree.Handle()));
+            TreeView_Expand(projectTree.Handle(),sourceItem,TVE_EXPAND);
+            TreeView_Expand(projectTree.Handle(),TreeView_GetChild(projectTree.Handle(),sourceItem),TVE_EXPAND);
+            qaV04=OpenContentPath(project+L"\\src\\main.py")&&qaV04;
             Capture(L"project-wide.bmp");
+            SetWindowPos(window,nullptr,0,0,S(840),S(560),SWP_NOMOVE|SWP_NOZORDER|SWP_NOACTIVATE);Layout();
+            qaV04=OpenContentPath(project+L"\\src\\main.py")&&treeVisible&&!projectDrawer&&IsWindowVisible(projectTree.Handle())&&IsWindowVisible(codeViewer.Window())&&qaV04;
+            Capture(L"project-medium.bmp");
             SetWindowPos(window,nullptr,0,0,S(430),S(320),SWP_NOMOVE|SWP_NOZORDER|SWP_NOACTIVATE);Layout();
             qaV04=projectDrawer&&!IsWindowVisible(codeViewer.Window())&&qaV04;Capture(L"project-minimum.bmp");
             treeVisible=false;SetWindowPos(window,nullptr,0,0,S(840),S(560),SWP_NOMOVE|SWP_NOZORDER|SWP_NOACTIVATE);
@@ -1978,6 +1994,14 @@ LRESULT CALLBACK Proc(HWND h, UINT message, WPARAM wp, LPARAM lp)
     case DocumentCloseMessage:CloseDocument((DocumentId)wp);return 0;
     case WM_NOTIFY: {
         auto notification = (NMHDR *)lp;
+        if(notification->hwndFrom==projectTree.Handle() && notification->code==NM_CUSTOMDRAW) {
+            auto draw=reinterpret_cast<NMTVCUSTOMDRAW*>(lp);
+            if(draw->nmcd.dwDrawStage==CDDS_PREPAINT)return CDRF_NOTIFYITEMDRAW;
+            if(draw->nmcd.dwDrawStage==CDDS_ITEMPREPAINT) {
+                draw->clrText=TEXT;draw->clrTextBk=(draw->nmcd.uItemState&CDIS_SELECTED)?ACCENT_DARK:CARD;
+                return CDRF_NEWFONT;
+            }
+        }
         if(notification->hwndFrom==codeViewer.Window() && notification->code==2018 && !Blocked())UpdateButtons();
         std::wstring projectFile;
         if(!Blocked() && projectTree.HandleNotify(notification,projectFile,importError)) {
@@ -2384,6 +2408,13 @@ int WINAPI wWinMain(HINSTANCE inst, HINSTANCE, LPWSTR, int show)
         if(message.message==WM_KEYDOWN) {
             bool control=(GetKeyState(VK_CONTROL)&0x8000)!=0,shift=(GetKeyState(VK_SHIFT)&0x8000)!=0;
             if(control && message.wParam==L'O'){shift?ChooseFolder():ChooseFile();continue;}
+            if(control && message.wParam==L'B' && !Blocked()) {treeVisible=!treeVisible;Layout();continue;}
+            if(!control && message.hwnd==projectTree.Handle() && message.wParam==VK_RETURN && !Blocked()) {
+                const auto file=projectTree.SelectedFile();
+                if(!file.empty())OpenContentPath(file);
+                else TreeView_Expand(projectTree.Handle(),TreeView_GetSelection(projectTree.Handle()),TVE_TOGGLE);
+                continue;
+            }
             if(control && message.wParam==L'F'){SendMessageW(window,WM_COMMAND,FIND,0);continue;}
             if(control && message.wParam==L'W'){CloseDocument(documents.Active().id);continue;}
             if(control && message.wParam==VK_TAB && !Blocked()) {

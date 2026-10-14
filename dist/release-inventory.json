@@ -1,14 +1,14 @@
 {
-  "version": "0.4.3",
+  "version": "0.4.4",
   "platform": "win-x64",
   "passed": true,
   "checks": {
     "QuietShare.exe.x64PE": true,
-    "QuietShare.exe.fileVersion0.4.3": true,
-    "QuietShare.exe.productVersion0.4.3": true,
+    "QuietShare.exe.fileVersion0.4.4": true,
+    "QuietShare.exe.productVersion0.4.4": true,
     "QuietShare-Setup.exe.x64PE": true,
-    "QuietShare-Setup.exe.fileVersion0.4.3": true,
-    "QuietShare-Setup.exe.productVersion0.4.3": true,
+    "QuietShare-Setup.exe.fileVersion0.4.4": true,
+    "QuietShare-Setup.exe.productVersion0.4.4": true,
     "installerPayloadMatchesPortableExe": true,
     "Scintilla.dll.x64PE": true,
     "Scintilla.dll.pinnedHashAndSize": true,
@@ -32,21 +32,21 @@
   },
   "files": {
     "QuietShare.exe": {
-      "bytes": 699392,
-      "sha256": "878634b4f8e67285961232a8c34554a83c9c6b0eb5164b9aaf97ad1fe309dac5",
+      "bytes": 700416,
+      "sha256": "bd3659db17f2f7b6b0261317f3d69b5913a44261f8c0849e4a9cee1a2ceadc1a",
       "x64PE": true,
       "machine": "0x8664",
       "optionalHeaderMagic": "0x20b",
       "fileVersion": [
         0,
         4,
-        3,
+        4,
         0
       ],
       "productVersion": [
         0,
         4,
-        3,
+        4,
         0
       ],
       "imports": [
@@ -68,21 +68,21 @@
       ]
     },
     "QuietShare-Setup.exe": {
-      "bytes": 12128256,
-      "sha256": "61a324ea4c352a567746f9cd2b4f444530174b93c9a6cdb9bfd6b1466b57071c",
+      "bytes": 12129280,
+      "sha256": "b05960391d167cade19763543454bd4ce0fdce78fffad94179431416112f02d3",
       "x64PE": true,
       "machine": "0x8664",
       "optionalHeaderMagic": "0x20b",
       "fileVersion": [
         0,
         4,
-        3,
+        4,
         0
       ],
       "productVersion": [
         0,
         4,
-        3,
+        4,
         0
       ],
       "imports": [
