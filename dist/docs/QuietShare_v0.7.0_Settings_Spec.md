@@ -1,5 +1,14 @@
 # QuietShare 0.7.0 - Settings
 
+## Bổ sung 0.7.1 / 0.7.1 amendments
+
+- Khi ô cỡ chữ/zoom nhận focus hoặc được bấm lần đầu, dấu nháy nằm cuối giá trị, không chọn toàn bộ số. Lần bấm tiếp theo vẫn đặt vị trí/chọn chữ theo hành vi native; Enter áp dụng giá trị và giữ dấu nháy ở cuối.
+- Cuộn touchpad trong Cài đặt phản hồi theo delta nhỏ, giữ phần lẻ, đổi chiều và chặn đúng hai đầu. Di chuyển hàng theo lô, không cập nhật lại document/browser hoặc tên các nút mỗi lần cuộn.
+- Thanh tab áp dụng delta nhỏ cho cả cuộn dọc và ngang; không đo lại tên tab khi chỉ thay đổi vị trí cuộn. Xác nhận bằng chuỗi message thuộc HWND thử nghiệm; cảm giác trên touchpad vật lý cần kiểm tra trên thiết bị người dùng.
+- Focusing or first-clicking text size/zoom puts an unselected caret at the end. Subsequent clicks retain native positioning/selection; Enter applies the value and keeps the caret at the end.
+- Settings responds proportionally to small touchpad deltas, retaining fractional motion with reversal and edge clamping. Batch row movement without refreshing documents, browsers or button text for each wheel packet.
+- The tab strip applies small vertical/horizontal deltas without measuring names again during scrolling. Validate owned-window message sequences; physical touchpad feel requires observation on the user's device.
+
 ## Tiếng Việt
 
 ### Phạm vi

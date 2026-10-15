@@ -65,7 +65,7 @@ def main():
         env=probe_env,text=True))
     if isinstance(controllers,dict):controllers=[controllers]
     gpu_text='; '.join(f"{item['Name']} (driver {item['DriverVersion']})" for item in controllers)
-    evidence={'version':'0.7.0','platform':'win-x64','windowsBuild':sys.getwindowsversion().build,
+    evidence={'version':'0.7.1','platform':'win-x64','windowsBuild':sys.getwindowsversion().build,
               'baselineV03':{'nativeUI':179,'content':60,'lifecycle':29,'scrollbar':17,'releasePE':7,'status':'PASS before changes'},
               'passed':total,'failed':0,'suites':suites,'files':inventory['files'],
               'authenticode':inventory['authenticode'],'monitorCount':mirror['monitorCount'],
@@ -73,11 +73,12 @@ def main():
               'listedVideoControllers':controllers,
               'pdfCooperativeBudgetMs':750,'pdfStressObservedMs':viewer['renderBudgetTestMilliseconds'],
               'browser':{'metrics':browser['metrics'],'notTested':browser['notTested'],'profile':'Separate local profile; never exported'},
+              'settingsInteraction':{'metrics':settings.get('metrics',{}),'method':'Owned native-window wheel/focus/click messages; no physical touchpad observation'},
               'screenshots':'Native renderer with synthetic data in a separate QA build; not HTML mockups or receiver evidence'}
-    (ROOT / 'docs/test-evidence-v0.7.0.json').write_text(json.dumps(evidence,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
+    (ROOT / 'docs/test-evidence-v0.7.1.json').write_text(json.dumps(evidence,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
     rows='\n'.join(f"| {s['name']} | {s['passed']} | 0 | PASS |" for s in suites)
     hashes='\n'.join(f"| `{name}` | {file['bytes']:,} | `{file['sha256']}` |" for name,file in inventory['files'].items())
-    report=f'''# QuietShare v0.7.0 - Test report
+    report=f'''# QuietShare v0.7.1 - Test report
 
 Build and automated validation completed on Windows build {evidence['windowsBuild']} x64. **{total} checks PASS, 0 FAIL.** Physical receiver sign-off remains **NOT TESTED**. The original v0.3 baseline passed before changes; its results are retained in the sanitized evidence.
 
@@ -102,7 +103,7 @@ Requires Windows, Python 3, MinGW-w64 GCC 13.1.0 (or compatible x64 toolchain) a
 {rows}
 | **Total** | **{total}** | **0** | **PASS** |
 
-Detailed sanitized check names and payload metadata: [test-evidence-v0.7.0.json](docs/test-evidence-v0.7.0.json). Raw fixtures, pixels, temporary profiles and diagnostics are local-only and excluded from Git and the portable package; temporary payloads can be cleaned after the final evidence is exported.
+Detailed sanitized check names and payload metadata: [test-evidence-v0.7.1.json](docs/test-evidence-v0.7.1.json). Raw fixtures, pixels, temporary profiles and diagnostics are local-only and excluded from Git and the portable package; temporary payloads can be cleaned after the final evidence is exported.
 
 ## What the checks establish
 
@@ -113,7 +114,7 @@ Detailed sanitized check names and payload metadata: [test-evidence-v0.7.0.json]
 - **Focus and UI:** a minimal command strip with tabs and Windows caption hidden in F11; restored caption and user preferences on exit, compact exit action, overflowing tabs and content below controls at 826x553 and 430x320. Independent activity/tab/toolbar/status toggles, a protected Layout menu, local preference persistence and reset are exercised in the shipping EXE. Shell layouts cover VI/EN at simulated 96/120/144/192 DPI (320 normal-page/state combinations and 40 focus combinations), including the optional browser's off state. These are logical-scale tests, not physical multi-DPI monitor observations. Native captures of all pages, code, image, PDF, empty/error/masked states and focus were visually inspected.
 - **Production privacy:** all four QA command-line switches are rejected by the shipping EXE. The separately compiled QA EXE uses only synthetic data. Production integration requires the actual WGC gate; F8 hides every host, tab/path/project/find surface and returns zero for gated numeric diagnostics. Ctrl+Tab/Shift+Tab/W travel through the real message loop using keyboard state shared only with the test-owned app; no global physical keystrokes are injected.
 - **Recall:** the shipping Ctrl+Alt+Q handler is exercised through PID-bound WM_HOTKEY messages. Hidden/minimized restoration preserves foreground focus, keeps the unpinned style, retains capture exclusion, restores the real WGC gate and never clears F8 masking. Any required preflight is queued after restoration. Physical shortcut delivery while using another application is not part of these automated message tests.
-- **Native pickers and Settings:** the shipping EXE opens capture-protected file/project pickers, multi-opens actual fixture files and loads a project tree on this host's single display. Battery and unrelated device notifications preserve the dialog; F8 closes it and locks content. Exact manual 37 / 91 pt input and invalid-size rejection with a hidden status bar are tested. The separate synthetic Settings suite covers native scrolling/clipping, focus-into-view handlers, 8-200 pt and 25-400% manual input, inline validation, consolidated toggles, layout reset and the Display shortcut. The removed font slider is absent. These HWND tests do not claim physical Tab/pointer delivery.
+- **Native pickers and Settings:** the shipping EXE opens capture-protected file/project pickers, multi-opens actual fixture files and loads a project tree on this host's single display. Battery and unrelated device notifications preserve the dialog; F8 closes it and locks content. Exact manual 37 / 91 pt input and invalid-size rejection with a hidden status bar are tested. The separate synthetic Settings suite covers native scrolling/clipping, focus-into-view handlers, 8-200 pt and 25-400% manual input, inline validation, consolidated toggles, layout reset and the Display shortcut. Caret-at-end on focus/first click, native subsequent editing, small wheel packets, fractional motion, reversal and edge clamping are covered. Shipping tab-strip checks compare a whole notch with ten and 120 smaller packets on each axis and preserve active-tab visibility. Settings moves existing rows in a deferred native batch instead of refreshing the document/browser workspace for each wheel packet. The removed font slider is absent. These HWND tests do not claim physical touchpad, Tab or pointer delivery.
 - **WGC:** real positive-control capture sees an unprotected marker, then protected capture excludes it while public checkerboard pixels remain visible. Canary PASS on {mirror['monitorCount']} enumerated display, observed {mirror['canaryElapsedMs']} ms. Black/ambiguous/partial/invalid frames fail. Affinity loss, uncovered private popups, state invalidation, UI cancellation and synchronous close during WinRT initialization revoke confidence safely. The tools popup owns WDA 0x11 before it appears; real WGC tests confirm verification stays valid while open and after Esc. Only exact registered public monitor lists use the public-popup exception.
 - **Capture pacing:** polling changed from 33 ms to 8 ms, the newest queued frame is presented, and status repainting is limited to 250 ms. This removes the former nominal 30 Hz polling ceiling; physical two-monitor FPS and latency were not measured on this one-monitor host.
 - **Optional browser:** the shipping EXE starts with browsing off and creates no web profile until explicit enable. The actual WebView2 SVG marker passes positive and excluded WGC capture; native black backing cannot satisfy its positive test. Local HTTP fixtures exercise navigation, Back/Forward/Reload, popup/script/credential-dialog suppression, geolocation denial, F8, actual background suspension/resume, process exit on disable, pending-enable cancellation, separate-profile cookies, restart-default-off and offline readers without the loader. Input checks cover domains, URLs, localhost ports, Vietnamese/emoji UTF-8 queries and unsafe-scheme rejection. Shipping checks observe Vietnamese Google search navigation and Google/ChatGPT shortcuts. Cold start plus browser canary on this host was {browser['metrics']['coldStartAndCanaryMs']} ms. Public ChatGPT HTTPS load observed: {browser['metrics'].get('chatgptPublicHttpsLoaded',False)}; public Google search HTTPS load observed: {browser['metrics'].get('googleSearchPublicHttpsLoaded',False)}. Authenticated ChatGPT messages, third-party OAuth, client certificates and clean-machine missing-runtime behavior are not verified. User web data and raw profiles are excluded from exported evidence and Git.
@@ -151,7 +152,7 @@ Detailed sanitized check names and payload metadata: [test-evidence-v0.7.0.json]
 
 Installer RCDATA 301-306 matches the portable EXE, four DLLs and full redistribution notices byte for byte. Only the 195 KB WebView2 loader is bundled; the shared Evergreen Runtime is separate and optional for offline readers. The portable ZIP is checked against every staged release file before publication. The implementation specification is copied unchanged; old Git releases/history are retained.
 '''
-    for name in ('TEST_REPORT_v0.7.0.md','TEST_REPORT.md'):
+    for name in ('TEST_REPORT_v0.7.1.md','TEST_REPORT.md'):
         (ROOT / name).write_text(report,encoding='utf-8')
     print(f'Sanitized report exported: {total} PASS, 0 FAIL; shipping EXE {actual_hash}')
 

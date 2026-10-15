@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.7.1
+
+- Ô cỡ chữ/zoom đặt dấu nháy ở cuối khi nhận focus hoặc được bấm lần đầu; các lần bấm tiếp theo vẫn cho đặt vị trí/chọn chữ để sửa. Áp dụng giá trị không đưa dấu nháy về đầu.
+- Cài đặt cuộn theo độ lớn của từng tín hiệu touchpad, giữ phần lẻ và đổi chiều ngay; cập nhật vị trí các hàng theo lô thay vì dựng lại toàn bộ workspace trong mỗi bước.
+- Thanh tab xử lý cuộn dọc/ngang theo delta, giữ phần lẻ riêng và không đo lại độ rộng tên tab mỗi lần cuộn.
+- Text size/zoom places the caret at the end on focus or the first click; subsequent clicks retain native editing/selection. Applying a value preserves the end position.
+- Settings consumes high-resolution wheel deltas proportionally, preserves fractional motion and batches row movement without rebuilding the workspace on each packet.
+- The tab strip scales vertical/horizontal wheel movement by delta, with separate fractional remainders and no repeated tab text measurement while scrolling.
+
 ## 0.7.0
 
 - Gom cấu hình vào Cài đặt với các nhóm Hiển thị, Đọc nội dung, Bố cục, Tiện ích và Trình chiếu; form phẳng căn giữa có chiều rộng tối đa 760 px, thanh cuộn tối và tự cuộn theo focus.

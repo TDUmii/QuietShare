@@ -1,4 +1,4 @@
-# QuietShare 0.7.0
+# QuietShare 0.7.1
 
 QuietShare là ứng dụng desktop để đọc lời nhắc, xem code, ảnh và PDF trong một cửa sổ riêng khi thuyết trình. Các trình đọc file chạy offline trên Windows 10/11 x64; có thể bật trình duyệt web khi cần. App hỗ trợ tiếng Việt và tiếng Anh.
 
@@ -27,7 +27,7 @@ Văn bản/code hỗ trợ UTF-8 hoặc UTF-16 có BOM, tối đa 5 MiB. App nh�
 ### Cài đặt
 
 1. Cần **Windows 10 phiên bản 2004 (build 19041) trở lên hoặc Windows 11, x64**, với DWM và Windows Graphics Capture hoạt động.
-2. Tải [QuietShare 0.7.0](https://github.com/TDUmii/QuietShare/releases/tag/v0.7.0), giải nén toàn bộ gói và chạy `QuietShare-Setup.exe`. Bộ cài dùng tài khoản hiện tại, không cần quyền quản trị.
+2. Tải [QuietShare 0.7.1](https://github.com/TDUmii/QuietShare/releases/tag/v0.7.1), giải nén toàn bộ gói và chạy `QuietShare-Setup.exe`. Bộ cài dùng tài khoản hiện tại, không cần quyền quản trị.
 3. Để dùng portable, chạy `QuietShare.exe` trong thư mục đã giải nén. Giữ `Scintilla.dll`, `Lexilla.dll`, `pdfium.dll` và `WebView2Loader.dll` cạnh EXE; không chỉ sao chép riêng EXE.
 
 Để dùng web, máy cần **Microsoft Edge WebView2 Evergreen Runtime** hiện hành. Nếu trình duyệt không mở được, cài/cập nhật từ [Microsoft WebView2](https://developer.microsoft.com/en-us/microsoft-edge/webview2/), rồi tắt/bật trình duyệt lại. Các chức năng đọc file vẫn dùng được khi không có runtime.
@@ -48,7 +48,7 @@ Văn bản/code hỗ trợ UTF-8 hoặc UTF-16 có BOM, tối đa 5 MiB. App nh�
 
 Ctrl+Alt+Q gọi QuietShare lên khi bị che hoặc thu nhỏ, kể cả lúc không ghim. Phím tắt không mở Alt+Tab và giữ focus ở ứng dụng đang dùng. Nếu đang che bằng F8, nội dung vẫn được che. Rê chuột vào nút Ghim để xem trạng thái phím tắt; app khác dùng cùng tổ hợp có thể khiến đăng ký không thành công.
 
-Mở **Cài đặt** bằng icon bánh răng hoặc **⋯ > Cài đặt**. Dùng con lăn, thanh cuộn hoặc Tab để tới từng mục; giao diện tự cuộn khi mục nhận focus nằm ngoài vùng nhìn thấy.
+Mở **Cài đặt** bằng icon bánh răng hoặc **⋯ > Cài đặt**. Dùng con lăn, touchpad, thanh cuộn hoặc Tab để tới từng mục; giao diện tự cuộn khi mục nhận focus nằm ngoài vùng nhìn thấy. Ô cỡ chữ đặt dấu nháy cuối giá trị khi nhận focus/bấm lần đầu; các lần bấm sau vẫn sửa bình thường. Cài đặt và thanh tab dài cuộn theo từng chuyển động nhỏ của touchpad.
 
 | Nhóm | Điều chỉnh |
 |---|---|
@@ -103,7 +103,7 @@ Text/code support UTF-8 or BOM-marked UTF-16, up to 5 MiB. Supported extensions 
 ### Install
 
 1. Use **Windows 10 version 2004 (build 19041) or later, or Windows 11, x64**, with working DWM and Windows Graphics Capture.
-2. Download [QuietShare 0.7.0](https://github.com/TDUmii/QuietShare/releases/tag/v0.7.0), extract the complete package and run `QuietShare-Setup.exe`. It installs for the current account without administrator rights.
+2. Download [QuietShare 0.7.1](https://github.com/TDUmii/QuietShare/releases/tag/v0.7.1), extract the complete package and run `QuietShare-Setup.exe`. It installs for the current account without administrator rights.
 3. For portable use, run `QuietShare.exe` in the extracted folder. Keep `Scintilla.dll`, `Lexilla.dll`, `pdfium.dll` and `WebView2Loader.dll` beside it; copying only the EXE is insufficient.
 
 Web browsing requires a current **Microsoft Edge WebView2 Evergreen Runtime**. If it cannot start, install/update the runtime from [Microsoft WebView2](https://developer.microsoft.com/en-us/microsoft-edge/webview2/) and toggle the browser off/on. Offline file readers remain available without it.
@@ -124,7 +124,7 @@ Close QuietShare before upgrading with a new installer. Upgrading/uninstalling p
 
 Ctrl+Alt+Q recalls a covered or minimized QuietShare window, including when unpinned. It preserves the current application's focus and does not open Alt+Tab. F8-masked content remains masked. Hover the Pin button to see shortcut availability; another application's registration can occupy the same combination.
 
-Open **Settings** with the gear icon or **⋯ > Settings**. Use the wheel, scrollbar or Tab to reach each setting; focus automatically scrolls off-screen controls into view.
+Open **Settings** with the gear icon or **⋯ > Settings**. Use the wheel, touchpad, scrollbar or Tab to reach each setting; focus automatically scrolls off-screen controls into view. The size field places the caret at the end on first focus/click; subsequent clicks allow normal editing. Small touchpad movements scroll Settings and overflowing tabs proportionally.
 
 | Group | Controls |
 |---|---|

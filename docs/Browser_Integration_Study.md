@@ -33,6 +33,6 @@ The browser must pass an actual positive/excluded WGC render test before user na
 
 ## Bằng chứng và giới hạn kiểm thử / Evidence and limits
 
-Xem [báo cáo 0.7.0](../TEST_REPORT_v0.7.0.md) và [bằng chứng đã lọc](test-evidence-v0.7.0.json). Kiểm thử shipping EXE dùng profile riêng, HTTP fixture cục bộ và WGC thực, kiểm tra chuyển đến tìm kiếm Google bằng tiếng Việt cùng các shortcut. Bằng chứng ghi riêng trạng thái tải HTTPS công khai; không đăng nhập tài khoản cá nhân hoặc gửi tin nhắn khi kiểm thử. Bật web từ Cài đặt giữ nguyên trang cấu hình; người dùng chọn biểu tượng trình duyệt để mở vùng web.
+Xem [báo cáo 0.7.1](../TEST_REPORT_v0.7.1.md) và [bằng chứng đã lọc](test-evidence-v0.7.1.json). Kiểm thử shipping EXE dùng profile riêng, HTTP fixture cục bộ và WGC thực, kiểm tra chuyển đến tìm kiếm Google bằng tiếng Việt cùng các shortcut. Bằng chứng ghi riêng trạng thái tải HTTPS công khai; không đăng nhập tài khoản cá nhân hoặc gửi tin nhắn khi kiểm thử. Bật web từ Cài đặt giữ nguyên trang cấu hình; người dùng chọn biểu tượng trình duyệt để mở vùng web.
 
 Authenticated ChatGPT chat, third-party OAuth, client-certificate sites, a clean machine without Evergreen Runtime, physical Extend/Duplicate and meeting receivers remain unverified. Capture exclusion is not DRM or protection against external cameras. [Microsoft - SetWindowDisplayAffinity](https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-setwindowdisplayaffinity).

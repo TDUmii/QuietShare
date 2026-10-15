@@ -1,6 +1,6 @@
-# QuietShare v0.7.0 - Test report
+# QuietShare v0.7.1 - Test report
 
-Build and automated validation completed on Windows build 26200 x64. **1077 checks PASS, 0 FAIL.** Physical receiver sign-off remains **NOT TESTED**. The original v0.3 baseline passed before changes; its results are retained in the sanitized evidence.
+Build and automated validation completed on Windows build 26200 x64. **1116 checks PASS, 0 FAIL.** Physical receiver sign-off remains **NOT TESTED**. The original v0.3 baseline passed before changes; its results are retained in the sanitized evidence.
 
 Host video controllers: Parsec Virtual Display Adapter (driver 0.45.0.0); NVIDIA GeForce GTX 1660 Ti (driver 32.0.15.9597). WGC captured the enumerated desktop display; D3D renderer readback used WARP software. A physical destination and its controller mapping were not observed.
 
@@ -29,13 +29,13 @@ Requires Windows, Python 3, MinGW-w64 GCC 13.1.0 (or compatible x64 toolchain) a
 | Release PE / imports / embedded payloads | 30 | 0 | PASS |
 | Shipping EXE / script lifecycle | 42 | 0 | PASS |
 | Native scrollbar / separate QA EXE | 17 | 0 | PASS |
-| Shipping EXE / multi-view integration | 181 | 0 | PASS |
+| Shipping EXE / multi-view integration | 198 | 0 | PASS |
 | Optional browser / rendered WGC surface / lifecycle | 80 | 0 | PASS |
-| Consolidated Settings / validation / scrolling / controls | 73 | 0 | PASS |
+| Consolidated Settings / validation / scrolling / controls | 95 | 0 | PASS |
 | Installer / upgrade / uninstall / rollback | 19 | 0 | PASS |
-| **Total** | **1077** | **0** | **PASS** |
+| **Total** | **1116** | **0** | **PASS** |
 
-Detailed sanitized check names and payload metadata: [test-evidence-v0.7.0.json](docs/test-evidence-v0.7.0.json). Raw fixtures, pixels, temporary profiles and diagnostics are local-only and excluded from Git and the portable package; temporary payloads can be cleaned after the final evidence is exported.
+Detailed sanitized check names and payload metadata: [test-evidence-v0.7.1.json](docs/test-evidence-v0.7.1.json). Raw fixtures, pixels, temporary profiles and diagnostics are local-only and excluded from Git and the portable package; temporary payloads can be cleaned after the final evidence is exported.
 
 ## What the checks establish
 
@@ -46,17 +46,17 @@ Detailed sanitized check names and payload metadata: [test-evidence-v0.7.0.json]
 - **Focus and UI:** a minimal command strip with tabs and Windows caption hidden in F11; restored caption and user preferences on exit, compact exit action, overflowing tabs and content below controls at 826x553 and 430x320. Independent activity/tab/toolbar/status toggles, a protected Layout menu, local preference persistence and reset are exercised in the shipping EXE. Shell layouts cover VI/EN at simulated 96/120/144/192 DPI (320 normal-page/state combinations and 40 focus combinations), including the optional browser's off state. These are logical-scale tests, not physical multi-DPI monitor observations. Native captures of all pages, code, image, PDF, empty/error/masked states and focus were visually inspected.
 - **Production privacy:** all four QA command-line switches are rejected by the shipping EXE. The separately compiled QA EXE uses only synthetic data. Production integration requires the actual WGC gate; F8 hides every host, tab/path/project/find surface and returns zero for gated numeric diagnostics. Ctrl+Tab/Shift+Tab/W travel through the real message loop using keyboard state shared only with the test-owned app; no global physical keystrokes are injected.
 - **Recall:** the shipping Ctrl+Alt+Q handler is exercised through PID-bound WM_HOTKEY messages. Hidden/minimized restoration preserves foreground focus, keeps the unpinned style, retains capture exclusion, restores the real WGC gate and never clears F8 masking. Any required preflight is queued after restoration. Physical shortcut delivery while using another application is not part of these automated message tests.
-- **Native pickers and Settings:** the shipping EXE opens capture-protected file/project pickers, multi-opens actual fixture files and loads a project tree on this host's single display. Battery and unrelated device notifications preserve the dialog; F8 closes it and locks content. Exact manual 37 / 91 pt input and invalid-size rejection with a hidden status bar are tested. The separate synthetic Settings suite covers native scrolling/clipping, focus-into-view handlers, 8-200 pt and 25-400% manual input, inline validation, consolidated toggles, layout reset and the Display shortcut. The removed font slider is absent. These HWND tests do not claim physical Tab/pointer delivery.
+- **Native pickers and Settings:** the shipping EXE opens capture-protected file/project pickers, multi-opens actual fixture files and loads a project tree on this host's single display. Battery and unrelated device notifications preserve the dialog; F8 closes it and locks content. Exact manual 37 / 91 pt input and invalid-size rejection with a hidden status bar are tested. The separate synthetic Settings suite covers native scrolling/clipping, focus-into-view handlers, 8-200 pt and 25-400% manual input, inline validation, consolidated toggles, layout reset and the Display shortcut. Caret-at-end on focus/first click, native subsequent editing, small wheel packets, fractional motion, reversal and edge clamping are covered. Shipping tab-strip checks compare a whole notch with ten and 120 smaller packets on each axis and preserve active-tab visibility. Settings moves existing rows in a deferred native batch instead of refreshing the document/browser workspace for each wheel packet. The removed font slider is absent. These HWND tests do not claim physical touchpad, Tab or pointer delivery.
 - **WGC:** real positive-control capture sees an unprotected marker, then protected capture excludes it while public checkerboard pixels remain visible. Canary PASS on 1 enumerated display, observed 312 ms. Black/ambiguous/partial/invalid frames fail. Affinity loss, uncovered private popups, state invalidation, UI cancellation and synchronous close during WinRT initialization revoke confidence safely. The tools popup owns WDA 0x11 before it appears; real WGC tests confirm verification stays valid while open and after Esc. Only exact registered public monitor lists use the public-popup exception.
 - **Capture pacing:** polling changed from 33 ms to 8 ms, the newest queued frame is presented, and status repainting is limited to 250 ms. This removes the former nominal 30 Hz polling ceiling; physical two-monitor FPS and latency were not measured on this one-monitor host.
-- **Optional browser:** the shipping EXE starts with browsing off and creates no web profile until explicit enable. The actual WebView2 SVG marker passes positive and excluded WGC capture; native black backing cannot satisfy its positive test. Local HTTP fixtures exercise navigation, Back/Forward/Reload, popup/script/credential-dialog suppression, geolocation denial, F8, actual background suspension/resume, process exit on disable, pending-enable cancellation, separate-profile cookies, restart-default-off and offline readers without the loader. Input checks cover domains, URLs, localhost ports, Vietnamese/emoji UTF-8 queries and unsafe-scheme rejection. Shipping checks observe Vietnamese Google search navigation and Google/ChatGPT shortcuts. Cold start plus browser canary on this host was 1297 ms. Public ChatGPT HTTPS load observed: True; public Google search HTTPS load observed: True. Authenticated ChatGPT messages, third-party OAuth, client certificates and clean-machine missing-runtime behavior are not verified. User web data and raw profiles are excluded from exported evidence and Git.
+- **Optional browser:** the shipping EXE starts with browsing off and creates no web profile until explicit enable. The actual WebView2 SVG marker passes positive and excluded WGC capture; native black backing cannot satisfy its positive test. Local HTTP fixtures exercise navigation, Back/Forward/Reload, popup/script/credential-dialog suppression, geolocation denial, F8, actual background suspension/resume, process exit on disable, pending-enable cancellation, separate-profile cookies, restart-default-off and offline readers without the loader. Input checks cover domains, URLs, localhost ports, Vietnamese/emoji UTF-8 queries and unsafe-scheme rejection. Shipping checks observe Vietnamese Google search navigation and Google/ChatGPT shortcuts. Cold start plus browser canary on this host was 1500 ms. Public ChatGPT HTTPS load observed: True; public Google search HTTPS load observed: True. Authenticated ChatGPT messages, third-party OAuth, client certificates and clean-machine missing-runtime behavior are not verified. User web data and raw profiles are excluded from exported evidence and Git.
 - **D3D11:** the production shader/swapchain renderer presents a synthetic public texture using WARP, with framebuffer readback for aspect-preserving letterbox/pillarbox, blanking and owned GPU resource release. This is real software D3D rendering, not evidence of a physical destination screen.
 
 ## PASS / FAIL / NOT TESTED matrix
 
 | Area | Status | Evidence / boundary |
 |---|---|---|
-| Current Windows x64 build, all automated suites | PASS | 1077 checks, final binaries and embedded installer payloads match |
+| Current Windows x64 build, all automated suites | PASS | 1116 checks, final binaries and embedded installer payloads match |
 | Native UI screenshots and compact layouts | PASS | Actual native renderer; harmless synthetic data; no simulated HTML screens |
 | WDA apply/readback and actual local WGC canary | PASS | Protected/unprotected controls; same WGC capture method |
 | Synthetic failure classification and cancellation | PASS | No manual physical-Duplicate claim |
@@ -80,8 +80,8 @@ Detailed sanitized check names and payload metadata: [test-evidence-v0.7.0.json]
 
 | File | Bytes | SHA-256 |
 |---|---:|---|
-| `QuietShare.exe` | 802,816 | `4028b054d8a938edb0a3d2a64105cb47e66b4e876ba9669cfdc8fbeaf14fb91f` |
-| `QuietShare-Setup.exe` | 12,428,800 | `65fed59c568a846d566932849226d8e1d38fe115eaaa1a1552770ba32ff70a84` |
+| `QuietShare.exe` | 805,888 | `31e0abf53b2e681c739158fd6f8ac7957b9aefafd53fc4cec8e6205e2a050025` |
+| `QuietShare-Setup.exe` | 12,431,872 | `a965cd0d98b0146e6464185865b68f2b4819399aa87616db0ee8d700aaaca7bf` |
 | `Scintilla.dll` | 1,131,880 | `a6957ae53a5bc92b3bdfe24c938c80df248a0a1f7a4c937ec5222646a52402fa` |
 | `Lexilla.dll` | 1,400,168 | `3487bc191eb25b8475f55975341190817c9d37296e9ffa2e0179804eb7a2f087` |
 | `pdfium.dll` | 7,512,064 | `ae913f407e8d3f5cdbf08a9869564d647b13e132e01eb376c0a5a33b7a227a45` |

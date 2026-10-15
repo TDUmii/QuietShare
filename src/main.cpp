@@ -105,7 +105,7 @@ RECT settingsViewport{},settingsSizeHint{};
 struct SettingsLine {std::wstring text;RECT bounds;bool heading;int control=0;};
 std::vector<SettingsLine> settingsLines;
 std::vector<HWND> clippedSettingsControls;
-int settingsOffset=0,settingsMaximum=0,settingsDisplayAnchor=0;
+int settingsOffset=0,settingsMaximum=0,settingsDisplayAnchor=0,settingsWheelRemainder=0;
 int railWidth = NORMAL_SIDEBAR, contentLeft = NORMAL_SIDEBAR + 24, contentRight = 0;
 bool compactUi = false;
 std::vector<HWND> buttons;
@@ -573,9 +573,20 @@ void UpdateDocumentBar()
         tabs.push_back({doc->id,doc->id?doc->displayName:T(L"Lời nhắc",L"Script"),doc->canonicalPath,(int)doc->type,doc->id==0});
     documentBar.Update(std::move(tabs),documents.Active().id,!Blocked(),english,dpi,uiFont);
 }
+void ClipSettingsControls(bool redraw=true)
+{
+    for(HWND control:clippedSettingsControls) {
+        RECT bounds{};GetWindowRect(control,&bounds);MapWindowPoints(nullptr,window,(POINT*)&bounds,2);
+        RECT clip{};IntersectRect(&clip,&bounds,&settingsViewport);
+        HRGN region=CreateRectRgn(std::max(0L,clip.left-bounds.left),std::max(0L,clip.top-bounds.top),
+            std::max(0L,clip.right-bounds.left),std::max(0L,clip.bottom-bounds.top));
+        if(region&&!SetWindowRgn(control,region,redraw))DeleteObject(region);
+    }
+}
 void Layout()
 {
     if(!window || !editor) return;
+    if(page!=Page::Settings)settingsWheelRemainder=0;
     for(HWND control:clippedSettingsControls)SetWindowRgn(control,nullptr,FALSE);
     clippedSettingsControls.clear();settingsLines.clear();settingsSizeHint={};settingsViewport={};
     LONG_PTR style=GetWindowLongPtrW(window,GWL_STYLE);
@@ -755,20 +766,31 @@ void Layout()
     UpdateButtons();UpdateDocumentBar();
     // Native EDIT formatting/text updates can repaint immediately. Apply the
     // final viewport after those updates, repainting the area released by it.
-    for(HWND control:clippedSettingsControls) {
-        RECT bounds{};GetWindowRect(control,&bounds);MapWindowPoints(nullptr,window,(POINT*)&bounds,2);
-        RECT clip{};IntersectRect(&clip,&bounds,&settingsViewport);
-        HRGN region=CreateRectRgn(std::max(0L,clip.left-bounds.left),std::max(0L,clip.top-bounds.top),
-            std::max(0L,clip.right-bounds.left),std::max(0L,clip.bottom-bounds.top));
-        if(region&&!SetWindowRgn(control,region,TRUE))DeleteObject(region);
-    }
+    ClipSettingsControls();
     RedrawWindow(window,nullptr,nullptr,RDW_INVALIDATE|RDW_ALLCHILDREN);
 }
 void ScrollSettings(int position)
 {
     const int next=std::clamp(position,0,settingsMaximum);
     if(next==settingsOffset)return;
-    settingsOffset=next;SendMessageW(tooltips,TTM_POP,0,0);Layout();
+    const int dy=S(settingsOffset)-S(next);settingsOffset=next;
+    SendMessageW(tooltips,TTM_POP,0,0);
+    if(page!=Page::Settings||clippedSettingsControls.empty()){Layout();return;}
+    // Scrolling changes only row positions, not document/browser state or text.
+    HDWP batch=BeginDeferWindowPos((int)clippedSettingsControls.size());
+    for(HWND control:clippedSettingsControls) {
+        if(!batch)break;
+        RECT bounds{};GetWindowRect(control,&bounds);MapWindowPoints(nullptr,window,(POINT*)&bounds,2);
+        batch=DeferWindowPos(batch,control,nullptr,bounds.left,bounds.top+dy,0,0,
+            SWP_NOSIZE|SWP_NOZORDER|SWP_NOACTIVATE|SWP_NOREDRAW);
+    }
+    if(!batch||!EndDeferWindowPos(batch)){Layout();return;}
+    for(auto& line:settingsLines)OffsetRect(&line.bounds,0,dy);
+    OffsetRect(&settingsSizeHint,0,dy);OffsetRect(&fontLabelRect,0,dy);
+    SCROLLINFO info{sizeof(info),SIF_POS};info.nPos=settingsOffset;SetScrollInfo(settingsScroll,SB_CTL,&info,TRUE);
+    ClipSettingsControls(false);
+    RECT redraw=settingsViewport;redraw.right+=S(20);
+    RedrawWindow(window,&redraw,nullptr,RDW_INVALIDATE|RDW_ALLCHILDREN);
 }
 void EnsureSettingsVisible(HWND control)
 {
@@ -833,6 +855,9 @@ void SyncSizeInput(bool force)
 {
     if(!sizeInput||(!force&&GetFocus()==sizeInput))return;
     updatingSize=true;SetWindowTextW(sizeInput,std::to_wstring(CurrentSize()).c_str());updatingSize=false;
+    if(GetFocus()==sizeInput) {
+        const int end=GetWindowTextLengthW(sizeInput);SendMessageW(sizeInput,EM_SETSEL,end,end);
+    }
 }
 void SetContentSize(int value,bool refresh=true)
 {
@@ -866,7 +891,16 @@ LRESULT CALLBACK SizeInputProc(HWND control,UINT message,WPARAM wp,LPARAM lp,UIN
         LRESULT code=DefSubclassProc(control,message,wp,lp);
         return wp==VK_RETURN||wp==VK_ESCAPE?code|DLGC_WANTMESSAGE:code;
     }
-    if(message==WM_SETFOCUS){EnsureSettingsVisible(control);sizeInputDocument=documents.Active().id;SendMessageW(control,EM_SETSEL,0,-1);}
+    if(message==WM_SETFOCUS) {
+        LRESULT result=DefSubclassProc(control,message,wp,lp);
+        EnsureSettingsVisible(control);sizeInputDocument=documents.Active().id;
+        const int end=GetWindowTextLengthW(control);SendMessageW(control,EM_SETSEL,end,end);SendMessageW(control,EM_SCROLLCARET,0,0);
+        InvalidateRect(window,nullptr,FALSE);return result;
+    }
+    if(message==WM_LBUTTONDOWN&&GetFocus()!=control) {
+        LRESULT result=DefSubclassProc(control,message,wp,lp);
+        const int end=GetWindowTextLengthW(control);SendMessageW(control,EM_SETSEL,end,end);SendMessageW(control,EM_SCROLLCARET,0,0);return result;
+    }
     if(message==WM_MOUSEWHEEL&&page==Page::Settings)return SendMessageW(window,message,wp,lp);
     if(message==WM_SETFOCUS||message==WM_KILLFOCUS)InvalidateRect(window,nullptr,FALSE);
     if(message==WM_KEYDOWN&&wp==VK_RETURN){CommitSizeInput();return 0;}
@@ -1670,7 +1704,7 @@ void WriteQa()
     GetWindowDisplayAffinity(window, &actual);
     auto boolean = [](bool value) -> std::wstring { return value ? L"true" : L"false"; };
     std::wstring report =
-        L"{\n  \"applicationVersion\": \"0.7.0\",\n  \"windowsBuild\": " + std::to_wstring(WindowsBuild()) +
+        L"{\n  \"applicationVersion\": \"0.7.1\",\n  \"windowsBuild\": " + std::to_wstring(WindowsBuild()) +
         L",\n  \"displayCloned\": " + boolean(cloned) + L",\n  \"topologyKnown\": " + boolean(topologyKnown) +
         L",\n  \"privacyApplied\": " + boolean(privacy.applied) +
         L",\n  \"requestedAffinity\": 17,\n  \"actualAffinity\": " + std::to_wstring(actual) +
@@ -2213,8 +2247,11 @@ LRESULT CALLBACK Proc(HWND h, UINT message, WPARAM wp, LPARAM lp)
     case WM_MOVE:browser.ParentMoved();return 0;
     case WM_MOUSEWHEEL:
         if(page==Page::Settings) {
-            static int remainder=0;remainder+=GET_WHEEL_DELTA_WPARAM(wp);
-            const int steps=remainder/WHEEL_DELTA;remainder%=WHEEL_DELTA;ScrollSettings(settingsOffset-steps*48);return 0;
+            const int distance=GET_WHEEL_DELTA_WPARAM(wp)*48+settingsWheelRemainder;
+            const int movement=distance/WHEEL_DELTA;settingsWheelRemainder=distance%WHEEL_DELTA;
+            ScrollSettings(settingsOffset-movement);
+            if((settingsOffset==0&&distance>0)||(settingsOffset==settingsMaximum&&distance<0))settingsWheelRemainder=0;
+            return 0;
         }
         break;
     case WM_VSCROLL:

@@ -10,6 +10,7 @@ from ctypes import wintypes
 import hashlib
 import json
 import os
+import statistics
 import subprocess
 import sys
 import time
@@ -32,6 +33,15 @@ USER32.SetWindowPos.argtypes = [wintypes.HWND, wintypes.HWND, ctypes.c_int,
 USER32.SetWindowPos.restype = wintypes.BOOL
 USER32.GetDpiForWindow.argtypes = [wintypes.HWND]
 USER32.GetDpiForWindow.restype = wintypes.UINT
+USER32.AttachThreadInput.argtypes = [wintypes.DWORD, wintypes.DWORD, wintypes.BOOL]
+USER32.AttachThreadInput.restype = wintypes.BOOL
+USER32.GetFocus.restype = wintypes.HWND
+USER32.SetFocus.argtypes = [wintypes.HWND]
+USER32.SetFocus.restype = wintypes.HWND
+USER32.PeekMessageW.argtypes = [ctypes.POINTER(wintypes.MSG), wintypes.HWND,
+                              wintypes.UINT, wintypes.UINT, wintypes.UINT]
+USER32.PeekMessageW.restype = wintypes.BOOL
+native.KERNEL32.GetCurrentThreadId.restype = wintypes.DWORD
 GDI32.CreateRectRgn.argtypes = [ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_int]
 GDI32.CreateRectRgn.restype = wintypes.HRGN
 GDI32.DeleteObject.argtypes = [wintypes.HGDIOBJ]
@@ -100,7 +110,7 @@ def main():
     environment["LOCALAPPDATA"] = str(folder / "User")
     process = None
     window = None
-    checks, failure = {}, None
+    checks, metrics, failure = {}, {}, None
 
     def check(name, value):
         checks[name] = bool(value)
@@ -118,12 +128,46 @@ def main():
         return USER32.GetDlgItem(window, identifier)
 
     def focus(identifier):
-        # Exercise the same EnsureSettingsVisible handler used by native Tab.
-        # This is a PID-bound focus message, not physical keyboard delivery.
-        native.send(control(identifier), 0x7)
+        # Native focus triggers EnsureSettingsVisible just as keyboard Tab does.
+        # Keep the EDIT's internal focus flag consistent with GetFocus().
+        real_focus(identifier)
+
+    def real_focus(identifier, change=True):
+        target = control(identifier)
+        if native.window_pid(target) != process.pid:
+            raise AssertionError("Focus target is outside the synthetic owned app")
+        pending = wintypes.MSG()
+        USER32.PeekMessageW(ctypes.byref(pending), None, 0, 0, 0)
+        current = native.KERNEL32.GetCurrentThreadId()
+        owner = USER32.GetWindowThreadProcessId(target, None)
+        if not USER32.AttachThreadInput(current, owner, True):
+            raise ctypes.WinError(ctypes.get_last_error())
+        try:
+            if change:
+                USER32.SetFocus(target)
+            if USER32.GetFocus() != target:
+                raise AssertionError("Owned control did not receive native focus")
+            return True
+        finally:
+            USER32.AttachThreadInput(current, owner, False)
+
+    def selection():
+        value = native.send(control(163), 0xB0)  # EM_GETSEL; input limit is four digits.
+        return value & 0xFFFF, (value >> 16) & 0xFFFF
+
+    def click_size():
+        position = native.send(control(163), 0xD6, 0)  # EM_POSFROMCHAR / first glyph.
+        if position & 0xFFFFFFFF == 0xFFFFFFFF:
+            raise AssertionError("Numeric EDIT could not locate its first character")
+        x, y = max(0, (position & 0xFFFF) - 2), ((position >> 16) & 0xFFFF) + 4
+        native.send(control(163), 0x201, 1, (y << 16) | x)
+        native.send(control(163), 0x202, 0, (y << 16) | x)
 
     def scroll(code, position=0):
         native.send(window, 0x115, code | (position << 16), control(187))
+
+    def wheel(delta, identifier=None):
+        native.send(window if identifier is None else control(identifier), 0x20A, (delta & 0xFFFF) << 16)
 
     def posted_key(identifier, key):
         target = control(identifier)
@@ -132,7 +176,7 @@ def main():
         time.sleep(.1)
 
     def set_size(value):
-        focus(163)
+        real_focus(163)
         native.set_control_text(control(163), value)
         # Posted keys pass through the real IsDialogMessage/dispatch loop.
         posted_key(163, 0x0D)
@@ -197,13 +241,77 @@ def main():
         scroll(6)
         native.send(window, 0x20A, 0x00780000)
         check("wheelClampsAtTop", query(19) == 0)
+        wheel(-15)
+        check("smallWheelDeltaMovesImmediately", query(19) == 6)
+        for _ in range(7):
+            wheel(-15)
+        check("fractionalWheelEventsComposeToOneNotch", query(19) == 48)
+        wheel(15)
+        check("smallWheelDirectionReversesImmediately", query(19) == 42)
+        wheel(120)
+        check("wheelOvershootClampsAtTop", query(19) == 0)
+        for _ in range(5):
+            wheel(-1)
+        check("subpixelWheelRemaindersAccumulate", query(19) == 2)
+        for _ in range(5):
+            wheel(1)
+        check("signedWheelRemaindersReverseToOrigin", query(19) == 0)
+        wheel(15)
+        for _ in range(5):
+            wheel(-1)
+        check("topEdgeDiscardsOutwardWheelCarry", query(19) == 2)
+        before = query(19)
+        wheel(-15, 163)
+        check("smallWheelOverNumericInputScrollsPage", query(19) == before + 6)
+        before = query(19)
+        wheel(-15, 106)
+        check("smallWheelOverButtonScrollsPage", query(19) == before + 6)
+        scroll(7)
+        wheel(-15)
+        check("wheelClampsAtBottom", query(19) == query(20))
+        wheel(15)
+        check("bottomEdgeAllowsImmediateReverse", query(19) == query(20) - 6)
+        scroll(6)
+        durations, movements = [], []
+        previous = query(19)
+        for _ in range(120):
+            begin = time.perf_counter_ns()
+            wheel(-15)
+            durations.append((time.perf_counter_ns() - begin) / 1_000_000)
+            current = query(19)
+            movements.append(current - previous)
+            previous = current
+        metrics["wheel120Delta15"] = {"events": 120, "deltaPerEvent": -15,
+              "positionsDistribution": {str(value): movements.count(value) for value in sorted(set(movements))},
+              "totalMovement": sum(movements), "medianMs": statistics.median(durations),
+              "p95Ms": sorted(durations)[int(.95 * (len(durations) - 1))], "maxMs": max(durations),
+              "method": "Distribution of offset changes per owned WM_MOUSEWHEEL event at 430x320; no physical touchpad; timings are observations, not pass thresholds"}
+        check("smallWheelStreamMovesOnEveryEvent", movements == [6] * 120)
 
         command(120)
         command(123)
+        real_focus(106)
+        native.send(control(163), 0xB1, 0, 0)
+        focus(163)
+        length = len(native.control_text(control(163)))
+        check("numericFocusCollapsesCaretAtEnd", selection() == (length, length))
+        real_focus(106)
+        native.send(control(163), 0xB1, 0, 0)
+        click_size()
+        check("firstNumericClickCollapsesCaretAtEnd", selection() == (length, length))
+        check("firstNumericClickRetainsActualNativeFocus", real_focus(163, change=False))
+        click_size()
+        check("secondNumericClickKeepsNativeHitTesting", selection() == (0, 0))
+        native.send(control(163), 0xB1, 0, 1)
+        native.send(control(163), 0x102, ord("3"), 1)
+        check("numericSelectionStillAllowsEditing", native.control_text(control(163)) == "34")
+        posted_key(163, 0x1B)
+        check("escapeRestoresValueWithCaretAtEnd", native.control_text(control(163)) == "24" and selection() == (2, 2))
         for value in (8, 37, 91, 200):
             set_size(str(value))
             check("manualFontSize:" + str(value), native.control_text(control(163)) == str(value)
                   and query(4) == value * 100 // 24 and query(22) == 0)
+            check("manualSizeCommitKeepsCaretAtEnd:" + str(value), selection() == (len(str(value)), len(str(value))))
         for label, value in (("below", "7"), ("above", "201"), ("invalid", "abc")):
             set_size(value)
             check("invalidFontRestoresLastValid:" + label, native.control_text(control(163)) == "200"
@@ -288,6 +396,7 @@ def main():
         check("resizeToLargerSettingsWindow", USER32.SetWindowPos(window, None, 0, 0,
               round(840 * scale), round(700 * scale), 0x16))
         check("settingsOffsetClampedAfterResize", 0 <= query(19) <= query(20))
+        real_focus(106)
         focus(163)
         check("sizeFocusScrollsIntoViewAfterResize", region_visible(control(163)))
     except Exception as error:
@@ -305,8 +414,9 @@ def main():
             checks["fixtureExitZero"] = process.returncode == 0
         report = {"checks": checks, "passed": sum(checks.values()),
                   "failed": sum(not value for value in checks.values()), "failure": failure,
+                  "metrics": metrics,
                   "testedBinarySha256": hashlib.sha256(EXE.read_bytes()).hexdigest(),
-                  "method": "Separate synthetic QA EXE; owned HWND commands, native clipping regions and scroll state; no desktop pixels or physical input",
+                  "method": "Separate synthetic QA EXE; owned HWND commands, native clipping/scroll/selection state and temporary owned-thread focus attachment; no desktop pixels, foreground activation or physical input",
                   "notTested": ["Physical Tab and pointer delivery", "Real cross-monitor DPI changes", "Settings persistence in QA (disabled by design)"]}
         (output / "settings-regression.json").write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
         print(json.dumps({key: report[key] for key in ("passed", "failed", "failure")}), flush=True)

@@ -61,16 +61,36 @@ void DocumentBar::Reflow(bool ensureActive) {
         if(rects_[i].left<offset_) offset_=rects_[i].left;
         else if(rects_[i].right>offset_+available) offset_=std::max(0,(int)rects_[i].right-available);
     }
+    UpdateTooltipRects(true);
+}
+void DocumentBar::UpdateTooltipRects(bool addTools) {
+    RECT client{}; GetClientRect(window_,&client);
+    const int arrows=total_>client.right?MulDiv(22,dpi_,96):0;
     for(size_t i=0;i<tabs_.size();++i) {
         RECT rect=rects_[i]; OffsetRect(&rect,arrows-offset_,0);
         rect.left=std::max<LONG>(rect.left,arrows); rect.right=std::min<LONG>(rect.right,client.right-arrows);
         TOOLINFOW tip{}; tip.cbSize=sizeof(tip); tip.hwnd=window_; tip.uId=i+1;
         tip.rect=rect; tip.lpszText=const_cast<wchar_t*>(tabs_[i].path.empty()?tabs_[i].name.c_str():tabs_[i].path.c_str());
-        SendMessageW(tooltip_,TTM_ADDTOOLW,0,(LPARAM)&tip);
+        if(addTools)SendMessageW(tooltip_,TTM_ADDTOOLW,0,(LPARAM)&tip);
         SendMessageW(tooltip_,TTM_NEWTOOLRECTW,0,(LPARAM)&tip);
     }
 }
-void DocumentBar::Scroll(int amount) { offset_+=MulDiv(amount,dpi_,96); Reflow(false); InvalidateRect(window_,nullptr,FALSE); }
+void DocumentBar::Scroll(int amount) { ScrollPixels(MulDiv(amount,dpi_,96)); }
+void DocumentBar::ScrollPixels(int amount) {
+    if(!amount)return;
+    RECT client{}; GetClientRect(window_,&client);
+    const int arrows=total_>client.right?MulDiv(22,dpi_,96):0;
+    const int available=std::max(1,(int)client.right-2*arrows);
+    const int next=std::clamp(offset_+amount,0,std::max(0,total_-available));
+    if(next==offset_)return;
+    offset_=next; UpdateTooltipRects(false); InvalidateRect(window_,nullptr,FALSE);
+}
+void DocumentBar::ScrollWheel(int delta,int &remainder) {
+    if(!delta)return;
+    const int numerator=delta*MulDiv(80,dpi_,96)+remainder;
+    remainder=numerator%WHEEL_DELTA;
+    ScrollPixels(numerator/WHEEL_DELTA);
+}
 void DocumentBar::Paint(HDC dc) {
     RECT client{}; GetClientRect(window_,&client); Fill(dc,client,Panel);
     SetBkMode(dc,TRANSPARENT); auto old=SelectObject(dc,font_);
@@ -130,8 +150,8 @@ LRESULT CALLBACK DocumentBar::Proc(HWND h,UINT message,WPARAM wp,LPARAM lp) {
     }
     case WM_ERASEBKGND:return 1;
     case WM_SIZE:self->Reflow(true);return 0;
-    case WM_MOUSEWHEEL:self->Scroll(GET_WHEEL_DELTA_WPARAM(wp)>0?-80:80);return 0;
-    case WM_MOUSEHWHEEL:self->Scroll(GET_WHEEL_DELTA_WPARAM(wp)>0?80:-80);return 0;
+    case WM_MOUSEWHEEL:self->ScrollWheel(-GET_WHEEL_DELTA_WPARAM(wp),self->verticalWheelRemainder_);return 0;
+    case WM_MOUSEHWHEEL:self->ScrollWheel(GET_WHEEL_DELTA_WPARAM(wp),self->horizontalWheelRemainder_);return 0;
     case WM_LBUTTONDOWN: {
         POINT point{GET_X_LPARAM(lp),GET_Y_LPARAM(lp)};RECT bounds{};GetClientRect(h,&bounds);
         int arrows=self->Overflowing()?MulDiv(22,self->dpi_,96):0;

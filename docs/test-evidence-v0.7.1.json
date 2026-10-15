@@ -1,5 +1,5 @@
 {
-  "version": "0.7.0",
+  "version": "0.7.1",
   "platform": "win-x64",
   "windowsBuild": 26200,
   "baselineV03": {
@@ -10,7 +10,7 @@
     "releasePE": 7,
     "status": "PASS before changes"
   },
-  "passed": 1077,
+  "passed": 1116,
   "failed": 0,
   "suites": [
     {
@@ -2338,11 +2338,11 @@
           "status": "PASS"
         },
         {
-          "name": "QuietShare.exe.fileVersion0.7.0",
+          "name": "QuietShare.exe.fileVersion0.7.1",
           "status": "PASS"
         },
         {
-          "name": "QuietShare.exe.productVersion0.7.0",
+          "name": "QuietShare.exe.productVersion0.7.1",
           "status": "PASS"
         },
         {
@@ -2350,11 +2350,11 @@
           "status": "PASS"
         },
         {
-          "name": "QuietShare-Setup.exe.fileVersion0.7.0",
+          "name": "QuietShare-Setup.exe.fileVersion0.7.1",
           "status": "PASS"
         },
         {
-          "name": "QuietShare-Setup.exe.productVersion0.7.0",
+          "name": "QuietShare-Setup.exe.productVersion0.7.1",
           "status": "PASS"
         },
         {
@@ -2709,7 +2709,7 @@
     },
     {
       "name": "Shipping EXE / multi-view integration",
-      "passed": 181,
+      "passed": 198,
       "failed": 0,
       "notTested": 5,
       "checks": [
@@ -3087,6 +3087,74 @@
         },
         {
           "name": "normalRestoresNativeCaption",
+          "status": "PASS"
+        },
+        {
+          "name": "tabWheelClampsAtStart:vertical",
+          "status": "PASS"
+        },
+        {
+          "name": "tabWheelOneNotchDistance:vertical",
+          "status": "PASS"
+        },
+        {
+          "name": "tabWheelSmallPacketsEqualWholeNotch:vertical",
+          "status": "PASS"
+        },
+        {
+          "name": "tabWheelFractionalPacketsPreserved:vertical",
+          "status": "PASS"
+        },
+        {
+          "name": "tabWheelReversesWithoutFullNotch:vertical",
+          "status": "PASS"
+        },
+        {
+          "name": "tabWheelClampsAtStart:horizontal",
+          "status": "PASS"
+        },
+        {
+          "name": "tabWheelOneNotchDistance:horizontal",
+          "status": "PASS"
+        },
+        {
+          "name": "tabWheelSmallPacketsEqualWholeNotch:horizontal",
+          "status": "PASS"
+        },
+        {
+          "name": "tabWheelFractionalPacketsPreserved:horizontal",
+          "status": "PASS"
+        },
+        {
+          "name": "tabWheelReversesWithoutFullNotch:horizontal",
+          "status": "PASS"
+        },
+        {
+          "name": "tabZeroWheelDoesNotMove",
+          "status": "PASS"
+        },
+        {
+          "name": "tabWheelAxesKeepSeparateFractionalMotion",
+          "status": "PASS"
+        },
+        {
+          "name": "tabWheelAxesEventuallyApplyBothRemainders",
+          "status": "PASS"
+        },
+        {
+          "name": "activate:0",
+          "status": "PASS"
+        },
+        {
+          "name": "tabActivationStillRevealsFirstTab",
+          "status": "PASS"
+        },
+        {
+          "name": "activate:8",
+          "status": "PASS"
+        },
+        {
+          "name": "tabActivationStillRevealsLastTab",
           "status": "PASS"
         },
         {
@@ -3789,7 +3857,7 @@
     },
     {
       "name": "Consolidated Settings / validation / scrolling / controls",
-      "passed": 73,
+      "passed": 95,
       "failed": 0,
       "notTested": 0,
       "checks": [
@@ -3902,7 +3970,83 @@
           "status": "PASS"
         },
         {
+          "name": "smallWheelDeltaMovesImmediately",
+          "status": "PASS"
+        },
+        {
+          "name": "fractionalWheelEventsComposeToOneNotch",
+          "status": "PASS"
+        },
+        {
+          "name": "smallWheelDirectionReversesImmediately",
+          "status": "PASS"
+        },
+        {
+          "name": "wheelOvershootClampsAtTop",
+          "status": "PASS"
+        },
+        {
+          "name": "subpixelWheelRemaindersAccumulate",
+          "status": "PASS"
+        },
+        {
+          "name": "signedWheelRemaindersReverseToOrigin",
+          "status": "PASS"
+        },
+        {
+          "name": "topEdgeDiscardsOutwardWheelCarry",
+          "status": "PASS"
+        },
+        {
+          "name": "smallWheelOverNumericInputScrollsPage",
+          "status": "PASS"
+        },
+        {
+          "name": "smallWheelOverButtonScrollsPage",
+          "status": "PASS"
+        },
+        {
+          "name": "wheelClampsAtBottom",
+          "status": "PASS"
+        },
+        {
+          "name": "bottomEdgeAllowsImmediateReverse",
+          "status": "PASS"
+        },
+        {
+          "name": "smallWheelStreamMovesOnEveryEvent",
+          "status": "PASS"
+        },
+        {
+          "name": "numericFocusCollapsesCaretAtEnd",
+          "status": "PASS"
+        },
+        {
+          "name": "firstNumericClickCollapsesCaretAtEnd",
+          "status": "PASS"
+        },
+        {
+          "name": "firstNumericClickRetainsActualNativeFocus",
+          "status": "PASS"
+        },
+        {
+          "name": "secondNumericClickKeepsNativeHitTesting",
+          "status": "PASS"
+        },
+        {
+          "name": "numericSelectionStillAllowsEditing",
+          "status": "PASS"
+        },
+        {
+          "name": "escapeRestoresValueWithCaretAtEnd",
+          "status": "PASS"
+        },
+        {
           "name": "manualFontSize:8",
+          "status": "PASS"
+        },
+        {
+          "name": "manualSizeCommitKeepsCaretAtEnd:8",
           "status": "PASS"
         },
         {
@@ -3910,11 +4054,23 @@
           "status": "PASS"
         },
         {
+          "name": "manualSizeCommitKeepsCaretAtEnd:37",
+          "status": "PASS"
+        },
+        {
           "name": "manualFontSize:91",
           "status": "PASS"
         },
         {
+          "name": "manualSizeCommitKeepsCaretAtEnd:91",
+          "status": "PASS"
+        },
+        {
           "name": "manualFontSize:200",
+          "status": "PASS"
+        },
+        {
+          "name": "manualSizeCommitKeepsCaretAtEnd:200",
           "status": "PASS"
         },
         {
@@ -4174,21 +4330,21 @@
   ],
   "files": {
     "QuietShare.exe": {
-      "bytes": 802816,
-      "sha256": "4028b054d8a938edb0a3d2a64105cb47e66b4e876ba9669cfdc8fbeaf14fb91f",
+      "bytes": 805888,
+      "sha256": "31e0abf53b2e681c739158fd6f8ac7957b9aefafd53fc4cec8e6205e2a050025",
       "x64PE": true,
       "machine": "0x8664",
       "optionalHeaderMagic": "0x20b",
       "fileVersion": [
         0,
         7,
-        0,
+        1,
         0
       ],
       "productVersion": [
         0,
         7,
-        0,
+        1,
         0
       ],
       "imports": [
@@ -4210,21 +4366,21 @@
       ]
     },
     "QuietShare-Setup.exe": {
-      "bytes": 12428800,
-      "sha256": "65fed59c568a846d566932849226d8e1d38fe115eaaa1a1552770ba32ff70a84",
+      "bytes": 12431872,
+      "sha256": "a965cd0d98b0146e6464185865b68f2b4819399aa87616db0ee8d700aaaca7bf",
       "x64PE": true,
       "machine": "0x8664",
       "optionalHeaderMagic": "0x20b",
       "fileVersion": [
         0,
         7,
-        0,
+        1,
         0
       ],
       "productVersion": [
         0,
         7,
-        0,
+        1,
         0
       ],
       "imports": [
@@ -4314,7 +4470,7 @@
   "pdfStressObservedMs": 1343,
   "browser": {
     "metrics": {
-      "coldStartAndCanaryMs": 1297,
+      "coldStartAndCanaryMs": 1500,
       "chatgptPublicHttpsLoaded": true,
       "googleSearchPublicHttpsLoaded": true
     },
@@ -4324,6 +4480,23 @@
       "Missing Evergreen Runtime on a clean machine"
     ],
     "profile": "Separate local profile; never exported"
+  },
+  "settingsInteraction": {
+    "metrics": {
+      "wheel120Delta15": {
+        "events": 120,
+        "deltaPerEvent": -15,
+        "positionsDistribution": {
+          "6": 120
+        },
+        "totalMovement": 720,
+        "medianMs": 5.49935,
+        "p95Ms": 7.1185,
+        "maxMs": 8.9271,
+        "method": "Distribution of offset changes per owned WM_MOUSEWHEEL event at 430x320; no physical touchpad; timings are observations, not pass thresholds"
+      }
+    },
+    "method": "Owned native-window wheel/focus/click messages; no physical touchpad observation"
   },
   "screenshots": "Native renderer with synthetic data in a separate QA build; not HTML mockups or receiver evidence"
 }
