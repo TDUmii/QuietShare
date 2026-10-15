@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.7.0
+
+- Gom cấu hình vào Cài đặt với các nhóm Hiển thị, Đọc nội dung, Bố cục, Tiện ích và Trình chiếu; form phẳng căn giữa có chiều rộng tối đa 760 px, thanh cuộn tối và tự cuộn theo focus.
+- Bỏ hoàn toàn slider cỡ chữ; giữ ô nhập, đơn vị pt/% và nút Đặt lại, với phạm vi/lỗi ngay trong nhóm Đọc nội dung. Các nút zoom nhanh vẫn có trong toolbar.
+- Chuyển chọn màn hình nguồn/đích và con trỏ về Cài đặt. Trang Trình chiếu hiển thị tóm tắt màn hình, lối tắt Thiết lập màn hình và các lệnh Kiểm tra WGC/Bắt đầu/Dừng.
+- Bật trình duyệt từ Cài đặt không tự chuyển trang; kiểm tra vùng web vẫn bắt buộc. Giữ menu Bố cục và Ghim để thao tác nhanh, đưa các cấu hình khác khỏi menu công cụ và thêm lối tắt Cài đặt.
+- Centralized configuration in Appearance, Reading, Workspace, Tools and Presentation groups; a flat centered form up to 760 px wide includes a dark scrollbar and automatic scrolling to focused controls.
+- Removed the text-size slider completely. Retained manual input, pt/% units, Reset and inline range/errors; quick zoom controls remain in the toolbar.
+- Moved source/destination display selection and pointer configuration to Settings. Presentation shows the display summary, a Display settings shortcut and Verify WGC/Start/Stop actions.
+- Enabling browsing from Settings preserves the current page and the mandatory browser capture check. Layout and Pin remain quick controls; other configuration entries leave the tools menu, which gains a Settings shortcut.
+
 ## 0.6.0
 
 - Explorer giữ nguyên thư mục, các nhánh mở và lựa chọn khi mở file, đổi tab hoặc resize; cây và nội dung vẫn hiện cạnh nhau trong cửa sổ hẹp. Kéo đường phân cách để chỉnh độ rộng, dùng Ctrl+B hoặc nút đóng trên tiêu đề để ẩn/hiện.

@@ -379,7 +379,7 @@ def main() -> int:
 
     failed = [item["check"] for item in checks if not item["passed"]]
     report = {
-        "applicationVersion": "0.6.0",
+        "applicationVersion": "0.7.0",
         "passed": not failed,
         "method": "Production EXE with isolated LOCALAPPDATA; PID-bound Win32 control messages and DPAPI decrypt",
         "scope": "Unreadable-file recovery, Unicode autosave, native plaintext mode, single instance, readonly source preview separation and restart restoration",

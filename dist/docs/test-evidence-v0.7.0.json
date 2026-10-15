@@ -1,5 +1,5 @@
 {
-  "version": "0.6.0",
+  "version": "0.7.0",
   "platform": "win-x64",
   "windowsBuild": 26200,
   "baselineV03": {
@@ -10,7 +10,7 @@
     "releasePE": 7,
     "status": "PASS before changes"
   },
-  "passed": 999,
+  "passed": 1077,
   "failed": 0,
   "suites": [
     {
@@ -1309,7 +1309,7 @@
     },
     {
       "name": "Native UI / fixtures / DPAPI / resources",
-      "passed": 236,
+      "passed": 253,
       "failed": 0,
       "notTested": 0,
       "checks": [
@@ -1798,6 +1798,74 @@
           "status": "PASS"
         },
         {
+          "name": "qa-visible/settings-en.bmp.validBmpAndReviewPng",
+          "status": "PASS"
+        },
+        {
+          "name": "qa-visible/settings-en.bmp.windowPixelsVisible",
+          "status": "PASS"
+        },
+        {
+          "name": "qa-visible/settings-en.bmp.darkInterfacePresent",
+          "status": "PASS"
+        },
+        {
+          "name": "qa-visible/settings-en.bmp.textLikePixelsPresent",
+          "status": "PASS"
+        },
+        {
+          "name": "qa-visible/settings-workspace.bmp.validBmpAndReviewPng",
+          "status": "PASS"
+        },
+        {
+          "name": "qa-visible/settings-workspace.bmp.windowPixelsVisible",
+          "status": "PASS"
+        },
+        {
+          "name": "qa-visible/settings-workspace.bmp.darkInterfacePresent",
+          "status": "PASS"
+        },
+        {
+          "name": "qa-visible/settings-workspace.bmp.textLikePixelsPresent",
+          "status": "PASS"
+        },
+        {
+          "name": "qa-visible/settings-display.bmp.validBmpAndReviewPng",
+          "status": "PASS"
+        },
+        {
+          "name": "qa-visible/settings-display.bmp.windowPixelsVisible",
+          "status": "PASS"
+        },
+        {
+          "name": "qa-visible/settings-display.bmp.darkInterfacePresent",
+          "status": "PASS"
+        },
+        {
+          "name": "qa-visible/settings-display.bmp.textLikePixelsPresent",
+          "status": "PASS"
+        },
+        {
+          "name": "qa-visible/settings-minimum.bmp.validBmpAndReviewPng",
+          "status": "PASS"
+        },
+        {
+          "name": "qa-visible/settings-minimum.bmp.windowPixelsVisible",
+          "status": "PASS"
+        },
+        {
+          "name": "qa-visible/settings-minimum.bmp.darkInterfacePresent",
+          "status": "PASS"
+        },
+        {
+          "name": "qa-visible/settings-minimum.bmp.textLikePixelsPresent",
+          "status": "PASS"
+        },
+        {
+          "name": "qa-visible/settings-minimum.bmp.numericEditDoesNotPaintIntoFooter",
+          "status": "PASS"
+        },
+        {
           "name": "qa-visible/focus.bmp.validBmpAndReviewPng",
           "status": "PASS"
         },
@@ -2270,11 +2338,11 @@
           "status": "PASS"
         },
         {
-          "name": "QuietShare.exe.fileVersion0.6.0",
+          "name": "QuietShare.exe.fileVersion0.7.0",
           "status": "PASS"
         },
         {
-          "name": "QuietShare.exe.productVersion0.6.0",
+          "name": "QuietShare.exe.productVersion0.7.0",
           "status": "PASS"
         },
         {
@@ -2282,11 +2350,11 @@
           "status": "PASS"
         },
         {
-          "name": "QuietShare-Setup.exe.fileVersion0.6.0",
+          "name": "QuietShare-Setup.exe.fileVersion0.7.0",
           "status": "PASS"
         },
         {
-          "name": "QuietShare-Setup.exe.productVersion0.6.0",
+          "name": "QuietShare-Setup.exe.productVersion0.7.0",
           "status": "PASS"
         },
         {
@@ -2641,7 +2709,7 @@
     },
     {
       "name": "Shipping EXE / multi-view integration",
-      "passed": 179,
+      "passed": 181,
       "failed": 0,
       "notTested": 5,
       "checks": [
@@ -3074,19 +3142,27 @@
           "status": "PASS"
         },
         {
+          "name": "fontSliderRemoved",
+          "status": "PASS"
+        },
+        {
           "name": "exactScriptSize37",
           "status": "PASS"
         },
         {
-          "name": "scriptSliderExpandedRange",
+          "name": "exactScriptSize91",
           "status": "PASS"
         },
         {
-          "name": "sliderThumbTrackUpdatesSizeImmediately",
+          "name": "sizeValidationWithStatusHidden",
           "status": "PASS"
         },
         {
           "name": "outOfRangeSizePreservesValue",
+          "status": "PASS"
+        },
+        {
+          "name": "validSizeClearsInlineError",
           "status": "PASS"
         },
         {
@@ -3385,7 +3461,7 @@
     },
     {
       "name": "Optional browser / rendered WGC surface / lifecycle",
-      "passed": 78,
+      "passed": 80,
       "failed": 0,
       "notTested": 0,
       "checks": [
@@ -3534,7 +3610,15 @@
           "status": "PASS"
         },
         {
+          "name": "browserCanBeConfiguredFromSettings",
+          "status": "PASS"
+        },
+        {
           "name": "browserStartsAndPassesRenderedCanary",
+          "status": "PASS"
+        },
+        {
+          "name": "enablingBrowserKeepsSettingsOpen",
           "status": "PASS"
         },
         {
@@ -3704,73 +3788,301 @@
       ]
     },
     {
-      "name": "Settings / slider live paint",
-      "passed": 16,
+      "name": "Consolidated Settings / validation / scrolling / controls",
+      "passed": 73,
       "failed": 0,
       "notTested": 0,
       "checks": [
+        {
+          "name": "noExistingQuietShareWindow",
+          "status": "PASS"
+        },
         {
           "name": "syntheticOwnedQaWindow",
           "status": "PASS"
         },
         {
-          "name": "settingsControlsPresent",
+          "name": "settingsControlsInitialized",
           "status": "PASS"
         },
         {
-          "name": "fontRange8To200",
+          "name": "resizeToMinimumSettingsWindow",
           "status": "PASS"
         },
         {
-          "name": "liveValue:8",
+          "name": "settingsPageActive",
           "status": "PASS"
         },
         {
-          "name": "validOwnedPixels:8",
+          "name": "fontSliderRemoved",
           "status": "PASS"
         },
         {
-          "name": "liveValue:56",
+          "name": "consolidatedControlsKeepStableMainParent",
           "status": "PASS"
         },
         {
-          "name": "validOwnedPixels:56",
+          "name": "settingsUsesNativeScrollbar",
           "status": "PASS"
         },
         {
-          "name": "liveValue:104",
+          "name": "minimumSettingsCanScroll",
           "status": "PASS"
         },
         {
-          "name": "validOwnedPixels:104",
+          "name": "settingsScrollTop",
           "status": "PASS"
         },
         {
-          "name": "liveValue:152",
+          "name": "minimumNumericEditPartiallyClipped",
           "status": "PASS"
         },
         {
-          "name": "validOwnedPixels:152",
+          "name": "minimumNumericClipMatchesFullViewportIntersection",
           "status": "PASS"
         },
         {
-          "name": "liveValue:200",
+          "name": "focusedNumericClipMatchesFullViewportIntersection",
           "status": "PASS"
         },
         {
-          "name": "validOwnedPixels:200",
+          "name": "focusedNumericEditFullyVisible",
           "status": "PASS"
         },
         {
-          "name": "fillFollowsEveryDragStep",
+          "name": "numericClipPreservedAfterSettingsRelayout",
           "status": "PASS"
         },
         {
-          "name": "fullFillCoversChannel",
+          "name": "thumbPositionUpdatesImmediately:0",
           "status": "PASS"
         },
         {
-          "name": "releaseReturnsToNativeValue",
+          "name": "thumbPositionUpdatesImmediately:1",
+          "status": "PASS"
+        },
+        {
+          "name": "thumbPositionUpdatesImmediately:2",
+          "status": "PASS"
+        },
+        {
+          "name": "settingsScrollBottom",
+          "status": "PASS"
+        },
+        {
+          "name": "lastDisplayControlVisibleAtBottom",
+          "status": "PASS"
+        },
+        {
+          "name": "offscreenDisplayControlIsClipped",
+          "status": "PASS"
+        },
+        {
+          "name": "buttonFocusScrollsIntoView",
+          "status": "PASS"
+        },
+        {
+          "name": "comboFocusScrollsIntoView",
+          "status": "PASS"
+        },
+        {
+          "name": "sourceMonitorListAvailableInSettings",
+          "status": "PASS"
+        },
+        {
+          "name": "destinationMonitorListAvailableInSettings",
+          "status": "PASS"
+        },
+        {
+          "name": "wheelOverSettingScrollsPage",
+          "status": "PASS"
+        },
+        {
+          "name": "wheelClampsAtTop",
+          "status": "PASS"
+        },
+        {
+          "name": "manualFontSize:8",
+          "status": "PASS"
+        },
+        {
+          "name": "manualFontSize:37",
+          "status": "PASS"
+        },
+        {
+          "name": "manualFontSize:91",
+          "status": "PASS"
+        },
+        {
+          "name": "manualFontSize:200",
+          "status": "PASS"
+        },
+        {
+          "name": "invalidFontRestoresLastValid:below",
+          "status": "PASS"
+        },
+        {
+          "name": "invalidFontRestoresLastValid:above",
+          "status": "PASS"
+        },
+        {
+          "name": "invalidFontRestoresLastValid:invalid",
+          "status": "PASS"
+        },
+        {
+          "name": "statusBarHiddenIndependently",
+          "status": "PASS"
+        },
+        {
+          "name": "sizeErrorSurvivesHiddenStatusBar",
+          "status": "PASS"
+        },
+        {
+          "name": "validSizeClearsInlineError",
+          "status": "PASS"
+        },
+        {
+          "name": "scriptWrapRemainsDisabledAndUnchanged",
+          "status": "PASS"
+        },
+        {
+          "name": "settingToggleUpdatesState:topmost",
+          "status": "PASS"
+        },
+        {
+          "name": "settingToggleRestoresState:topmost",
+          "status": "PASS"
+        },
+        {
+          "name": "settingToggleUpdatesState:ignoredFolders",
+          "status": "PASS"
+        },
+        {
+          "name": "settingToggleRestoresState:ignoredFolders",
+          "status": "PASS"
+        },
+        {
+          "name": "settingToggleUpdatesState:pointer",
+          "status": "PASS"
+        },
+        {
+          "name": "settingToggleRestoresState:pointer",
+          "status": "PASS"
+        },
+        {
+          "name": "readingSpeedCyclesInSettings",
+          "status": "PASS"
+        },
+        {
+          "name": "languageChangesInSettings",
+          "status": "PASS"
+        },
+        {
+          "name": "languageRestoresInSettings",
+          "status": "PASS"
+        },
+        {
+          "name": "layoutSettingChangesOnlyOwnBit:activity",
+          "status": "PASS"
+        },
+        {
+          "name": "layoutSettingChangesOnlyOwnBit:explorer",
+          "status": "PASS"
+        },
+        {
+          "name": "layoutSettingChangesOnlyOwnBit:tabs",
+          "status": "PASS"
+        },
+        {
+          "name": "layoutSettingChangesOnlyOwnBit:toolbar",
+          "status": "PASS"
+        },
+        {
+          "name": "layoutSettingChangesOnlyOwnBit:status",
+          "status": "PASS"
+        },
+        {
+          "name": "resetLayoutAvailableInSettings",
+          "status": "PASS"
+        },
+        {
+          "name": "qaSettingsDoesNotStartBrowser",
+          "status": "PASS"
+        },
+        {
+          "name": "readerPausedBeforeSettingsKey",
+          "status": "PASS"
+        },
+        {
+          "name": "settingsSpaceOperatesFocusedButton",
+          "status": "PASS"
+        },
+        {
+          "name": "settingsSpaceDoesNotStartReader",
+          "status": "PASS"
+        },
+        {
+          "name": "settingsSpaceRestoresFocusedButton",
+          "status": "PASS"
+        },
+        {
+          "name": "monitorSelectorsNotInPresentation",
+          "status": "PASS"
+        },
+        {
+          "name": "displaySettingsShortcutAvailable",
+          "status": "PASS"
+        },
+        {
+          "name": "displayShortcutOpensSettingsAtDisplay",
+          "status": "PASS"
+        },
+        {
+          "name": "syntheticCodePreviewOpened",
+          "status": "PASS"
+        },
+        {
+          "name": "codeWrapToggleEnabledInSettings",
+          "status": "PASS"
+        },
+        {
+          "name": "codeWrapToggleRestoresInSettings",
+          "status": "PASS"
+        },
+        {
+          "name": "manualCodeZoom:25",
+          "status": "PASS"
+        },
+        {
+          "name": "manualCodeZoom:137",
+          "status": "PASS"
+        },
+        {
+          "name": "manualCodeZoom:400",
+          "status": "PASS"
+        },
+        {
+          "name": "invalidZoomRestoresLastValid",
+          "status": "PASS"
+        },
+        {
+          "name": "zoomResetAvailableInSettings",
+          "status": "PASS"
+        },
+        {
+          "name": "resizeToLargerSettingsWindow",
+          "status": "PASS"
+        },
+        {
+          "name": "settingsOffsetClampedAfterResize",
+          "status": "PASS"
+        },
+        {
+          "name": "sizeFocusScrollsIntoViewAfterResize",
+          "status": "PASS"
+        },
+        {
+          "name": "fixtureExitZero",
           "status": "PASS"
         }
       ]
@@ -3862,20 +4174,20 @@
   ],
   "files": {
     "QuietShare.exe": {
-      "bytes": 792576,
-      "sha256": "630998d957d1f5c44d4aebe3215db65042e25dc0213aedd61d228ed024aacf90",
+      "bytes": 802816,
+      "sha256": "4028b054d8a938edb0a3d2a64105cb47e66b4e876ba9669cfdc8fbeaf14fb91f",
       "x64PE": true,
       "machine": "0x8664",
       "optionalHeaderMagic": "0x20b",
       "fileVersion": [
         0,
-        6,
+        7,
         0,
         0
       ],
       "productVersion": [
         0,
-        6,
+        7,
         0,
         0
       ],
@@ -3898,20 +4210,20 @@
       ]
     },
     "QuietShare-Setup.exe": {
-      "bytes": 12418560,
-      "sha256": "da08214275ec32ceb87f5b4bcedffe64228745bd34cf874c86763a41741761c3",
+      "bytes": 12428800,
+      "sha256": "65fed59c568a846d566932849226d8e1d38fe115eaaa1a1552770ba32ff70a84",
       "x64PE": true,
       "machine": "0x8664",
       "optionalHeaderMagic": "0x20b",
       "fileVersion": [
         0,
-        6,
+        7,
         0,
         0
       ],
       "productVersion": [
         0,
-        6,
+        7,
         0,
         0
       ],
@@ -3987,7 +4299,7 @@
   },
   "monitorCount": 1,
   "actualWgcCanary": true,
-  "canaryElapsedMs": 328,
+  "canaryElapsedMs": 312,
   "listedVideoControllers": [
     {
       "Name": "Parsec Virtual Display Adapter",
@@ -3999,10 +4311,10 @@
     }
   ],
   "pdfCooperativeBudgetMs": 750,
-  "pdfStressObservedMs": 1359,
+  "pdfStressObservedMs": 1343,
   "browser": {
     "metrics": {
-      "coldStartAndCanaryMs": 3047,
+      "coldStartAndCanaryMs": 1297,
       "chatgptPublicHttpsLoaded": true,
       "googleSearchPublicHttpsLoaded": true
     },

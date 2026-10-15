@@ -1,4 +1,4 @@
-"""Verify QuietShare 0.6.0 teleprompter GDI captures and export review PNGs.
+"""Verify QuietShare 0.7.0 teleprompter GDI captures and export review PNGs.
 
 This checks one local BitBlt capture path. It cannot establish what Zoom,
 Teams, OBS, another capture API, a remote viewer, or a projector receives.
@@ -25,7 +25,7 @@ DARK_SURFACES = ((30, 30, 30), (37, 37, 38), (51, 51, 51), (60, 60, 60), (70, 70
 REQUIRED_CAPTURES = {
     "qa-visible": ("editing.bmp", "visible.bmp", "large-text.bmp", "scrolling.bmp", "masked.bmp", "compact.bmp", "english.bmp",
                    "minimum-editing.bmp", "minimum-masked.bmp", "wide.bmp", "hover.bmp", "pressed.bmp", "english-editing.bmp", "empty.bmp", "empty-reading.bmp",
-                   "dpi-125.bmp", "dpi-150.bmp", "home.bmp", "settings.bmp", "focus.bmp", "code-file.bmp",
+                   "dpi-125.bmp", "dpi-150.bmp", "home.bmp", "settings.bmp", "settings-en.bmp", "settings-workspace.bmp", "settings-display.bmp", "settings-minimum.bmp", "focus.bmp", "code-file.bmp",
                    "image-file.bmp", "image-focus.bmp", "file-error.bmp", "tabs-overflow.bmp", "code-focus.bmp",
                    "project-wide.bmp", "project-medium.bmp", "project-minimum.bmp", "layout-minimal.bmp", "pdf-file.bmp", "pdf-focus.bmp",
                    "presentation.bmp", "presentation-en.bmp", "tabs-masked.bmp","browser-off.bmp","browser-off-en.bmp","browser-minimum.bmp"),
@@ -165,7 +165,7 @@ def main() -> int:
             check(f"{folder}.diagnosticsReadable", False, str(error))
             diagnostic = {}
         expected = {
-            "applicationVersion": "0.6.0",
+            "applicationVersion": "0.7.0",
             "topologyKnown": True,
             "displayCloned": False,
             "privacyApplied": True,
@@ -243,6 +243,17 @@ def main() -> int:
                     if file in ("editing.bmp", "visible.bmp", "large-text.bmp", "scrolling.bmp", "compact.bmp", "english.bmp"):
                         check(f"{key}.contentPanelHasTextLikePixels", metrics["panelBrightPixelFraction"] >= 0.0008,
                               {"minimum": 0.0008, "actual": metrics["panelBrightPixelFraction"]})
+                    if file == "settings-minimum.bmp":
+                        # This synthetic Settings frame has no footer text. The
+                        # numeric EDIT previously repainted here after clipping.
+                        # Check rendered pixels as well as the HWND region suite.
+                        samples = [tuple(bitmap.rgb[(y * bitmap.width + x) * 3: (y * bitmap.width + x) * 3 + 3])
+                                   for y in range(int(bitmap.height * .94), int(bitmap.height * .98))
+                                   for x in range(int(bitmap.width * .50), int(bitmap.width * .56))]
+                        clear = sum(pixel == (30, 30, 30) for pixel in samples) / max(1, len(samples))
+                        check(f"{key}.numericEditDoesNotPaintIntoFooter", clear >= .99,
+                              {"clearBackgroundFraction": clear, "minimum": .99,
+                               "scope": "center footer strip below the synthetic minimum-size Settings viewport"})
             except (OSError, ValueError, struct.error) as error:
                 check(f"{key}.validBmpAndReviewPng", False, str(error))
 
@@ -310,7 +321,7 @@ def main() -> int:
     installer_report = artifacts / "installer-self-test.json"
     try:
         setup = json.loads(installer_report.read_text(encoding="utf-8-sig"))
-        for field, expected in {"selfTestPassed": True, "version": "0.6.0",
+        for field, expected in {"selfTestPassed": True, "version": "0.7.0",
                                 "versionResourceVerified": True, "payloadResourceId": 301,
                                 "payloadPortableExecutable": True, "fixedInstallPathVerified": True,
                                 "installationWrites": False, "error": ""}.items():
@@ -358,7 +369,7 @@ def main() -> int:
     report = {
         "passed": not failed,
         "method": "GDI BitBlt with SRCCOPY | CAPTUREBLT; synthetic purple underlay and exact window crops",
-        "applicationVersion": "0.6.0",
+        "applicationVersion": "0.7.0",
         "scope": "Local native text teleprompter editing, reading, font controls, timer scroll, pause, mask and compact layout",
         "limits": [
             "A separate QA executable uses synthetic fixtures and controlled visual/privacy gates. The shipping executable rejects these switches.",
