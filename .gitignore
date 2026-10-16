@@ -15,27 +15,13 @@ dist/*
 !dist/pdfium.dll
 !dist/WebView2Loader.dll
 !dist/README.md
-!dist/TEST_REPORT.md
-!dist/TEST_REPORT_v0.4.0.md
-!dist/TEST_REPORT_v0.4.1.md
-!dist/TEST_REPORT_v0.4.2.md
-!dist/TEST_REPORT_v0.8.0.md
 !dist/CHANGELOG.md
 !dist/THIRD-PARTY.md
-!dist/release-inventory.json
+!dist/release-manifest.json
 !dist/docs/
-!dist/docs/quietshare-reading.png
-!dist/docs/quietshare-home.png
 !dist/docs/quietshare-settings.png
-!dist/docs/quietshare-project.png
-!dist/docs/quietshare-layout.png
 !dist/docs/Browser_Integration_Study.md
-!dist/docs/quietshare-browser.png
 !dist/docs/QuietShare_v0.4.0_Codex_Implementation_Plan.md
-!dist/docs/test-evidence-v0.4.0.json
-!dist/docs/test-evidence-v0.4.1.json
-!dist/docs/test-evidence-v0.4.2.json
-!dist/docs/test-evidence-v0.8.0.json
 !dist/dependencies/
 !dist/dependencies/**
 
@@ -47,5 +33,4 @@ QuietShare-v0.1.0-win-x64.zip
 !dist/docs/QuietShare_v0.6.0_Implementation_Plan.md
 !dist/docs/QuietShare_v0.7.0_Settings_Spec.md
 !dist/docs/QuietShare_v0.8.0_Implementation_Plan.md
-!dist/docs/quietshare-settings-workspace.png
-!dist/docs/quietshare-settings-display.png
+!dist/docs/QuietShare_v0.8.1_Implementation_Plan.md

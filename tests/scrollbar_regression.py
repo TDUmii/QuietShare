@@ -161,7 +161,7 @@ def main() -> int:
         deadline = time.monotonic() + 5
         while time.monotonic() < deadline:
             windows = app_windows(process.pid)
-            if windows:
+            if windows and USER32.GetDlgItem(windows[0],110):
                 window = windows[0]
                 break
             if process.poll() is not None:

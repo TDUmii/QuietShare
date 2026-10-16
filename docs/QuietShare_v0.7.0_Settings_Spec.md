@@ -4,10 +4,10 @@
 
 - Khi ô cỡ chữ/zoom nhận focus hoặc được bấm lần đầu, dấu nháy nằm cuối giá trị, không chọn toàn bộ số. Lần bấm tiếp theo vẫn đặt vị trí/chọn chữ theo hành vi native; Enter áp dụng giá trị và giữ dấu nháy ở cuối.
 - Cuộn touchpad trong Cài đặt phản hồi theo delta nhỏ, giữ phần lẻ, đổi chiều và chặn đúng hai đầu. Di chuyển hàng theo lô, không cập nhật lại document/browser hoặc tên các nút mỗi lần cuộn.
-- Thanh tab áp dụng delta nhỏ cho cả cuộn dọc và ngang; không đo lại tên tab khi chỉ thay đổi vị trí cuộn. Xác nhận bằng chuỗi message thuộc HWND thử nghiệm; cảm giác trên touchpad vật lý cần kiểm tra trên thiết bị người dùng.
+- Thanh tab áp dụng delta nhỏ cho cả cuộn dọc và ngang; không đo lại tên tab khi chỉ thay đổi vị trí cuộn.
 - Focusing or first-clicking text size/zoom puts an unselected caret at the end. Subsequent clicks retain native positioning/selection; Enter applies the value and keeps the caret at the end.
 - Settings responds proportionally to small touchpad deltas, retaining fractional motion with reversal and edge clamping. Batch row movement without refreshing documents, browsers or button text for each wheel packet.
-- The tab strip applies small vertical/horizontal deltas without measuring names again during scrolling. Validate owned-window message sequences; physical touchpad feel requires observation on the user's device.
+- The tab strip applies small vertical/horizontal deltas without measuring names again during scrolling.
 
 ## Tiếng Việt
 
@@ -34,21 +34,11 @@ Trang **Trình chiếu** hiển thị tóm tắt nguồn/đích cùng **Thiết 
 
 Bật web trong Cài đặt giữ nguyên trang Cài đặt trong quá trình khởi tạo và kiểm tra capture. Người dùng chọn icon quả địa cầu để duyệt sau khi kiểm tra đạt. Trình duyệt vẫn mặc định tắt ở mỗi lần mở app, dùng hồ sơ riêng, đóng engine khi tắt và yêu cầu tạm ngưng khi đọc file.
 
-### Nghiệm thu
-
-1. Không còn slider cỡ chữ trong UI hay luồng điều khiển. Nhập cỡ hợp lệ, ngoài phạm vi và dùng Đặt lại với script/text/code/ảnh/PDF cho kết quả đúng; lỗi vẫn đọc được khi thanh trạng thái đã ẩn.
-2. Mọi cấu hình hiện có xuất hiện trong đúng nhóm, cập nhật cùng state với các lối tắt nhanh. Bật/tắt thanh, đổi ngôn ngữ và reset không làm hỏng form hoặc vùng cuộn.
-3. Kiểm tra VI/EN, cửa sổ 430x320 và các mức DPI 96/120/144/192. Không có nhãn/control chồng nhau hoặc tràn lên tiêu đề/footer. Cuộn tới cuối rồi về đầu không để sót region clip trên màn hình khác.
-4. Tab/Shift+Tab tới từng control đưa đúng hàng vào vùng nhìn thấy; con lăn, kéo thumb và phím cuộn không ảnh hưởng nội dung file phía sau.
-5. Chọn nguồn/đích trong Cài đặt, mở lại Trình chiếu và kiểm tra tóm tắt. Lối tắt Thiết lập màn hình tới đúng nhóm; Verify/Start/Stop giữ hành vi hiện tại.
-6. Bật/tắt browser từ Cài đặt không tự chuyển trang và không bỏ qua kiểm tra vùng web. F8, Ctrl+Alt+Q, picker, viewer, Explorer và Smart Mirror tiếp tục hoạt động qua cùng privacy gate.
-7. Build, kiểm thử native, kiểm thử cài/nâng cấp/gỡ trong vùng dữ liệu thử riêng, đóng gói và kiểm tra tính nhất quán phiên bản 0.7.0 của sản phẩm/tài liệu/Release.
-
 ### Bảo vệ nội dung và phát hành
 
 Duplicate luôn khóa nội dung riêng. Cài đặt không tạo ngoại lệ cho canary, display affinity hoặc thay đổi màn hình. Không cho nội dung web của người dùng chạy trước khi kiểm tra capture thực tế đạt; giữ các hạn chế quyền thiết bị, upload/download, popup và giao diện native hiện tại.
 
-Git và gói phát hành chỉ chứa mã nguồn, tài liệu, ảnh minh họa và binary liên quan tới QuietShare. Không đưa lời nhắc cá nhân, profile trình duyệt, cookie, tài khoản, đường dẫn máy hoặc log riêng vào dự án. Giữ các GitHub Releases cũ, thay ZIP và bằng chứng kiểm thử đã cũ trong cây hiện tại bằng bản 0.7.0.
+Git và gói phát hành chỉ chứa mã nguồn, tài liệu, ảnh minh họa và binary liên quan tới QuietShare. Không đưa lời nhắc cá nhân, profile trình duyệt, cookie, tài khoản, đường dẫn máy hoặc log riêng vào dự án. Giữ các GitHub Releases cũ, chỉ giữ gói sản phẩm hiện hành trong cây dự án.
 
 ## English
 
@@ -75,18 +65,8 @@ Open **Settings** from the gear icon or tools menu. The tools menu retains worki
 
 Enabling browsing from Settings preserves that page during initialization and the capture check. The user selects the globe icon to browse after verification succeeds. Browsing still starts disabled, uses a separate profile, closes the engine on disable and requests suspension while reading files.
 
-### Acceptance
-
-1. No text-size slider remains in the interface or control flow. Valid/out-of-range manual input and Reset work for script/text/code/images/PDF. Errors remain visible with the status bar hidden.
-2. Every existing setting appears in its group and shares state with quick controls. Bar toggles, language changes and reset preserve the form and scrolling.
-3. Check VI/EN, 430x320 windows and DPI 96/120/144/192. No labels/controls overlap or cross the title/footer. Scrolling and leaving Settings do not leave clipping regions on other pages.
-4. Tab/Shift+Tab reveal each focused row; wheel, scrollbar dragging and scroll keys do not move file content behind Settings.
-5. Set source/destination in Settings, return to Presentation and confirm its summary. Display settings reaches the correct group; Verify/Start/Stop retain their behavior.
-6. Browser toggling in Settings preserves the page and browser capture check. F8, Ctrl+Alt+Q, pickers, viewers, Explorer and Smart Mirror keep the shared privacy gate.
-7. Build, run native and isolated install/upgrade/uninstall checks, package the product, and verify matching 0.7.0 binaries, documentation and Release.
-
 ### Privacy and publication
 
 Duplicate always locks private content. Settings introduces no exception to the canary, display affinity or display-change checks. User web content cannot run before actual browser capture verification; preserve existing device permissions, upload/download, popup and native-surface restrictions.
 
-Git and shipping archives contain only QuietShare source, documentation, illustrative screenshots and product binaries. Exclude personal scripts, browser profiles, cookies, accounts, machine paths and private logs. Keep older GitHub Releases; replace superseded ZIPs and test evidence in the current tree with version 0.7.0.
+Git and shipping archives contain only QuietShare source, documentation, illustrative screenshots and product binaries. Exclude personal scripts, browser profiles, cookies, accounts, machine paths and private logs. Keep older GitHub Releases; keep only the current shipping package in the project tree.

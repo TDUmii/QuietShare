@@ -1,0 +1,30 @@
+{
+  "version": "0.8.1",
+  "platform": "win-x64",
+  "files": {
+    "QuietShare.exe": {
+      "bytes": 835072,
+      "sha256": "4b33a0b65cee99f11af52bf53ebc9b353bd29fc34f6c6c55f3787cd24c058b13"
+    },
+    "QuietShare-Setup.exe": {
+      "bytes": 12461056,
+      "sha256": "07eed4d2791bbf00f3ed087a087f2bbed6fcf6935eac31f36e5675098ff766a0"
+    },
+    "Scintilla.dll": {
+      "bytes": 1131880,
+      "sha256": "a6957ae53a5bc92b3bdfe24c938c80df248a0a1f7a4c937ec5222646a52402fa"
+    },
+    "Lexilla.dll": {
+      "bytes": 1400168,
+      "sha256": "3487bc191eb25b8475f55975341190817c9d37296e9ffa2e0179804eb7a2f087"
+    },
+    "pdfium.dll": {
+      "bytes": 7512064,
+      "sha256": "ae913f407e8d3f5cdbf08a9869564d647b13e132e01eb376c0a5a33b7a227a45"
+    },
+    "WebView2Loader.dll": {
+      "bytes": 194912,
+      "sha256": "3426dcc55fdfb8b5e7ac623cf33b4ccf283fbf68a0c5a65bddfdb4d749a8abee"
+    }
+  }
+}

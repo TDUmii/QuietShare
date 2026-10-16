@@ -39,7 +39,7 @@ std::wstring GetLocalDataDirectory();
 // Captures the entire virtual desktop through GDI. This is a local capture
 // check, not evidence of what a particular meeting application sends.
 bool CaptureDesktopBmp(const std::wstring &path);
-bool CaptureRegionBmp(const std::wstring &path, const RECT &region);
+bool CaptureRegionBmp(const std::wstring &path, const RECT &region, bool includeLayered = true);
 void SetClipboardText(HWND owner, const std::wstring &text);
 
 } // namespace quietshare

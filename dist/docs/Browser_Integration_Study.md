@@ -1,6 +1,6 @@
 # QuietShare - duyệt web tùy chọn / optional browsing
 
-Trạng thái: triển khai từ 0.5.0, cập nhật tìm kiếm trong 0.6.0. / Status: introduced in 0.5.0, search updated in 0.6.0.
+Trạng thái: triển khai từ 0.5.0; tìm kiếm từ 0.6.0, zoom và tiếp tục chiếu từ 0.8.0. / Status: introduced in 0.5.0; search since 0.6.0, zoom and projection continuity since 0.8.0.
 
 ## Thiết kế / Design
 
@@ -14,12 +14,12 @@ The package includes only the 194,912-byte pinned loader. Browsing requires a se
 
 ## Tài nguyên và dữ liệu / Resources and data
 
-- Tắt browser đóng controller, thả environment và các COM object. Kiểm thử theo dõi process web thực và xác nhận process kết thúc.
-- Đọc file hoặc thu nhỏ sẽ ẩn browser và yêu cầu TrySuspend; trở lại browser sẽ Resume. Đã kiểm tra IsSuspended thực trên runtime của máy kiểm thử. Không vẽ lại bounds không đổi.
+- Tắt browser đóng controller, thả environment và các COM object.
+- Đọc file hoặc thu nhỏ sẽ ẩn browser và yêu cầu TrySuspend; trở lại browser sẽ Resume. Không vẽ lại bounds không đổi.
 - Hồ sơ riêng trong thư mục dữ liệu QuietShare của tài khoản. Cookie được giữ khi tắt/bật để đăng nhập thuận tiện; không dùng hồ sơ Edge cá nhân. Khởi động app vẫn tắt browser dù đã có hồ sơ web.
-- URL, nội dung trang, cookie, thông tin đăng nhập và dữ liệu profile không được xuất vào Git hay bằng chứng phát hành. Chỉ số thời gian và tên kiểm tra được xuất; fixture/profile thô chỉ ở artifacts bị ignore.
+- URL, nội dung trang, cookie, thông tin đăng nhập và dữ liệu profile được giữ ngoài Git, tài liệu và gói phát hành.
 
-Disabling closes web objects and tests confirm browser-process exit. Hidden browsing requests suspension and resumes on return. A separate profile preserves cookies while every app startup remains opt-in. [Microsoft - TrySuspend](https://learn.microsoft.com/en-us/microsoft-edge/webview2/reference/win32/icorewebview2_3), [User data folders](https://learn.microsoft.com/en-us/microsoft-edge/webview2/concepts/user-data-folder).
+Disabling closes the controller, environment and web objects. Hidden browsing requests suspension and resumes on return. A separate profile preserves cookies while every app startup remains opt-in. [Microsoft - TrySuspend](https://learn.microsoft.com/en-us/microsoft-edge/webview2/reference/win32/icorewebview2_3), [User data folders](https://learn.microsoft.com/en-us/microsoft-edge/webview2/concepts/user-data-folder).
 
 ## Bảo vệ và giới hạn / Protection and boundaries
 
@@ -29,12 +29,16 @@ Disabling closes web objects and tests confirm browser-process exit. Hidden brow
 4. Tắt DevTools, menu native, autofill/password-save UI và browser accelerators có thể mở UI ngoài. Chặn file picker, drop/paste file, native select/date/color picker và datalist/tooltip bằng chính sách DOM cài trước document; vẫn cho phép Tab và chỉnh select/date bằng phím khi an toàn. Tắt in web và nút lưu/in của PDF web. Client-certificate và HTTP Basic credential dialogs bị hủy; form đăng nhập HTML thông thường vẫn dùng được.
 5. Popup tự phát bị chặn. Link mở cửa sổ mới do người dùng bấm điều hướng trong cùng vùng web. Alert được xử lý không tạo dialog; confirm/prompt không được tự chấp nhận. OAuth cần popup riêng có thể không tương thích.
 
-The browser must pass an actual positive/excluded WGC render test before user navigation. F8, lifecycle generations and topology invalidation prevent unintended revival. Native UI/permission paths are restricted. This is a focused browser for reading and text chat, with one web view. [Microsoft - Security](https://learn.microsoft.com/en-us/microsoft-edge/webview2/concepts/security), [NewWindowRequested](https://learn.microsoft.com/en-us/microsoft-edge/webview2/reference/win32/icorewebview2newwindowrequestedeventargs).
+The browser must pass an actual positive/excluded WGC render verification before user navigation. F8, lifecycle generations and topology invalidation prevent unintended revival. Native UI/permission paths are restricted. This is a focused browser for reading and text chat, with one web view. [Microsoft - Security](https://learn.microsoft.com/en-us/microsoft-edge/webview2/concepts/security), [NewWindowRequested](https://learn.microsoft.com/en-us/microsoft-edge/webview2/reference/win32/icorewebview2newwindowrequestedeventargs).
 
-## Bằng chứng và giới hạn kiểm thử / Evidence and limits
+## Zoom và phiên chiếu / Zoom and projection sessions
 
 Từ 0.8.0, web có zoom 25-400% với nút − / phần trăm đặt lại / + và Ctrl+- / Ctrl++ / Ctrl+0. Zoom dùng controller WebView2; canary luôn ở 100%, rồi mới áp dụng mức người dùng sau khi đạt. Bật web trong phiên Smart Mirror giữ khung hình công khai an toàn gần nhất trong lúc kiểm tra (tối đa 5 giây), giữ nguyên capture và projector khi kiểm tra đạt; timestamp QPC sau tháo canary loại các khung thử còn đệm. Lỗi hoặc thay đổi trạng thái an toàn vẫn khóa/dừng output. [WebView2 controller](https://learn.microsoft.com/en-us/microsoft-edge/webview2/reference/win32/icorewebview2controller), [Capture frame timestamp](https://learn.microsoft.com/en-us/uwp/api/windows.graphics.capture.direct3d11captureframe.systemrelativetime).
 
-Xem [báo cáo 0.8.0](../TEST_REPORT_v0.8.0.md) và [bằng chứng đã lọc](test-evidence-v0.8.0.json). Kiểm thử shipping EXE dùng profile riêng, HTTP fixture cục bộ và WGC thực, kiểm tra chuyển đến tìm kiếm Google bằng tiếng Việt cùng các shortcut. Bằng chứng ghi riêng trạng thái tải HTTPS công khai; không đăng nhập tài khoản cá nhân hoặc gửi tin nhắn khi kiểm thử. Bật web từ Cài đặt giữ nguyên trang cấu hình; người dùng chọn biểu tượng trình duyệt để mở vùng web.
+Enabling browsing from Settings keeps that page open; the user selects the globe icon to display web content. Web zoom uses the controller, independent of file zoom. A running same-source Smart Mirror session holds the last safe public frame through browser verification and resumes only after post-probe frames are eligible.
 
-Authenticated ChatGPT chat, third-party OAuth, client-certificate sites, a clean machine without Evergreen Runtime, physical Extend/Duplicate and meeting receivers remain unverified. Capture exclusion is not DRM or protection against external cameras. [Microsoft - SetWindowDisplayAffinity](https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-setwindowdisplayaffinity).
+## Giới hạn vận hành / Operating limits
+
+Trình duyệt tập trung vào đọc và chat bằng chữ. Không hỗ trợ quyền thiết bị, upload/download, đăng nhập qua chứng chỉ client hoặc HTTP Basic và popup đăng nhập riêng. Bảo vệ capture phụ thuộc đường capture và hệ thống hiển thị; trạng thái phía người nhận vẫn cần xác nhận riêng trong phần mềm họp hoặc máy chiếu sử dụng. Loại trừ capture không ngăn máy ảnh bên ngoài quay màn hình.
+
+This browser is scoped to reading and text chat. Device permissions, uploads/downloads, client-certificate/HTTP Basic authentication and separate login popups are unsupported. Capture exclusion depends on the capture path and display system, and receiver status requires separate confirmation in the actual meeting or projector setup. It cannot prevent an external camera from filming a display. [Microsoft - SetWindowDisplayAffinity](https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-setwindowdisplayaffinity).

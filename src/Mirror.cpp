@@ -158,6 +158,12 @@ bool WithinMonitor(HWND hwnd,const MonitorInfo &monitor)
     return GetWindowRect(hwnd,&r)&&r.left>=monitor.bounds.left&&r.top>=monitor.bounds.top&&
            r.right<=monitor.bounds.right&&r.bottom<=monitor.bounds.bottom;
 }
+bool PrivateWindowLocationSafe(HWND hwnd,const MonitorInfo &monitor)
+{
+    // Windows parks minimized HWNDs off-screen. They reveal no private surface;
+    // require source containment again as soon as the window is restored.
+    return IsWindow(hwnd)&&(IsIconic(hwnd)||WithinMonitor(hwnd,monitor));
+}
 const MonitorInfo *Find(const std::vector<MonitorInfo> &monitors, const std::wstring &id)
 {
     for (const auto &monitor : monitors) if (monitor.stableId == id) return &monitor;
@@ -726,7 +732,7 @@ bool MirrorController::Verify(HWND privateWindow,const std::wstring &sourceId,co
     {
         if(s.epoch!=attempt)return false;
         if(!BasicSafe(privateWindow,&s.publicPopups))return finish(State::Unsafe);
-        if(preserveProjection&&(!WithinMonitor(privateWindow,*source)||!Affinity(s.projector)))
+        if(preserveProjection&&(!PrivateWindowLocationSafe(privateWindow,*source)||!Affinity(s.projector)))
             return finish(State::Unsafe);
         if(s.epoch!=attempt)return false;
         Com<CaptureFrame> frame;Com<ID3D11Texture2D> texture;
@@ -761,7 +767,7 @@ bool MirrorController::Verify(HWND privateWindow,const std::wstring &sourceId,co
                     if(!s.presentAfter)return finish(State::CaptureFailed);
                     if(!BasicSafe(privateWindow,&s.publicPopups)||!s.SameTopology())return finish(State::Changed);
                     if(s.epoch!=attempt)return false;
-                    if(preserveProjection&&(!WithinMonitor(privateWindow,*source)||!Affinity(s.projector)))
+                    if(preserveProjection&&(!PrivateWindowLocationSafe(privateWindow,*source)||!Affinity(s.projector)))
                         return finish(State::Unsafe);
                     s.verified=true;s.verifiedTick=GetTickCount64();s.checkTick=s.verifiedTick;
                     s.framesTick=s.verifiedTick;s.frameCount=0;s.fps=0;s.nextFrameAt=0;
@@ -803,7 +809,8 @@ unsigned MirrorController::TickIntervalMs() const {return 500/TargetFps();}
 bool MirrorController::IsVerified() const
 {
     const auto &s=*impl;
-    return s.verified&&!s.busy&&BasicSafe(s.privateWindow,&s.publicPopups)&&GetTickCount64()-s.verifiedTick<300000;
+    return s.verified&&!s.busy&&(!s.running||PrivateWindowLocationSafe(s.privateWindow,s.source))&&
+           BasicSafe(s.privateWindow,&s.publicPopups)&&GetTickCount64()-s.verifiedTick<300000;
 }
 void MirrorController::SetPublicPopups(const std::vector<HWND> &lists)
 {
@@ -863,7 +870,7 @@ void MirrorController::Tick()
        FAILED(s.capture.device->GetDeviceRemovedReason())||
        (s.projector&&!Affinity(s.projector))) {s.Fail(State::Unsafe);return;}
     if(s.epoch!=attempt)return;
-    if(s.running&&!WithinMonitor(s.privateWindow,s.source)){s.Fail(State::WrongLocation);return;}
+    if(s.running&&!PrivateWindowLocationSafe(s.privateWindow,s.source)){s.Fail(State::WrongLocation);return;}
     if(now-s.checkTick>=500)
     {
         s.checkTick=now;

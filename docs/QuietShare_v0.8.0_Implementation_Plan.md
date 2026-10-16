@@ -1,4 +1,4 @@
-# QuietShare 0.8.0 - Implementation scope and acceptance
+# QuietShare 0.8.0 - Functional specification
 
 ## Tiếng Việt
 
@@ -56,28 +56,11 @@ Thêm nhóm **Hiệu suất > Tài nguyên** trong Cài đặt, control `189`, b
 - Cập nhật tag Cửa sổ này khi QuietShare đi sang màn khác và dịch lại nhãn khi đổi VI/EN. Cập nhật nhãn không tự đổi nguồn/đích hay topology của Windows.
 - Chỉ một màn hình vẫn xác minh cửa sổ riêng được; Smart Mirror yêu cầu hai màn khác nhau, Extend và cùng GPU theo giới hạn hiện tại.
 
-### Nghiệm thu và cách báo cáo
+### Bảo vệ nội dung và giới hạn vận hành
 
-Mỗi nhóm phải ghi **PASS / FAIL / NOT TESTED** trong báo cáo bản 0.8.0, kèm đúng phạm vi bằng chứng. Đây là yêu cầu nghiệm thu, không phải kết quả đã chạy.
+Giữ cơ chế xác minh capture thực tế và khóa khi Duplicate hoặc topology không xác định. Không mở trang web của người dùng trước khi xác minh vùng web đạt. Nội dung, URL, tên/đường dẫn riêng, cookie và hồ sơ trình duyệt không thuộc tài liệu hoặc gói phát hành.
 
-| Nhóm | Bằng chứng cần có |
-|---|---|
-| Web zoom | Nút, nhãn thực, biên 25/400, reset 100, Ctrl±/0, Ctrl+wheel; controller và UI đồng bộ; tab file không đổi. |
-| Probe khi đang chiếu | Giữ running/projector hợp lệ, positive control và hai excluded liên tiếp; chỉ frame sau teardown được present; timeout/hủy/lỗi vẫn fail-closed. Tách kiểm tra state/classifier khỏi kiểm tra hai màn vật lý. |
-| Thanh cuộn | Idle/hover/kéo/ra ngoài/thả/mất capture, top/bottom, resize, VI/EN và DPI 96/120/144/192; so sánh track vẽ và hit-test. |
-| Icon | Mapping tên/extension, hình raster khác nhau, node thường/chọn, thư mục mở/đóng, cache/DPI và giải phóng; F8 không lộ loại file hay tên riêng. |
-| Tài nguyên | Cycle 0/1/2, default 2, cap/poll đúng, idle 33 ms, V1/V2 và dữ liệu lỗi, web suspend/resume; không ghi số tiết kiệm RAM suy đoán. |
-| Màn hình | Primary không nhất thiết là số 1; nhãn/tag và lựa chọn còn đúng khi di chuyển cửa sổ, đổi ngôn ngữ, rút/cắm hoặc đổi topology. Ghi riêng phần hardware chưa chạy. |
-| Regression/phát hành | Build x64, test hiện có, DPAPI/instance/picker/F8, bộ cài/nâng cấp/gỡ trong fixture riêng, gói DLL/license đầy đủ, version/byte parity; chỉ đưa dữ liệu dự án vào Git. |
-
-Giữ các kiểm tra capture thực tế, fail-closed trong Duplicate và unknown topology, không bật nội dung web cá nhân trước canary. Tránh ghi nội dung, URL, tên/path riêng, cookie hoặc profile vào artifact, log hay ảnh hướng dẫn. Dùng fixture tổng hợp khi kiểm thử/chụp ảnh.
-
-### Giới hạn bằng chứng
-
-- Người dùng đã báo cáo quan sát gần 60 FPS khi dùng Extend. Đây là **thông tin do người dùng cung cấp**, không phải phép đo độc lập trên host hiện tại và không chứng minh mức đó trên mọi cấu hình.
-- Host hiện tại chưa xác minh đầu ra vật lý với hai monitor; kết quả projector/Extend/Duplicate thật, rút/cắm và người quan sát phải ghi **NOT TESTED** nếu chưa có bằng chứng mới. Không biến test synthetic/state hoặc một monitor thành PASS cho hai màn vật lý.
-- Zoom/Meet/Teams/OBS, đầu nhận máy chiếu, touchpad vật lý, Windows 10/máy sạch và GPU khác chỉ được nhận là đã thử khi có quan sát cụ thể. Những hạng mục không chạy giữ trạng thái NOT TESTED.
-- Chỉ hứa giới hạn/cadence đã triển khai, không hứa 60 FPS hay lượng RAM tiết kiệm. Các quyền web, PDF password chưa hỗ trợ và giới hạn cùng GPU vẫn giữ như bản trước.
+Giới hạn FPS là mức xử lý mục tiêu của ứng dụng, không bảo đảm 60 FPS thực tế hoặc mức giảm RAM cố định. Smart Mirror yêu cầu hai màn hình Extend khác nhau trên cùng GPU. Các hạn chế quyền trình duyệt và PDF có mật khẩu giữ nguyên.
 
 ## English
 
@@ -94,14 +77,8 @@ Refine the existing native Windows x64 product while preserving DPAPI scripts, r
 5. **Resource modes:** **Settings > Performance > Resources**, control `189`, cycles Saver (0, 15 FPS, 33 ms running poll), Balanced (1, 30 FPS, 16 ms) and default Performance (2, 60 FPS, 8 ms). Independent frame pacing enforces the cap; achieved FPS is not inferred from timer frequency. Idle polling is 33 ms in every mode. Persist layout/preferences V2 while accepting V1 and validating corrupt input; V1 retains default Performance. Preserve hidden-browser suspension requests and resume, without claiming a fixed RAM saving or relaxing privacy checks.
 6. **Display labels:** show the Windows display number when available, Main, This window and resolution. Source defaults to primary and destination to another display; preserve valid existing selections by stable ID. Update location tags/language without changing selected displays or Windows topology. One display supports private-window verification; Smart Mirror still needs different Extend displays on one GPU.
 
-### Acceptance and privacy
+### Content protection and operating limits
 
-Record **PASS / FAIL / NOT TESTED** with scope and evidence, rather than pre-populating results. Verify web zoom/controller synchronization and bounds; running-probe continuity plus stale-frame rejection/fault transitions; scrollbar pointer capture/geometry at 96/120/144/192 DPI and VI/EN; icon classification/raster/state/DPI/resource lifetime; resource mode/pacing/idle/persistence; and display labels/defaults/location/language changes. Rerun core regressions and isolated installer/upgrade/uninstall, then check x64 packaging, DLLs/licenses, version and byte parity.
+Retain actual capture verification and lock content in Duplicate or unknown topology. User web pages remain unavailable until browser verification succeeds. Private content, URLs/paths, cookies and browser profiles do not belong in documentation or shipping archives.
 
-Physical two-monitor tests are separate from synthetic classifier/state or single-monitor capture tests. Preserve actual canary checks, Duplicate/unknown-topology locking, and the common gate for content and metadata. Never expose user pages before browser verification. Use generated fixtures and exclude personal notes, URLs/paths, cookies and profiles from logs, screenshots, Git and release artifacts.
-
-### Evidence limits
-
-- The user reported approximately 60 FPS with Extend. Treat that as **user-reported observation**, not an independently reproduced host measurement or a general performance guarantee.
-- Physical two-monitor output has not been verified on the current host. Real Extend/Duplicate projection, disconnect/reconnect and receiver observation remain **NOT TESTED** unless new physical evidence is obtained. Synthetic/one-monitor checks cannot stand in for these results.
-- Meeting receivers, projectors, physical touchpads, Windows 10/clean machines and other GPUs remain NOT TESTED when not actually observed. Report measured performance only; promise no achieved 60 FPS or fixed RAM reduction. Existing browser restrictions, unsupported PDF passwords and the same-GPU limit remain in force.
+FPS limits describe application processing targets rather than guaranteed 60 FPS output or a fixed RAM reduction. Smart Mirror requires two different Extend displays on the same GPU. Existing browser permission restrictions and the unsupported password-protected PDF limit remain in force.

@@ -65,7 +65,7 @@ def main():
         env=probe_env,text=True))
     if isinstance(controllers,dict):controllers=[controllers]
     gpu_text='; '.join(f"{item['Name']} (driver {item['DriverVersion']})" for item in controllers)
-    evidence={'version':'0.8.0','platform':'win-x64','windowsBuild':sys.getwindowsversion().build,
+    evidence={'version':'0.8.1','platform':'win-x64','windowsBuild':sys.getwindowsversion().build,
               'baselineV03':{'nativeUI':179,'content':60,'lifecycle':29,'scrollbar':17,'releasePE':7,'status':'PASS before changes'},
               'passed':total,'failed':0,'suites':suites,'files':inventory['files'],
               'authenticode':inventory['authenticode'],'monitorCount':mirror['monitorCount'],
@@ -78,10 +78,12 @@ def main():
                   'default':'Performance 60','wgcProducerRate':'Not forced; profiles cap app polling/copy/render work',
                   'userReportedExtendFpsApprox':60,'physicalExtendIndependentlyVerified':False},
               'screenshots':'Native renderer with synthetic data in a separate QA build; not HTML mockups or receiver evidence'}
-    (ROOT / 'docs/test-evidence-v0.8.0.json').write_text(json.dumps(evidence,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
+    internal = ROOT/'artifacts/qa-release'
+    internal.mkdir(parents=True,exist_ok=True)
+    (internal/'test-evidence-v0.8.1.json').write_text(json.dumps(evidence,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
     rows='\n'.join(f"| {s['name']} | {s['passed']} | 0 | PASS |" for s in suites)
     hashes='\n'.join(f"| `{name}` | {file['bytes']:,} | `{file['sha256']}` |" for name,file in inventory['files'].items())
-    report=f'''# QuietShare v0.8.0 - Test report
+    report=f'''# QuietShare v0.8.1 - Test report
 
 Build and automated validation completed on Windows build {evidence['windowsBuild']} x64. **{total} checks PASS, 0 FAIL.** Physical receiver sign-off remains **NOT TESTED**. The original v0.3 baseline passed before changes; its results are retained in the sanitized evidence.
 
@@ -106,7 +108,7 @@ Requires Windows, Python 3, MinGW-w64 GCC 13.1.0 (or compatible x64 toolchain) a
 {rows}
 | **Total** | **{total}** | **0** | **PASS** |
 
-Detailed sanitized check names and payload metadata: [test-evidence-v0.8.0.json](docs/test-evidence-v0.8.0.json). Raw fixtures, pixels, temporary profiles and diagnostics are local-only and excluded from Git and the portable package; temporary payloads can be cleaned after the final evidence is exported.
+Detailed sanitized check names and payload metadata: [test-evidence-v0.8.1.json](docs/test-evidence-v0.8.1.json). Raw fixtures, pixels, temporary profiles and diagnostics are local-only and excluded from Git and the portable package; temporary payloads can be cleaned after the final evidence is exported.
 
 ## What the checks establish
 
@@ -157,9 +159,8 @@ Detailed sanitized check names and payload metadata: [test-evidence-v0.8.0.json]
 
 Installer RCDATA 301-306 matches the portable EXE, four DLLs and full redistribution notices byte for byte. Only the 195 KB WebView2 loader is bundled; the shared Evergreen Runtime is separate and optional for offline readers. The portable ZIP is checked against every staged release file before publication. The implementation specification is copied unchanged; old Git releases/history are retained.
 '''
-    for name in ('TEST_REPORT_v0.8.0.md','TEST_REPORT.md'):
-        (ROOT / name).write_text(report,encoding='utf-8')
-    print(f'Sanitized report exported: {total} PASS, 0 FAIL; shipping EXE {actual_hash}')
+    (internal/'TEST_REPORT_v0.8.1.md').write_text(report,encoding='utf-8')
+    print(f'Internal validation exported: {total} PASS, 0 FAIL; shipping EXE {actual_hash}')
 
 if __name__=='__main__':
     main()

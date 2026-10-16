@@ -295,7 +295,7 @@ bool CaptureDesktopBmp(const std::wstring &path)
     return CaptureRegionBmp(path, region);
 }
 
-bool CaptureRegionBmp(const std::wstring &path, const RECT &region)
+bool CaptureRegionBmp(const std::wstring &path, const RECT &region, bool includeLayered)
 {
     const auto width64 = static_cast<std::int64_t>(region.right) - region.left;
     const auto height64 = static_cast<std::int64_t>(region.bottom) - region.top;
@@ -338,7 +338,8 @@ bool CaptureRegionBmp(const std::wstring &path, const RECT &region)
     }
     const HGDIOBJ previous = SelectObject(memory, bitmap);
     bool success = previous && previous != HGDI_ERROR &&
-                   BitBlt(memory, 0, 0, width, height, screen, region.left, region.top, SRCCOPY | CAPTUREBLT);
+                   BitBlt(memory, 0, 0, width, height, screen, region.left, region.top,
+                          SRCCOPY | (includeLayered ? CAPTUREBLT : 0));
     // GDI batches drawing operations; flush before reading DIB pixels.
     if (success)
         success = GdiFlush() != FALSE;

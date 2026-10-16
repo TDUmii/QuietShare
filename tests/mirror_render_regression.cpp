@@ -84,12 +84,70 @@ LRESULT CALLBACK TestProc(HWND hwnd,UINT msg,WPARAM wp,LPARAM lp)
     if(msg==WM_PAINT){PAINTSTRUCT ps;BeginPaint(hwnd,&ps);EndPaint(hwnd,&ps);return 0;}
     return DefWindowProcW(hwnd,msg,wp,lp);
 }
+void CheckPrivateWindowLocation(HWND window)
+{
+    MonitorInfo source{};GetWindowRect(window,&source.bounds);
+    Check(WithinMonitor(window,source)&&PrivateWindowLocationSafe(window,source),
+          "visible private window must remain wholly inside its source bounds");
+    Check(!PrivateWindowLocationSafe(nullptr,source),"invalid private window never passes location policy");
+    ShowWindow(window,SW_SHOWMINNOACTIVE);
+    Check(IsIconic(window)&&!WithinMonitor(window,source),
+          "native minimize parks the private HWND outside its source bounds");
+    Check(PrivateWindowLocationSafe(window,source),
+          "minimized private window does not revoke an existing projection location");
+    ShowWindow(window,SW_SHOWNOACTIVATE);
+    Check(!IsIconic(window)&&PrivateWindowLocationSafe(window,source),
+          "restored private window is checked against its source bounds again");
+    SetWindowPos(window,nullptr,source.bounds.left+1,source.bounds.top,0,0,
+                 SWP_NOSIZE|SWP_NOZORDER|SWP_NOACTIVATE);
+    Check(!PrivateWindowLocationSafe(window,source),
+          "visible private window partly beyond the source still fails closed");
+    SetWindowPos(window,nullptr,source.bounds.left,source.bounds.top,0,0,
+                 SWP_NOSIZE|SWP_NOZORDER|SWP_NOACTIVATE);
+}
 }
 namespace quietshare
 {
 // Compile-only friendship exposes state to this harness, never to a shipped EXE.
 struct MirrorRegressionAccess
 {
+    static void CheckMinimizedTick(HWND window,ID3D11Device *device)
+    {
+        MirrorController controller;
+        auto &s=*controller.impl;
+        MonitorInfo source{};GetWindowRect(window,&source.bounds);
+        Check(ApplyPrivacy(window).applied,"native minimize fixture keeps capture exclusion applied");
+        auto prepare=[&]() {
+            s.privateWindow=window;s.source=source;s.verified=true;s.running=true;s.state=State::Running;
+            s.verifiedTick=GetTickCount64();s.checkTick=s.verifiedTick;
+            // Exercise the production safety branch without fabricating a WGC
+            // frame or needing a second physical destination.
+            s.nextFrameAt=CaptureClock()+100000000;
+            device->AddRef();*s.capture.device.put()=device;
+        };
+        prepare();const unsigned epoch=s.epoch;
+        ShowWindow(window,SW_SHOWMINNOACTIVE);controller.Tick();
+        Check(IsIconic(window)&&s.running&&controller.IsVerified()&&s.epoch==epoch,
+              "production Tick preserves a minimized projection after every other safety guard");
+        ShowWindow(window,SW_SHOWNOACTIVATE);
+        SetWindowPos(window,nullptr,source.bounds.left+1,source.bounds.top,0,0,
+                     SWP_NOSIZE|SWP_NOZORDER|SWP_NOACTIVATE);
+        Check(s.running&&!controller.IsVerified(),
+              "restored wrong-source window cannot reveal private content before the next Tick");
+        controller.Tick();
+        Check(!s.running&&!s.verified&&s.state==State::WrongLocation,
+              "production Tick revokes projection restored partly outside its source");
+        SetWindowPos(window,nullptr,source.bounds.left,source.bounds.top,0,0,
+                     SWP_NOSIZE|SWP_NOZORDER|SWP_NOACTIVATE);
+        prepare();ShowWindow(window,SW_SHOWMINNOACTIVE);s.verifiedTick-=300000;controller.Tick();
+        Check(!s.running&&!s.verified&&s.state==State::Unsafe,
+              "verification expiry still revokes while minimized");
+        prepare();ShowWindow(window,SW_SHOWMINNOACTIVE);controller.Invalidate();
+        Check(!s.running&&!s.verified,"F8/topology invalidation still revokes while minimized");
+        prepare();controller.Stop();
+        Check(!s.running&&!s.verified,"explicit Stop still revokes while minimized");
+        ShowWindow(window,SW_SHOWNOACTIVATE);
+    }
     static void CheckProbePreparation()
     {
         TestSession session;
@@ -135,10 +193,12 @@ int wmain(int argc,wchar_t**argv)
     HWND window=CreateWindowExW(WS_EX_TOOLWINDOW,wc.lpszClassName,L"Synthetic D3D test",WS_POPUP,
         16,16,640,480,nullptr,nullptr,wc.hInstance,nullptr);
     ShowWindow(window,SW_SHOWNOACTIVATE);UpdateWindow(window);
+    CheckPrivateWindowLocation(window);
     Capture capture;D3D_FEATURE_LEVEL level{};
     Check(SUCCEEDED(D3D11CreateDevice(nullptr,D3D_DRIVER_TYPE_WARP,nullptr,D3D11_CREATE_DEVICE_BGRA_SUPPORT,
         nullptr,0,D3D11_SDK_VERSION,capture.device.put(),&level,capture.context.put())),"software D3D11 device");
     if(!capture.device){DestroyWindow(window);return 1;}
+    MirrorRegressionAccess::CheckMinimizedTick(window,capture.device.get());
     capture.size={400,200};
     std::vector<unsigned char> source(400*200*4);
     for(size_t i=0;i<source.size();i+=4){source[i]=54;source[i+1]=178;source[i+2]=31;source[i+3]=255;}

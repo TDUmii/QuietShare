@@ -29,6 +29,7 @@
 #include <utility>
 #include <wincrypt.h>
 #include <uxtheme.h>
+#include <gdiplus.h>
 
 using namespace quietshare;
 namespace
@@ -54,7 +55,7 @@ constexpr int MODE = 100, PLAY = 101, SMALLER = 102, LARGER = 103, SPEED = 104, 
               SOURCE_MONITOR = 160, DEST_MONITOR = 161, FIND_INPUT = 162, SIZE_INPUT = 163, WEB_ADDRESS=164,WEB_GO=165,WEB_GOOGLE=166,
               WEB_ZOOM_OUT=167,WEB_ZOOM_RESET=168,WEB_ZOOM_IN=169,
               LAYOUT_MENU=180,SHOW_ACTIVITY=181,SHOW_TABS=182,SHOW_TOOLBAR=183,SHOW_STATUS=184,RESET_LAYOUT=185,
-              OPEN_DISPLAY_SETTINGS=186,SETTINGS_SCROLL=187,RESOURCE_MODE=189;
+              OPEN_DISPLAY_SETTINGS=186,SETTINGS_SCROLL=187,PIN_WINDOW=188,RESOURCE_MODE=189;
 constexpr int NORMAL_SIDEBAR = 44, COMPACT_SIDEBAR = 44, CONTROL_HEIGHT = 36, CONTROL_GAP = 8;
 constexpr UINT_PTR PRIVACY_TIMER = 1, SCROLL_TIMER = 2, SAVE_TIMER = 3, QA_TIMER = 4;
 HINSTANCE instance;
@@ -393,6 +394,27 @@ void DrawTextAt(HDC dc, const std::wstring &text, RECT rect, COLORREF color, HFO
 }
 void FillRoundRect(HDC dc, const RECT &rect, COLORREF color, int radius)
 {
+    // GDI RoundRect has binary coverage; GDI+ keeps small switch curves smooth
+    // at native resolution without allocating a supersampled bitmap per paint.
+    static struct Smoothing {
+        ULONG_PTR token=0;
+        Smoothing(){Gdiplus::GdiplusStartupInput input;input.SuppressExternalCodecs=TRUE;
+            if(Gdiplus::GdiplusStartup(&token,&input,nullptr)!=Gdiplus::Ok)token=0;}
+        ~Smoothing(){if(token)Gdiplus::GdiplusShutdown(token);}
+    } smoothing;
+    const int width=rect.right-rect.left,height=rect.bottom-rect.top;
+    if(width<=0||height<=0)return;
+    if(smoothing.token) {
+        const Gdiplus::REAL x=(Gdiplus::REAL)rect.left,y=(Gdiplus::REAL)rect.top;
+        const Gdiplus::REAL w=(Gdiplus::REAL)width,h=(Gdiplus::REAL)height;
+        const Gdiplus::REAL d=(Gdiplus::REAL)std::clamp(radius,1,std::min(width,height));
+        Gdiplus::Graphics graphics(dc);graphics.SetSmoothingMode(Gdiplus::SmoothingModeAntiAlias);
+        Gdiplus::GraphicsPath path;
+        path.AddArc(x,y,d,d,180,90);path.AddArc(x+w-d,y,d,d,270,90);
+        path.AddArc(x+w-d,y+h-d,d,d,0,90);path.AddArc(x,y+h-d,d,d,90,90);path.CloseFigure();
+        Gdiplus::SolidBrush fill(Gdiplus::Color(255,GetRValue(color),GetGValue(color),GetBValue(color)));
+        if(graphics.FillPath(&fill,&path)==Gdiplus::Ok)return;
+    }
     HBRUSH brush = CreateSolidBrush(color);
     HGDIOBJ oldBrush = SelectObject(dc, brush);
     HGDIOBJ oldPen = SelectObject(dc, GetStockObject(NULL_PEN));
@@ -431,14 +453,9 @@ void DrawSidebar(HDC dc, int sidebar, int height, bool compact)
         FillRoundRect(dc, status, CARD, S(16));
     bool safe = !Blocked();
     COLORREF stateColor = safe ? GREEN : masked ? MUTED : AMBER;
-    HBRUSH dotBrush = CreateSolidBrush(stateColor);
-    HGDIOBJ oldBrush = SelectObject(dc, dotBrush);
-    HGDIOBJ oldPen = SelectObject(dc, GetStockObject(NULL_PEN));
     int dotX = compact ? (sidebar-8)/2 : 24;
-    Ellipse(dc, S(dotX), status.top + S(16), S(dotX + 8), status.top + S(24));
-    SelectObject(dc, oldPen);
-    SelectObject(dc, oldBrush);
-    DeleteObject(dotBrush);
+    RECT dot{S(dotX),status.top+S(16),S(dotX+8),status.top+S(24)};
+    FillRoundRect(dc,dot,stateColor,S(8));
     if (!compact)
     {
         RECT state{status.left + S(28), status.top + S(8), status.right - S(8), status.top + S(30)};
@@ -521,6 +538,7 @@ void UpdateButtons()
     SetWindowTextW(GetDlgItem(window, SPEED), speeds[speed]);
     SetWindowTextW(GetDlgItem(window, MASK), masked ? T(L"Mở lại", L"Show") : T(L"Che · F8", L"Hide · F8"));
     SetWindowTextW(GetDlgItem(window, TOPMOST), topmost ? T(L"Ghim", L"Pin") : T(L"Thả", L"Free"));
+    SetWindowTextW(GetDlgItem(window,PIN_WINDOW),T(topmost?L"Bỏ ghim cửa sổ":L"Ghim cửa sổ trên cùng",topmost?L"Unpin window":L"Pin window on top"));
     SetWindowTextW(GetDlgItem(window, LANGUAGE), english ? L"VI" : L"EN");
     int zoom=IsPdf()?pdfViewer.GetState().zoom:IsCode()?codeViewer.GetState().zoom:IsImage()?imageZoom:fontPoints*100/24;
     std::wstring zoomLabel=std::to_wstring(zoom)+L"%";
@@ -574,9 +592,10 @@ void UpdateButtons()
                                            : T(L"Cỡ chữ mặc định 24 pt - Ctrl+0", L"Default size 24 pt - Ctrl+0"));
     SetTip(TOPMOST, T(topmost ? L"Bỏ ghim cửa sổ" : L"Ghim cửa sổ trên cùng",
                       topmost ? L"Unpin the window" : L"Keep the window on top"));
-    SetTip(TOPMOST,recallRegistered
+    const wchar_t *pinTip=recallRegistered
         ? T(L"Ghim / Bỏ ghim. Gọi cửa sổ: Ctrl+Alt+Q (không đổi focus)",L"Pin / unpin. Recall: Ctrl+Alt+Q (keeps focus)")
-        : T(L"Ghim / Bỏ ghim. Ctrl+Alt+Q không khả dụng: có thể đang được app khác dùng.",L"Pin / unpin. Ctrl+Alt+Q unavailable: another app may use it."));
+        : T(L"Ghim / Bỏ ghim. Ctrl+Alt+Q không khả dụng: có thể đang được app khác dùng.",L"Pin / unpin. Ctrl+Alt+Q unavailable: another app may use it.");
+    SetTip(TOPMOST,pinTip);SetTip(PIN_WINDOW,pinTip);
     SetTip(LANGUAGE, english ? L"Chuyển sang tiếng Việt" : L"Switch to English");
     SetTip(NAV_HOME, T(L"Chuẩn bị nội dung", L"Prepare content"));
     SetTip(NAV_SETTINGS, T(L"Tùy chỉnh hiển thị", L"Display settings"));
@@ -620,6 +639,14 @@ void ClipSettingsControls(bool redraw=true)
 void Layout()
 {
     if(!window || !editor) return;
+    if(IsIconic(window)) {
+        // Preserve viewer bounds and scroll state while Windows gives the
+        // minimized owner an off-screen rectangle. Projection has its own HWND.
+        if(GetCapture()==settingsScroll)SendMessageW(settingsScroll,WM_CANCELMODE,0,0);
+        if(GetCapture()==window){ReleaseCapture();splitterDragging=splitterHovered=false;SaveLayoutPreferences();}
+        browser.Show(false);documentHost.Hide();SendMessageW(tooltips,TTM_POP,0,0);
+        renderedSafe=!Blocked();UpdateButtons();UpdateMirrorTimer();return;
+    }
     if(page!=Page::Settings&&GetCapture()==settingsScroll)SendMessageW(settingsScroll,WM_CANCELMODE,0,0);
     if(page!=Page::Settings)settingsWheelRemainder=0;
     for(HWND control:clippedSettingsControls)SetWindowRgn(control,nullptr,FALSE);
@@ -661,7 +688,7 @@ void Layout()
         contentLeft=left;
         int x=contentRight;
         auto action=[&](int id,int w=28){x-=w;move(id,x,2,w,28);};
-        action(OVERFLOW);action(MASK);action(FOCUS);
+        action(OVERFLOW);action(MASK);action(FOCUS);action(PIN_WINDOW);
         if(!focusMode)action(LAYOUT_MENU);
         if(!focusMode&&tabsVisible) {
             MoveWindow(documentBar.Window(),S(contentLeft),0,S(std::max(64,x-contentLeft-4)),S(32),TRUE);
@@ -670,7 +697,7 @@ void Layout()
         int bodyTop=40;
         if(!focusMode&&toolbarVisible) {
             int toolX=contentLeft;
-            for(int id:{SMALLER,RESET_ZOOM,LARGER,OPEN_FILE,TOPMOST}) {
+            for(int id:{SMALLER,RESET_ZOOM,LARGER,OPEN_FILE}) {
                 const int w=id==RESET_ZOOM?48:28;
                 if(toolX+w>contentRight)break;
                 move(id,toolX,36,w,28);toolX+=w+4;
@@ -771,7 +798,8 @@ void Layout()
     }
     if(!focusMode&&page!=Page::Content) {
         move(LAYOUT_MENU,contentRight-28,8,28,28);
-        if(page==Page::Browser)move(MASK,contentRight-60,8,28,28);
+        move(PIN_WINDOW,contentRight-60,8,28,28);
+        if(page==Page::Browser)move(MASK,contentRight-92,8,28,28);
     }
     if(splitterRect.right<=splitterRect.left&&(splitterDragging||splitterHovered)) {
         splitterDragging=splitterHovered=false;
@@ -1435,7 +1463,7 @@ void Paint(HDC dc)
 void DrawActionIcon(HDC dc,int id,RECT r,COLORREF color)
 {
     wchar_t glyph=id==SMALLER?0xeb3b:id==LARGER?0xea60:id==FOCUS?(focusMode?0xeb4d:0xeb4c):
-        id==MASK?(masked?0xeae7:0xea70):id==TOPMOST?0xeb2b:id==OPEN_FILE?0xea7f:
+        id==MASK?(masked?0xeae7:0xea70):id==TOPMOST||id==PIN_WINDOW?0xeb2b:id==OPEN_FILE?0xea7f:
         id==PLAY?(running?0xead1:0xeb2c):id==MODE?0xea73:id==OVERFLOW?0xea7c:id==LAYOUT_MENU?0xebeb:id==SHOW_TREE?0xea76:
         id==FIND_CLOSE?0xea76:id==FIND_PREV?0xeab5:0xeab6;
     DrawCodicon(dc,glyph,r,color,S(16));
@@ -1477,13 +1505,13 @@ void DrawButton(DRAWITEMSTRUCT *item)
     COLORREF color = disabled    ? CARD
                      : pressed   ? (primary ? ACCENT_DARK : DIVIDER)
                      : hover     ? HOVER
-                     : activeNav ? ACCENT_DARK
+                     : activeNav || (item->CtlID==PIN_WINDOW&&topmost) ? ACCENT_DARK
                      : primary   ? ACCENT
                      : nav       ? SIDEBAR
                                  : ELEVATED;
     if (primary && hover && !pressed)
         color = RGB(17,139,220);
-    HBRUSH background = CreateSolidBrush(nav ? SIDEBAR : zoom ? ELEVATED : page == Page::Settings ? CARD : BG);
+    HBRUSH background = CreateSolidBrush(nav ? SIDEBAR : zoom ? ELEVATED : page == Page::Settings&&item->CtlID!=PIN_WINDOW ? CARD : BG);
     FillRect(item->hDC, &item->rcItem, background);
     DeleteObject(background);
     RECT button = item->rcItem;
@@ -1501,8 +1529,8 @@ void DrawButton(DRAWITEMSTRUCT *item)
     else if(item->CtlID==WEB_BACK||item->CtlID==WEB_FORWARD||item->CtlID==WEB_RELOAD) {
         DrawCodicon(item->hDC,item->CtlID==WEB_BACK?0xea9b:item->CtlID==WEB_FORWARD?0xea9c:0xeb37,button,disabled?DISABLED:TEXT,S(16));
     }
-    else if(item->CtlID==LAYOUT_MENU||item->CtlID==SHOW_TREE || (strip && (item->CtlID==FOCUS || item->CtlID==MASK || item->CtlID==TOPMOST || item->CtlID==SMALLER || item->CtlID==LARGER || item->CtlID==MODE || item->CtlID==PLAY || item->CtlID==OPEN_FILE || item->CtlID==OVERFLOW || item->CtlID==FIND_CLOSE || item->CtlID==FIND_PREV || item->CtlID==FIND_NEXT)))
-        DrawActionIcon(item->hDC,item->CtlID,button,disabled?DISABLED:TEXT);
+    else if(item->CtlID==PIN_WINDOW||item->CtlID==LAYOUT_MENU||item->CtlID==SHOW_TREE || (strip && (item->CtlID==FOCUS || item->CtlID==MASK || item->CtlID==TOPMOST || item->CtlID==SMALLER || item->CtlID==LARGER || item->CtlID==MODE || item->CtlID==PLAY || item->CtlID==OPEN_FILE || item->CtlID==OVERFLOW || item->CtlID==FIND_CLOSE || item->CtlID==FIND_PREV || item->CtlID==FIND_NEXT)))
+        DrawActionIcon(item->hDC,item->CtlID,button,disabled?DISABLED:item->CtlID==PIN_WINDOW&&!topmost?MUTED:TEXT);
     else
     {
         DrawTextAt(item->hDC, TextOf(item->hwndItem), button,
@@ -1761,7 +1789,8 @@ void Capture(const wchar_t *name)
             rect = visibleFrame;
     }
     DwmFlush();
-    qaCaptureOk = CaptureRegionBmp(qaDir + L"\\" + name, rect) && qaCaptureOk;
+    // Documentation omits layered overlays; exclusion checks retain CAPTUREBLT.
+    qaCaptureOk = CaptureRegionBmp(qaDir + L"\\" + name, rect, !qaVisual) && qaCaptureOk;
 }
 bool CompactFits()
 {
@@ -1809,7 +1838,7 @@ void WriteQa()
     GetWindowDisplayAffinity(window, &actual);
     auto boolean = [](bool value) -> std::wstring { return value ? L"true" : L"false"; };
     std::wstring report =
-        L"{\n  \"applicationVersion\": \"0.8.0\",\n  \"windowsBuild\": " + std::to_wstring(WindowsBuild()) +
+        L"{\n  \"applicationVersion\": \"0.8.1\",\n  \"windowsBuild\": " + std::to_wstring(WindowsBuild()) +
         L",\n  \"displayCloned\": " + boolean(cloned) + L",\n  \"topologyKnown\": " + boolean(topologyKnown) +
         L",\n  \"privacyApplied\": " + boolean(privacy.applied) +
         L",\n  \"requestedAffinity\": 17,\n  \"actualAffinity\": " + std::to_wstring(actual) +
@@ -2212,7 +2241,7 @@ LRESULT CALLBACK Proc(HWND h, UINT message, WPARAM wp, LPARAM lp)
             {NAV_HOME, L"Chuẩn bị"}, {NAV_SCRIPT, L"Lời nhắc"}, {NAV_READ, L"Đọc"}, {NAV_SETTINGS, L"Tùy chỉnh"},
             {MODE, L"Đọc"},   {PLAY, L"Chạy"},
             {SPEED, L"Vừa"},           {MASK, L"Che · F8"}, {SMALLER, L"A-"}, {LARGER, L"A+"},
-            {RESET_ZOOM, L"100%"}, {TOPMOST, L"Ghim"}, {LANGUAGE, L"EN"}, {FOCUS, L"Tập trung"},
+            {RESET_ZOOM, L"100%"}, {TOPMOST, L"Ghim"}, {PIN_WINDOW,L"Ghim cửa sổ trên cùng"}, {LANGUAGE, L"EN"}, {FOCUS, L"Tập trung"},
             {OPEN_FILE, L"Mở file"}, {OPEN_DROP, L"Mở hoặc thả file"}, {HOME_SCRIPT, L"Lời nhắc"},
             {HOME_SETTINGS, L"Cài đặt"}, {VIEW_FILE, L"Xem file"},
             {OPEN_FOLDER,L"Mở dự án"},{OVERFLOW,L"Thêm"},{FIND,L"Tìm"},{FIND_PREV,L"Trước"},
@@ -2413,6 +2442,8 @@ LRESULT CALLBACK Proc(HWND h, UINT message, WPARAM wp, LPARAM lp)
     case WM_SIZE:
         if (wp == SIZE_MINIMIZED)
             Pause();
+        // Revalidate restored bounds before a private viewer becomes visible.
+        if(!qa&&mirror)mirror->Tick();
         Layout();
         return 0;
     case WM_GETMINMAXINFO:
@@ -2673,6 +2704,7 @@ LRESULT CALLBACK Proc(HWND h, UINT message, WPARAM wp, LPARAM lp)
             ToggleMask();
             break;
         case TOPMOST:
+        case PIN_WINDOW:
             SetTopmost(!topmost);
             UpdateButtons();
             break;

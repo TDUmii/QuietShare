@@ -12,15 +12,12 @@ All archive and DLL hashes, sizes, versions, license paths and original URLs are
 
 The complete license texts are under `licenses/`. Include this folder in portable and installed distributions. Scintilla and Lexilla use their permissive copyright notices. PDFium uses its BSD-style license and the bundled dependency notices under `licenses/PDFium-third-party/`.
 
-## Reproduce
+## Dependency preparation
 
 From the project directory in PowerShell:
 
 ```powershell
 ./prepare-viewers.ps1
-./tests/run-viewers.ps1
 ```
 
-The regression runner compiles with MinGW-w64 C++17 and the downloaded public headers. It generates harmless fixtures under ignored `artifacts/qa-viewers/`, never user document pages or thumbnails. The Vietnamese text-layer PDF uses Arial from the local Windows font directory only for this synthetic test; this font/PDF is not redistributed. No fixture is copied to the release.
-
-The PDF reader intentionally uses a single active page and one in-memory bitmap rather than continuous multi-page rendering. A PDF is capped at 64 MiB / 10,000 pages; one rendered page is capped at 16 million pixels / 64 MiB. The cache therefore stays below the specification's 256 MiB ceiling, and a 120-page test verifies that only the requested page is rendered. PDFium's progressive renderer services masking/display/power safety messages and the local F8 fallback between chunks; normal file/tab/close commands remain queued to avoid reentrancy. A 750 ms aggregate render budget is enforced cooperatively at PDFium checkpoints and after completion, then releases the unfinished bitmap and shows a sanitized reduce-zoom/change-page error. This is not a hard real-time interruption guarantee: an individual PDFium operation can overrun a checkpoint. The generated transparent-page stress fixture verifies actual timeout rejection and later recovery. Password-protected PDFs report a sanitized unsupported error. Rotation is not implemented. A PDF's text layer is selectable/searchable; image-only documents render normally and have no fabricated text layer. Clipboard output is produced only by an explicit copy action.
+The PDF reader uses a single active page and one in-memory bitmap rather than continuous multi-page rendering. A PDF is capped at 64 MiB / 10,000 pages; one rendered page is capped at 16 million pixels / 64 MiB. Only the requested page is rendered. PDFium's progressive renderer services masking/display/power safety messages and the local F8 fallback between chunks; normal file/tab/close commands remain queued to avoid reentrancy. A 750 ms aggregate render budget is enforced cooperatively at PDFium checkpoints and after completion, then releases the unfinished bitmap and shows a reduce-zoom/change-page error. An individual PDFium operation can overrun a checkpoint. Password-protected PDFs are unsupported. Rotation is not implemented. A PDF's text layer is selectable/searchable; image-only documents render without a text layer. Clipboard output is produced only by an explicit copy action.

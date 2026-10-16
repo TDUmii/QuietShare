@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.8.1
+
+- Thu nhỏ bằng nút **-** giữ phiên Smart Mirror đang chiếu. F8, Dừng, đóng ứng dụng và các điều kiện mất an toàn tiếp tục kết thúc chiếu theo chức năng tương ứng.
+- Đặt nút **Ghim** tại góc trên để bật/tắt nhanh; đồng bộ với thiết lập ghim trong Cài đặt.
+- Làm mịn đường bo và nút tròn trong Cài đặt theo DPI để giảm răng cưa.
+- Viết lại hướng dẫn VI/EN theo cấu trúc tài liệu kỹ thuật, bổ sung bảng phím tắt với phạm vi sử dụng. Đặc tả phiên bản và ghi chú phát hành chỉ mô tả chức năng, yêu cầu và giới hạn vận hành.
+- Minimizing with **-** keeps an active Smart Mirror projection running. F8, Stop, application closure and unsafe conditions retain their respective projection-stop behavior.
+- Moved **Pin** to the upper corner for quick access, synchronized with Settings.
+- Smoothed Settings rounding and circular controls with DPI-aware rendering.
+- Reorganized VI/EN guidance as technical user documentation with scoped shortcut tables. Version specifications and release notes describe functionality, requirements and operating limits.
+
 ## 0.8.0
 
 - Thêm zoom web 25-400% bằng nút thu/phóng, nút phần trăm hiện tại kiêm đặt lại 100%, Ctrl+−/+/0 và Ctrl rồi lăn chuột; tách biệt với zoom của file.
@@ -50,7 +61,7 @@
 
 - Optional on-demand WebView2 browser with URL entry, Back/Forward/Reload and ChatGPT shortcut; disabled at every app startup.
 - Separate local web profile, explicit runtime teardown on disable, and background suspension requests while reading files.
-- Actual browser-rendered positive/excluded WGC canary before navigating to user pages; native black backing cannot satisfy the browser marker test.
+- Actual browser-rendered positive/excluded WGC canary before navigating to user pages; native black backing cannot satisfy browser capture verification.
 - F8 masks the browser and address; topology changes close browsing and require a fresh check. Pending initialization callbacks cannot revive a disabled browser.
 - Controlled navigation/popups and disabled uploads/downloads, device/screen permissions, native script dialogs/context menus, autofill, password-save UI and DevTools.
 - Bundled only the pinned 195 KB WebView2 loader; Evergreen Runtime remains a separate shared prerequisite. Existing offline readers do not load WebView2 when browsing is off.
@@ -60,7 +71,7 @@
 - Narrower 44 px navigation rail, 18 px navigation icons and a centered 24 px logo.
 - Project Explorer remains beside content from 740 px client width; opening or switching files no longer hides it at medium window sizes.
 - Project Explorer adapts between 176 and 240 px and includes native hierarchy guides. Narrow windows use a full-width tree until a file is opened.
-- Ctrl+B toggles the project tree. Folder expansion, tab switching, resizing and protected folder selection are covered by native regression checks.
+- Ctrl+B toggles the project tree.
 - Fixed Enter being intercepted by dialog navigation before the project tree could open the selected file; Enter also toggles the selected directory.
 - Added a sourced WebView2 integration study; browser support is a proposal and is not enabled in this release.
 
@@ -85,7 +96,6 @@
 - Refined the native shell and per-user installer with VS Code-inspired neutral surfaces, blue actions and shorter installer copy.
 - Replaced the system tools menu with a capture-protected native popup, keyboard navigation, aligned shortcut labels and contextual PDF/scroll commands. Opening or dismissing it no longer relies on native-menu exceptions.
 - Raised capture polling from 33 ms to 8 ms, presents the newest queued WGC frame and limits presentation status repainting to four times per second. Actual FPS depends on display refresh, GPU and source activity.
-- Added real WGC regressions for tools popup protection and verification continuity on open/close. Physical two-monitor throughput and receiver-side checks remain untested on this one-monitor host.
 
 ## 0.4.0
 
@@ -95,7 +105,7 @@
 - Added native PDFium viewing with on-demand pages, zoom, fit-page/fit-width, navigation and text selection/copy/find when available. Password-protected PDFs return a clear unsupported error.
 - Replaced the focus corner F11 button with a slim common tab/command strip, overflow actions and tab scrolling; refined dark tokens and VI/EN copy.
 - Added Smart Mirror with Windows Graphics Capture, D3D11, synthetic canary preflight, explicit Start/Stop and fail-closed transitions. Duplicate stays locked; projection requires two Extend displays on the same GPU.
-- Bundled native viewer libraries and redistribution notices in the per-user installer; added replacement/rollback, exact-file uninstall, VI/EN UI and isolated install/upgrade/uninstall regression checks.
+- Bundled native viewer libraries and redistribution notices in the per-user installer; added replacement/rollback, exact-file uninstall, VI/EN UI.
 
 ## 0.3.0
 

@@ -247,6 +247,31 @@ def main() -> int:
         expected = native.control_text(editor)
         check("scriptAutosave", bool(wait_for(lambda: notes.exists() and native.decrypt(notes) == expected, 5)))
 
+        pin = USER32.GetDlgItem(window,188)
+        pin_scale=USER32.GetDpiForWindow(window)/96
+        for page_id,label in ((122,"home"),(123,"settings"),(139,"presentation"),(154,"browser"),(120,"content")):
+            command(page_id)
+            pin_bounds = rect(pin,window)
+            check("upperPinAvailable:"+label,visible(pin) and pin_bounds[1]>=0 and pin_bounds[3]<=40*pin_scale)
+        was_pinned = bool(USER32.GetWindowLongW(window,-20)&8)
+        command(188)
+        check("upperPinChangesNativeTopmost",bool(USER32.GetWindowLongW(window,-20)&8)!=was_pinned)
+        command(123)
+        check("upperPinMatchesSettings",(native.control_text(USER32.GetDlgItem(window,106)).endswith("Bật"))==bool(USER32.GetWindowLongW(window,-20)&8))
+        command(106)
+        check("settingsPinChangesSameState",bool(USER32.GetWindowLongW(window,-20)&8)==was_pinned)
+        command(120)
+        editor_size=wintypes.RECT();USER32.GetClientRect(editor,ctypes.byref(editor_size))
+        USER32.PostMessageW(window,0x112,0xF020,0)
+        check("nativeMinimizeCommandMinimizesOwner",bool(wait_for(lambda:USER32.IsIconic(window),3)))
+        time.sleep(0.35)
+        minimized_size=wintypes.RECT();USER32.GetClientRect(editor,ctypes.byref(minimized_size))
+        check("minimizePreservesRealWgcVerification",bool(send(window,GATE,timeout=6000)))
+        check("minimizePreservesViewerBounds",(minimized_size.right,minimized_size.bottom)==(editor_size.right,editor_size.bottom))
+        USER32.ShowWindow(window,4)
+        check("restoreKeepsRealWgcVerification",not USER32.IsIconic(window) and bool(send(window,GATE,timeout=6000)))
+        check("restorePreservesScript",visible(editor) and native.control_text(editor)==expected)
+
         samples = [
             ("main.py", "# comment\ndef hello():\n    return \"tiếng Việt\"\n" + "print('line') # long \n" * 200, ("#", "def", "tiếng"), (1, 5, 3)),
             ("util.cpp", "// comment\nconst char* hello = \"tiếng Việt\";\n", ("//", "const", "tiếng"), (2, 5, 6)),
@@ -552,6 +577,7 @@ def main() -> int:
             check(label+"CanBeHiddenIndependently",not query(16)&bit and visible(tree) and visible(code))
             check(label+"HidePreservesDocumentAndProject",query(2)!=0 and send(tree,0x110A,0)==root_item)
         check("layoutButtonSurvivesHiddenBars",visible(USER32.GetDlgItem(window,180)))
+        check("upperPinSurvivesHiddenBars",visible(pin) and rect(pin,window)[3]<=40*scale)
         check("activityRailHidden",not visible(USER32.GetDlgItem(window,122)))
         check("tabBarHidden",not visible(bar))
         check("toolbarHidden",not visible(USER32.GetDlgItem(window,102)))
