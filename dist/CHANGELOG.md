@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.9.0
+
+- Trình duyệt hỗ trợ tối đa 8 tab với trang, lịch sử điều hướng và mức zoom riêng; các tab dùng chung hồ sơ web cục bộ. Thanh địa chỉ và các nút điều hướng áp dụng cho tab đang chọn.
+- Thêm điều khiển mở, đóng và chuyển tab web cùng Ctrl+T, Ctrl+W, Ctrl+Tab và Ctrl+Shift+Tab trong trang trình duyệt. Tab mới mở Google sau khi hoàn tất xác minh vùng web; tab nền nhận yêu cầu tạm ngưng để giảm công việc xử lý khi không sử dụng. Đóng tab cuối cùng sẽ tắt trình duyệt và giữ QuietShare đang mở.
+- Link mở cửa sổ mới do người dùng bấm được chuyển vào tab QuietShare trong giới hạn 8 tab; popup tự phát vẫn bị chặn. Trình duyệt vẫn tắt sau mỗi lần khởi động ứng dụng và không khôi phục danh sách tab của phiên trước.
+- Hiển thị phiên bản **v0.9.0** ở góc trên trang Tổng quan.
+- The browser supports up to 8 tabs with independent pages, navigation histories and zoom levels, sharing the same local web profile. The address field and navigation controls apply to the selected tab.
+- Added controls to create, close and switch web tabs, with Ctrl+T, Ctrl+W, Ctrl+Tab and Ctrl+Shift+Tab on the browser page. New tabs open Google after web capture verification; background tabs request suspension to reduce inactive processing. Closing the last tab disables browsing while keeping QuietShare open.
+- User-initiated new-window links open in QuietShare tabs within the 8-tab limit; unsolicited popups remain blocked. Browsing starts disabled on every application launch, and previous session tab lists are not restored.
+- Displayed **v0.9.0** in the upper corner of Overview.
+
 ## 0.8.1
 
 - Thu nhỏ bằng nút **-** giữ phiên Smart Mirror đang chiếu. F8, Dừng, đóng ứng dụng và các điều kiện mất an toàn tiếp tục kết thúc chiếu theo chức năng tương ứng.

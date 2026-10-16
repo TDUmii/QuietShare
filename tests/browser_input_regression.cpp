@@ -42,6 +42,14 @@ int main(){
     std::wstring normalized;
     check("strictNavigationAcceptsResolvedSearch",resolve(L"test query",L"https://www.google.com/search?q=test%20query")&&quietshare::NormalizeWebAddress(result,normalized)&&normalized==result);
     quietshare::Browser browser;
+    check("tabsOffStateHasNoSession",browser.Tabs().empty()&&browser.ActiveTabId()==0&&browser.ActiveTab()<0&&
+          browser.PendingTabCount()==0&&browser.ControllerCount()==0&&browser.BackgroundSuspendedCount()==0);
+    check("tabsOffStateDoesNotStartEngine",!browser.CanNewTab()&&!browser.NewTab()&&!browser.Enabled()&&browser.BrowserProcessId()==0);
+    check("tabsOffStateRejectsStaleActions",!browser.ActivateTab(1)&&!browser.CloseTab(1)&&!browser.CycleTab()&&!browser.CycleTab(true)&&
+          !browser.ProcessTabAction(quietshare::BrowserTabNew)&&!browser.ProcessTabAction(quietshare::BrowserTabClose)&&
+          !browser.ProcessTabAction(quietshare::BrowserTabNext)&&!browser.ProcessTabAction(quietshare::BrowserTabPrevious)&&
+          !browser.ProcessTabAction(quietshare::BrowserTabQueued)&&!browser.ProcessTabAction(999));
+    check("tabsOffStateRejectsProbeWithoutController",browser.ProbeToken()==0&&!browser.MountProbe(nullptr,1));
     check("zoomDefaultsTo100WithoutEngine",browser.ZoomPercent()==100&&!browser.Enabled()&&!browser.Ready()&&browser.BrowserProcessId()==0);
     check("zoomOffStateStoresPreferenceOnly",browser.SetZoomPercent(137)&&browser.ZoomPercent()==137&&!browser.Enabled()&&browser.BrowserProcessId()==0);
     check("zoomClampsLowerBound",browser.SetZoomPercent(-100)&&browser.ZoomPercent()==25);
@@ -51,6 +59,8 @@ int main(){
     check("zoomResetRestores100",browser.ResetZoom()&&browser.ZoomPercent()==100);
     browser.SetZoomPercent(150);browser.Disable();
     check("zoomPreferenceSurvivesDisable",browser.ZoomPercent()==150&&!browser.Enabled()&&browser.BrowserProcessId()==0);
+    browser.FinishProbe(true,1);browser.ProcessTabAction(quietshare::BrowserTabQueued);
+    check("tabsDisabledCallbacksCannotReviveSession",browser.Tabs().empty()&&browser.State()==0&&browser.ProbeToken()==0&&browser.ControllerCount()==0);
     std::printf("\n],\"passed\":%u,\"failed\":%u}\n",passed,failed);
     return failed?1:0;
 }

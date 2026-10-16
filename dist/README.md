@@ -1,4 +1,4 @@
-# QuietShare 0.8.1
+# QuietShare 0.9.0
 
 QuietShare là ứng dụng Windows để đọc lời nhắc, mã nguồn, ảnh, PDF và nội dung web trong cửa sổ riêng khi thuyết trình. Smart Mirror chiếu hình ảnh công khai từ màn hình nguồn sang màn hình Extend khác, trong khi cửa sổ QuietShare được loại khỏi đường capture đã xác minh.
 
@@ -17,7 +17,7 @@ QuietShare is a Windows application for scripts, source code, images, PDFs and o
 | Mã nguồn | Màu cú pháp, số dòng, thụt dòng, tìm kiếm, chọn/sao chép và xuống dòng tùy chọn. Không thực thi mã nguồn. |
 | Explorer | Cây thư mục cục bộ, icon theo loại file, giữ nhánh mở và lựa chọn khi đổi tab; kéo đường phân cách để chỉnh độ rộng. |
 | Ảnh và PDF | Zoom, di chuyển ảnh/trang, PDF từng trang; tìm và sao chép khi PDF có lớp văn bản. |
-| Trình duyệt | Bật theo nhu cầu; địa chỉ HTTP/HTTPS, tên miền, localhost và tìm Google; điều hướng, Google/ChatGPT, zoom 25-400%. |
+| Trình duyệt | Bật theo nhu cầu, tối đa 8 tab web; địa chỉ HTTP/HTTPS, tên miền, localhost và tìm Google; lịch sử điều hướng và zoom 25-400% riêng từng tab. |
 | Bố cục | Ẩn/hiện riêng từng thanh, chế độ tập trung, ghim trên cùng, VI/EN và hỗ trợ DPI. |
 | Smart Mirror | Chọn màn hình nguồn/đích, con trỏ và chế độ tài nguyên; đầu chiếu chỉ khởi động sau khi xác minh capture đạt. |
 
@@ -37,7 +37,7 @@ QuietShare is a Windows application for scripts, source code, images, PDFs and o
 
 ### 3. Cài đặt và nâng cấp
 
-1. Tải gói tại [QuietShare v0.8.1](https://github.com/TDUmii/QuietShare/releases/tag/v0.8.1), giải nén toàn bộ và chạy `QuietShare-Setup.exe`.
+1. Tải gói tại [QuietShare v0.9.0](https://github.com/TDUmii/QuietShare/releases/tag/v0.9.0), giải nén toàn bộ và chạy `QuietShare-Setup.exe`.
 2. Bộ cài áp dụng cho tài khoản Windows hiện tại, không cần quyền quản trị. Nút **EN / VI** đổi ngôn ngữ bộ cài.
 3. Để dùng portable, chạy `QuietShare.exe` trong thư mục đã giải nén. Giữ `Scintilla.dll`, `Lexilla.dll`, `pdfium.dll` và `WebView2Loader.dll` cạnh EXE; không chỉ sao chép EXE.
 4. Đóng QuietShare trước khi nâng cấp bằng bộ cài mới. Nâng cấp và gỡ ứng dụng giữ lại lời nhắc đã lưu.
@@ -46,7 +46,7 @@ Nếu trình duyệt không khởi tạo được, cài/cập nhật WebView2 Ru
 
 ### 4. Sử dụng tài liệu và không gian làm việc
 
-Khi mở ứng dụng, đợi quá trình xác minh capture. Nếu nội dung bị khóa và cần xác minh lại, chọn **Kiểm tra WGC** tại **Tổng quan** hoặc **Trình chiếu**. Nội dung chỉ được hiển thị khi các điều kiện bảo vệ đạt.
+Khi mở ứng dụng, đợi quá trình xác minh capture. Góc trên trang **Tổng quan** hiển thị **v0.9.0** để nhận diện phiên bản đang chạy. Nếu nội dung bị khóa và cần xác minh lại, chọn **Kiểm tra WGC** tại **Tổng quan** hoặc **Trình chiếu**. Nội dung chỉ được hiển thị khi các điều kiện bảo vệ đạt.
 
 - **Lời nhắc:** mở trang Lời nhắc để nhập hoặc dán nội dung. **Ctrl+Enter** chuyển soạn/đọc; **Space** trong vùng đọc bắt đầu/dừng cuộn. Lời nhắc được tự lưu và khôi phục ở lần mở tiếp theo.
 - **File:** chọn **Mở hoặc thả file**, **Ctrl+O** hoặc kéo thả nhiều file. Dấu **×**, chuột giữa hoặc **Ctrl+W** đóng tab file. Menu **⋯** có lệnh đóng các tab khác/mọi file; tab lời nhắc được giữ. Khi mở lại file đã thay đổi, chọn **Tải lại** hoặc **Giữ bản đang xem**.
@@ -79,11 +79,17 @@ Chế độ tài nguyên giới hạn tốc độ xử lý chiếu của ứng d
 
 Bật tại **Cài đặt > Tiện ích > Trình duyệt web**, đợi xác minh vùng web rồi chọn icon quả địa cầu. Có thể bật/tắt trực tiếp trên trang trình duyệt. Trình duyệt luôn tắt ở mỗi lần khởi động ứng dụng.
 
-Nhập URL, tên miền, địa chỉ như `localhost:3000` hoặc từ khóa rồi Enter/**Mở**. Nút **Google** và **ChatGPT** mở trang tương ứng. **- / phần trăm / +** thay đổi zoom 25-400%; bấm phần trăm để về 100%. Zoom web độc lập với tab file.
+Nhập URL, tên miền, địa chỉ như `localhost:3000` hoặc từ khóa rồi Enter/**Mở**. Khi cửa sổ đủ rộng, nút **Google** và **ChatGPT** mở trang tương ứng; ở bố cục hẹp dùng thanh địa chỉ. **- / phần trăm / +** thay đổi zoom 25-400%; bấm phần trăm để về 100%. Zoom web độc lập với tab file.
+
+Dùng **+** hoặc **Ctrl+T** để mở tab web mới tại Google; chọn tiêu đề tab để chuyển trang. Dấu **×** hoặc **Ctrl+W** đóng tab đang chọn. Đóng tab web cuối cùng sẽ tắt trình duyệt, giữ QuietShare và các tab tài liệu đang mở. **Ctrl+Tab / Ctrl+Shift+Tab** chuyển tab web tiếp/trước khi ở trang trình duyệt, kể cả lúc đang nhập trong trang web.
+
+Mỗi tab giữ trang đang mở, lịch sử lùi/tiến và mức zoom riêng trong phiên; thanh địa chỉ và nút điều hướng luôn áp dụng cho tab đang chọn. Các tab dùng chung hồ sơ web cục bộ nên cùng dùng trạng thái đăng nhập. Danh sách tab không được khôi phục ở lần khởi động tiếp theo. Tab nền và trình duyệt ẩn nhận yêu cầu tạm ngưng; việc tạm ngưng thực tế phụ thuộc trang web và WebView2.
+
+Mỗi tab mới phải hoàn tất xác minh capture của vùng web trước khi mở trang người dùng; chỉ tạo/xác minh một tab mới tại một thời điểm. Chuyển giữa các tab đã xác minh không yêu cầu kiểm tra lại. Giới hạn **8 tab** áp dụng cho cả nút mở tab và link yêu cầu tab mới; đóng một tab trước khi mở thêm khi đã đạt giới hạn.
 
 Khi bật web trong phiên Smart Mirror, đầu chiếu giữ khung hình công khai gần nhất trong lúc xác minh, tối đa khoảng 5 giây. Xác minh đạt thì tiếp tục cùng phiên; thất bại hoặc hủy thì dừng chiếu và khóa nội dung.
 
-Trình duyệt dành cho đọc và chat bằng chữ. Tải lên/tải xuống file, camera, microphone, chia sẻ màn hình, thông báo, DevTools và menu native bị tắt. Popup tự phát bị chặn; link mở cửa sổ mới do người dùng bấm chuyển vào cùng vùng web. Đăng nhập OAuth cần popup riêng có thể không tương thích. Dropdown HTML native có thể chọn bằng phím mũi tên. Thay đổi màn hình tắt trình duyệt và yêu cầu xác minh lại.
+Trình duyệt dành cho đọc và chat bằng chữ. Tải lên/tải xuống file, camera, microphone, chia sẻ màn hình, thông báo, DevTools và menu native bị tắt. Popup tự phát bị chặn; link mở cửa sổ mới do người dùng bấm được mở thành tab trong QuietShare nếu còn chỗ. Đăng nhập OAuth cần popup riêng có thể không tương thích. Dropdown HTML native có thể chọn bằng phím mũi tên. Thay đổi màn hình tắt trình duyệt và yêu cầu xác minh lại.
 
 ### 7. Smart Mirror và giới hạn bảo vệ
 
@@ -97,7 +103,7 @@ Trình duyệt dành cho đọc và chat bằng chữ. Tải lên/tải xuống 
 
 ### 8. Phím tắt
 
-Phím **toàn hệ thống** dùng được khi ứng dụng khác đang nhận focus nếu QuietShare đăng ký thành công. Các phím còn lại áp dụng khi vùng tương ứng trong QuietShare nhận focus; phím do website xử lý riêng có thể khác.
+Phím **toàn hệ thống** dùng được khi ứng dụng khác đang nhận focus nếu QuietShare đăng ký thành công. Các phím còn lại áp dụng khi vùng tương ứng trong QuietShare nhận focus. Các phím quản lý tab web trong bảng được QuietShare xử lý cả khi nội dung website nhận focus.
 
 | Phím | Thao tác | Phạm vi |
 |---|---|---|
@@ -108,8 +114,11 @@ Phím **toàn hệ thống** dùng được khi ứng dụng khác đang nhận 
 | Ctrl+O | Chọn nhiều file | QuietShare |
 | Ctrl+Shift+O | Chọn thư mục dự án | QuietShare |
 | Ctrl+B | Ẩn/hiện Explorer | QuietShare |
-| Ctrl+Tab / Ctrl+Shift+Tab | Tab tiếp/trước | QuietShare |
-| Ctrl+W | Đóng tab file đang chọn; giữ tab lời nhắc | QuietShare |
+| Ctrl+Tab / Ctrl+Shift+Tab | Tab tài liệu tiếp/trước | Trang nội dung |
+| Ctrl+W | Đóng tab file đang chọn; giữ tab lời nhắc | Trang nội dung |
+| Ctrl+T | Mở tab web tại Google, tối đa 8 tab | Trang trình duyệt, gồm nội dung web |
+| Ctrl+Tab / Ctrl+Shift+Tab | Tab web tiếp/trước | Trang trình duyệt, gồm nội dung web |
+| Ctrl+W | Đóng tab web; tab cuối cùng sẽ tắt trình duyệt | Trang trình duyệt, gồm nội dung web |
 | Ctrl+Enter | Chuyển soạn/đọc lời nhắc | QuietShare |
 | Space | Chạy/dừng cuộn lời nhắc | Vùng lời nhắc ở chế độ đọc |
 | Ctrl+F | Mở tìm kiếm | Lời nhắc, văn bản, code, PDF có lớp chữ |
@@ -135,7 +144,7 @@ Phím **toàn hệ thống** dùng được khi ứng dụng khác đang nhận 
 | Source code | Syntax coloring, line numbers, indentation, find, selection/copy and optional wrapping. Source code is never executed. |
 | Explorer | Local folder tree with file-type icons; expanded branches and selection survive tab changes. Drag the divider to resize. |
 | Images and PDFs | Zoom and pan, single-page PDF navigation, search/copy when a text layer exists. |
-| Browser | On-demand HTTP/HTTPS, domains, localhost and Google search; navigation, Google/ChatGPT shortcuts and 25-400% zoom. |
+| Browser | Up to 8 on-demand web tabs; HTTP/HTTPS, domains, localhost and Google search; independent navigation history and 25-400% zoom per tab. |
 | Workspace | Independent bar visibility, focus mode, always-on-top pinning, VI/EN and DPI support. |
 | Smart Mirror | Source/destination display selection, pointer option and resource modes; projection starts only after capture verification succeeds. |
 
@@ -155,7 +164,7 @@ Phím **toàn hệ thống** dùng được khi ứng dụng khác đang nhận 
 
 ### 3. Installation and upgrades
 
-1. Download [QuietShare v0.8.1](https://github.com/TDUmii/QuietShare/releases/tag/v0.8.1), extract the complete package and run `QuietShare-Setup.exe`.
+1. Download [QuietShare v0.9.0](https://github.com/TDUmii/QuietShare/releases/tag/v0.9.0), extract the complete package and run `QuietShare-Setup.exe`.
 2. Installation applies to the current Windows account without administrator privileges. **EN / VI** switches the installer language.
 3. For portable use, run `QuietShare.exe` in the extracted folder. Keep `Scintilla.dll`, `Lexilla.dll`, `pdfium.dll` and `WebView2Loader.dll` beside it; do not copy only the EXE.
 4. Close QuietShare before upgrading. Upgrades and uninstallation retain the saved script.
@@ -164,7 +173,7 @@ If browsing cannot initialize, install/update WebView2 Runtime, then disable and
 
 ### 4. Documents and workspace
 
-Wait for capture verification at startup. If content is locked and verification is requested, select **Verify WGC privacy** on **Overview** or **Presentation**. Readers become available only after the protection conditions pass.
+Wait for capture verification at startup. The upper corner of **Overview** displays **v0.9.0** to identify the running version. If content is locked and verification is requested, select **Verify WGC privacy** on **Overview** or **Presentation**. Readers become available only after the protection conditions pass.
 
 - **Script:** open Script to type or paste content. **Ctrl+Enter** switches editing/reading; **Space** in the reading area starts/stops auto-scroll. The script is saved automatically and restored on the next launch.
 - **Files:** use **Open or drop files**, **Ctrl+O** or a multi-file drop. **×**, middle-click and **Ctrl+W** close file tabs. The **⋯** menu closes other/all files while keeping the script. Reopening a changed file offers **Reload** or **Keep current preview**.
@@ -197,11 +206,17 @@ Resource modes cap application projection processing. Achieved FPS depends on di
 
 Enable **Settings > Tools > Web browser**, wait for web capture verification and select the globe icon. Browsing can also be enabled/disabled on its own page. Every application launch starts with browsing disabled.
 
-Enter a URL, domain, address such as `localhost:3000`, or search terms, then press Enter/**Go**. **Google** and **ChatGPT** open their respective pages. **- / percentage / +** controls 25-400% zoom; click the percentage to reset to 100%. Browser zoom is independent of file tabs.
+Enter a URL, domain, address such as `localhost:3000`, or search terms, then press Enter/**Go**. Wider windows show **Google** and **ChatGPT** shortcuts; use the address field in compact layouts. **- / percentage / +** controls 25-400% zoom; click the percentage to reset to 100%. Browser zoom is independent of file tabs.
+
+Use **+** or **Ctrl+T** to open a web tab at Google; select a tab title to switch pages. **×** or **Ctrl+W** closes the selected tab. Closing the last web tab disables browsing while keeping QuietShare and its document tabs open. **Ctrl+Tab / Ctrl+Shift+Tab** selects the next/previous web tab on the browser page, including while typing in web content.
+
+Each tab retains its page, back/forward history and zoom during the session. The address field and navigation controls always apply to the selected tab. Tabs share the local web profile, including login state. The tab list is not restored on the next application launch. Background tabs and hidden browsing request suspension; actual suspension depends on the page and WebView2.
+
+Each new tab must complete web capture verification before opening a user page; only one new tab can be created/verified at a time. Switching between verified tabs does not require a fresh check. The **8-tab limit** applies to both the new-tab control and links requesting a new tab. Close an existing tab before opening another when the limit is reached.
 
 Enabling web during Smart Mirror holds the most recent public frame while verification runs, for up to about five seconds. Success resumes the same projection; failure or cancellation stops projection and locks content.
 
-The browser supports reading and text chat. File uploads/downloads, camera, microphone, screen sharing, notifications, DevTools and native context menus are disabled. Unsolicited popups are blocked; user-initiated new-window links use the same protected view. OAuth flows requiring separate popups may be incompatible. Native HTML selects support arrow-key selection. Display changes disable browsing until fresh verification.
+The browser supports reading and text chat. File uploads/downloads, camera, microphone, screen sharing, notifications, DevTools and native context menus are disabled. Unsolicited popups are blocked; user-initiated new-window links open in a QuietShare tab if capacity is available. OAuth flows requiring separate popups may be incompatible. Native HTML selects support arrow-key selection. Display changes disable browsing until fresh verification.
 
 ### 7. Smart Mirror and protection limits
 
@@ -215,7 +230,7 @@ The browser supports reading and text chat. File uploads/downloads, camera, micr
 
 ### 8. Keyboard shortcuts
 
-**Global** shortcuts work while another application has focus if QuietShare registers them successfully. Other shortcuts require the relevant QuietShare area to have focus; website-handled keys can differ.
+**Global** shortcuts work while another application has focus if QuietShare registers them successfully. Other shortcuts require the relevant QuietShare area to have focus. QuietShare handles the web tab shortcuts listed below even when web content has focus.
 
 | Shortcut | Action | Scope |
 |---|---|---|
@@ -226,8 +241,11 @@ The browser supports reading and text chat. File uploads/downloads, camera, micr
 | Ctrl+O | Open multiple files | QuietShare |
 | Ctrl+Shift+O | Open a project folder | QuietShare |
 | Ctrl+B | Show/hide Explorer | QuietShare |
-| Ctrl+Tab / Ctrl+Shift+Tab | Next/previous tab | QuietShare |
-| Ctrl+W | Close the selected file tab; preserve Script | QuietShare |
+| Ctrl+Tab / Ctrl+Shift+Tab | Next/previous document tab | Content page |
+| Ctrl+W | Close the selected file tab; preserve Script | Content page |
+| Ctrl+T | Open a Google web tab, up to 8 tabs | Browser page, including web content |
+| Ctrl+Tab / Ctrl+Shift+Tab | Next/previous web tab | Browser page, including web content |
+| Ctrl+W | Close a web tab; closing the last disables browsing | Browser page, including web content |
 | Ctrl+Enter | Switch script editing/reading | QuietShare |
 | Space | Start/stop script auto-scroll | Script reading area |
 | Ctrl+F | Open find | Script, text, code, searchable PDF |

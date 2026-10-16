@@ -7,10 +7,12 @@
 namespace quietshare {
 constexpr UINT DocumentActivateMessage = WM_APP + 10;
 constexpr UINT DocumentCloseMessage = WM_APP + 11;
+constexpr UINT BrowserTabActivateMessage = WM_APP + 25, BrowserTabCloseMessage = WM_APP + 26;
+constexpr int BrowserTabBarId = 191;
 struct TabVisual { std::uint64_t id; std::wstring name, path; int kind; bool script; };
 class DocumentBar {
 public:
-    bool Create(HWND parent, HINSTANCE instance);
+    bool Create(HWND parent, HINSTANCE instance, bool browser = false);
     HWND Window() const { return window_; }
     void Update(std::vector<TabVisual> tabs, std::uint64_t active, bool safe,
                 bool english, UINT dpi, HFONT font);
@@ -33,6 +35,6 @@ private:
     std::uint64_t active_ = 0;
     int offset_ = 0, total_ = 0, hovered_ = -1;
     int verticalWheelRemainder_ = 0, horizontalWheelRemainder_ = 0;
-    bool safe_ = false, english_ = false, tooltipSafe_ = false;
+    bool safe_ = false, english_ = false, tooltipSafe_ = false, browser_ = false;
 };
 }

@@ -17,12 +17,13 @@ void Line(HDC dc,int x,int y,int endX,int endY,COLORREF color,int width=1) {
     MoveToEx(dc,x,y,nullptr); LineTo(dc,endX,endY); SelectObject(dc,old); DeleteObject(pen);
 }
 }
-bool DocumentBar::Create(HWND parent,HINSTANCE instance) {
+bool DocumentBar::Create(HWND parent,HINSTANCE instance,bool browser) {
+    browser_=browser;
     WNDCLASSEXW cls{}; cls.cbSize=sizeof(cls); cls.hInstance=instance;
-    cls.lpszClassName=L"QuietShareDocumentBar"; cls.lpfnWndProc=Proc;
+    cls.lpszClassName=browser?L"QuietShareBrowserTabBar":L"QuietShareDocumentBar"; cls.lpfnWndProc=Proc;
     cls.hCursor=LoadCursorW(nullptr,IDC_ARROW); RegisterClassExW(&cls);
     window_=CreateWindowExW(0,cls.lpszClassName,L"",WS_CHILD|WS_TABSTOP|WS_CLIPSIBLINGS,
-                           0,0,0,0,parent,nullptr,instance,this);
+                           0,0,0,0,parent,browser?(HMENU)(INT_PTR)BrowserTabBarId:nullptr,instance,this);
     tooltip_=CreateWindowExW(WS_EX_TOPMOST,TOOLTIPS_CLASSW,nullptr,
         WS_POPUP|TTS_ALWAYSTIP|TTS_NOPREFIX,0,0,0,0,parent,nullptr,instance,nullptr);
     SendMessageW(tooltip_,TTM_SETMAXTIPWIDTH,0,700);
@@ -35,6 +36,11 @@ bool DocumentBar::Overflowing() const { RECT r{}; GetClientRect(window_,&r); ret
 void DocumentBar::Update(std::vector<TabVisual> tabs,std::uint64_t active,bool safe,
                          bool english,UINT dpi,HFONT font) {
     bool changed=active_!=active || tabs_.size()!=tabs.size();
+    if(!changed)for(size_t i=0;i<tabs.size();++i) {
+        const auto& before=tabs_[i];const auto& after=tabs[i];
+        if(before.id!=after.id||before.name!=after.name||before.path!=after.path||before.kind!=after.kind||before.script!=after.script){changed=true;break;}
+    }
+    if(!changed&&safe_==safe&&english_==english&&dpi_==dpi&&font_==font)return;
     for(size_t i=0;i<tabs_.size();++i) {
         TOOLINFOW tip{}; tip.cbSize=sizeof(tip); tip.hwnd=window_; tip.uId=i+1;
         SendMessageW(tooltip_,TTM_DELTOOLW,0,(LPARAM)&tip);
@@ -108,7 +114,8 @@ void DocumentBar::Paint(HDC dc) {
         Fill(dc,r,active || (int)i==hovered_?Raised:Panel);
         int iconX=r.left+MulDiv(10,dpi_,96), center=(r.top+r.bottom)/2;
         RECT icon{iconX,center-MulDiv(8,dpi_,96),iconX+MulDiv(16,dpi_,96),center+MulDiv(8,dpi_,96)};
-        DrawFileTypeIcon(dc,tabs_[i].script?FileIconKind::Text:FileIconForName(tabs_[i].path.empty()?tabs_[i].name:tabs_[i].path),icon);
+        if(browser_)DrawCodicon(dc,0xeb01,icon,active?Text:Muted,MulDiv(16,dpi_,96));
+        else DrawFileTypeIcon(dc,tabs_[i].script?FileIconKind::Text:FileIconForName(tabs_[i].path.empty()?tabs_[i].name:tabs_[i].path),icon);
         RECT label=r; label.left+=MulDiv(26,dpi_,96); label.right-=MulDiv(tabs_[i].script?8:24,dpi_,96);
         SetTextColor(dc,active?Text:Muted); DrawTextW(dc,tabs_[i].name.c_str(),-1,&label,DT_LEFT|DT_VCENTER|DT_SINGLELINE|DT_END_ELLIPSIS);
         if(!tabs_[i].script) {
@@ -133,7 +140,8 @@ void DocumentBar::Hit(POINT point,bool middle) {
         RECT r=rects_[i]; OffsetRect(&r,arrows-offset_,0);
         if(PtInRect(&r,point)) {
             bool close=!tabs_[i].script && (middle || point.x>r.right-MulDiv(24,dpi_,96));
-            PostMessageW(GetParent(window_),close?DocumentCloseMessage:DocumentActivateMessage,(WPARAM)tabs_[i].id,0);
+            PostMessageW(GetParent(window_),browser_?(close?BrowserTabCloseMessage:BrowserTabActivateMessage):
+                         (close?DocumentCloseMessage:DocumentActivateMessage),(WPARAM)tabs_[i].id,0);
             return;
         }
     }
@@ -176,7 +184,7 @@ LRESULT CALLBACK DocumentBar::Proc(HWND h,UINT message,WPARAM wp,LPARAM lp) {
         if(wp==VK_LEFT || wp==VK_RIGHT) {
             for(size_t i=0;i<self->tabs_.size();++i) if(self->tabs_[i].id==self->active_) {
                 size_t next=(i+self->tabs_.size()+(wp==VK_LEFT?-1:1))%self->tabs_.size();
-                PostMessageW(GetParent(h),DocumentActivateMessage,(WPARAM)self->tabs_[next].id,0);break;
+                PostMessageW(GetParent(h),self->browser_?BrowserTabActivateMessage:DocumentActivateMessage,(WPARAM)self->tabs_[next].id,0);break;
             } return 0;
         } break;
     }
