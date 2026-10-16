@@ -21,11 +21,16 @@ native.KERNEL32.WaitForSingleObject.argtypes=[wintypes.HANDLE,wintypes.DWORD]
 native.KERNEL32.CloseHandle.argtypes=[wintypes.HANDLE]
 hits=[]
 cookies=[]
+viewports=[]
 class Site(BaseHTTPRequestHandler):
     def log_message(self,*args):pass
     def do_GET(self):
         hits.append(self.path)
         cookies.append(bool(self.headers.get('Cookie')))
+        if self.path.startswith('/viewport?'):
+            values=parse_qs(urlsplit(self.path).query)
+            viewports.append({'width':int(values['w'][0]),'dpr':float(values['dpr'][0]),'page':values['page'][0]})
+            self.send_response(204);self.end_headers();return
         if self.path=='/credential':
             self.send_response(401);self.send_header('WWW-Authenticate','Basic realm="QuietShare synthetic fixture"');self.send_header('Content-Length','0');self.end_headers();return
         body=("<!doctype html><meta charset=utf-8><style>body{background:#1e1e1e;color:#ddd;font:18px sans-serif;padding:24px}</style>"
@@ -34,7 +39,9 @@ class Site(BaseHTTPRequestHandler):
               "<script>if(location.pathname==='/policy'){window.open('/blocked-popup');alert('synthetic');"
               "window.print();document.querySelector('#f').click();try{document.querySelector('#f').showPicker()}catch(e){}"
               "try{document.querySelector('#s').showPicker()}catch(e){}"
-              "navigator.geolocation.getCurrentPosition(()=>fetch('/unexpected-location'),()=>{});fetch('/policy-finished');}</script>").encode()
+              "navigator.geolocation.getCurrentPosition(()=>fetch('/unexpected-location'),()=>{});fetch('/policy-finished');}"
+              "const viewport=()=>fetch('/viewport?w='+innerWidth+'&dpr='+devicePixelRatio+'&page='+encodeURIComponent(location.pathname));"
+              "addEventListener('resize',viewport);viewport();</script>").encode()
         self.send_response(200);self.send_header('Set-Cookie','quietshare_fixture=1; Path=/; SameSite=Lax');self.send_header('Content-Type','text/html; charset=utf-8');self.send_header('Content-Length',str(len(body)));self.end_headers();self.wfile.write(body)
 def wait(predicate,seconds=8):
     end=time.monotonic()+seconds
@@ -74,10 +81,12 @@ def main():
         check('realWgcBaseGate',wait(lambda:native.send(window,0x800E,timeout=6000),20))
         USER32.ShowWindow(window,4)
         def cmd(n):USER32.PostMessageW(window,0x111,n,0);time.sleep(.15)
+        def viewport(page):return next((entry for entry in reversed(viewports) if entry['page']==page),None)
         check('browserOffByDefault',q(10)==0 and q(11)==0)
         check('noBrowserProfileBeforeEnable',not (profile/'QuietShare'/'WebProfile').exists())
         cmd(154);address=USER32.GetDlgItem(window,164)
         check('browserPageDoesNotStartRuntime',q(10)==0 and q(11)==0 and not hits)
+        check('browserZoomDefaults100AndControlsWaitForEnable',q(24)==100 and not USER32.IsWindowEnabled(USER32.GetDlgItem(window,167)))
         native.set_control_text(address,base+'/first')
         cmd(123)
         check('browserCanBeConfiguredFromSettings',q(21)==1 and q(10)==0)
@@ -92,8 +101,28 @@ def main():
         check('dedicatedBrowserProcess',q(11)!=0 and q(11)!=app.pid)
         check('dedicatedProfileCreatedOnlyOnEnable',(profile/'QuietShare'/'WebProfile').exists())
         check('addressReflectsPage',native.control_text(address)==base+'/first')
+        check('zoomFixtureReportsActualViewport',wait(lambda:viewport('/first')))
+        initial_viewport=viewport('/first').copy()
+        check('browserZoomStarts100',q(24)==100 and native.control_text(USER32.GetDlgItem(window,168))=='100%')
+        cmd(169)
+        check('browserZoomInUpdatesActualViewport',wait(lambda:q(24)==110 and viewport('/first')['width']<initial_viewport['width']
+              and abs(viewport('/first')['width']-initial_viewport['width']/1.1)<=3))
+        check('browserZoomLabelTracksActualValue',native.control_text(USER32.GetDlgItem(window,168))=='110%')
+        cmd(167)
+        check('browserZoomOutRestoresActualViewport',wait(lambda:q(24)==100 and abs(viewport('/first')['width']-initial_viewport['width'])<=1))
+        for _ in range(40):native.send(window,0x111,169)
+        check('browserZoomClamps400',q(24)==400)
+        check('maximumZoomIsRendered',wait(lambda:abs(viewport('/first')['dpr']-initial_viewport['dpr']*4)<.03))
+        for _ in range(50):native.send(window,0x111,167)
+        check('browserZoomClamps25',q(24)==25)
+        check('minimumZoomIsRendered',wait(lambda:abs(viewport('/first')['dpr']-initial_viewport['dpr']*.25)<.03))
+        cmd(168)
+        check('browserZoomResetRestores100',wait(lambda:q(24)==100 and abs(viewport('/first')['width']-initial_viewport['width'])<=1))
+        cmd(169)
         native.set_control_text(address,base+'/second');cmd(165)
         check('navigateSecondPage',wait(lambda:q(13)==1 and '/second' in hits))
+        check('browserZoomPersistsAcrossNavigation',wait(lambda:q(24)==110 and viewport('/second') and
+              abs(viewport('/second')['dpr']-initial_viewport['dpr']*1.1)<.03))
         cmd(156);check('backRestoresFirstPage',wait(lambda:native.control_text(address)==base+'/first'))
         cmd(157);check('forwardRestoresSecondPage',wait(lambda:native.control_text(address)==base+'/second'))
         count=hits.count('/second');cmd(158);check('reloadHitsLocalPageAgain',wait(lambda:hits.count('/second')>count))
@@ -129,9 +158,10 @@ def main():
         time.sleep(.6);dialog_windows.clear();USER32.EnumWindows(inspect,0)
         check('basicAuthenticationDoesNotOpenCredentialDialog',not dialog_windows and q(10)==2)
         native.send(window,0x312,2)
-        check('F8MasksBrowserAndAddress',q(10)==q(11)==q(12)==0 and not USER32.IsWindowVisible(address))
+        check('F8MasksBrowserAndAddress',q(10)==q(11)==q(12)==q(24)==0 and not USER32.IsWindowVisible(address))
         native.send(window,0x312,2)
         check('F8RestoresVerifiedBrowser',wait(lambda:q(10)==2 and q(12)==1))
+        check('F8PreservesBrowserZoomPreference',q(24)==110)
         pid=q(11);cmd(120)
         check('scriptReaderHidesWebButKeepsSession',not USER32.IsWindowVisible(address) and q(11)==pid)
         check('hiddenBrowserActuallySuspends',wait(lambda:q(15)==1))
@@ -142,12 +172,16 @@ def main():
         process_handle=native.KERNEL32.OpenProcess(0x00100000,False,pid)
         check('ownedBrowserProcessCanBeObserved',bool(process_handle))
         cmd(155);check('disableReleasesBrowserObjects',q(10)==0 and q(11)==0 and q(12)==0)
+        check('disableKeepsBrowserZoomSessionPreference',q(24)==110)
         try:check('disabledBrowserProcessExits',native.KERNEL32.WaitForSingleObject(process_handle,8000)==0)
         finally:native.KERNEL32.CloseHandle(process_handle)
         for cycle in range(3):
             cmd(155);cmd(155);check('cancelPendingEnable:'+str(cycle),wait(lambda:q(10)==0 and q(11)==0))
+        viewport_start=len(viewports)
         native.set_control_text(address,base+'/first');cmd(155)
         check('reEnableRunsFreshCanary',wait(lambda:q(10)==2 and q(12)==1,25))
+        check('reEnableRestoresZoomAfterFreshCanary',wait(lambda:q(24)==110 and q(13)==1 and
+              any(entry['page']=='/first' and abs(entry['dpr']-initial_viewport['dpr']*1.1)<.03 for entry in viewports[viewport_start:])))
         check('separateProfilePreservesSyntheticCookie',wait(lambda:any(cookies)))
         cmd(159)
         metrics['chatgptPublicHttpsLoaded']=wait(lambda:native.control_text(address).startswith('https://chatgpt.com') and q(13)==1,20)
@@ -188,8 +222,8 @@ def main():
         server.shutdown();server.server_close()
         report={'passed':sum(c['passed'] for c in checks),'failed':sum(not c['passed'] for c in checks),'checks':checks,'failure':failure,
                 'exeSha256':hashlib.sha256(EXE.read_bytes()).hexdigest(),'metrics':metrics,
-                'method':'Shipping EXE; actual browser-rendered positive and excluded WGC canary; isolated user profile; local HTTP fixtures only',
-                'notTested':['ChatGPT authenticated session and third-party OAuth','Physical meeting receivers and two physical monitors','Missing Evergreen Runtime on a clean machine']}
+                'method':'Shipping EXE; actual browser-rendered positive and excluded WGC canary; isolated user profile; local HTTP fixtures report viewport width/DPR to prove zoom rendering',
+                'notTested':['ChatGPT authenticated session and third-party OAuth','Physical meeting receivers and two physical monitors','Missing Evergreen Runtime on a clean machine','Physical Ctrl+wheel and WebView-focused keyboard shortcut delivery']}
         (folder/'browser-regression.json').write_text(json.dumps(report,indent=2),encoding='utf-8');print(json.dumps({k:report[k] for k in ('passed','failed','failure','metrics')}),flush=True)
     return 1 if failure or report['failed'] else 0
 if __name__=='__main__':raise SystemExit(main())

@@ -1,5 +1,6 @@
 // Include the production renderer in this focused native test translation unit
 // so no test API or projection bypass is shipped in the application.
+#define QUIETSHARE_MIRROR_REGRESSION
 #include "../src/Mirror.cpp"
 #include <fstream>
 #include <iostream>
@@ -11,6 +12,52 @@ int passed=0,failed=0;
 void Check(bool result,const char *name)
 {
     std::cout<<(result?"PASS ":"FAIL ")<<name<<'\n';if(result)++passed;else++failed;
+}
+struct TimestampFrame final : CaptureFrame
+{
+    INT64 timestamp=0;
+    HRESULT result=S_OK;
+    HRESULT STDMETHODCALLTYPE QueryInterface(REFIID,void **value) override {if(value)*value=nullptr;return E_NOINTERFACE;}
+    ULONG STDMETHODCALLTYPE AddRef() override {return 1;}
+    ULONG STDMETHODCALLTYPE Release() override {return 1;}
+    HRESULT STDMETHODCALLTYPE GetIids(ULONG *,IID **) override {return E_NOTIMPL;}
+    HRESULT STDMETHODCALLTYPE GetRuntimeClassName(HSTRING *) override {return E_NOTIMPL;}
+    HRESULT STDMETHODCALLTYPE GetTrustLevel(TrustLevel *) override {return E_NOTIMPL;}
+    HRESULT STDMETHODCALLTYPE Surface(IInspectable **) override {return E_NOTIMPL;}
+    HRESULT STDMETHODCALLTYPE SystemRelativeTime(INT64 *time) override {*time=timestamp;return result;}
+    HRESULT STDMETHODCALLTYPE ContentSize(Size32 *) override {return E_NOTIMPL;}
+};
+struct TestSession final : CaptureSession
+{
+    ULONG releases=0;
+    HRESULT STDMETHODCALLTYPE QueryInterface(REFIID,void **value) override {if(value)*value=nullptr;return E_NOINTERFACE;}
+    ULONG STDMETHODCALLTYPE AddRef() override {return 1;}
+    ULONG STDMETHODCALLTYPE Release() override {return ++releases;}
+    HRESULT STDMETHODCALLTYPE GetIids(ULONG *,IID **) override {return E_NOTIMPL;}
+    HRESULT STDMETHODCALLTYPE GetRuntimeClassName(HSTRING *) override {return E_NOTIMPL;}
+    HRESULT STDMETHODCALLTYPE GetTrustLevel(TrustLevel *) override {return E_NOTIMPL;}
+    HRESULT STDMETHODCALLTYPE StartCapture() override {return E_NOTIMPL;}
+};
+void CheckFrameTiming()
+{
+    Check(CounterTime100ns(123456789,10000000)==123456789,"QPC native 10 MHz maps to capture TimeSpan ticks");
+    Check(CounterTime100ns(30000000,3000000)==100000000,"QPC frequency conversion preserves seconds");
+    Check(!CounterTime100ns(0,10000000)&&!CounterTime100ns(1000,0),"missing QPC time fails closed");
+    for(unsigned fps:{15u,30u,60u})
+    {
+        INT64 next=0;unsigned frames=0;
+        for(INT64 now=1;now<100000000;now+=80000)if(FrameDue(now,fps,next))++frames;
+        Check(frames>=fps*10-1&&frames<=fps*10+1,"8 ms timer honors each average frame budget without integer-ms loss");
+        INT64 late=0;FrameDue(1,fps,late);
+        Check(FrameDue(100000000,fps,late)&&!FrameDue(100000000,fps,late),"paused UI resumes without a same-tick catch-up burst");
+        Check(!FrameDue(0,fps,late),"missing frame clock cannot release a frame");
+    }
+    TimestampFrame frame;
+    frame.timestamp=99;Check(FrameAfter(&frame,100)==S_FALSE,"queued positive canary frame before teardown never presents");
+    frame.timestamp=100;Check(FrameAfter(&frame,100)==S_FALSE,"frame at teardown barrier stays excluded");
+    frame.timestamp=101;Check(FrameAfter(&frame,100)==S_OK,"only compositor frames strictly after teardown can present");
+    frame.result=E_FAIL;Check(FAILED(FrameAfter(&frame,100)),"unreadable compositor timestamp fails closed");
+    Check(FAILED(FrameAfter(nullptr,100)),"missing capture frame fails closed");
 }
 bool ReadBack(Capture &capture,Renderer &renderer,std::vector<unsigned char>&out)
 {
@@ -38,9 +85,50 @@ LRESULT CALLBACK TestProc(HWND hwnd,UINT msg,WPARAM wp,LPARAM lp)
     return DefWindowProcW(hwnd,msg,wp,lp);
 }
 }
+namespace quietshare
+{
+// Compile-only friendship exposes state to this harness, never to a shipped EXE.
+struct MirrorRegressionAccess
+{
+    static void CheckProbePreparation()
+    {
+        TestSession session;
+        MirrorController controller;
+        auto &s=*controller.impl;
+        const HWND synthetic=reinterpret_cast<HWND>(static_cast<INT_PTR>(-1));
+        s.privateWindow=synthetic;s.projector=synthetic;s.sourceId=L"synthetic source";
+        s.destinationId=L"synthetic destination";s.verified=true;s.running=true;
+        *s.capture.session.put()=&session;
+        const unsigned epoch=s.epoch;
+        Check(s.BeginVerification(synthetic,s.sourceId,true),"running same-source mounted probe chooses preservation");
+        Check(s.running&&s.busy&&s.projector==synthetic&&s.destinationId==L"synthetic destination"&&
+              s.capture.session.get()==&session&&session.releases==0&&s.epoch==epoch,
+              "browser probe entry preserves projector, destination and exact capture without Clear");
+        {
+            MirrorController::Impl::Operation operation(s,true);
+            controller.Invalidate();
+            Check(!s.running&&!s.verified&&s.epoch!=epoch&&s.clearPending&&session.releases==0,
+                  "F8/invalidation revokes during a probe and defers active capture release");
+        }
+        Check(!s.busy&&!s.projector&&!s.capture.session&&session.releases==1,
+              "probe cancellation releases deferred output and never auto-resumes");
+        s.privateWindow=synthetic;s.projector=synthetic;s.sourceId=L"synthetic source";
+        s.destinationId=L"synthetic destination";s.verified=true;s.running=true;
+        Check(!s.BeginVerification(synthetic,s.sourceId,false)&&!s.running&&!s.projector&&s.destinationId.empty(),
+              "native verification and Start still clear previous projection");
+        s.busy=false;
+        Check(!s.BeginVerification(synthetic,L"different source",true)&&!s.running,
+              "a source change never preserves or auto-resumes output");
+        s.busy=false;
+    }
+};
+}
 int wmain(int argc,wchar_t**argv)
 {
     std::cout.setf(std::ios::unitbuf);
+    CheckFrameTiming();
+    MirrorRegressionAccess::CheckProbePreparation();
+    if(argc>1&&std::wcscmp(argv[1],L"--timing-only")==0)return failed?1:0;
     SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
     WNDCLASSW wc{};wc.lpfnWndProc=TestProc;wc.hInstance=GetModuleHandleW(nullptr);
     wc.lpszClassName=L"QuietShareSyntheticRendererTest";RegisterClassW(&wc);

@@ -93,6 +93,7 @@ public:
     ProjectTree(const ProjectTree &) = delete;
     ProjectTree &operator=(const ProjectTree &) = delete;
     bool Create(HWND parent, int controlId);
+    void SetDpi(UINT dpi);
     HWND Handle() const { return window_; }
     bool OpenFolder(const std::wstring &path, std::wstring &error);
     bool SetIncludeIgnored(bool include, std::wstring &error);
@@ -110,11 +111,15 @@ private:
         bool directory = false, loaded = false;
     };
     HWND window_ = nullptr;
+    HIMAGELIST icons_ = nullptr;
+    UINT iconDpi_ = 0;
     std::wstring root_;
     bool includeIgnored_ = false;
     std::unordered_map<HTREEITEM, std::unique_ptr<Node>> nodes_;
     HTREEITEM Insert(HTREEITEM parent, const std::wstring &name, std::wstring path, bool directory);
     bool Expand(HTREEITEM item, std::wstring &error);
+    void UpdateFolderIcon(HTREEITEM item);
+    static LRESULT CALLBACK TreeProc(HWND, UINT, WPARAM, LPARAM, UINT_PTR, DWORD_PTR);
 };
 
 } // namespace quietshare

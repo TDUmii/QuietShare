@@ -2,6 +2,7 @@
 #include <cstdio>
 #include <string>
 #include <utility>
+#include <limits>
 
 int main(){
     unsigned passed=0,failed=0;bool first=true;
@@ -40,6 +41,16 @@ int main(){
     check("strictNavigationDoesNotAcceptUnsafeScheme",!quietshare::NormalizeWebAddress(L"javascript:alert(1)",result));
     std::wstring normalized;
     check("strictNavigationAcceptsResolvedSearch",resolve(L"test query",L"https://www.google.com/search?q=test%20query")&&quietshare::NormalizeWebAddress(result,normalized)&&normalized==result);
+    quietshare::Browser browser;
+    check("zoomDefaultsTo100WithoutEngine",browser.ZoomPercent()==100&&!browser.Enabled()&&!browser.Ready()&&browser.BrowserProcessId()==0);
+    check("zoomOffStateStoresPreferenceOnly",browser.SetZoomPercent(137)&&browser.ZoomPercent()==137&&!browser.Enabled()&&browser.BrowserProcessId()==0);
+    check("zoomClampsLowerBound",browser.SetZoomPercent(-100)&&browser.ZoomPercent()==25);
+    check("zoomClampsUpperBound",browser.SetZoomPercent(1000)&&browser.ZoomPercent()==400);
+    check("zoomAdjustmentAvoidsPositiveOverflow",browser.AdjustZoomPercent((std::numeric_limits<int>::max)())&&browser.ZoomPercent()==400);
+    check("zoomAdjustmentAvoidsNegativeOverflow",browser.AdjustZoomPercent((std::numeric_limits<int>::min)())&&browser.ZoomPercent()==25);
+    check("zoomResetRestores100",browser.ResetZoom()&&browser.ZoomPercent()==100);
+    browser.SetZoomPercent(150);browser.Disable();
+    check("zoomPreferenceSurvivesDisable",browser.ZoomPercent()==150&&!browser.Enabled()&&browser.BrowserProcessId()==0);
     std::printf("\n],\"passed\":%u,\"failed\":%u}\n",passed,failed);
     return failed?1:0;
 }

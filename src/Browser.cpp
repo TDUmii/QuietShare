@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <functional>
 #include <cwctype>
+#include <cmath>
 #include <sstream>
 namespace quietshare {
 namespace {
@@ -104,12 +105,21 @@ bool ResolveWebInput(const std::wstring& input,std::wstring& output){
 struct Browser::Impl:std::enable_shared_from_this<Browser::Impl> {
     HWND parent=nullptr;RECT bounds{};bool enabled=false,ready=false,verified=false,visible=false,probing=false,locked=false,suspendPending=false;
     unsigned generation=0,pid=0;UINT64 navigationId=0;int error=0;bool loaded=false;std::wstring address,pending,notice;
+    int zoomPercent=100;
     Com<ICoreWebView2Environment> environment;Com<ICoreWebView2Controller> controller;Com<ICoreWebView2> web;
     void Notify(){if(IsWindow(parent))PostMessageW(parent,BrowserChangedMessage,generation,0);}
+    void NotifyZoom(){if(IsWindow(parent))PostMessageW(parent,BrowserZoomChangedMessage,generation,0);}
     void Close(){++generation;enabled=ready=verified=visible=probing=locked=suspendPending=false;pid=0;error=0;loaded=false;address.clear();pending.clear();notice.clear();
         if(controller){controller->put_IsVisible(FALSE);controller->Close();}web.reset();controller.reset();environment.reset();Notify();}
     void Fail(int code=1){++generation;ready=verified=visible=probing=false;if(!error)error=code;if(controller){controller->put_IsVisible(FALSE);controller->Close();}web.reset();controller.reset();environment.reset();Notify();}
     template<class I> bool Query(Com<I>& out){return web&&SUCCEEDED(web->QueryInterface(WebGuid<I>(),reinterpret_cast<void**>(out.put())));}
+    bool SetZoom(int percent){
+        const int next=std::clamp(percent,25,400);
+        if(enabled&&controller&&!probing){
+            if(!ready||locked||FAILED(controller->put_ZoomFactor(next/100.0)))return false;
+        }
+        const bool changed=zoomPercent!=next;zoomPercent=next;if(changed)NotifyZoom();return true;
+    }
     void Suspend(){
         if(!ready||probing||visible||suspendPending)return;
         Com<ICoreWebView2_3> control;if(!Query(control))return;suspendPending=true;
@@ -126,7 +136,8 @@ struct Browser::Impl:std::enable_shared_from_this<Browser::Impl> {
         error=10;Com<ICoreWebView2Settings> settings;if(FAILED(web->get_Settings(settings.put())))return false;
         if(FAILED(settings->put_AreDefaultContextMenusEnabled(FALSE))||FAILED(settings->put_AreDefaultScriptDialogsEnabled(FALSE))||
            FAILED(settings->put_AreDevToolsEnabled(FALSE))||FAILED(settings->put_AreHostObjectsAllowed(FALSE))||
-           FAILED(settings->put_IsWebMessageEnabled(FALSE))||FAILED(settings->put_IsStatusBarEnabled(FALSE)))return false;
+           FAILED(settings->put_IsWebMessageEnabled(FALSE))||FAILED(settings->put_IsStatusBarEnabled(FALSE))||
+           FAILED(settings->put_IsZoomControlEnabled(FALSE))||FAILED(controller->put_ZoomFactor(1.0)))return false;
         Com<ICoreWebView2Settings3> settings3;Com<ICoreWebView2Settings4> settings4;Com<ICoreWebView2Settings5> settings5;
         error=11;if(FAILED(settings->QueryInterface(WebGuid<ICoreWebView2Settings4>(),reinterpret_cast<void**>(settings4.put())))||
            FAILED(settings->QueryInterface(WebGuid<ICoreWebView2Settings5>(),reinterpret_cast<void**>(settings5.put()))))return false;
@@ -144,6 +155,32 @@ struct Browser::Impl:std::enable_shared_from_this<Browser::Impl> {
         std::weak_ptr<Impl> weak=shared_from_this();const unsigned epoch=generation;
         auto valid=[weak,epoch](){auto s=weak.lock();return s&&s->enabled&&s->generation==epoch?s:nullptr;};
         bool ok=true;
+        ok=Event<ICoreWebView2AcceleratorKeyPressedEventHandler,ICoreWebView2Controller*,ICoreWebView2AcceleratorKeyPressedEventArgs*>([valid](auto,auto args){
+            auto s=valid();if(!s||!s->ready||!s->verified||s->locked||!s->visible)return S_OK;
+            if(!(GetKeyState(VK_CONTROL)&0x8000)||(GetKeyState(VK_MENU)&0x8000)||
+               (GetKeyState(VK_LWIN)&0x8000)||(GetKeyState(VK_RWIN)&0x8000))return S_OK;
+            COREWEBVIEW2_KEY_EVENT_KIND kind{};UINT key=0;
+            if(FAILED(args->get_KeyEventKind(&kind))||FAILED(args->get_VirtualKey(&key)))return S_OK;
+            int delta=0;
+            if(key==VK_ADD||key==VK_OEM_PLUS)delta=10;
+            else if(key==VK_SUBTRACT||key==VK_OEM_MINUS)delta=-10;
+            else if(key!=L'0'&&key!=VK_NUMPAD0)return S_OK;
+            // Windowed accelerator callbacks block browser input. Mark handled
+            // immediately and let the host apply zoom after this stack unwinds.
+            if(FAILED(args->put_Handled(TRUE)))return S_OK;
+            if(kind==COREWEBVIEW2_KEY_EVENT_KIND_KEY_DOWN||kind==COREWEBVIEW2_KEY_EVENT_KIND_SYSTEM_KEY_DOWN)
+                PostMessageW(s->parent,BrowserZoomMessage,s->generation,delta);
+            return S_OK;
+        },[&](auto h,auto t){return controller->add_AcceleratorKeyPressed(h,t);})&&ok;
+        ok=Event<ICoreWebView2ZoomFactorChangedEventHandler,ICoreWebView2Controller*,IUnknown*>([valid](auto sender,auto){
+            auto s=valid();if(!s||!s->ready||!s->verified||s->locked||s->probing)return S_OK;
+            double factor=1.0;if(FAILED(sender->get_ZoomFactor(&factor))||!std::isfinite(factor))return S_OK;
+            const int percent=static_cast<int>(std::lround(std::clamp(factor,0.25,4.0)*100.0));
+            // Promote native Ctrl+wheel to the same session zoom as our buttons.
+            // Host-applied factors update immediately without another event.
+            if(FAILED(sender->put_ZoomFactor(percent/100.0)))return S_OK;
+            if(s->zoomPercent!=percent){s->zoomPercent=percent;s->NotifyZoom();}return S_OK;
+        },[&](auto h,auto t){return controller->add_ZoomFactorChanged(h,t);})&&ok;
         ok=Event<ICoreWebView2NavigationStartingEventHandler,ICoreWebView2*,ICoreWebView2NavigationStartingEventArgs*>([valid](auto,auto args){
             auto s=valid();if(!s||s->locked){args->put_Cancel(TRUE);return S_OK;}
             // During initialization only the host's static NavigateToString
@@ -224,11 +261,21 @@ bool Browser::MountProbe(HWND probe){auto s=impl;if(!s->controller||!s->enabled)
     if(!probe){s->controller->put_IsVisible(FALSE);s->controller->put_ParentWindow(s->parent);s->controller->put_Bounds(s->bounds);return true;}
     RECT r{0,0,128,96};return SUCCEEDED(s->controller->put_ParentWindow(probe))&&SUCCEEDED(s->controller->put_Bounds(r))&&SUCCEEDED(s->controller->put_IsVisible(TRUE));
 }
-void Browser::FinishProbe(bool passed){auto s=impl;if(!s->enabled)return;s->probing=false;s->verified=passed&&!s->locked;s->ready=s->verified;if(!passed)s->Fail();s->Notify();}
+void Browser::FinishProbe(bool passed){auto s=impl;if(!s->enabled)return;s->probing=false;s->verified=passed&&!s->locked;s->ready=s->verified;
+    if(!passed)s->Fail();
+    else if(s->ready){
+        Com<ICoreWebView2Settings> settings;
+        if(FAILED(s->web->get_Settings(settings.put()))||FAILED(settings->put_IsZoomControlEnabled(TRUE))||!s->SetZoom(s->zoomPercent)){s->Fail(320);return;}
+    }
+    s->Notify();}
 void Browser::Navigate(const std::wstring& value){auto s=impl;std::wstring address;if(!s->ready||s->locked||!s->web)return;
     if(!ResolveWebInput(value,address)){s->notice=L"address";s->Notify();return;}s->loaded=false;s->notice.clear();s->web->Navigate(address.c_str());}
 void Browser::Back(){if(Ready()&&!impl->locked)impl->web->GoBack();}void Browser::Forward(){if(Ready()&&!impl->locked)impl->web->GoForward();}void Browser::Reload(){if(Ready()&&!impl->locked)impl->web->Reload();}
 void Browser::Focus(){if(Ready()&&impl->visible)impl->controller->MoveFocus(COREWEBVIEW2_MOVE_FOCUS_REASON_PROGRAMMATIC);}
+int Browser::ZoomPercent()const{return impl->zoomPercent;}
+bool Browser::SetZoomPercent(int percent){return impl->SetZoom(percent);}
+bool Browser::AdjustZoomPercent(int delta){return SetZoomPercent(static_cast<int>(std::clamp(static_cast<long long>(impl->zoomPercent)+delta,25LL,400LL)));}
+bool Browser::ResetZoom(){return SetZoomPercent(100);}
 bool Browser::Enabled()const{return impl->enabled;}bool Browser::Ready()const{return impl->ready;}bool Browser::Verified()const{return impl->verified;}
 bool Browser::CanBack()const{BOOL value=FALSE;if(impl->web)impl->web->get_CanGoBack(&value);return value;}bool Browser::CanForward()const{BOOL value=FALSE;if(impl->web)impl->web->get_CanGoForward(&value);return value;}
 bool Browser::Loaded()const{return impl->loaded&&Ready();}

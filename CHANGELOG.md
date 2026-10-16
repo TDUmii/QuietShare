@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.8.0
+
+- Thêm zoom web 25-400% bằng nút thu/phóng, nút phần trăm hiện tại kiêm đặt lại 100%, Ctrl+−/+/0 và Ctrl rồi lăn chuột; tách biệt với zoom của file.
+- Bật web trong lúc Smart Mirror đang chiếu giữ khung hình công khai gần nhất trong kiểm tra canary. Đạt thì tiếp tục phiên chiếu; thất bại/hủy vẫn dừng và khóa. Rào thời gian sau khi gỡ canary loại khung hình cũ trước khi chiếu tiếp.
+- Thanh cuộn Cài đặt giữ cùng hình học hiển thị/vùng bắt chuột, theo con trỏ khi kéo và có hover nhất quán. Giữ xử lý touchpad mượt và focus tự cuộn.
+- Dùng chung icon loại file cho Explorer và tab, gồm các ngôn ngữ code, JSON/XML/Markdown/config, ảnh/PDF và thư mục mở/đóng; image list native được cache theo DPI.
+- Thêm **Hiệu suất > Tài nguyên**: Tiết kiệm 15 FPS, Cân bằng 30 FPS, Hiệu năng 60 FPS mặc định. Lưu lựa chọn trên máy và đọc được bố cục cũ; web ẩn vẫn yêu cầu tạm ngưng, không cam kết mức giảm RAM.
+- Nhãn màn hình gồm số nhận diện Windows, Chính, Cửa sổ này và độ phân giải; nguồn mặc định là màn chính, đích là màn khác. Nhãn cập nhật theo vị trí cửa sổ/ngôn ngữ, không tự đổi lựa chọn màn hình.
+- Added independent 25-400% web zoom, current-percentage/reset control, Ctrl+−/+/0 and Ctrl plus wheel.
+- Enabling web during Smart Mirror holds the last public frame through the canary check and resumes the same projection only after success. Failure/cancellation remains fail-closed; a post-teardown timestamp barrier rejects stale frames.
+- Unified Settings scrollbar geometry, pointer tracking and hover while retaining proportional touchpad scrolling and focus visibility.
+- Shared DPI-cached file-type icons between Explorer and tabs, including language badges, documents/media and open/closed folders.
+- Added locally persisted Saver/Balanced/Performance projection caps of 15/30/60 FPS, with Performance as default and backward-compatible layout loading. Hidden-browser suspension remains automatic; no fixed RAM saving is promised.
+- Display labels include Windows number, Main, This window and resolution, updating with window location/language while preserving selections; source defaults to primary and destination to another display.
+
 ## 0.7.1
 
 - Ô cỡ chữ/zoom đặt dấu nháy ở cuối khi nhận focus hoặc được bấm lần đầu; các lần bấm tiếp theo vẫn cho đặt vị trí/chọn chữ để sửa. Áp dụng giá trị không đưa dấu nháy về đầu.

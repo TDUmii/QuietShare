@@ -1,5 +1,6 @@
 #include "DocumentBar.h"
 #include "Icons.h"
+#include "FileIcons.h"
 #include <commctrl.h>
 #include <windowsx.h>
 #include <algorithm>
@@ -107,7 +108,7 @@ void DocumentBar::Paint(HDC dc) {
         Fill(dc,r,active || (int)i==hovered_?Raised:Panel);
         int iconX=r.left+MulDiv(10,dpi_,96), center=(r.top+r.bottom)/2;
         RECT icon{iconX,center-MulDiv(8,dpi_,96),iconX+MulDiv(16,dpi_,96),center+MulDiv(8,dpi_,96)};
-        DrawCodicon(dc,tabs_[i].kind==2?0xeae9:tabs_[i].kind==3?0xeb0e:0xea7b,icon,Muted,MulDiv(16,dpi_,96));
+        DrawFileTypeIcon(dc,tabs_[i].script?FileIconKind::Text:FileIconForName(tabs_[i].path.empty()?tabs_[i].name:tabs_[i].path),icon);
         RECT label=r; label.left+=MulDiv(26,dpi_,96); label.right-=MulDiv(tabs_[i].script?8:24,dpi_,96);
         SetTextColor(dc,active?Text:Muted); DrawTextW(dc,tabs_[i].name.c_str(),-1,&label,DT_LEFT|DT_VCENTER|DT_SINGLELINE|DT_END_ELLIPSIS);
         if(!tabs_[i].script) {

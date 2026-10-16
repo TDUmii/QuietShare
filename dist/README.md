@@ -1,4 +1,4 @@
-# QuietShare 0.7.1
+# QuietShare 0.8.0
 
 QuietShare là ứng dụng desktop để đọc lời nhắc, xem code, ảnh và PDF trong một cửa sổ riêng khi thuyết trình. Các trình đọc file chạy offline trên Windows 10/11 x64; có thể bật trình duyệt web khi cần. App hỗ trợ tiếng Việt và tiếng Anh.
 
@@ -12,13 +12,14 @@ QuietShare is a Windows 10/11 x64 desktop app for private scripts, code, images 
 
 - **Nhiều tab**: mở nhiều file hoặc kéo thả một nhóm file; giữ scroll, zoom và trang PDF theo tab. Lời nhắc có tab riêng, không bị file xem trước ghi đè. Tối đa 32 tab, gồm lời nhắc.
 - **Code có màu cú pháp**: số dòng, monospace, giữ thụt dòng, chọn/sao chép, tìm kiếm và xuống dòng tùy chọn. Lexer hỗ trợ Python, C/C++, C#, Java, JavaScript/TypeScript, HTML, CSS, JSON, XML, YAML, Markdown, SQL, Bash/PowerShell, Rust và Go. Code chỉ được xem, không thực thi.
-- **Explorer luôn sẵn có**: thư mục đã mở vẫn nằm cạnh nội dung khi chọn file, đổi tab hoặc thu nhỏ cửa sổ. Kéo đường phân cách để chỉnh độ rộng; ẩn/hiện bằng Ctrl+B. Mặc định bỏ qua thư mục ẩn và `.git`, `node_modules`, `.venv`, `dist`, `build`; đổi bộ lọc trong Cài đặt.
-- **Trình duyệt tùy chọn**: nhập địa chỉ HTTP/HTTPS, tên miền, `localhost` có cổng hoặc từ khóa để tìm Google. Có nút Google, ChatGPT, quay lại, tiến tới và tải lại; mặc định tắt khi khởi động. Hồ sơ đăng nhập riêng của QuietShare được giữ trên máy.
+- **Explorer luôn sẵn có**: thư mục đã mở vẫn nằm cạnh nội dung khi chọn file, đổi tab hoặc thu nhỏ cửa sổ. Icon phân biệt loại file trong cây và tab, gồm code, JSON, Markdown, ảnh và PDF. Kéo đường phân cách để chỉnh độ rộng; ẩn/hiện bằng Ctrl+B. Mặc định bỏ qua thư mục ẩn và `.git`, `node_modules`, `.venv`, `dist`, `build`; đổi bộ lọc trong Cài đặt.
+- **Trình duyệt tùy chọn**: nhập địa chỉ HTTP/HTTPS, tên miền, `localhost` có cổng hoặc từ khóa để tìm Google. Có Google, ChatGPT, quay lại, tiến tới, tải lại và zoom 25-400%; mặc định tắt khi khởi động. Hồ sơ đăng nhập riêng của QuietShare được giữ trên máy.
 - **PDF trong app**: xem từng trang, vừa khung/vừa chiều ngang, zoom 25-400%, chọn/sao chép và tìm chữ khi có lớp văn bản. PDF scan vẫn xem được; PDF có mật khẩu chưa được hỗ trợ.
 - **Lời nhắc và ảnh**: tự lưu lời nhắc bằng Windows DPAPI, soạn/đọc và cuộn ở ba tốc độ; ảnh có zoom và kéo để di chuyển.
 - **Cài đặt tập trung**: ngôn ngữ, ghim, cỡ chữ/zoom nhập tay, tốc độ lời nhắc, xuống dòng code, bố cục, thư mục, trình duyệt và màn hình chiếu trong một form cuộn có nhóm rõ ràng. Tab tự đưa mục đang chọn vào vùng nhìn thấy.
 - **Bố cục tùy chỉnh**: nút **Bố cục** ở góc trên bên phải bật/tắt riêng thanh icon, Explorer, tab, công cụ và trạng thái. App nhớ độ rộng Explorer cùng các lựa chọn trên máy; có lệnh khôi phục bố cục mặc định. F11 ẩn các thanh và giữ những nút cần thiết.
-- **Smart Mirror**: đưa hình ảnh công khai từ màn hình nguồn lên màn hình đích ở chế độ Extend, sau khi kiểm tra capture thực tế đạt.
+- **Smart Mirror**: đưa hình ảnh công khai từ màn hình nguồn lên màn hình đích ở chế độ Extend, sau khi kiểm tra capture thực tế đạt. Khi bật web giữa phiên chiếu, giữ khung hình công khai gần nhất trong lúc kiểm tra, rồi tiếp tục nếu đạt.
+- **Chế độ tài nguyên**: Tiết kiệm, Cân bằng và Hiệu năng đặt giới hạn chiếu lần lượt 15/30/60 FPS; mặc định Hiệu năng. App nhớ lựa chọn trên máy và vẫn yêu cầu tạm ngưng web khi không xem.
 - Giao diện tối với góc bo nhẹ, ghim trên cùng, che nhanh F8 và VI/EN trong app và bộ cài.
 - Thanh bên chỉ hiện icon; giữ chuột trên icon để xem tên. Menu công cụ có nền tối, icon và phím tắt căn phải; mở menu vẫn giữ được kiểm tra WGC.
 
@@ -27,7 +28,7 @@ Văn bản/code hỗ trợ UTF-8 hoặc UTF-16 có BOM, tối đa 5 MiB. App nh�
 ### Cài đặt
 
 1. Cần **Windows 10 phiên bản 2004 (build 19041) trở lên hoặc Windows 11, x64**, với DWM và Windows Graphics Capture hoạt động.
-2. Tải [QuietShare 0.7.1](https://github.com/TDUmii/QuietShare/releases/tag/v0.7.1), giải nén toàn bộ gói và chạy `QuietShare-Setup.exe`. Bộ cài dùng tài khoản hiện tại, không cần quyền quản trị.
+2. Tải [QuietShare 0.8.0](https://github.com/TDUmii/QuietShare/releases/tag/v0.8.0), giải nén toàn bộ gói và chạy `QuietShare-Setup.exe`. Bộ cài dùng tài khoản hiện tại, không cần quyền quản trị.
 3. Để dùng portable, chạy `QuietShare.exe` trong thư mục đã giải nén. Giữ `Scintilla.dll`, `Lexilla.dll`, `pdfium.dll` và `WebView2Loader.dll` cạnh EXE; không chỉ sao chép riêng EXE.
 
 Để dùng web, máy cần **Microsoft Edge WebView2 Evergreen Runtime** hiện hành. Nếu trình duyệt không mở được, cài/cập nhật từ [Microsoft WebView2](https://developer.microsoft.com/en-us/microsoft-edge/webview2/), rồi tắt/bật trình duyệt lại. Các chức năng đọc file vẫn dùng được khi không có runtime.
@@ -48,7 +49,7 @@ Văn bản/code hỗ trợ UTF-8 hoặc UTF-16 có BOM, tối đa 5 MiB. App nh�
 
 Ctrl+Alt+Q gọi QuietShare lên khi bị che hoặc thu nhỏ, kể cả lúc không ghim. Phím tắt không mở Alt+Tab và giữ focus ở ứng dụng đang dùng. Nếu đang che bằng F8, nội dung vẫn được che. Rê chuột vào nút Ghim để xem trạng thái phím tắt; app khác dùng cùng tổ hợp có thể khiến đăng ký không thành công.
 
-Mở **Cài đặt** bằng icon bánh răng hoặc **⋯ > Cài đặt**. Dùng con lăn, touchpad, thanh cuộn hoặc Tab để tới từng mục; giao diện tự cuộn khi mục nhận focus nằm ngoài vùng nhìn thấy. Ô cỡ chữ đặt dấu nháy cuối giá trị khi nhận focus/bấm lần đầu; các lần bấm sau vẫn sửa bình thường. Cài đặt và thanh tab dài cuộn theo từng chuyển động nhỏ của touchpad.
+Mở **Cài đặt** bằng icon bánh răng hoặc **⋯ > Cài đặt**. Dùng con lăn, touchpad, thanh cuộn hoặc Tab để tới từng mục; giao diện tự cuộn khi mục nhận focus nằm ngoài vùng nhìn thấy. Thanh cuộn giữ cùng vùng bắt chuột và bám theo con trỏ khi kéo, kể cả khi chuột rời khỏi thanh. Ô cỡ chữ đặt dấu nháy cuối giá trị khi nhận focus/bấm lần đầu; các lần bấm sau vẫn sửa bình thường. Cài đặt và thanh tab dài cuộn theo từng chuyển động nhỏ của touchpad.
 
 | Nhóm | Điều chỉnh |
 |---|---|
@@ -56,15 +57,22 @@ Mở **Cài đặt** bằng icon bánh răng hoặc **⋯ > Cài đặt**. Dùng
 | **Đọc nội dung** | Nhập cỡ chữ/zoom rồi nhấn Enter; dùng **Đặt lại** để về mặc định. Lời nhắc/văn bản: 8-200 pt. Code/ảnh/PDF: 25-400%. Chọn tốc độ lời nhắc và xuống dòng code. |
 | **Bố cục** | Bật/tắt riêng năm thanh, hoặc khôi phục bố cục mặc định. |
 | **Tiện ích** | Hiện thư mục nặng/ẩn và bật/tắt trình duyệt. |
+| **Hiệu suất** | Bấm **Tài nguyên** để chuyển Tiết kiệm 15 FPS, Cân bằng 30 FPS và Hiệu năng 60 FPS. Lựa chọn được lưu trên máy. |
 | **Trình chiếu** | Chọn màn hình nguồn, màn hình đích và có hiện con trỏ khi chiếu hay không. |
 
 Hộp chọn file/dự án là cửa sổ native được bảo vệ của QuietShare. Dùng **Ổ đĩa**, **Lên**, nhấp đúp để vào thư mục; Ctrl/Shift chọn nhiều file rồi bấm **Mở**, hoặc bấm **Chọn thư mục** cho dự án. Hộp chọn chỉ duyệt ổ cục bộ, bỏ qua reparse/junction và hiện tối đa 1.000 mục mỗi thư mục.
 
 Để dùng web: bật **Cài đặt > Tiện ích > Trình duyệt web**, chờ kiểm tra vùng WebView2 rồi chọn icon quả địa cầu. Bật tại Cài đặt giữ nguyên trang Cài đặt; nội dung web chỉ mở khi kiểm tra đạt. Cũng có thể bật/tắt ngay trên trang trình duyệt. Ô địa chỉ nhận URL như `https://example.com`, tên miền như `example.com`, địa chỉ cục bộ như `localhost:3000` hoặc từ khóa như `cách dùng C++`; nhấn Enter hoặc **Mở** để truy cập hoặc tìm Google. Nút **Google** mở trang tìm kiếm, **ChatGPT** mở `https://chatgpt.com`; đăng nhập trong trang web khi cần. Tắt trình duyệt đóng engine web, giữ cookie của hồ sơ riêng để lần sau đăng nhập thuận tiện. Chuyển sang đọc file sẽ ẩn và yêu cầu tạm ngưng web; mở lại để tiếp tục. F8 che cả web và ô địa chỉ. Thay đổi màn hình tắt web để yêu cầu kiểm tra mới.
 
+Dùng **− / phần trăm / +** trên thanh web để thu/phóng từ 25% tới 400%; nút phần trăm hiện mức đang dùng và đưa về 100% khi bấm. Ctrl+`−`, Ctrl+`+`, Ctrl+`0` và Ctrl rồi lăn chuột cũng điều khiển zoom web khi đang ở trình duyệt. Zoom web độc lập với cỡ chữ/zoom của tab file. Nếu đang chiếu, bật web sẽ tạm giữ khung hình công khai gần nhất trong tối đa khoảng 5 giây để kiểm tra; đạt thì tiếp tục, không cần bấm Bắt đầu lại. Nếu kiểm tra thất bại hoặc bị hủy, app dừng chiếu và khóa theo quy tắc bảo vệ hiện có.
+
 Web trong bản này dành cho đọc và chat bằng chữ. Tải lên/tải xuống file, camera, microphone, chia sẻ màn hình, thông báo, DevTools và menu native bị tắt. Dropdown HTML native có thể chọn bằng phím mũi tên; dropdown do website vẽ vẫn dùng bình thường. Popup tự phát bị chặn; link mở cửa sổ mới do người dùng bấm chuyển vào cùng vùng web. Luồng đăng nhập OAuth cần popup riêng có thể không tương thích.
 
 Để dùng **Smart Mirror**: chuyển **Win+P > Extend**, đặt toàn bộ QuietShare trên màn hình nguồn, vào **Cài đặt > Trình chiếu**, chọn nguồn và đích khác nhau cùng lựa chọn con trỏ. Tại trang **Trình chiếu**, xem tóm tắt hai màn hình, bấm **Kiểm tra WGC** và **Bắt đầu**; **Dừng** kết thúc chiếu. **Thiết lập màn hình** đưa thẳng tới nhóm Trình chiếu trong Cài đặt. Hai màn hình phải thuộc cùng GPU trong phiên bản này. Một màn hình vẫn có thể kiểm tra WGC để dùng cửa sổ riêng, nhưng không thể bắt đầu Smart Mirror.
+
+Danh sách màn hình dùng dạng **Màn N · Chính · Cửa sổ này · độ phân giải**; nhãn Chính/Cửa sổ này chỉ hiện khi đúng với màn đó. Mặc định nguồn là màn chính, đích là màn khác nếu có. Nhãn Cửa sổ này cập nhật khi chuyển QuietShare sang màn khác; lựa chọn nguồn/đích không tự đổi theo nhãn. Dựa vào các nhãn này thay vì mặc định Màn 1 luôn là màn chính.
+
+**Cài đặt > Hiệu suất > Tài nguyên** điều chỉnh giới hạn FPS chiếu, không phải cam kết FPS thực tế hoặc mức giảm RAM. Tốc độ còn phụ thuộc màn hình, GPU và nội dung; chế độ Tiết kiệm/Cân bằng giảm nhịp xử lý chiếu. Web ẩn vẫn gửi yêu cầu tạm ngưng ở mọi chế độ; website và WebView2 quyết định lượng bộ nhớ còn giữ.
 
 **Duplicate luôn khóa nội dung riêng.** Kiểm tra thất bại, thay đổi màn hình hoặc capture mất an toàn sẽ dừng chiếu và khóa nội dung. “Windows đã nhận” xác nhận trạng thái API; “người xem chưa được xác minh” vẫn cần kiểm tra từ phía người nhận trong đúng Zoom/Meet/Teams/OBS hoặc máy chiếu sẽ dùng. Dùng nội dung mẫu trước buổi chia sẻ. Phần mềm không ngăn máy ảnh bên ngoài chụp màn hình.
 
@@ -88,13 +96,14 @@ Web trong bản này dành cho đọc và chat bằng chữ. Tải lên/tải xu
 
 - **Multiple tabs**: open/drop several files and keep scroll, zoom and PDF page per tab. The permanent script remains independent of read-only previews. Up to 32 tabs, including the script.
 - **Syntax-colored code**: line numbers, monospace indentation, selection/copy, find and optional wrapping. Lexers cover Python, C/C++, C#, Java, JavaScript/TypeScript, HTML, CSS, JSON, XML, YAML, Markdown, SQL, Bash/PowerShell, Rust and Go. Code is never executed.
-- **Persistent Explorer**: the open folder stays beside content when opening files, switching tabs or narrowing the window. Drag the divider to resize it; use Ctrl+B to hide/show it. Hidden folders and `.git`, `node_modules`, `.venv`, `dist`, `build` are ignored by default; change the filter in Settings.
-- **Optional browser**: enter an HTTP/HTTPS address, a domain, `localhost` with a port, or a Google search query. Includes Google and ChatGPT shortcuts, Back, Forward and Reload; starts disabled. QuietShare keeps its own login profile locally.
+- **Persistent Explorer**: the open folder stays beside content when opening files, switching tabs or narrowing the window. File-type icons distinguish code, JSON, Markdown, images and PDFs in the tree and tabs. Drag the divider to resize it; use Ctrl+B to hide/show it. Hidden folders and `.git`, `node_modules`, `.venv`, `dist`, `build` are ignored by default; change the filter in Settings.
+- **Optional browser**: enter an HTTP/HTTPS address, a domain, `localhost` with a port, or a Google search query. Includes Google and ChatGPT shortcuts, Back, Forward, Reload and 25-400% zoom; starts disabled. QuietShare keeps its own login profile locally.
 - **In-app PDFs**: page navigation, fit-page/fit-width, 25-400% zoom, selection/copy and find when a text layer exists. Image-only scans remain viewable; password-protected PDFs are unsupported.
 - **Scripts and images**: local Windows DPAPI autosave, editing/reading and three auto-scroll speeds; image zoom and dragging to pan.
 - **Central settings**: language, pinning, manual text size/zoom, script scrolling, code wrapping, layout, folders, browsing and presentation displays in one grouped scroll form. Tab brings the focused setting into view.
 - **Custom layout**: the top-right **Layout** button independently toggles the activity bar, Explorer, tabs, toolbar and status bar. Explorer width and visibility choices are saved locally; restore the default layout at any time. F11 hides the bars while keeping essential actions available.
-- **Smart Mirror**: project a public source display onto a separate destination in Extend after the actual capture preflight passes.
+- **Smart Mirror**: project a public source display onto a separate destination in Extend after the actual capture preflight passes. Enabling web during projection holds the last public frame for verification, then resumes on success.
+- **Resource modes**: Saver, Balanced and Performance cap projection at 15/30/60 FPS; Performance is the default. The choice is saved locally, and hidden browsing continues to request suspension.
 - Dark interface with softly rounded corners, always-on-top pinning, instant F8 hide and VI/EN app/installer interfaces.
 - Icon-only navigation with delayed name tooltips. The dark tools menu includes icons and aligned shortcuts; opening it preserves WGC verification.
 
@@ -103,7 +112,7 @@ Text/code support UTF-8 or BOM-marked UTF-16, up to 5 MiB. Supported extensions 
 ### Install
 
 1. Use **Windows 10 version 2004 (build 19041) or later, or Windows 11, x64**, with working DWM and Windows Graphics Capture.
-2. Download [QuietShare 0.7.1](https://github.com/TDUmii/QuietShare/releases/tag/v0.7.1), extract the complete package and run `QuietShare-Setup.exe`. It installs for the current account without administrator rights.
+2. Download [QuietShare 0.8.0](https://github.com/TDUmii/QuietShare/releases/tag/v0.8.0), extract the complete package and run `QuietShare-Setup.exe`. It installs for the current account without administrator rights.
 3. For portable use, run `QuietShare.exe` in the extracted folder. Keep `Scintilla.dll`, `Lexilla.dll`, `pdfium.dll` and `WebView2Loader.dll` beside it; copying only the EXE is insufficient.
 
 Web browsing requires a current **Microsoft Edge WebView2 Evergreen Runtime**. If it cannot start, install/update the runtime from [Microsoft WebView2](https://developer.microsoft.com/en-us/microsoft-edge/webview2/) and toggle the browser off/on. Offline file readers remain available without it.
@@ -124,7 +133,7 @@ Close QuietShare before upgrading with a new installer. Upgrading/uninstalling p
 
 Ctrl+Alt+Q recalls a covered or minimized QuietShare window, including when unpinned. It preserves the current application's focus and does not open Alt+Tab. F8-masked content remains masked. Hover the Pin button to see shortcut availability; another application's registration can occupy the same combination.
 
-Open **Settings** with the gear icon or **⋯ > Settings**. Use the wheel, touchpad, scrollbar or Tab to reach each setting; focus automatically scrolls off-screen controls into view. The size field places the caret at the end on first focus/click; subsequent clicks allow normal editing. Small touchpad movements scroll Settings and overflowing tabs proportionally.
+Open **Settings** with the gear icon or **⋯ > Settings**. Use the wheel, touchpad, scrollbar or Tab to reach each setting; focus automatically scrolls off-screen controls into view. The scrollbar keeps a consistent hit area and follows the pointer while dragging, including outside the track. The size field places the caret at the end on first focus/click; subsequent clicks allow normal editing. Small touchpad movements scroll Settings and overflowing tabs proportionally.
 
 | Group | Controls |
 |---|---|
@@ -132,14 +141,21 @@ Open **Settings** with the gear icon or **⋯ > Settings**. Use the wheel, touch
 | **Reading** | Type text size/zoom and press Enter; **Reset** restores the default. Script/text: 8-200 pt. Code/images/PDF: 25-400%. Choose script scrolling speed and code wrapping. |
 | **Workspace** | Independently toggle the five supporting bars or reset the layout. |
 | **Tools** | Include heavy/hidden folders and enable/disable browsing. |
+| **Performance** | Click **Resources** to cycle Saver 15 FPS, Balanced 30 FPS and Performance 60 FPS. The choice is saved locally. |
 | **Presentation** | Select the source display, destination and whether to show the pointer. |
 
 The file/project picker is a capture-protected QuietShare native window. Use **Drives**, **Up**, and double-click to enter a folder; Ctrl/Shift selects multiple files, then **Open**, or use **Select folder** for a project. It browses local drives, skips reparse/junction entries and displays up to 1,000 entries per folder.
 
 For web: enable **Settings > Tools > Web browser**, wait for the rendered WebView2 capture check, then choose the globe icon. Enabling it in Settings keeps Settings open; web content is available only after the check passes. Browsing can also be toggled from the browser page. The address field accepts URLs such as `https://example.com`, domains such as `example.com`, local addresses such as `localhost:3000`, and search terms such as `C++ examples`; press Enter or **Go** to navigate or search Google. **Google** opens the search page; **ChatGPT** opens `https://chatgpt.com`. Sign in on the page when needed. Disabling browsing closes the web engine while retaining its separate profile cookies. Switching to file reading hides the browser and requests suspension; return to resume. F8 hides web content and its address. A display change closes web browsing until a fresh check.
 
+Use **− / percentage / +** on the web bar to zoom from 25% to 400%. The percentage shows the current level and resets to 100% when clicked. Ctrl+`−`, Ctrl+`+`, Ctrl+`0` and Ctrl plus the wheel also control web zoom while browsing. Web zoom is independent of file-tab text size/zoom. During projection, enabling web holds the last public frame for up to about five seconds of verification; success resumes projection without another Start. Failure or cancellation stops projection and locks content under the existing privacy rules.
+
 This browser is for reading and text chat. File uploads/downloads, camera, microphone, screen sharing, notifications, DevTools and native context menus are disabled. Native HTML selects support arrow-key selection; website-rendered dropdowns remain usable. Unsolicited popups are blocked; user-initiated new-window links navigate in the same protected view. OAuth flows requiring a separate popup may be incompatible.
 
 For **Smart Mirror**, choose **Win+P > Extend**, place the entire QuietShare window on the source display, then open **Settings > Presentation** to select different source/destination displays and the pointer setting. On the **Presentation** page, review the display summary, press **Verify WGC privacy** and **Start**; **Stop** ends projection. **Display settings** jumps directly to the Presentation group in Settings. Both displays must use the same GPU in this version. A single display can run the WGC preflight for private-window use but cannot start Smart Mirror.
+
+Display choices use **Display N · Main · This window · resolution**; Main/This window appear only when applicable. Source defaults to the primary display, with another display as destination when available. This window updates when QuietShare moves between displays; the source/destination selection does not automatically follow that label. Use the labels rather than assuming Display 1 is always primary.
+
+**Settings > Performance > Resources** sets the projection FPS cap, with no promise of achieved FPS or a fixed RAM reduction. Actual throughput depends on the display, GPU and source content; Saver/Balanced reduce projection processing cadence. Hidden web views still request suspension in every mode; the website and WebView2 determine retained memory.
 
 **Duplicate always locks private content.** Failed checks, changed displays or unsafe capture stop projection and lock the readers. “Windows accepted” confirms the API state; “Viewer unverified” still requires a receiver-side check in the actual Zoom/Meet/Teams/OBS or projector setup. Use sample content before sharing. Software cannot prevent an external camera from filming the screen.

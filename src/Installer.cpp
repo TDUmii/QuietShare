@@ -22,7 +22,7 @@
 namespace
 {
 constexpr wchar_t kAppName[] = L"QuietShare";
-constexpr wchar_t kVersion[] = L"0.7.1";
+constexpr wchar_t kVersion[] = L"0.8.0";
 constexpr wchar_t kUninstallKey[] = L"Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\QuietShare";
 constexpr int kPayloadResource = 301;
 constexpr int kActionButton = 101;
@@ -903,12 +903,12 @@ int SelfTest(const std::wstring &reportPath)
     bool versionOk = versionSize && GetFileVersionInfoW(self.c_str(), 0, versionSize, versionData.data()) &&
                      VerQueryValueW(versionData.data(), L"\\", reinterpret_cast<void **>(&info), &infoSize) &&
                      infoSize >= sizeof(VS_FIXEDFILEINFO) && info->dwSignature == 0xFEEF04BD &&
-                     HIWORD(info->dwFileVersionMS) == 0 && LOWORD(info->dwFileVersionMS) == 7 &&
-                     HIWORD(info->dwFileVersionLS) == 1 && LOWORD(info->dwFileVersionLS) == 0;
+                     HIWORD(info->dwFileVersionMS) == 0 && LOWORD(info->dwFileVersionMS) == 8 &&
+                     HIWORD(info->dwFileVersionLS) == 0 && LOWORD(info->dwFileVersionLS) == 0;
     const bool ok = payloadOk && runtimeOk && pathOk && versionOk;
     std::ostringstream report;
     report << "{\n  \"selfTestPassed\": " << (ok ? "true" : "false")
-           << ",\n  \"version\": \"0.7.1\",\n  \"versionResourceVerified\": "
+           << ",\n  \"version\": \"0.8.0\",\n  \"versionResourceVerified\": "
            << (versionOk ? "true" : "false")
            << ",\n  \"payloadResourceId\": 301,\n  \"payloadBytes\": " << payload.size
            << ",\n  \"payloadPortableExecutable\": " << (payloadOk ? "true" : "false")
@@ -1292,7 +1292,7 @@ LRESULT CALLBACK WindowProc(HWND window, UINT message, WPARAM wParam, LPARAM lPa
         gFolderPath = Label(window, gRoot.c_str(), gFont);
         gStatus = Label(window,
                         gUninstall ? L"Hãy đóng QuietShare trước khi gỡ cài đặt."
-                                   : L"Thêm lối tắt vào Desktop và Start Menu. Phiên bản 0.7.1.",
+                                   : L"Thêm lối tắt vào Desktop và Start Menu. Phiên bản 0.8.0.",
                         gFont);
         if (!gUninstall)
         {

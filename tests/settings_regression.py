@@ -15,6 +15,7 @@ import subprocess
 import sys
 import time
 import uuid
+from types import SimpleNamespace
 
 sys.dont_write_bytecode = True
 import lifecycle_regression as native
@@ -28,6 +29,8 @@ USER32.GetWindowRgn.argtypes = [wintypes.HWND, wintypes.HRGN]
 USER32.GetWindowRgn.restype = ctypes.c_int
 USER32.GetWindowRect.argtypes = [wintypes.HWND, ctypes.POINTER(wintypes.RECT)]
 USER32.GetWindowRect.restype = wintypes.BOOL
+USER32.GetClientRect.argtypes = [wintypes.HWND, ctypes.POINTER(wintypes.RECT)]
+USER32.GetClientRect.restype = wintypes.BOOL
 USER32.SetWindowPos.argtypes = [wintypes.HWND, wintypes.HWND, ctypes.c_int,
                                ctypes.c_int, ctypes.c_int, ctypes.c_int, wintypes.UINT]
 USER32.SetWindowPos.restype = wintypes.BOOL
@@ -42,6 +45,22 @@ USER32.PeekMessageW.argtypes = [ctypes.POINTER(wintypes.MSG), wintypes.HWND,
                               wintypes.UINT, wintypes.UINT, wintypes.UINT]
 USER32.PeekMessageW.restype = wintypes.BOOL
 native.KERNEL32.GetCurrentThreadId.restype = wintypes.DWORD
+
+class ScrollInfo(ctypes.Structure):
+    _fields_ = [("cbSize", wintypes.UINT), ("fMask", wintypes.UINT),
+                ("nMin", ctypes.c_int), ("nMax", ctypes.c_int), ("nPage", wintypes.UINT),
+                ("nPos", ctypes.c_int), ("nTrackPos", ctypes.c_int)]
+
+class GuiThreadInfo(ctypes.Structure):
+    _fields_ = [("cbSize", wintypes.DWORD), ("flags", wintypes.DWORD),
+                ("hwndActive", wintypes.HWND), ("hwndFocus", wintypes.HWND),
+                ("hwndCapture", wintypes.HWND), ("hwndMenuOwner", wintypes.HWND),
+                ("hwndMoveSize", wintypes.HWND), ("hwndCaret", wintypes.HWND), ("rcCaret", wintypes.RECT)]
+
+USER32.GetGUIThreadInfo.argtypes = [wintypes.DWORD, ctypes.POINTER(GuiThreadInfo)]
+USER32.GetGUIThreadInfo.restype = wintypes.BOOL
+USER32.GetScrollInfo.argtypes = [wintypes.HWND, ctypes.c_int, ctypes.POINTER(ScrollInfo)]
+USER32.GetScrollInfo.restype = wintypes.BOOL
 GDI32.CreateRectRgn.argtypes = [ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_int]
 GDI32.CreateRectRgn.restype = wintypes.HRGN
 GDI32.DeleteObject.argtypes = [wintypes.HGDIOBJ]
@@ -166,6 +185,31 @@ def main():
     def scroll(code, position=0):
         native.send(window, 0x115, code | (position << 16), control(187))
 
+    def scroll_geometry():
+        info, bounds = ScrollInfo(), wintypes.RECT()
+        info.cbSize, info.fMask = ctypes.sizeof(info), 0x17
+        if not USER32.GetScrollInfo(control(187), 2, ctypes.byref(info)) or not USER32.GetClientRect(control(187), ctypes.byref(bounds)):
+            raise ctypes.WinError(ctypes.get_last_error())
+        # GetScrollBarInfo on the remote subclassed HWND faults inside User32.
+        # Read only actual in-process SBI integers through privacy-gated queries.
+        height, top, arrow = query(31), query(32), query(33)
+        if height <= 0 or arrow <= 0:
+            raise AssertionError("Owned native scrollbar metrics are unavailable")
+        bar = SimpleNamespace(rcScrollBar=bounds, dxyLineButton=arrow,
+                              xyThumbTop=top, xyThumbBottom=top + height)
+        return info, bar
+
+    def owned_capture():
+        info = GuiThreadInfo()
+        info.cbSize = ctypes.sizeof(info)
+        thread = USER32.GetWindowThreadProcessId(window, None)
+        if not USER32.GetGUIThreadInfo(thread, ctypes.byref(info)):
+            raise ctypes.WinError(ctypes.get_last_error())
+        return info.hwndCapture
+
+    def scrollbar_pointer(message, x, y, buttons=0):
+        native.send(control(187), message, buttons, ((y & 0xFFFF) << 16) | (x & 0xFFFF))
+
     def wheel(delta, identifier=None):
         native.send(window if identifier is None else control(identifier), 0x20A, (delta & 0xFFFF) << 16)
 
@@ -198,7 +242,7 @@ def main():
         check("settingsPageActive", query(21) == 1)
         check("fontSliderRemoved", not control(130))
         identifiers = (106, 107, 163, 108, 104, 146, 181, 151, 182, 183, 184,
-                       185, 152, 155, 160, 161, 143, 187)
+                       185, 152, 155, 160, 161, 143, 187, 189)
         check("consolidatedControlsKeepStableMainParent", all(control(identifier) and
               USER32.GetParent(control(identifier)) == window for identifier in identifiers))
         scrollbar_class = ctypes.create_unicode_buffer(64)
@@ -220,9 +264,61 @@ def main():
         actual, expected, numeric_height = numeric_clip_bounds(control(163), control(187))
         check("numericClipPreservedAfterSettingsRelayout", actual == expected and 0 < actual[3] - actual[1] < numeric_height)
         maximum = query(20)
+        thumb_heights, native_pages = [], []
         for index, position in enumerate((maximum // 4, maximum // 2, maximum)):
             scroll(4, position)
             check("thumbPositionUpdatesImmediately:" + str(index), query(19) == position)
+            info, bar = scroll_geometry()
+            thumb_heights.append(bar.xyThumbBottom - bar.xyThumbTop)
+            native_pages.append(info.nPage)
+            check("nativeScrollbarPositionMatchesSettings:" + str(index), info.nPos == position)
+        check("nativeThumbHeightStaysStableAcrossPositions", min(thumb_heights) > 0 and max(thumb_heights) - min(thumb_heights) <= 1)
+        check("nativeScrollbarPageSizeStaysStable", min(native_pages) > 0 and len(set(native_pages)) == 1)
+        before_thumb = thumb_heights[-1]
+        native.send(control(187), 0x200, 0, (((bar.xyThumbTop + bar.xyThumbBottom) // 2) << 16) | 7)
+        _, hovered_bar = scroll_geometry()
+        check("nativeThumbHoverPreservesGeometry", hovered_bar.xyThumbBottom - hovered_bar.xyThumbTop == before_thumb)
+        native.send(control(187), 0x2A3)
+        metrics["nativeScrollbar"] = {"thumbHeights": thumb_heights, "pageSizes": native_pages,
+              "method": "Owned native scrollbar SCROLLINFO, client geometry and privacy-gated in-process SCROLLBARINFO integers; no desktop pixels"}
+        scroll(4, maximum // 3)
+        _, drag_bar = scroll_geometry()
+        before_position = query(19)
+        thumb_height = drag_bar.xyThumbBottom - drag_bar.xyThumbTop
+        bar_width = drag_bar.rcScrollBar.right - drag_bar.rcScrollBar.left
+        bar_height = drag_bar.rcScrollBar.bottom - drag_bar.rcScrollBar.top
+        pointer_x, pointer_y = bar_width // 2, (drag_bar.xyThumbTop + drag_bar.xyThumbBottom) // 2
+        scrollbar_pointer(0x201, pointer_x, pointer_y, 1)
+        try:
+            check("settingsThumbDragCapturesOwnedScrollbar", owned_capture() == control(187))
+            check("settingsThumbPressPreservesOffset", query(19) == before_position)
+            scrollbar_pointer(0x200, pointer_x, pointer_y + 20, 1)
+            check("settingsThumbDragMovesSettings", before_position < query(19) < maximum)
+            _, moved_bar = scroll_geometry()
+            check("settingsThumbDragPreservesGeometry", abs(moved_bar.xyThumbBottom - moved_bar.xyThumbTop - thumb_height) <= 1
+                  and moved_bar.rcScrollBar.right - moved_bar.rcScrollBar.left == bar_width)
+            scrollbar_pointer(0x200, pointer_x, bar_height + 40, 1)
+            check("settingsThumbDragClampsBeyondBottom", query(19) == maximum)
+            scrollbar_pointer(0x200, pointer_x, -40, 1)
+            check("settingsThumbDragClampsBeyondTop", query(19) == 0)
+        finally:
+            scrollbar_pointer(0x202, pointer_x, -40)
+        check("settingsThumbMouseUpReleasesCapture", owned_capture() != control(187))
+        scrollbar_pointer(0x200, pointer_x, bar_height + 40, 1)
+        check("releasedThumbStopsDragging", query(19) == 0)
+        scroll(4, maximum // 2)
+        _, drag_bar = scroll_geometry()
+        pointer_y = (drag_bar.xyThumbTop + drag_bar.xyThumbBottom) // 2
+        scrollbar_pointer(0x201, pointer_x, pointer_y, 1)
+        try:
+            check("settingsThumbCanCaptureAgain", owned_capture() == control(187))
+            native.send(control(187), 0x1F)  # WM_CANCELMODE
+            check("settingsThumbCancelReleasesCapture", owned_capture() != control(187))
+            before_position = query(19)
+            scrollbar_pointer(0x200, pointer_x, bar_height + 40, 1)
+            check("cancelledThumbStopsDragging", query(19) == before_position)
+        finally:
+            scrollbar_pointer(0x202, pointer_x, pointer_y)
         scroll(7)
         check("settingsScrollBottom", query(19) == query(20))
         check("lastDisplayControlVisibleAtBottom", region_visible(control(143)))
@@ -235,6 +331,13 @@ def main():
         check("comboFocusScrollsIntoView", query(19) > 0 and region_visible(control(160)))
         check("sourceMonitorListAvailableInSettings", native.send(control(160), 0x146) >= 1)
         check("destinationMonitorListAvailableInSettings", native.send(control(161), 0x146) >= 1)
+        primary_number, monitor_count = query(29), query(30)
+        source_text = native.control_text(control(160))
+        check("windowsDisplayNumbersAvailable", primary_number >= 1 and monitor_count >= 1)
+        check("defaultSourceUsesPrimaryWindowsDisplay", source_text.startswith("Màn " + str(primary_number) + " ·") and "Chính" in source_text)
+        check("windowDisplayMarkerPresentOnSingleDisplay", monitor_count != 1 or "Cửa sổ này" in source_text)
+        check("destinationDefaultsOtherDisplayWhenAvailable", monitor_count == 1 or
+              native.send(control(160), 0x147) != native.send(control(161), 0x147))
         scroll(6)
         native.send(control(106), 0x20A, 0xFF880000)
         check("wheelOverSettingScrollsPage", query(19) > 0)
@@ -344,8 +447,19 @@ def main():
         before = native.control_text(control(107))
         command(107)
         check("languageChangesInSettings", bool(native.control_text(control(107))) and native.control_text(control(107)) != before and query(21) == 1)
+        source_text = native.control_text(control(160))
+        check("englishMonitorIdentityUsesWindowsDisplayNumber", source_text.startswith("Display " + str(primary_number) + " ·") and "Main" in source_text)
+        check("englishWindowDisplayMarkerOnSingleDisplay", monitor_count != 1 or "This window" in source_text)
         command(107)
         check("languageRestoresInSettings", native.control_text(control(107)) == before)
+        focus(189)
+        check("resourceSettingFocusScrollsIntoView", region_visible(control(189)) and query(19) > 0)
+        check("resourceDefaultIsPerformance60", query(26) == 2 and query(27) == 60)
+        for mode, fps in ((0, 15), (1, 30), (2, 60)):
+            command(189)
+            check("resourceModeCycles:" + str(mode), query(26) == mode and query(27) == fps and query(21) == 1)
+            check("resourceModeLabelMatchesTarget:" + str(mode), str(fps) + " FPS" in native.control_text(control(189)))
+            check("resourceModeDoesNotStartProjectionOrBrowser:" + str(mode), query(25) == 0 and query(10) == 0 and query(11) == 0)
         for identifier, bit, label in ((181, 1, "activity"), (151, 16, "explorer"),
                                        (182, 2, "tabs"), (183, 4, "toolbar"), (184, 8, "status")):
             before = query(16)

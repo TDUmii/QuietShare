@@ -3,7 +3,9 @@
 #include <memory>
 #include <string>
 namespace quietshare {
-constexpr UINT BrowserChangedMessage=WM_APP+20, BrowserProbeMessage=WM_APP+21;
+constexpr UINT BrowserChangedMessage=WM_APP+20, BrowserProbeMessage=WM_APP+21,
+               BrowserZoomMessage=WM_APP+22, // WPARAM generation, LPARAM delta; zero resets.
+               BrowserZoomChangedMessage=WM_APP+23;
 // Starts only on explicit enable. Callbacks hold weak state, never the UI owner.
 class Browser {
 public:
@@ -19,6 +21,11 @@ public:
     void FinishProbe(bool passed);
     void Navigate(const std::wstring& address);
     void Back();void Forward();void Reload();void Focus();
+    // Session preference, 25-400%. The canary always renders at 100%.
+    int ZoomPercent()const;
+    bool SetZoomPercent(int percent);
+    bool AdjustZoomPercent(int delta);
+    bool ResetZoom();
     bool Enabled()const;bool Ready()const;bool Verified()const;
     bool CanBack()const;bool CanForward()const;
     bool Loaded()const;

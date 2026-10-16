@@ -129,6 +129,17 @@ int wmain(int argc,wchar_t **argv)
     Check(classify(random)==CanaryResult::Ambiguous,"unrelated content cannot pass");
     MirrorController controller;
     Check(!controller.IsVerified()&&!controller.Running()&&!controller.Busy(),"initial content gate closed");
+    Check(controller.ResourceMode()==2&&controller.TargetFps()==60&&controller.TickIntervalMs()==8,
+          "default Performance keeps the user's 60 FPS target");
+    for(int mode=0;mode<3;++mode)
+    {
+        controller.SetResourceMode(mode);
+        const unsigned expected[]={15,30,60};
+        Check(controller.ResourceMode()==mode&&controller.TargetFps()==expected[mode]&&
+              controller.TickIntervalMs()==500/expected[mode],"resource profiles use half-frame polling for 15/30/60 FPS budgets");
+        Check(!controller.IsVerified()&&!controller.Running()&&!controller.Projector(),
+              "resource selection never bypasses privacy or starts projection");
+    }
     Check(!controller.Verify(nullptr,L"invalid")&&!controller.IsVerified(),"invalid private window locks");
     controller.Invalidate();controller.Tick();
     Check(!controller.IsVerified()&&!controller.Projector(),"invalidation leaves no output");
@@ -138,6 +149,7 @@ int wmain(int argc,wchar_t **argv)
     {
         const auto &source=monitors.front();
         Check(!source.stableId.empty()&&source.bounds.right>source.bounds.left,"monitor identity and geometry valid");
+        Check(source.displayNumber>0,"native Windows display number is available beside the stable monitor identity");
         Check(!controller.Start(source.stableId,source.stableId)&&!controller.Projector(),"same source and target never creates output");
     }
     controller.Stop();
@@ -160,6 +172,11 @@ int wmain(int argc,wchar_t **argv)
         Check(actualWgc,"real WGC positive control then protected exclusion");
         if(actualWgc)
         {
+            for(int mode=0;mode<3;++mode)
+            {
+                controller.SetResourceMode(mode);
+                Check(controller.IsVerified()&&!controller.Busy(),"changing resource profile preserves verified capture confidence");
+            }
             menuController=&controller;
             SetTimer(privateWindow,91,80,nullptr);
             ToolMenu toolMenu;RECT anchor{24,24,380,64};

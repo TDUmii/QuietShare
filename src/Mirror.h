@@ -22,6 +22,7 @@ struct MonitorInfo
     LUID adapter{};
     bool adapterKnown = false;
     bool primary = false;
+    int displayNumber = 0; // Native \\.\DISPLAYn number, separate from the stable device ID.
 };
 std::vector<MonitorInfo> EnumerateMonitors();
 
@@ -31,8 +32,8 @@ enum class CanaryResult { Ambiguous, MarkerPresent, MarkerExcluded };
 CanaryResult ClassifyCanary(const unsigned char *bgra, int width, int height,
                            unsigned stride, COLORREF publicA, COLORREF publicB);
 
-// All methods run on the owning UI thread. Tick should be called about every
-// 30 ms and before revealing a viewer. Status deliberately never includes paths.
+// All methods run on the owning UI thread. Tick runs before revealing a viewer
+// and at TickIntervalMs while projecting. Status never includes private paths.
 class MirrorController
 {
 public:
@@ -42,6 +43,13 @@ public:
     MirrorController &operator=(const MirrorController &) = delete;
     bool Verify(HWND privateWindow, const std::wstring &sourceId,
                 const std::function<bool(HWND)>& mountSurface = {});
+    // A mounted surface probe freezes an existing same-source projection until
+    // its positive/excluded controls and post-probe frame barrier both pass.
+    // Any failed/cancelled probe still revokes and removes the public output.
+    void SetResourceMode(int mode); // 0 Economy (15), 1 Balanced (30), 2 Performance (60).
+    int ResourceMode() const;
+    unsigned TargetFps() const;
+    unsigned TickIntervalMs() const;
     // Only root-owned fixed-label monitor lists and the scoped fixed command
     // menu may bypass affinity checks. File-picker popup surfaces never do.
     void SetPublicPopups(const std::vector<HWND> &monitorLists);
@@ -58,6 +66,9 @@ public:
     HWND Projector() const;
     std::wstring Status(bool english = false) const;
 private:
+#if defined(QUIETSHARE_MIRROR_REGRESSION)
+    friend struct MirrorRegressionAccess;
+#endif
     struct Impl;
     std::shared_ptr<Impl> impl;
 };

@@ -1,5 +1,5 @@
 {
-  "version": "0.7.1",
+  "version": "0.8.0",
   "platform": "win-x64",
   "windowsBuild": 26200,
   "baselineV03": {
@@ -10,7 +10,7 @@
     "releasePE": 7,
     "status": "PASS before changes"
   },
-  "passed": 1116,
+  "passed": 1240,
   "failed": 0,
   "suites": [
     {
@@ -463,10 +463,38 @@
     },
     {
       "name": "Tabs / lazy project tree",
-      "passed": 53,
+      "passed": 71,
       "failed": 0,
       "notTested": 0,
       "checks": [
+        {
+          "name": "shared_file_icons_use_existing_private_codicons_font",
+          "status": "PASS"
+        },
+        {
+          "name": "file_icons_classify_case_insensitive_basename",
+          "status": "PASS"
+        },
+        {
+          "name": "file_icons_distinguish_common_languages",
+          "status": "PASS"
+        },
+        {
+          "name": "file_icons_distinguish_documents_and_media",
+          "status": "PASS"
+        },
+        {
+          "name": "file_icons_config_web_shell_and_fallback",
+          "status": "PASS"
+        },
+        {
+          "name": "file_icons_folder_state_overrides_extension",
+          "status": "PASS"
+        },
+        {
+          "name": "typed_icon_rasters_visually_distinct",
+          "status": "PASS"
+        },
         {
           "name": "permanent_script_initial_active",
           "status": "PASS"
@@ -632,7 +660,43 @@
           "status": "PASS"
         },
         {
+          "name": "project_icons_native_cached_image_list",
+          "status": "PASS"
+        },
+        {
+          "name": "cached_icons_compose_on_explorer_card_without_black_squares",
+          "status": "PASS"
+        },
+        {
+          "name": "cached_icons_preserve_transparency_on_alternate_background",
+          "status": "PASS"
+        },
+        {
+          "name": "project_icon_list_reused_for_unchanged_dpi",
+          "status": "PASS"
+        },
+        {
+          "name": "project_icon_list_scales_at_150_percent",
+          "status": "PASS"
+        },
+        {
+          "name": "cached_scaled_icons_compose_without_black_squares",
+          "status": "PASS"
+        },
+        {
+          "name": "project_icon_list_scales_at_200_percent",
+          "status": "PASS"
+        },
+        {
           "name": "project_root_is_lazy",
+          "status": "PASS"
+        },
+        {
+          "name": "project_closed_root_has_folder_icon",
+          "status": "PASS"
+        },
+        {
+          "name": "project_expanded_root_has_open_folder_icon",
           "status": "PASS"
         },
         {
@@ -649,6 +713,14 @@
         },
         {
           "name": "lazy_folder_expands_native",
+          "status": "PASS"
+        },
+        {
+          "name": "project_python_file_has_typed_icon",
+          "status": "PASS"
+        },
+        {
+          "name": "project_collapse_restores_folder_icon",
           "status": "PASS"
         },
         {
@@ -1295,14 +1367,14 @@
     },
     {
       "name": "WGC / canary / cancellation",
-      "passed": 52,
+      "passed": 63,
       "failed": 0,
       "notTested": 0,
       "checks": []
     },
     {
       "name": "D3D11 production renderer / WARP",
-      "passed": 16,
+      "passed": 39,
       "failed": 0,
       "notTested": 0,
       "checks": []
@@ -2338,11 +2410,11 @@
           "status": "PASS"
         },
         {
-          "name": "QuietShare.exe.fileVersion0.7.1",
+          "name": "QuietShare.exe.fileVersion0.8.0",
           "status": "PASS"
         },
         {
-          "name": "QuietShare.exe.productVersion0.7.1",
+          "name": "QuietShare.exe.productVersion0.8.0",
           "status": "PASS"
         },
         {
@@ -2350,11 +2422,11 @@
           "status": "PASS"
         },
         {
-          "name": "QuietShare-Setup.exe.fileVersion0.7.1",
+          "name": "QuietShare-Setup.exe.fileVersion0.8.0",
           "status": "PASS"
         },
         {
-          "name": "QuietShare-Setup.exe.productVersion0.7.1",
+          "name": "QuietShare-Setup.exe.productVersion0.8.0",
           "status": "PASS"
         },
         {
@@ -2709,7 +2781,7 @@
     },
     {
       "name": "Shipping EXE / multi-view integration",
-      "passed": 198,
+      "passed": 213,
       "failed": 0,
       "notTested": 5,
       "checks": [
@@ -3474,7 +3546,27 @@
           "status": "PASS"
         },
         {
+          "name": "resourceDefaultPerformance60InProduction",
+          "status": "PASS"
+        },
+        {
+          "name": "resourceSaver15WithoutStartingProjection",
+          "status": "PASS"
+        },
+        {
+          "name": "idleResourceProfileKeeps33msWatchdog",
+          "status": "PASS"
+        },
+        {
+          "name": "resourceProfileDoesNotAutoloadBrowser",
+          "status": "PASS"
+        },
+        {
           "name": "layoutPreferencesWrittenLocally",
+          "status": "PASS"
+        },
+        {
+          "name": "layoutV2PersistsResourceAndVisibility",
           "status": "PASS"
         },
         {
@@ -3498,11 +3590,51 @@
           "status": "PASS"
         },
         {
+          "name": "restartRestoresResourceSaver15",
+          "status": "PASS"
+        },
+        {
+          "name": "restartResourceProfileLeavesBrowserOff",
+          "status": "PASS"
+        },
+        {
           "name": "resetRestoresNavigationAfterRestart",
           "status": "PASS"
         },
         {
+          "name": "layoutResetPreservesResourceChoice",
+          "status": "PASS"
+        },
+        {
           "name": "productionSecondExitClean",
+          "status": "PASS"
+        },
+        {
+          "name": "legacyLayoutRestartControlsInitialized",
+          "status": "PASS"
+        },
+        {
+          "name": "legacyLayoutRestartGate",
+          "status": "PASS"
+        },
+        {
+          "name": "legacyV1LayoutVisibilityAndWidthLoad",
+          "status": "PASS"
+        },
+        {
+          "name": "legacyV1DefaultsResourceToPerformance60",
+          "status": "PASS"
+        },
+        {
+          "name": "legacyV1DoesNotAutoloadBrowser",
+          "status": "PASS"
+        },
+        {
+          "name": "legacyV1UpgradesToV2OnResourceChange",
+          "status": "PASS"
+        },
+        {
+          "name": "legacyLayoutExitClean",
           "status": "PASS"
         },
         {
@@ -3529,7 +3661,7 @@
     },
     {
       "name": "Optional browser / rendered WGC surface / lifecycle",
-      "passed": 80,
+      "passed": 103,
       "failed": 0,
       "notTested": 0,
       "checks": [
@@ -3650,6 +3782,38 @@
           "status": "PASS"
         },
         {
+          "name": "zoomDefaultsTo100WithoutEngine",
+          "status": "PASS"
+        },
+        {
+          "name": "zoomOffStateStoresPreferenceOnly",
+          "status": "PASS"
+        },
+        {
+          "name": "zoomClampsLowerBound",
+          "status": "PASS"
+        },
+        {
+          "name": "zoomClampsUpperBound",
+          "status": "PASS"
+        },
+        {
+          "name": "zoomAdjustmentAvoidsPositiveOverflow",
+          "status": "PASS"
+        },
+        {
+          "name": "zoomAdjustmentAvoidsNegativeOverflow",
+          "status": "PASS"
+        },
+        {
+          "name": "zoomResetRestores100",
+          "status": "PASS"
+        },
+        {
+          "name": "zoomPreferenceSurvivesDisable",
+          "status": "PASS"
+        },
+        {
           "name": "browserInputRegressionExit",
           "status": "PASS"
         },
@@ -3675,6 +3839,10 @@
         },
         {
           "name": "browserPageDoesNotStartRuntime",
+          "status": "PASS"
+        },
+        {
+          "name": "browserZoomDefaults100AndControlsWaitForEnable",
           "status": "PASS"
         },
         {
@@ -3706,7 +3874,51 @@
           "status": "PASS"
         },
         {
+          "name": "zoomFixtureReportsActualViewport",
+          "status": "PASS"
+        },
+        {
+          "name": "browserZoomStarts100",
+          "status": "PASS"
+        },
+        {
+          "name": "browserZoomInUpdatesActualViewport",
+          "status": "PASS"
+        },
+        {
+          "name": "browserZoomLabelTracksActualValue",
+          "status": "PASS"
+        },
+        {
+          "name": "browserZoomOutRestoresActualViewport",
+          "status": "PASS"
+        },
+        {
+          "name": "browserZoomClamps400",
+          "status": "PASS"
+        },
+        {
+          "name": "maximumZoomIsRendered",
+          "status": "PASS"
+        },
+        {
+          "name": "browserZoomClamps25",
+          "status": "PASS"
+        },
+        {
+          "name": "minimumZoomIsRendered",
+          "status": "PASS"
+        },
+        {
+          "name": "browserZoomResetRestores100",
+          "status": "PASS"
+        },
+        {
           "name": "navigateSecondPage",
+          "status": "PASS"
+        },
+        {
+          "name": "browserZoomPersistsAcrossNavigation",
           "status": "PASS"
         },
         {
@@ -3770,6 +3982,10 @@
           "status": "PASS"
         },
         {
+          "name": "F8PreservesBrowserZoomPreference",
+          "status": "PASS"
+        },
+        {
           "name": "scriptReaderHidesWebButKeepsSession",
           "status": "PASS"
         },
@@ -3798,6 +4014,10 @@
           "status": "PASS"
         },
         {
+          "name": "disableKeepsBrowserZoomSessionPreference",
+          "status": "PASS"
+        },
+        {
           "name": "disabledBrowserProcessExits",
           "status": "PASS"
         },
@@ -3815,6 +4035,10 @@
         },
         {
           "name": "reEnableRunsFreshCanary",
+          "status": "PASS"
+        },
+        {
+          "name": "reEnableRestoresZoomAfterFreshCanary",
           "status": "PASS"
         },
         {
@@ -3857,7 +4081,7 @@
     },
     {
       "name": "Consolidated Settings / validation / scrolling / controls",
-      "passed": 95,
+      "passed": 129,
       "failed": 0,
       "notTested": 0,
       "checks": [
@@ -3926,11 +4150,79 @@
           "status": "PASS"
         },
         {
+          "name": "nativeScrollbarPositionMatchesSettings:0",
+          "status": "PASS"
+        },
+        {
           "name": "thumbPositionUpdatesImmediately:1",
           "status": "PASS"
         },
         {
+          "name": "nativeScrollbarPositionMatchesSettings:1",
+          "status": "PASS"
+        },
+        {
           "name": "thumbPositionUpdatesImmediately:2",
+          "status": "PASS"
+        },
+        {
+          "name": "nativeScrollbarPositionMatchesSettings:2",
+          "status": "PASS"
+        },
+        {
+          "name": "nativeThumbHeightStaysStableAcrossPositions",
+          "status": "PASS"
+        },
+        {
+          "name": "nativeScrollbarPageSizeStaysStable",
+          "status": "PASS"
+        },
+        {
+          "name": "nativeThumbHoverPreservesGeometry",
+          "status": "PASS"
+        },
+        {
+          "name": "settingsThumbDragCapturesOwnedScrollbar",
+          "status": "PASS"
+        },
+        {
+          "name": "settingsThumbPressPreservesOffset",
+          "status": "PASS"
+        },
+        {
+          "name": "settingsThumbDragMovesSettings",
+          "status": "PASS"
+        },
+        {
+          "name": "settingsThumbDragPreservesGeometry",
+          "status": "PASS"
+        },
+        {
+          "name": "settingsThumbDragClampsBeyondBottom",
+          "status": "PASS"
+        },
+        {
+          "name": "settingsThumbDragClampsBeyondTop",
+          "status": "PASS"
+        },
+        {
+          "name": "settingsThumbMouseUpReleasesCapture",
+          "status": "PASS"
+        },
+        {
+          "name": "releasedThumbStopsDragging",
+          "status": "PASS"
+        },
+        {
+          "name": "settingsThumbCanCaptureAgain",
+          "status": "PASS"
+        },
+        {
+          "name": "settingsThumbCancelReleasesCapture",
+          "status": "PASS"
+        },
+        {
+          "name": "cancelledThumbStopsDragging",
           "status": "PASS"
         },
         {
@@ -3959,6 +4251,22 @@
         },
         {
           "name": "destinationMonitorListAvailableInSettings",
+          "status": "PASS"
+        },
+        {
+          "name": "windowsDisplayNumbersAvailable",
+          "status": "PASS"
+        },
+        {
+          "name": "defaultSourceUsesPrimaryWindowsDisplay",
+          "status": "PASS"
+        },
+        {
+          "name": "windowDisplayMarkerPresentOnSingleDisplay",
+          "status": "PASS"
+        },
+        {
+          "name": "destinationDefaultsOtherDisplayWhenAvailable",
           "status": "PASS"
         },
         {
@@ -4134,7 +4442,59 @@
           "status": "PASS"
         },
         {
+          "name": "englishMonitorIdentityUsesWindowsDisplayNumber",
+          "status": "PASS"
+        },
+        {
+          "name": "englishWindowDisplayMarkerOnSingleDisplay",
+          "status": "PASS"
+        },
+        {
           "name": "languageRestoresInSettings",
+          "status": "PASS"
+        },
+        {
+          "name": "resourceSettingFocusScrollsIntoView",
+          "status": "PASS"
+        },
+        {
+          "name": "resourceDefaultIsPerformance60",
+          "status": "PASS"
+        },
+        {
+          "name": "resourceModeCycles:0",
+          "status": "PASS"
+        },
+        {
+          "name": "resourceModeLabelMatchesTarget:0",
+          "status": "PASS"
+        },
+        {
+          "name": "resourceModeDoesNotStartProjectionOrBrowser:0",
+          "status": "PASS"
+        },
+        {
+          "name": "resourceModeCycles:1",
+          "status": "PASS"
+        },
+        {
+          "name": "resourceModeLabelMatchesTarget:1",
+          "status": "PASS"
+        },
+        {
+          "name": "resourceModeDoesNotStartProjectionOrBrowser:1",
+          "status": "PASS"
+        },
+        {
+          "name": "resourceModeCycles:2",
+          "status": "PASS"
+        },
+        {
+          "name": "resourceModeLabelMatchesTarget:2",
+          "status": "PASS"
+        },
+        {
+          "name": "resourceModeDoesNotStartProjectionOrBrowser:2",
           "status": "PASS"
         },
         {
@@ -4330,21 +4690,21 @@
   ],
   "files": {
     "QuietShare.exe": {
-      "bytes": 805888,
-      "sha256": "31e0abf53b2e681c739158fd6f8ac7957b9aefafd53fc4cec8e6205e2a050025",
+      "bytes": 832000,
+      "sha256": "bc6185c94baf03646e61891345b42d52bd9565b1533f6362129982b8aa71a7f8",
       "x64PE": true,
       "machine": "0x8664",
       "optionalHeaderMagic": "0x20b",
       "fileVersion": [
         0,
-        7,
-        1,
+        8,
+        0,
         0
       ],
       "productVersion": [
         0,
-        7,
-        1,
+        8,
+        0,
         0
       ],
       "imports": [
@@ -4366,21 +4726,21 @@
       ]
     },
     "QuietShare-Setup.exe": {
-      "bytes": 12431872,
-      "sha256": "a965cd0d98b0146e6464185865b68f2b4819399aa87616db0ee8d700aaaca7bf",
+      "bytes": 12457984,
+      "sha256": "704716d46115642136f0959b03c4fdfa2deed42899bb83de5ab0b9429b5ac83a",
       "x64PE": true,
       "machine": "0x8664",
       "optionalHeaderMagic": "0x20b",
       "fileVersion": [
         0,
-        7,
-        1,
+        8,
+        0,
         0
       ],
       "productVersion": [
         0,
-        7,
-        1,
+        8,
+        0,
         0
       ],
       "imports": [
@@ -4455,7 +4815,7 @@
   },
   "monitorCount": 1,
   "actualWgcCanary": true,
-  "canaryElapsedMs": 312,
+  "canaryElapsedMs": 360,
   "listedVideoControllers": [
     {
       "Name": "Parsec Virtual Display Adapter",
@@ -4467,22 +4827,36 @@
     }
   ],
   "pdfCooperativeBudgetMs": 750,
-  "pdfStressObservedMs": 1343,
+  "pdfStressObservedMs": 1375,
   "browser": {
     "metrics": {
-      "coldStartAndCanaryMs": 1500,
+      "coldStartAndCanaryMs": 1032,
       "chatgptPublicHttpsLoaded": true,
       "googleSearchPublicHttpsLoaded": true
     },
     "notTested": [
       "ChatGPT authenticated session and third-party OAuth",
       "Physical meeting receivers and two physical monitors",
-      "Missing Evergreen Runtime on a clean machine"
+      "Missing Evergreen Runtime on a clean machine",
+      "Physical Ctrl+wheel and WebView-focused keyboard shortcut delivery"
     ],
     "profile": "Separate local profile; never exported"
   },
   "settingsInteraction": {
     "metrics": {
+      "nativeScrollbar": {
+        "thumbHeights": [
+          32,
+          32,
+          32
+        ],
+        "pageSizes": [
+          209,
+          209,
+          209
+        ],
+        "method": "Owned native scrollbar SCROLLINFO, client geometry and privacy-gated in-process SCROLLBARINFO integers; no desktop pixels"
+      },
       "wheel120Delta15": {
         "events": 120,
         "deltaPerEvent": -15,
@@ -4490,13 +4864,30 @@
           "6": 120
         },
         "totalMovement": 720,
-        "medianMs": 5.49935,
-        "p95Ms": 7.1185,
-        "maxMs": 8.9271,
+        "medianMs": 5.580299999999999,
+        "p95Ms": 7.1054,
+        "maxMs": 8.8642,
         "method": "Distribution of offset changes per owned WM_MOUSEWHEEL event at 430x320; no physical touchpad; timings are observations, not pass thresholds"
       }
     },
     "method": "Owned native-window wheel/focus/click messages; no physical touchpad observation"
+  },
+  "resourceProfiles": {
+    "targetFps": [
+      15,
+      30,
+      60
+    ],
+    "pollIntervalMs": [
+      33,
+      16,
+      8
+    ],
+    "idleWatchdogMs": 33,
+    "default": "Performance 60",
+    "wgcProducerRate": "Not forced; profiles cap app polling/copy/render work",
+    "userReportedExtendFpsApprox": 60,
+    "physicalExtendIndependentlyVerified": false
   },
   "screenshots": "Native renderer with synthetic data in a separate QA build; not HTML mockups or receiver evidence"
 }

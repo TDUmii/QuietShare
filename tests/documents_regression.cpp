@@ -1,4 +1,5 @@
 #include "../src/Documents.h"
+#include "../src/FileIcons.h"
 
 #include <winioctl.h>
 
@@ -95,9 +96,139 @@ HTREEITEM FindChild(HWND tree, HTREEITEM parent, const wchar_t *name)
     return nullptr;
 }
 
+int ItemIcon(HWND tree, HTREEITEM item, bool selected = false)
+{
+    TVITEMW value{};
+    value.mask = TVIF_IMAGE | TVIF_SELECTEDIMAGE;
+    value.hItem = item;
+    return TreeView_GetItem(tree, &value) ? (selected ? value.iSelectedImage : value.iImage) : -1;
+}
+
+std::uint64_t IconPixels(FileIconKind kind)
+{
+    HDC dc = CreateCompatibleDC(nullptr);
+    BITMAPINFO info{};
+    info.bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
+    info.bmiHeader.biWidth = 16;
+    info.bmiHeader.biHeight = -16;
+    info.bmiHeader.biPlanes = 1;
+    info.bmiHeader.biBitCount = 32;
+    void *pixels = nullptr;
+    HBITMAP image = CreateDIBSection(dc, &info, DIB_RGB_COLORS, &pixels, nullptr, 0);
+    if (!dc || !image || !pixels)
+    {
+        if (image) DeleteObject(image);
+        if (dc) DeleteDC(dc);
+        return 0;
+    }
+    const auto previous = SelectObject(dc, image);
+    std::fill_n(static_cast<DWORD *>(pixels), 256, 0x00252526);
+    DrawFileTypeIcon(dc, kind, RECT{0, 0, 16, 16});
+    GdiFlush();
+    std::uint64_t hash = 1469598103934665603ULL;
+    for (int index = 0; index < 256; ++index)
+        hash = (hash ^ (static_cast<DWORD *>(pixels)[index] & 0x00FFFFFF)) * 1099511628211ULL;
+    SelectObject(dc, previous);
+    DeleteObject(image);
+    DeleteDC(dc);
+    return hash;
+}
+
+bool ImageListComposes(HIMAGELIST icons, COLORREF background)
+{
+    int width = 0, height = 0;
+    if (!icons || !ImageList_GetIconSize(icons, &width, &height)) return false;
+    const int canvasWidth = width + 4, canvasHeight = height + 4;
+    HDC dc = CreateCompatibleDC(nullptr);
+    BITMAPINFO info{};
+    info.bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
+    info.bmiHeader.biWidth = canvasWidth;
+    info.bmiHeader.biHeight = -canvasHeight;
+    info.bmiHeader.biPlanes = 1;
+    info.bmiHeader.biBitCount = 32;
+    void *pixels = nullptr;
+    HBITMAP image = CreateDIBSection(dc, &info, DIB_RGB_COLORS, &pixels, nullptr, 0);
+    if (!dc || !image || !pixels)
+    {
+        if (image) DeleteObject(image);
+        if (dc) DeleteDC(dc);
+        return false;
+    }
+    const auto old = SelectObject(dc, image);
+    const DWORD backdrop = (GetRValue(background) << 16) | (GetGValue(background) << 8) | GetBValue(background);
+    auto *colors = static_cast<DWORD *>(pixels);
+    bool all = true;
+    for (int icon = 0; icon < ImageList_GetImageCount(icons); ++icon)
+    {
+        GdiFlush();
+        std::fill_n(colors, canvasWidth * canvasHeight, backdrop);
+        const bool drawn = ImageList_Draw(icons, icon, dc, 2, 2, ILD_TRANSPARENT) != FALSE;
+        GdiFlush();
+        int untouched = 0, foreground = 0, black = 0;
+        bool outsideUnchanged = true;
+        for (int y = 0; y < canvasHeight; ++y)
+            for (int x = 0; x < canvasWidth; ++x)
+            {
+                const auto color = colors[y * canvasWidth + x] & 0x00FFFFFF;
+                if (x < 2 || y < 2 || x >= width + 2 || y >= height + 2)
+                    outsideUnchanged = outsideUnchanged && color == backdrop;
+                else if (color == backdrop) ++untouched;
+                else if (color == 0) ++black;
+                else ++foreground;
+            }
+        all = all && drawn && outsideUnchanged && untouched >= width * height / 8 &&
+              foreground >= width * height / 16 && black == 0;
+    }
+    SelectObject(dc, old);
+    DeleteObject(image);
+    DeleteDC(dc);
+    return all;
+}
+
 void Run()
 {
     std::wstring error;
+    struct PrivateFont
+    {
+        std::wstring path;
+        int added = 0;
+        ~PrivateFont() { if (added) RemoveFontResourceExW(path.c_str(), FR_PRIVATE, nullptr); }
+    } font{Path(L"..\\..\\assets\\codicons\\codicon.ttf")};
+    font.added = AddFontResourceExW(font.path.c_str(), FR_PRIVATE, nullptr);
+    Check("shared_file_icons_use_existing_private_codicons_font", font.added > 0);
+    Check("file_icons_classify_case_insensitive_basename", FileIconForName(L"C:\\fixture\\MAIN.PY") == FileIconKind::Python &&
+                                                            FileIconForName(L"fixture/main.tsx") == FileIconKind::TypeScript);
+    Check("file_icons_distinguish_common_languages", FileIconForName(L"main.js") == FileIconKind::JavaScript &&
+                                                       FileIconForName(L"main.cpp") == FileIconKind::Cpp &&
+                                                       FileIconForName(L"main.c") == FileIconKind::C &&
+                                                       FileIconForName(L"main.cs") == FileIconKind::CSharp &&
+                                                       FileIconForName(L"main.java") == FileIconKind::Java &&
+                                                       FileIconForName(L"main.rs") == FileIconKind::Rust &&
+                                                       FileIconForName(L"main.go") == FileIconKind::Go);
+    Check("file_icons_distinguish_documents_and_media", FileIconForName(L"settings.json") == FileIconKind::Json &&
+                                                        FileIconForName(L"layout.xml") == FileIconKind::Xml &&
+                                                        FileIconForName(L"README.md") == FileIconKind::Markdown &&
+                                                        FileIconForName(L"notes.txt") == FileIconKind::Text &&
+                                                        FileIconForName(L"photo.png") == FileIconKind::Image &&
+                                                        FileIconForName(L"guide.pdf") == FileIconKind::Pdf);
+    Check("file_icons_config_web_shell_and_fallback", FileIconForName(L".gitignore") == FileIconKind::Config &&
+                                                      FileIconForName(L".env.local") == FileIconKind::Config &&
+                                                      FileIconForName(L"settings.yaml") == FileIconKind::Config &&
+                                                      FileIconForName(L"page.html") == FileIconKind::Html &&
+                                                      FileIconForName(L"styles.css") == FileIconKind::Stylesheet &&
+                                                      FileIconForName(L"script.ps1") == FileIconKind::Shell &&
+                                                      FileIconForName(L"something.custom") == FileIconKind::Generic);
+    Check("file_icons_folder_state_overrides_extension", FileIconForName(L"directory.py", true) == FileIconKind::Folder &&
+                                                          FileIconForName(L"directory.py", true, true) == FileIconKind::FolderOpen);
+    std::vector<std::uint64_t> iconPixels;
+    for (const auto kind : {FileIconKind::Folder, FileIconKind::FolderOpen, FileIconKind::Python,
+                            FileIconKind::JavaScript, FileIconKind::TypeScript, FileIconKind::Cpp,
+                            FileIconKind::CSharp, FileIconKind::Json, FileIconKind::Xml,
+                            FileIconKind::Markdown, FileIconKind::Config, FileIconKind::Image, FileIconKind::Pdf})
+        iconPixels.push_back(IconPixels(kind));
+    std::sort(iconPixels.begin(), iconPixels.end());
+    Check("typed_icon_rasters_visually_distinct", iconPixels.front() != 0 &&
+          std::adjacent_find(iconPixels.begin(), iconPixels.end()) == iconPixels.end());
     TabManager tabs;
     Check("permanent_script_initial_active", tabs.Count() == 1 && tabs.Active().id == 0 && tabs.Active().type == DocumentType::Script);
     tabs.Get(0)->content.text = L"Lời nhắc độc lập: Xin chào";
@@ -222,15 +353,39 @@ void Run()
     ProjectTree tree;
     context.tree = &tree;
     Check("native_tree_creation", parent && tree.Create(parent, 1));
+    const auto imageList = TreeView_GetImageList(tree.Handle(), TVSIL_NORMAL);
+    int iconWidth = 0, iconHeight = 0;
+    Check("project_icons_native_cached_image_list", imageList &&
+          ImageList_GetImageCount(imageList) == static_cast<int>(FileIconKind::Count) &&
+          ImageList_GetIconSize(imageList, &iconWidth, &iconHeight) && iconWidth == 16 && iconHeight == 16);
+    Check("cached_icons_compose_on_explorer_card_without_black_squares", ImageListComposes(imageList, RGB(37,37,38)));
+    Check("cached_icons_preserve_transparency_on_alternate_background", ImageListComposes(imageList, RGB(18,44,66)));
+    tree.SetDpi(96);
+    Check("project_icon_list_reused_for_unchanged_dpi", TreeView_GetImageList(tree.Handle(), TVSIL_NORMAL) == imageList);
+    tree.SetDpi(144);
+    Check("project_icon_list_scales_at_150_percent", ImageList_GetIconSize(TreeView_GetImageList(tree.Handle(), TVSIL_NORMAL),
+          &iconWidth, &iconHeight) && iconWidth == 24 && iconHeight == 24);
+    Check("cached_scaled_icons_compose_without_black_squares", ImageListComposes(TreeView_GetImageList(tree.Handle(), TVSIL_NORMAL), RGB(37,37,38)));
+    tree.SetDpi(192);
+    Check("project_icon_list_scales_at_200_percent", ImageList_GetIconSize(TreeView_GetImageList(tree.Handle(), TVSIL_NORMAL),
+          &iconWidth, &iconHeight) && iconWidth == 32 && iconHeight == 32);
+    tree.SetDpi(96);
     Check("project_root_is_lazy", tree.OpenFolder(project, error) && tree.NodeCount() == 1);
     HTREEITEM top = TreeView_GetRoot(tree.Handle());
+    Check("project_closed_root_has_folder_icon", ItemIcon(tree.Handle(), top) == static_cast<int>(FileIconKind::Folder));
     TreeView_Expand(tree.Handle(), top, TVE_EXPAND);
+    Check("project_expanded_root_has_open_folder_icon", ItemIcon(tree.Handle(), top) == static_cast<int>(FileIconKind::FolderOpen) &&
+          ItemIcon(tree.Handle(), top, true) == static_cast<int>(FileIconKind::FolderOpen));
     Check("ignored_heavy_hidden_folders_omitted", tree.NodeCount() == 2 && FindChild(tree.Handle(), top, L"src") && !FindChild(tree.Handle(), top, L".git") && !FindChild(tree.Handle(), top, L"hidden.txt"));
     Check("junction_never_recursed", !FindChild(tree.Handle(), top, L"link"));
     const auto src = FindChild(tree.Handle(), top, L"src");
     Check("nested_folder_not_eagerly_loaded", !TreeView_GetChild(tree.Handle(), src));
     TreeView_Expand(tree.Handle(), src, TVE_EXPAND);
     Check("lazy_folder_expands_native", tree.NodeCount() == 4 && FindChild(tree.Handle(), src, L"main.py") && FindChild(tree.Handle(), src, L"nested"));
+    Check("project_python_file_has_typed_icon", ItemIcon(tree.Handle(), FindChild(tree.Handle(), src, L"main.py")) == static_cast<int>(FileIconKind::Python));
+    TreeView_Expand(tree.Handle(), src, TVE_COLLAPSE);
+    Check("project_collapse_restores_folder_icon", ItemIcon(tree.Handle(), src) == static_cast<int>(FileIconKind::Folder));
+    TreeView_Expand(tree.Handle(), src, TVE_EXPAND);
     TreeView_SelectItem(tree.Handle(), FindChild(tree.Handle(), src, L"main.py"));
     NMTVKEYDOWN key{};
     key.hdr.hwndFrom = tree.Handle();

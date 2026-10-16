@@ -52,8 +52,9 @@ constexpr int MODE = 100, PLAY = 101, SMALLER = 102, LARGER = 103, SPEED = 104, 
               INCLUDE_IGNORED = 152, CLOSE_APPLICATION = 153, NAV_BROWSER=154, BROWSER_TOGGLE=155,
               WEB_BACK=156,WEB_FORWARD=157,WEB_RELOAD=158,WEB_CHATGPT=159,
               SOURCE_MONITOR = 160, DEST_MONITOR = 161, FIND_INPUT = 162, SIZE_INPUT = 163, WEB_ADDRESS=164,WEB_GO=165,WEB_GOOGLE=166,
+              WEB_ZOOM_OUT=167,WEB_ZOOM_RESET=168,WEB_ZOOM_IN=169,
               LAYOUT_MENU=180,SHOW_ACTIVITY=181,SHOW_TABS=182,SHOW_TOOLBAR=183,SHOW_STATUS=184,RESET_LAYOUT=185,
-              OPEN_DISPLAY_SETTINGS=186,SETTINGS_SCROLL=187;
+              OPEN_DISPLAY_SETTINGS=186,SETTINGS_SCROLL=187,RESOURCE_MODE=189;
 constexpr int NORMAL_SIDEBAR = 44, COMPACT_SIDEBAR = 44, CONTROL_HEIGHT = 36, CONTROL_GAP = 8;
 constexpr UINT_PTR PRIVACY_TIMER = 1, SCROLL_TIMER = 2, SAVE_TIMER = 3, QA_TIMER = 4;
 HINSTANCE instance;
@@ -76,7 +77,8 @@ std::unique_ptr<MirrorController> mirror;
 std::vector<MonitorInfo> monitors;
 bool findVisible = false, treeVisible = true, mirrorPointer = true, verifying = false, renderedSafe = false;
 bool activityVisible=true,tabsVisible=true,toolbarVisible=true,statusVisible=true,splitterDragging=false,splitterHovered=false;
-int explorerWidth=208;
+int explorerWidth=208,resourceMode=2,mirrorTimerInterval=0;
+HMONITOR labeledWindowMonitor=nullptr;
 RECT explorerRect{},splitterRect{};
 DocumentId reloadPending = 0;
 std::wstring viewerError, findMessage;
@@ -106,6 +108,8 @@ struct SettingsLine {std::wstring text;RECT bounds;bool heading;int control=0;};
 std::vector<SettingsLine> settingsLines;
 std::vector<HWND> clippedSettingsControls;
 int settingsOffset=0,settingsMaximum=0,settingsDisplayAnchor=0,settingsWheelRemainder=0;
+bool settingsThumbDragging=false;
+int settingsThumbGrab=0,settingsPointerY=0,settingsRepeatCode=-1;
 int railWidth = NORMAL_SIDEBAR, contentLeft = NORMAL_SIDEBAR + 24, contentRight = 0;
 bool compactUi = false;
 std::vector<HWND> buttons;
@@ -144,6 +148,9 @@ void ChooseFolder();
 void OverflowMenu();
 void VerifyPrivacy();
 void UpdateDocumentBar();
+void UpdateMonitors();
+void UpdateMonitorLabels();
+void UpdateMirrorTimer();
 void RunFind(bool forward);
 std::wstring SelectedMonitor(HWND combo);
 bool OpenContentPath(const std::wstring &path);
@@ -289,7 +296,7 @@ bool Blocked() { return !IsPrivateContentSafe(); }
 void SaveLayoutPreferences()
 {
     if(qa)return;
-    const DWORD values[]={1,activityVisible,tabsVisible,toolbarVisible,statusVisible,treeVisible,(DWORD)explorerWidth};
+    const DWORD values[]={2,activityVisible,tabsVisible,toolbarVisible,statusVisible,treeVisible,(DWORD)explorerWidth,(DWORD)resourceMode};
     const auto temporary=dataDir+L"\\layout.tmp";
     if(WriteBytes(temporary,values,sizeof(values)))
         MoveFileExW(temporary.c_str(),(dataDir+L"\\layout.dat").c_str(),MOVEFILE_REPLACE_EXISTING|MOVEFILE_WRITE_THROUGH);
@@ -297,12 +304,21 @@ void SaveLayoutPreferences()
 void LoadLayoutPreferences()
 {
     if(qa)return;
-    const auto bytes=ReadBytes(dataDir+L"\\layout.dat");DWORD values[7]{};
-    if(bytes.size()!=sizeof(values))return;
-    CopyMemory(values,bytes.data(),sizeof(values));
-    if(values[0]!=1 || values[6]<112 || values[6]>420)return;
+    const auto bytes=ReadBytes(dataDir+L"\\layout.dat");DWORD values[8]{};
+    if(bytes.size()!=7*sizeof(DWORD)&&bytes.size()!=sizeof(values))return;
+    CopyMemory(values,bytes.data(),bytes.size());
+    if((values[0]!=1&&values[0]!=2)||values[6]<112||values[6]>420)return;
+    if(values[0]==1&&bytes.size()!=7*sizeof(DWORD))return;
+    if(values[0]==2&&(bytes.size()!=sizeof(values)||values[7]>2))return;
     for(int i=1;i<=5;i++)if(values[i]>1)return;
     activityVisible=values[1];tabsVisible=values[2];toolbarVisible=values[3];statusVisible=values[4];treeVisible=values[5];explorerWidth=values[6];
+    if(values[0]==2)resourceMode=values[7];
+}
+void UpdateMirrorTimer()
+{
+    if(!window||qa||!mirror)return;
+    const int interval=mirror->Running()?mirror->TickIntervalMs():33;
+    if(interval!=mirrorTimerInterval){mirrorTimerInterval=interval;SetTimer(window,5,interval,nullptr);}
 }
 void SetTopmost(bool value)
 {
@@ -450,12 +466,30 @@ void SetTip(int id, const wchar_t *text)
     tip.lpszText = const_cast<wchar_t *>(text);
     SendMessageW(tooltips, TTM_UPDATETIPTEXTW, 0, (LPARAM)&tip);
 }
+void UpdateBrowserZoomControls()
+{
+    const auto value=std::to_wstring(browser.ZoomPercent())+L"%";
+    if(TextOf(GetDlgItem(window,WEB_ZOOM_RESET))!=value)SetWindowTextW(GetDlgItem(window,WEB_ZOOM_RESET),value.c_str());
+    EnableWindow(GetDlgItem(window,WEB_ZOOM_RESET),browser.Ready()&&!Blocked());
+    EnableWindow(GetDlgItem(window,WEB_ZOOM_OUT),browser.Ready()&&!Blocked()&&browser.ZoomPercent()>25);
+    EnableWindow(GetDlgItem(window,WEB_ZOOM_IN),browser.Ready()&&!Blocked()&&browser.ZoomPercent()<400);
+}
 void UpdateButtons()
 {
     SetWindowTextW(GetDlgItem(window,BROWSER_TOGGLE),T(browser.Enabled()?L"Tắt trình duyệt":L"Bật trình duyệt",browser.Enabled()?L"Disable browser":L"Enable browser"));
     SetWindowTextW(GetDlgItem(window,WEB_CHATGPT),L"ChatGPT");
     SetWindowTextW(GetDlgItem(window,WEB_GOOGLE),L"Google");
     SetWindowTextW(GetDlgItem(window,WEB_GO),T(L"Mở",L"Go"));
+    SetWindowTextW(GetDlgItem(window,WEB_ZOOM_OUT),L"−");SetWindowTextW(GetDlgItem(window,WEB_ZOOM_IN),L"+");
+    UpdateBrowserZoomControls();
+    const wchar_t* resourceNamesVi[]={L"Tiết kiệm · 15 FPS",L"Cân bằng · 30 FPS",L"Hiệu năng · 60 FPS"};
+    const wchar_t* resourceNamesEn[]={L"Saver · 15 FPS",L"Balanced · 30 FPS",L"Performance · 60 FPS"};
+    SetWindowTextW(GetDlgItem(window,RESOURCE_MODE),english?resourceNamesEn[resourceMode]:resourceNamesVi[resourceMode]);
+    SetTip(RESOURCE_MODE,T(L"Bấm để đổi giới hạn FPS trình chiếu: 15 / 30 / 60. Trình duyệt tự nghỉ khi không xem.",
+        L"Click to cycle presentation FPS: 15 / 30 / 60. Hidden browsing suspends automatically."));
+    SetTip(WEB_ZOOM_OUT,T(L"Thu nhỏ web · Ctrl+-",L"Zoom out · Ctrl+-"));
+    SetTip(WEB_ZOOM_IN,T(L"Phóng to web · Ctrl++",L"Zoom in · Ctrl++"));
+    SetTip(WEB_ZOOM_RESET,T(L"Đặt lại zoom web · Ctrl+0",L"Reset web zoom · Ctrl+0"));
     SetWindowTextW(GetDlgItem(window,NAV_BROWSER),T(L"Trình duyệt",L"Browser"));
     for(int id:{WEB_ADDRESS,WEB_GO,WEB_CHATGPT,WEB_GOOGLE,WEB_RELOAD})EnableWindow(GetDlgItem(window,id),browser.Ready()&&!Blocked());
     EnableWindow(GetDlgItem(window,WEB_BACK),browser.Ready()&&!Blocked()&&browser.CanBack());
@@ -586,6 +620,7 @@ void ClipSettingsControls(bool redraw=true)
 void Layout()
 {
     if(!window || !editor) return;
+    if(page!=Page::Settings&&GetCapture()==settingsScroll)SendMessageW(settingsScroll,WM_CANCELMODE,0,0);
     if(page!=Page::Settings)settingsWheelRemainder=0;
     for(HWND control:clippedSettingsControls)SetWindowRgn(control,nullptr,FALSE);
     clippedSettingsControls.clear();settingsLines.clear();settingsSizeHint={};settingsViewport={};
@@ -700,6 +735,8 @@ void Layout()
         y+=12;heading(L"Tiện ích",L"Tools");
         row(L"Thư mục nặng / ẩn",L"Heavy / hidden folders",INCLUDE_IGNORED);
         row(L"Trình duyệt web",L"Web browser",BROWSER_TOGGLE);
+        y+=12;heading(L"Hiệu suất",L"Performance");
+        row(L"Tài nguyên",L"Resources",RESOURCE_MODE,188);
         y+=12;settingsDisplayAnchor=y+settingsOffset-64;heading(L"Trình chiếu",L"Presentation");
         const int monitorWidth=std::clamp((right-left)/2,160,280);
         row(L"Màn hình nguồn",L"Source display",SOURCE_MONITOR,monitorWidth);
@@ -710,7 +747,7 @@ void Layout()
         if(settingsMaximum) {
             move(SETTINGS_SCROLL,formLeft+formWidth-14,48,14,bottom-48);
             SCROLLINFO info{sizeof(info),SIF_RANGE|SIF_PAGE|SIF_POS};info.nMax=settingsMaximum+bottom-49;info.nPage=bottom-48;info.nPos=settingsOffset;
-            SetScrollInfo(settingsScroll,SB_CTL,&info,TRUE);
+            SetScrollInfo(settingsScroll,SB_CTL,&info,FALSE);
         }
     }
     else if(page==Page::Browser) {
@@ -718,8 +755,10 @@ void Layout()
         for(int id:{WEB_BACK,WEB_FORWARD,WEB_RELOAD}){move(id,x,y,28,28);x+=32;}
         move(WEB_GOOGLE,x,y,64,28);x+=68;
         move(WEB_CHATGPT,x,y,76,28);
-        const bool narrow=contentRight-contentLeft<412;
+        const bool narrow=contentRight-contentLeft<548;
         move(BROWSER_TOGGLE,contentRight-152,narrow?84:y,152,28);
+        const int zoomLeft=narrow?contentLeft:contentRight-276,zoomY=narrow?84:y;
+        move(WEB_ZOOM_OUT,zoomLeft,zoomY,28,28);move(WEB_ZOOM_RESET,zoomLeft+30,zoomY,52,28);move(WEB_ZOOM_IN,zoomLeft+84,zoomY,28,28);
         int addressY=narrow?120:84,addressWidth=std::max(48,contentRight-contentLeft-56);
         MoveWindow(webAddress,S(contentLeft),S(addressY),S(addressWidth),S(28),TRUE);
         if(!Blocked()){reveal(webAddress);move(WEB_GO,contentRight-48,addressY,48,28);}
@@ -764,6 +803,7 @@ void Layout()
     documentHost.Show(displayType,renderedSafe,page==Page::Content);
     browser.SetBounds(body);browser.Show(page==Page::Browser&&renderedSafe&&!IsIconic(window));
     UpdateButtons();UpdateDocumentBar();
+    UpdateMirrorTimer();
     // Native EDIT formatting/text updates can repaint immediately. Apply the
     // final viewport after those updates, repainting the area released by it.
     ClipSettingsControls();
@@ -787,7 +827,7 @@ void ScrollSettings(int position)
     if(!batch||!EndDeferWindowPos(batch)){Layout();return;}
     for(auto& line:settingsLines)OffsetRect(&line.bounds,0,dy);
     OffsetRect(&settingsSizeHint,0,dy);OffsetRect(&fontLabelRect,0,dy);
-    SCROLLINFO info{sizeof(info),SIF_POS};info.nPos=settingsOffset;SetScrollInfo(settingsScroll,SB_CTL,&info,TRUE);
+    SCROLLINFO info{sizeof(info),SIF_POS};info.nPos=settingsOffset;SetScrollInfo(settingsScroll,SB_CTL,&info,FALSE);
     ClipSettingsControls(false);
     RECT redraw=settingsViewport;redraw.right+=S(20);
     RedrawWindow(window,&redraw,nullptr,RDW_INVALIDATE|RDW_ALLCHILDREN);
@@ -838,6 +878,7 @@ void RefreshFonts()
     for (HWND button : buttons)
         SendMessageW(button, WM_SETFONT, (WPARAM)uiFont, TRUE);
     for(HWND control:{findInput,sizeInput,webAddress,sourceMonitor,destinationMonitor,projectTree.Handle()})if(control)SendMessageW(control,WM_SETFONT,(WPARAM)uiFont,TRUE);
+    projectTree.SetDpi(dpi);
     if (oldUi)
         DeleteObject(oldUi);
     if (oldTitle)
@@ -1111,14 +1152,36 @@ void UpdateMonitors()
 {
     auto source=SelectedMonitor(sourceMonitor),destination=SelectedMonitor(destinationMonitor);
     monitors=EnumerateMonitors();
-    for(HWND combo:{sourceMonitor,destinationMonitor})SendMessageW(combo,CB_RESETCONTENT,0,0);
-    int src=0,dst=monitors.size()>1?1:0;
+    int src=0;
+    for(size_t i=0;i<monitors.size();++i)if(monitors[i].primary){src=(int)i;break;}
+    int dst=monitors.size()>1?(src==0?1:0):src;
     for(size_t i=0;i<monitors.size();++i) {
-        const auto &monitor=monitors[i];std::wstring label=monitor.name+L"  "+std::to_wstring(monitor.bounds.right-monitor.bounds.left)+L"x"+std::to_wstring(monitor.bounds.bottom-monitor.bounds.top);
-        SendMessageW(sourceMonitor,CB_ADDSTRING,0,(LPARAM)label.c_str());SendMessageW(destinationMonitor,CB_ADDSTRING,0,(LPARAM)label.c_str());
+        const auto &monitor=monitors[i];
         if(monitor.stableId==source)src=(int)i;if(monitor.stableId==destination)dst=(int)i;
     }
+    labeledWindowMonitor=nullptr;UpdateMonitorLabels();
     SendMessageW(sourceMonitor,CB_SETCURSEL,src,0);SendMessageW(destinationMonitor,CB_SETCURSEL,dst,0);
+}
+void UpdateMonitorLabels()
+{
+    if(!window||!sourceMonitor||!destinationMonitor||monitors.empty())return;
+    const auto current=MonitorFromWindow(window,MONITOR_DEFAULTTONEAREST);
+    if(labeledWindowMonitor==current)return;
+    labeledWindowMonitor=current;
+    for(HWND combo:{sourceMonitor,destinationMonitor}) {
+        const int selected=(int)SendMessageW(combo,CB_GETCURSEL,0,0);
+        SendMessageW(combo,CB_RESETCONTENT,0,0);
+        for(size_t i=0;i<monitors.size();++i) {
+            const auto& monitor=monitors[i];
+            std::wstring label=T(L"Màn ",L"Display ")+std::to_wstring(monitor.displayNumber?monitor.displayNumber:(int)i+1);
+            if(monitor.primary)label+=T(L" · Chính",L" · Main");
+            if(monitor.handle==current)label+=T(L" · Cửa sổ này",L" · This window");
+            label+=L" · "+std::to_wstring(monitor.bounds.right-monitor.bounds.left)+L"x"+std::to_wstring(monitor.bounds.bottom-monitor.bounds.top);
+            SendMessageW(combo,CB_ADDSTRING,0,(LPARAM)label.c_str());
+        }
+        SendMessageW(combo,CB_SETCURSEL,std::clamp(selected,0,(int)monitors.size()-1),0);
+        SendMessageW(combo,CB_SETDROPPEDWIDTH,S(480),0);
+    }
 }
 void VerifyPrivacy()
 {
@@ -1498,6 +1561,47 @@ LRESULT CALLBACK SettingsScrollProc(HWND control,UINT message,WPARAM wp,LPARAM l
 {
     if(message==WM_ERASEBKGND)return 1;
     if(message==WM_MOUSEWHEEL)return SendMessageW(window,message,wp,lp);
+    auto parts=[&](){SCROLLBARINFO info{};info.cbSize=sizeof(info);GetScrollBarInfo(control,OBJID_CLIENT,&info);return info;};
+    auto hit=[&](int y){
+        const auto info=parts();RECT bounds{};GetClientRect(control,&bounds);
+        if(y<info.dxyLineButton)return SB_LINEUP;
+        if(y>=bounds.bottom-info.dxyLineButton)return SB_LINEDOWN;
+        if(y<info.xyThumbTop)return SB_PAGEUP;
+        if(y>=info.xyThumbBottom)return SB_PAGEDOWN;
+        return SB_THUMBTRACK;
+    };
+    auto cancel=[&](){settingsThumbDragging=false;settingsRepeatCode=-1;KillTimer(control,1);};
+    // The native mouse tracker draws its own themed thumb directly. Own pointer
+    // tracking so hover/drag use the same geometry and paint as the idle state.
+    if(message==WM_LBUTTONDOWN||message==WM_LBUTTONDBLCLK) {
+        SetFocus(control);SetCapture(control);settingsPointerY=GET_Y_LPARAM(lp);
+        const auto info=parts();const int action=hit(settingsPointerY);
+        settingsThumbDragging=action==SB_THUMBTRACK;
+        if(settingsThumbDragging)settingsThumbGrab=settingsPointerY-info.xyThumbTop;
+        else {settingsRepeatCode=action;SendMessageW(window,WM_VSCROLL,action,(LPARAM)control);SetTimer(control,1,400,nullptr);}
+        InvalidateRect(control,nullptr,FALSE);return 0;
+    }
+    if(message==WM_MOUSEMOVE&&GetCapture()==control) {
+        settingsPointerY=GET_Y_LPARAM(lp);
+        if(settingsThumbDragging) {
+            const auto info=parts();RECT bounds{};GetClientRect(control,&bounds);
+            const int travel=bounds.bottom-2*info.dxyLineButton-(info.xyThumbBottom-info.xyThumbTop);
+            if(travel>0)ScrollSettings(MulDiv(std::clamp(settingsPointerY-settingsThumbGrab-info.dxyLineButton,0,travel),settingsMaximum,travel));
+        }
+        InvalidateRect(control,nullptr,FALSE);return 0;
+    }
+    if(message==WM_TIMER&&wp==1) {
+        if(GetCapture()!=control||settingsRepeatCode<0){KillTimer(control,1);return 0;}
+        if(hit(settingsPointerY)==settingsRepeatCode)
+            SendMessageW(window,WM_VSCROLL,settingsRepeatCode,(LPARAM)control);
+        SetTimer(control,1,60,nullptr);return 0;
+    }
+    if(message==WM_LBUTTONUP||message==WM_CANCELMODE||message==WM_CAPTURECHANGED||message==WM_SIZE) {
+        cancel();if(message!=WM_CAPTURECHANGED&&GetCapture()==control)ReleaseCapture();
+        InvalidateRect(control,nullptr,FALSE);
+        if(message!=WM_SIZE)return 0;
+    }
+    if(message==WM_KEYDOWN&&wp==VK_ESCAPE){cancel();if(GetCapture()==control)ReleaseCapture();InvalidateRect(control,nullptr,FALSE);return 0;}
     if(message==WM_PAINT) {
         PAINTSTRUCT paint{};HDC dc=BeginPaint(control,&paint);RECT bounds{};GetClientRect(control,&bounds);FillRect(dc,&bounds,bgBrush);
         SCROLLBARINFO info{};info.cbSize=sizeof(info);
@@ -1510,7 +1614,8 @@ LRESULT CALLBACK SettingsScrollProc(HWND control,UINT message,WPARAM wp,LPARAM l
         EndPaint(control,&paint);return 0;
     }
     LRESULT result=DefSubclassProc(control,message,wp,lp);
-    if(message==WM_MOUSEMOVE||message==WM_LBUTTONDOWN||message==WM_LBUTTONUP)InvalidateRect(control,nullptr,FALSE);
+    if(message==WM_SETFOCUS||message==WM_KILLFOCUS||message==WM_KEYDOWN)
+        RedrawWindow(control,nullptr,nullptr,RDW_INVALIDATE|RDW_UPDATENOW);
     return result;
 }
 LRESULT CALLBACK MonitorComboProc(HWND control,UINT message,WPARAM wp,LPARAM lp,UINT_PTR,DWORD_PTR)
@@ -1704,7 +1809,7 @@ void WriteQa()
     GetWindowDisplayAffinity(window, &actual);
     auto boolean = [](bool value) -> std::wstring { return value ? L"true" : L"false"; };
     std::wstring report =
-        L"{\n  \"applicationVersion\": \"0.7.1\",\n  \"windowsBuild\": " + std::to_wstring(WindowsBuild()) +
+        L"{\n  \"applicationVersion\": \"0.8.0\",\n  \"windowsBuild\": " + std::to_wstring(WindowsBuild()) +
         L",\n  \"displayCloned\": " + boolean(cloned) + L",\n  \"topologyKnown\": " + boolean(topologyKnown) +
         L",\n  \"privacyApplied\": " + boolean(privacy.applied) +
         L",\n  \"requestedAffinity\": 17,\n  \"actualAffinity\": " + std::to_wstring(actual) +
@@ -2098,7 +2203,7 @@ LRESULT CALLBACK Proc(HWND h, UINT message, WPARAM wp, LPARAM lp)
     case WM_CREATE: {
         if(!LoadCodicons(instance))return -1;
         window = h;
-        mirror=std::make_unique<MirrorController>();
+        mirror=std::make_unique<MirrorController>();mirror->SetResourceMode(resourceMode);
         privacy = ApplyPrivacy(h);
         topologyKnown = TryGetDisplayCloned(cloned);
         if (qaVisual)
@@ -2116,6 +2221,7 @@ LRESULT CALLBACK Proc(HWND h, UINT message, WPARAM wp, LPARAM lp)
             {MIRROR_STOP,L"Dừng"},{POINTER,L"Con trỏ"},{RELOAD_FILE,L"Tải lại"},{KEEP_FILE,L"Giữ bản đang xem"},
             {INCLUDE_IGNORED,L"Hiện thư mục đang bỏ qua"},{NAV_BROWSER,L"Trình duyệt"},{BROWSER_TOGGLE,L"Bật trình duyệt"},
             {WEB_BACK,L"Quay lại"},{WEB_FORWARD,L"Tiến tới"},{WEB_RELOAD,L"Tải lại"},{WEB_CHATGPT,L"ChatGPT"},{WEB_GOOGLE,L"Google"},{WEB_GO,L"Mở"},
+            {WEB_ZOOM_OUT,L"−"},{WEB_ZOOM_RESET,L"100%"},{WEB_ZOOM_IN,L"+"},{RESOURCE_MODE,L"Hiệu năng · 60 FPS"},
             {LAYOUT_MENU,L"Bố cục"},{SHOW_TREE,L"Ẩn Explorer"},{SHOW_ACTIVITY,L"Thanh điều hướng"},{SHOW_TABS,L"Thanh tab"},
             {SHOW_TOOLBAR,L"Thanh công cụ"},{SHOW_STATUS,L"Thanh trạng thái"},{RESET_LAYOUT,L"Khôi phục bố cục"},
             {WRAP,L"Xuống dòng code"},{OPEN_DISPLAY_SETTINGS,L"Thiết lập màn hình"}};
@@ -2214,7 +2320,7 @@ LRESULT CALLBACK Proc(HWND h, UINT message, WPARAM wp, LPARAM lp)
             recallRegistered=RegisterHotKey(h,3,MOD_CONTROL|MOD_ALT|MOD_NOREPEAT,L'Q')!=0;
             UpdateButtons();
             SetTimer(h, PRIVACY_TIMER, 250, nullptr);
-            SetTimer(h, 5, 8, nullptr);
+            UpdateMirrorTimer();
         }
         else
         {
@@ -2244,7 +2350,15 @@ LRESULT CALLBACK Proc(HWND h, UINT message, WPARAM wp, LPARAM lp)
         }
         if(!Blocked()&&GetFocus()!=webAddress&&!browser.Address().empty())SetWindowTextW(webAddress,browser.Address().c_str());
         Layout();return 0;
-    case WM_MOVE:browser.ParentMoved();return 0;
+    case BrowserZoomMessage:
+        if(wp==browser.Generation()&&page==Page::Browser&&!Blocked()&&browser.Ready()) {
+            if(lp)browser.AdjustZoomPercent((int)lp);else browser.ResetZoom();UpdateBrowserZoomControls();
+        }
+        return 0;
+    case BrowserZoomChangedMessage:
+        if(wp==browser.Generation()&&!Blocked())UpdateBrowserZoomControls();
+        return 0;
+    case WM_MOVE:browser.ParentMoved();UpdateMonitorLabels();return 0;
     case WM_MOUSEWHEEL:
         if(page==Page::Settings) {
             const int distance=GET_WHEEL_DELTA_WPARAM(wp)*48+settingsWheelRemainder;
@@ -2396,6 +2510,18 @@ LRESULT CALLBACK Proc(HWND h, UINT message, WPARAM wp, LPARAM lp)
         case 21:return page==Page::Settings;
         case 22:return !sizeError.empty();
         case 23:return running;
+        case 24:return browser.ZoomPercent();
+        case 25:return mirror&&mirror->Running();
+        case 26:return resourceMode;
+        case 27:return mirror?mirror->TargetFps():60;
+        case 28:return mirrorTimerInterval;
+        case 29:for(const auto& monitor:monitors)if(monitor.primary)return monitor.displayNumber;return 0;
+        case 30:return monitors.size();
+        case 31:case 32:case 33: {
+            SCROLLBARINFO info{};info.cbSize=sizeof(info);
+            if(!GetScrollBarInfo(settingsScroll,OBJID_CLIENT,&info))return 0;
+            return wp==31?info.xyThumbBottom-info.xyThumbTop:wp==32?info.xyThumbTop:info.dxyLineButton;
+        }
         }
         return 0;
     case WM_APP+16:
@@ -2463,6 +2589,12 @@ LRESULT CALLBACK Proc(HWND h, UINT message, WPARAM wp, LPARAM lp)
         case WEB_BACK:if(!Blocked())browser.Back();break;
         case WEB_FORWARD:if(!Blocked())browser.Forward();break;
         case WEB_RELOAD:if(!Blocked())browser.Reload();break;
+        case WEB_ZOOM_OUT:if(!Blocked()&&browser.Ready()){browser.AdjustZoomPercent(-10);UpdateBrowserZoomControls();}break;
+        case WEB_ZOOM_IN:if(!Blocked()&&browser.Ready()){browser.AdjustZoomPercent(10);UpdateBrowserZoomControls();}break;
+        case WEB_ZOOM_RESET:if(!Blocked()&&browser.Ready()){browser.ResetZoom();UpdateBrowserZoomControls();}break;
+        case RESOURCE_MODE:
+            resourceMode=(resourceMode+1)%3;if(mirror)mirror->SetResourceMode(resourceMode);
+            SaveLayoutPreferences();UpdateMirrorTimer();UpdateButtons();break;
         case CLOSE_APPLICATION:PostMessageW(h,WM_CLOSE,0,0);break;
         case NAV_HOME:
             Pause(); focusMode = false; page = Page::Home; Layout(); break;
@@ -2546,6 +2678,7 @@ LRESULT CALLBACK Proc(HWND h, UINT message, WPARAM wp, LPARAM lp)
             break;
         case LANGUAGE:
             english = !english;
+            labeledWindowMonitor=nullptr;UpdateMonitorLabels();
             Layout();
             break;
         case RESET_ZOOM:
@@ -2587,6 +2720,7 @@ LRESULT CALLBACK Proc(HWND h, UINT message, WPARAM wp, LPARAM lp)
     case WM_TIMER:
         if(wp==5 && mirror) {
             mirror->Tick();
+            UpdateMirrorTimer();
             if(renderedSafe!=IsPrivateContentSafe()) {
                 if(Blocked()) {
                     browser.Lock();documentHost.Hide();SendMessageW(tooltips,TTM_POP,0,0);
@@ -2812,6 +2946,10 @@ int WINAPI wWinMain(HINSTANCE inst, HINSTANCE, LPWSTR, int show)
                 viewingFile=documents.Active().id!=0;RenderDocument();continue;
             }
             if(control && message.wParam==L'C' && IsPdf()) {if(!Blocked())pdfViewer.CopySelection();continue;}
+            if(control&&page==Page::Browser&&(message.wParam==L'0'||message.wParam==VK_ADD||message.wParam==VK_OEM_PLUS||message.wParam==VK_SUBTRACT||message.wParam==VK_OEM_MINUS)) {
+                const int delta=message.wParam==L'0'?0:message.wParam==VK_SUBTRACT||message.wParam==VK_OEM_MINUS?-10:10;
+                PostMessageW(window,BrowserZoomMessage,browser.Generation(),delta);continue;
+            }
             if(control && message.wParam==L'0'){ResetFont();continue;}
             if(control && (message.wParam==VK_ADD || message.wParam==VK_OEM_PLUS)){AdjustFont(2);continue;}
             if(control && (message.wParam==VK_SUBTRACT || message.wParam==VK_OEM_MINUS)){AdjustFont(-2);continue;}

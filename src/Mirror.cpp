@@ -119,6 +119,35 @@ template<class T> HRESULT Factory(const wchar_t *name, REFIID iid, Com<T> &facto
     return hr;
 }
 bool SameLuid(LUID a, LUID b) { return a.LowPart == b.LowPart && a.HighPart == b.HighPart; }
+INT64 CounterTime100ns(INT64 counter, INT64 frequency)
+{
+    if(counter<=0||frequency<=0)return 0;
+    return static_cast<INT64>(static_cast<long double>(counter)*10000000.0L/frequency);
+}
+INT64 CaptureClock()
+{
+    static const INT64 frequency=[](){LARGE_INTEGER value{};return QueryPerformanceFrequency(&value)?value.QuadPart:0;}();
+    LARGE_INTEGER counter{};
+    return QueryPerformanceCounter(&counter)?CounterTime100ns(counter.QuadPart,frequency):0;
+}
+bool FrameDue(INT64 now,unsigned fps,INT64 &next)
+{
+    if(now<=0||!fps||now<next)return false;
+    const INT64 interval=10000000/fps;
+    // Keep fractional-millisecond cadence without a catch-up burst after a busy UI.
+    next=(!next||now-next>interval)?now+interval:next+interval;
+    return true;
+}
+HRESULT FrameAfter(CaptureFrame *frame,INT64 barrier)
+{
+    if(!frame)return E_POINTER;
+    if(!barrier)return S_OK;
+    INT64 timestamp=0;
+    const HRESULT hr=frame->SystemRelativeTime(&timestamp);
+    // SystemRelativeTime is the compositor's QPC time, expressed as a TimeSpan.
+    // https://learn.microsoft.com/uwp/api/windows.graphics.capture.direct3d11captureframe.systemrelativetime
+    return FAILED(hr)?hr:(timestamp>barrier?S_OK:S_FALSE);
+}
 bool SameRect(RECT a, RECT b)
 {
     return a.left == b.left && a.top == b.top && a.right == b.right && a.bottom == b.bottom;
@@ -234,7 +263,14 @@ struct CanaryWindows
     HWND underlay=nullptr, overlay=nullptr;
     RECT region{};
     std::function<void()> unmount;
-    ~CanaryWindows() { if(unmount)unmount();if(overlay)DestroyWindow(overlay); if(underlay)DestroyWindow(underlay); }
+    void Remove()
+    {
+        auto release=std::move(unmount);unmount={};
+        if(release)release();
+        if(overlay){const HWND old=overlay;overlay=nullptr;DestroyWindow(old);}
+        if(underlay){const HWND old=underlay;underlay=nullptr;DestroyWindow(old);}
+    }
+    ~CanaryWindows() { Remove(); }
     bool Create(const MonitorInfo &monitor)
     {
         if(monitor.bounds.right-monitor.bounds.left<300 || monitor.bounds.bottom-monitor.bounds.top<230) return false;
@@ -311,7 +347,7 @@ struct Capture
         else if(!pointer) return false;
         return SUCCEEDED(session->StartCapture());
     }
-    HRESULT Next(Com<CaptureFrame> &frame, Com<ID3D11Texture2D> &texture)
+    HRESULT Next(Com<CaptureFrame> &frame, Com<ID3D11Texture2D> &texture,INT64 after=0)
     {
         HRESULT hr=pool->TryGetNextFrame(frame.put()); if(FAILED(hr)||!frame) return hr;
         // The pool has two buffers: discard an older queued frame before presenting.
@@ -320,6 +356,12 @@ struct Capture
         hr=pool->TryGetNextFrame(newer.put());
         if(FAILED(hr))return hr;
         if(newer){CloseObject(frame.get());newer->AddRef();*frame.put()=newer.get();}
+        hr=FrameAfter(frame.get(),after);
+        if(hr!=S_OK)
+        {
+            CloseObject(frame.get());frame.reset();
+            return hr; // Never present a queued frame rendered before probe teardown.
+        }
         Size32 current{};
         if(FAILED(frame->ContentSize(&current))||current.Width!=size.Width||current.Height!=size.Height)
             return E_FAIL; // New size requires a fresh preflight, never stretch an unverified region.
@@ -386,6 +428,9 @@ std::vector<MonitorInfo> EnumerateMonitors()
         MonitorInfo monitor;monitor.handle=handle;monitor.bounds=info.rcMonitor;
         monitor.primary=(info.dwFlags&MONITORINFOF_PRIMARY)!=0;
         monitor.stableId=info.szDevice;monitor.name=info.szDevice;
+        const auto numberAt=monitor.name.find_last_not_of(L"0123456789");
+        if(numberAt!=std::wstring::npos&&numberAt+1<monitor.name.size())
+            monitor.displayNumber=static_cast<int>(std::wcstol(monitor.name.c_str()+numberAt+1,nullptr,10));
         DISPLAY_DEVICEW device{};device.cb=sizeof(device);
         if(EnumDisplayDevicesW(info.szDevice,0,&device,EDD_GET_DEVICE_INTERFACE_NAME))
         {
@@ -535,6 +580,8 @@ struct MirrorController::Impl
     unsigned operations=0;
     unsigned epoch=0;
     ULONGLONG checkTick=0,verifiedTick=0,framesTick=0;
+    INT64 presentAfter=0,nextFrameAt=0;
+    int resourceMode=2;
     unsigned frameCount=0;
     double fps=0;
     Impl()
@@ -555,9 +602,18 @@ struct MirrorController::Impl
             if(!owner.operations&&owner.clearPending)owner.Clear();
         }
     };
+    bool BeginVerification(HWND owner,const std::wstring &id,bool mounted)
+    {
+        const bool preserve=mounted&&running&&verified&&projector&&owner==privateWindow&&id==sourceId;
+        // Keep every verified capture/output object while a same-source surface
+        // is probed. Native verification and explicit Start still start fresh.
+        if(!preserve){Clear();destinationId.clear();}
+        busy=true;state=State::Verifying;privateWindow=owner;
+        return preserve;
+    }
     void Clear()
     {
-        ++epoch;verified=false;running=false;fps=0;frameCount=0;
+        ++epoch;verified=false;running=false;fps=0;frameCount=0;presentAfter=0;nextFrameAt=0;
         const bool defer=operations||clearing;
         if(!defer)clearing=true;
         if(projector)ShowWindow(projector,SW_HIDE);
@@ -634,19 +690,25 @@ bool MirrorController::Verify(HWND privateWindow,const std::wstring &sourceId,co
     const auto lifetime=impl;
     auto &s=*lifetime;
     if(s.busy||s.clearing||s.operations)return false;
-    s.Clear();s.busy=true;s.state=State::Verifying;s.privateWindow=privateWindow;
+    // A browser proof uses the exact already-verified capture path. Busy blocks
+    // Tick/Present while its unprotected positive control is on the source.
+    const bool preserveProjection=s.BeginVerification(privateWindow,sourceId,static_cast<bool>(mountSurface));
     Impl::Operation operation(s,true);
     const unsigned attempt=s.epoch;
     auto finish=[&](State reason)->bool {if(reason!=State::Verified)s.Fail(reason);return reason==State::Verified;};
     if(!s.roInitialized)return finish(State::Unsupported);
     if(!ApplyPrivacy(privateWindow).applied||!BasicSafe(privateWindow,&s.publicPopups))return finish(State::Unsafe);
     if(s.epoch!=attempt)return false;
-    s.topology=EnumerateMonitors();const auto *source=Find(s.topology,sourceId);
+    if(preserveProjection&&!s.SameTopology())return finish(State::Changed);
+    if(!preserveProjection)s.topology=EnumerateMonitors();
+    const auto *source=Find(s.topology,sourceId);
     if(!source)return finish(State::Changed);
-    s.source=*source;s.sourceId=sourceId;s.destinationId.clear();
+    s.source=*source;s.sourceId=sourceId;
     if(s.epoch!=attempt)return false;
-    if(!s.capture.Create(*source,false))return finish(State::CaptureFailed);
+    if(!preserveProjection&&!s.capture.Create(*source,false))return finish(State::CaptureFailed);
     if(s.epoch!=attempt)return false;
+    const INT64 probeAfter=CaptureClock();
+    if(!probeAfter)return finish(State::CaptureFailed);
     CanaryWindows canary;
     if(!canary.Create(*source))return finish(State::CanaryFailed);
     if(mountSurface) {
@@ -664,9 +726,11 @@ bool MirrorController::Verify(HWND privateWindow,const std::wstring &sourceId,co
     {
         if(s.epoch!=attempt)return false;
         if(!BasicSafe(privateWindow,&s.publicPopups))return finish(State::Unsafe);
+        if(preserveProjection&&(!WithinMonitor(privateWindow,*source)||!Affinity(s.projector)))
+            return finish(State::Unsafe);
         if(s.epoch!=attempt)return false;
         Com<CaptureFrame> frame;Com<ID3D11Texture2D> texture;
-        const HRESULT hr=s.capture.Next(frame,texture);
+        const HRESULT hr=s.capture.Next(frame,texture,probeAfter);
         if(s.epoch!=attempt){CloseObject(frame.get());return false;}
         if(FAILED(hr)){CloseObject(frame.get());return finish(State::CaptureFailed);}
         if(frame&&texture)
@@ -687,8 +751,22 @@ bool MirrorController::Verify(HWND privateWindow,const std::wstring &sourceId,co
                 if(exclusionFrames>=2)
                 {
                     if(!Affinity(canary.overlay)||!s.SameTopology())return finish(State::Changed);
+                    // Remove both public checker backing and private browser
+                    // probe before allowing any public frame to render again.
+                    canary.Remove();
+                    if(s.epoch!=attempt)return false;
+                    if(FAILED(DwmFlush()))return finish(State::CanaryFailed);
+                    if(s.epoch!=attempt)return false;
+                    s.presentAfter=CaptureClock();
+                    if(!s.presentAfter)return finish(State::CaptureFailed);
+                    if(!BasicSafe(privateWindow,&s.publicPopups)||!s.SameTopology())return finish(State::Changed);
+                    if(s.epoch!=attempt)return false;
+                    if(preserveProjection&&(!WithinMonitor(privateWindow,*source)||!Affinity(s.projector)))
+                        return finish(State::Unsafe);
                     s.verified=true;s.verifiedTick=GetTickCount64();s.checkTick=s.verifiedTick;
-                    s.state=State::Verified;return finish(State::Verified);
+                    s.framesTick=s.verifiedTick;s.frameCount=0;s.fps=0;s.nextFrameAt=0;
+                    s.state=preserveProjection?State::Running:State::Verified;
+                    return finish(State::Verified);
                 }
             }
         }
@@ -708,6 +786,20 @@ bool MirrorController::Verify(HWND privateWindow,const std::wstring &sourceId,co
     }
     return finish(State::CanaryFailed);
 }
+void MirrorController::SetResourceMode(int mode)
+{
+    auto &s=*impl;
+    const int selected=std::clamp(mode,0,2);
+    if(s.resourceMode==selected)return;
+    s.resourceMode=selected;s.nextFrameAt=0;s.framesTick=GetTickCount64();s.frameCount=0;s.fps=0;
+}
+int MirrorController::ResourceMode() const {return impl->resourceMode;}
+unsigned MirrorController::TargetFps() const
+{
+    constexpr unsigned limits[]={15,30,60};
+    return limits[impl->resourceMode];
+}
+unsigned MirrorController::TickIntervalMs() const {return 500/TargetFps();}
 bool MirrorController::IsVerified() const
 {
     const auto &s=*impl;
@@ -778,8 +870,11 @@ void MirrorController::Tick()
         if(!s.SameTopology()){s.Fail(State::Changed);return;}
         if(s.epoch!=attempt)return;
     }
+    const INT64 frameTime=CaptureClock();
+    if(!frameTime){s.Fail(State::CaptureFailed);return;}
+    if(!FrameDue(frameTime,TargetFps(),s.nextFrameAt))return;
     Com<CaptureFrame> frame;Com<ID3D11Texture2D> texture;
-    const HRESULT hr=s.capture.Next(frame,texture);
+    const HRESULT hr=s.capture.Next(frame,texture,s.presentAfter);
     if(s.epoch!=attempt){CloseObject(frame.get());return;}
     if(FAILED(hr)){CloseObject(frame.get());s.Fail(State::CaptureFailed);return;}
     if(frame&&texture)

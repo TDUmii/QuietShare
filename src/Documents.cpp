@@ -1,4 +1,5 @@
 #include "Documents.h"
+#include "FileIcons.h"
 
 #include <uxtheme.h>
 
@@ -277,11 +278,16 @@ void TabManager::EvictInactiveHeavy()
 ProjectTree::~ProjectTree()
 {
     if (IsWindow(window_))
+    {
+        TreeView_SetImageList(window_, nullptr, TVSIL_NORMAL);
         DestroyWindow(window_);
+    }
+    if (icons_) ImageList_Destroy(icons_);
 }
 
 bool ProjectTree::Create(HWND parent, int controlId)
 {
+    if (IsWindow(window_)) return true;
     INITCOMMONCONTROLSEX common{sizeof(common), ICC_TREEVIEW_CLASSES};
     InitCommonControlsEx(&common);
     window_ = CreateWindowExW(0, WC_TREEVIEWW, L"", WS_CHILD | WS_TABSTOP | TVS_HASBUTTONS | TVS_LINESATROOT |
@@ -294,7 +300,98 @@ bool ProjectTree::Create(HWND parent, int controlId)
     TreeView_SetTextColor(window_, RGB(242, 245, 247));
     TreeView_SetLineColor(window_, RGB(52, 59, 66));
     SetWindowTheme(window_, L"DarkMode_Explorer", nullptr);
+    SetWindowSubclass(window_, TreeProc, 1, reinterpret_cast<DWORD_PTR>(this));
+    SetDpi(GetDpiForWindow(window_));
     return true;
+}
+
+void ProjectTree::SetDpi(UINT dpi)
+{
+    dpi = std::clamp(dpi ? dpi : 96, 48u, 768u);
+    if (!window_) return;
+    if (icons_ && dpi == iconDpi_)
+    {
+        TreeView_SetImageList(window_, icons_, TVSIL_NORMAL);
+        return;
+    }
+    const int size = MulDiv(16, dpi, 96);
+    const int count = static_cast<int>(FileIconKind::Count);
+    // Explicit RGB + color-key mask also works with the classic common-control
+    // image list; its 32-bit path does not reliably retain GDI-authored alpha.
+    HIMAGELIST icons = ImageList_Create(size, size, ILC_COLOR24 | ILC_MASK, count, 0);
+    if (icons) ImageList_SetBkColor(icons, CLR_NONE);
+    HDC dc = CreateCompatibleDC(nullptr);
+    BITMAPINFO bitmap{};
+    bitmap.bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
+    bitmap.bmiHeader.biWidth = size;
+    bitmap.bmiHeader.biHeight = -size;
+    bitmap.bmiHeader.biPlanes = 1;
+    bitmap.bmiHeader.biBitCount = 32;
+    void *pixels = nullptr;
+    HBITMAP image = CreateDIBSection(dc, &bitmap, DIB_RGB_COLORS, &pixels, nullptr, 0);
+    if (!icons || !dc || !image || !pixels)
+    {
+        if (image) DeleteObject(image);
+        if (dc) DeleteDC(dc);
+        if (icons) ImageList_Destroy(icons);
+        return;
+    }
+    const auto old = SelectObject(dc, image);
+    for (int index = 0; index < count; ++index)
+    {
+        GdiFlush();
+        std::fill_n(static_cast<DWORD *>(pixels), size * size, 0x00252526);
+        DrawFileTypeIcon(dc, static_cast<FileIconKind>(index), RECT{0, 0, size, size});
+        GdiFlush();
+        // Image-list import may read bitmap bits; do not leave it selected in a DC.
+        SelectObject(dc, old);
+        const int added = ImageList_AddMasked(icons, image, RGB(37,37,38));
+        SelectObject(dc, image);
+        if (added < 0)
+        {
+            ImageList_Destroy(icons);
+            icons = nullptr;
+            break;
+        }
+    }
+    SelectObject(dc, old);
+    DeleteObject(image);
+    DeleteDC(dc);
+    if (!icons) return;
+    TreeView_SetImageList(window_, icons, TVSIL_NORMAL);
+    if (icons_) ImageList_Destroy(icons_);
+    icons_ = icons;
+    iconDpi_ = dpi;
+}
+
+LRESULT CALLBACK ProjectTree::TreeProc(HWND window, UINT message, WPARAM wp, LPARAM lp, UINT_PTR,
+                                      DWORD_PTR data)
+{
+    auto *tree = reinterpret_cast<ProjectTree *>(data);
+    if (message == WM_DPICHANGED_AFTERPARENT) tree->SetDpi(GetDpiForWindow(window));
+    if (message == WM_NCDESTROY)
+    {
+        RemoveWindowSubclass(window, TreeProc, 1);
+        tree->window_ = nullptr;
+    }
+    const auto result = DefSubclassProc(window, message, wp, lp);
+    // TVM_EXPAND can suppress repeat notifications after TVIS_EXPANDEDONCE.
+    // Read the actual state after the native control handles the request.
+    if (message == TVM_EXPAND) tree->UpdateFolderIcon(reinterpret_cast<HTREEITEM>(lp));
+    return result;
+}
+
+void ProjectTree::UpdateFolderIcon(HTREEITEM handle)
+{
+    const auto found = nodes_.find(handle);
+    if (found == nodes_.end() || !found->second->directory) return;
+    const bool expanded = (TreeView_GetItemState(window_, handle, TVIS_EXPANDED) & TVIS_EXPANDED) != 0;
+    TVITEMW item{};
+    item.mask = TVIF_IMAGE | TVIF_SELECTEDIMAGE;
+    item.hItem = handle;
+    item.iImage = static_cast<int>(FileIconForName(L"", true, expanded));
+    item.iSelectedImage = item.iImage;
+    TreeView_SetItem(window_, &item);
 }
 
 void ProjectTree::Clear()
@@ -315,10 +412,12 @@ HTREEITEM ProjectTree::Insert(HTREEITEM parent, const std::wstring &name, std::w
     TVINSERTSTRUCTW insert{};
     insert.hParent = parent;
     insert.hInsertAfter = TVI_LAST;
-    insert.item.mask = TVIF_TEXT | TVIF_PARAM | TVIF_CHILDREN;
+    insert.item.mask = TVIF_TEXT | TVIF_PARAM | TVIF_CHILDREN | TVIF_IMAGE | TVIF_SELECTEDIMAGE;
     insert.item.pszText = const_cast<wchar_t *>(name.c_str());
     insert.item.lParam = reinterpret_cast<LPARAM>(node.get());
     insert.item.cChildren = directory ? 1 : 0;
+    insert.item.iImage = static_cast<int>(FileIconForName(name, directory));
+    insert.item.iSelectedImage = insert.item.iImage;
     HTREEITEM item = TreeView_InsertItem(window_, &insert);
     if (item)
         nodes_.emplace(item, std::move(node));
@@ -436,6 +535,11 @@ bool ProjectTree::HandleNotify(const NMHDR *notification, std::wstring &file, st
         const auto *expanded = reinterpret_cast<const NMTREEVIEWW *>(notification);
         if (expanded->action == TVE_EXPAND)
             Expand(expanded->itemNew.hItem, error);
+    }
+    else if (notification->code == TVN_ITEMEXPANDEDW)
+    {
+        const auto *expanded = reinterpret_cast<const NMTREEVIEWW *>(notification);
+        UpdateFolderIcon(expanded->itemNew.hItem);
     }
     else if (notification->code == NM_DBLCLK)
         file = SelectedFile();
