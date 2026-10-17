@@ -2,8 +2,8 @@
 
 Updated: 2026-10-17
 Repository: private `TDUmii/QuietShare`
-Current application release: `v0.9.1`
-Current `main` includes the 5-minute session-expiry fix plus unreleased source-window containment and compact UI changes. The tracked `dist` binaries, root v0.9.1 ZIP and published Release remain the previously shipped v0.9.1 payload; build the current source before checking the new containment/UI behavior. The application version has not been bumped and no release has been created for this follow-up.
+Current application version and release target: `v0.9.2`
+Current `main` includes the 5-minute session-expiry fix, pre-move source-window containment and compact shell/browser controls. Following the source-only handoff, the user authorized building and publishing these changes as v0.9.2. Keep application, installer, portable package and release metadata aligned; historical releases remain available.
 
 ## Product purpose
 
@@ -38,9 +38,9 @@ A real 720-second soak passed on one physical monitor with WGC/renderer and a sy
 
 ## Current handoff task
 
-The current source adds pre-move containment of the control window within its captured source display during projection, keeping the runtime fail-closed guards. It also reduces shell controls and browser chrome for small windows. The user requested source/native automated checks only for this implementation; no repeat physical TV test, no 20/30-minute soak and no release. The consumed field report is removed from the current Git tree at the user's request; retain this context and `handoff/EXTEND_LAPTOP_HANDOFF.md`.
+The source follow-up adds pre-move containment of the control window within its captured source display during projection, keeping the runtime fail-closed guards. It also reduces shell controls and browser chrome for small windows. The initial scope requested source/native automated checks without another physical TV test, timed hardware soak or release. The user subsequently authorized publishing the finished build as v0.9.2; this does not authorize or imply a repeat physical/timed run. The consumed field report is removed from the current Git tree at the user's request; retain this context and `handoff/EXTEND_LAPTOP_HANDOFF.md`.
 
-Clearly distinguish presenter observations, geometry/native HWND checks and physical-hardware evidence. Do not infer that the drag-triggered disappearance was reproduced or that every physical Extend failure is resolved. Do not cut a new release unless that is the user-requested next step.
+Clearly distinguish presenter observations, geometry/native HWND checks and physical-hardware evidence. Do not infer that the drag-triggered disappearance was reproduced or that every physical Extend failure is resolved. Future releases still require a user-requested publishing step.
 
 ## Start prompt for Codex on the company laptop
 

@@ -8,6 +8,10 @@ import shutil
 import subprocess
 
 ROOT = Path(__file__).resolve().parents[1]
+VERSION = '0.9.2'
+
+def sha256(path):
+    return hashlib.sha256((ROOT / path).read_bytes()).hexdigest()
 
 def read(name):
     return json.loads((ROOT / 'artifacts' / name).read_text(encoding='utf-8-sig'))
@@ -26,24 +30,46 @@ def main():
     life = read('lifecycle-check.json')
     browser = read('qa-browser/browser-regression.json')
     settings = read('qa-settings/settings-regression.json')
-    soak = read('qa-mirror/mirror-soak-720.json')
-    core_snapshot = read('qa-mirror/soak-source.json')
-    assert soak['failed'] == 0 and soak['soakSeconds'] == 720 and soak['elapsedSeconds'] >= 720
-    assert soak['actualWgcCanary'] and soak['framesPresented'] >= 720 and soak['minimized'] and soak['restored']
-    for name, expected_hash in core_snapshot.items():
-        path = 'artifacts/qa-mirror/mirror-soak-regression.exe' if name == 'testBinarySha256' else name
-        assert hashlib.sha256((ROOT / path).read_bytes()).hexdigest() == expected_hash, path
-    actual_hash = hashlib.sha256((ROOT / 'dist/QuietShare.exe').read_bytes()).hexdigest()
-    assert inventory['passed'] and production['exeSha256'] == life['exeSha256'] == actual_hash
+    scrollbar = read('scrollbar-check.json')
+    local_ui = read('local-qa-report.json')
+    guard = read('qa-mirror-window-guard/mirror-window-guard-regression.json')
+    actual_hash = sha256('dist/QuietShare.exe')
+    qa_hash = sha256('build/QuietShare-QA.exe')
+    assert inventory['passed'] and inventory['version'] == VERSION
+    for name, payload in inventory['files'].items():
+        assert sha256('dist/' + name) == payload['sha256'], name
+    assert production['exeSha256'] == life['exeSha256'] == actual_hash
     assert browser['exeSha256']==actual_hash and not browser['failure']
-    assert settings['testedBinarySha256']==hashlib.sha256((ROOT/'build/QuietShare-QA.exe').read_bytes()).hexdigest() and not settings['failure']
+    assert settings['testedBinarySha256'] == scrollbar['testedBinarySha256'] == qa_hash and not settings['failure']
+    assert local_ui['passed'] and local_ui['applicationVersion'] == VERSION
+    assert guard['physicalTwoDisplayTest'] is False
+    assert (ROOT/'artifacts/qa-installer-smoke/installer-smoke.json').stat().st_mtime_ns >= max(
+        (ROOT/'dist/QuietShare.exe').stat().st_mtime_ns,
+        (ROOT/'dist/QuietShare-Setup.exe').stat().st_mtime_ns), 'Installer evidence predates release binaries'
+    # These native fixtures do not carry a product EXE hash. Bind their fresh
+    # reports to rebuilt fixture binaries and current sources before packaging.
+    native_bindings = {}
+    native_sources = sorted([*ROOT.glob('src/*.cpp'), *ROOT.glob('src/*.h')])
+    for folder, stem, fixture in (
+        ('qa-mirror', 'mirror-regression', 'mirror_regression.cpp'),
+        ('qa-mirror', 'mirror-render-regression', 'mirror_render_regression.cpp'),
+        ('qa-mirror-window-guard', 'mirror-window-guard-regression', 'mirror_window_guard_regression.cpp'),
+        ('qa-projection-notice', 'projection-notice-regression', 'projection_notice_regression.cpp')):
+        executable = ROOT/'artifacts'/folder/(stem + '.exe')
+        report = ROOT/'artifacts'/folder/(stem + '.json')
+        sources = [*native_sources, ROOT/'tests'/fixture]
+        assert executable.stat().st_mtime_ns >= max(path.stat().st_mtime_ns for path in sources), fixture
+        assert report.stat().st_mtime_ns >= executable.stat().st_mtime_ns, report
+        native_bindings[stem] = {'testBinarySha256': sha256(executable),
+                                'reportSha256': sha256(report),
+                                'sourceSha256': {path.relative_to(ROOT).as_posix(): sha256(path) for path in sources}}
     reports = [
         ('Content / file policy','qa-content/content-regression.json'),
         ('Tabs / lazy project tree','qa-documents/documents-regression.json'),
         ('Scintilla / Lexilla / PDFium','qa-viewers/viewer-regression.json'),
         ('WGC / canary / cancellation','qa-mirror/mirror-regression.json'),
         ('D3D11 production renderer / WARP','qa-mirror/mirror-render-regression.json'),
-        ('Long session / real WGC and renderer / synthetic destination','qa-mirror/mirror-soak-720.json'),
+        ('Source window / geometry / native move and resize guard','qa-mirror-window-guard/mirror-window-guard-regression.json'),
         ('Projection interruption / native shell notice','qa-projection-notice/projection-notice-regression.json'),
         ('Native UI / fixtures / DPAPI / resources','local-qa-report.json'),
         ('Release PE / imports / embedded payloads','release-inventory.json'),
@@ -74,12 +100,14 @@ def main():
         env=probe_env,text=True))
     if isinstance(controllers,dict):controllers=[controllers]
     gpu_text='; '.join(f"{item['Name']} (driver {item['DriverVersion']})" for item in controllers)
-    evidence={'version':'0.9.1','platform':'win-x64','windowsBuild':sys.getwindowsversion().build,
+    evidence={'version':VERSION,'platform':'win-x64','windowsBuild':sys.getwindowsversion().build,
               'baselineV03':{'nativeUI':179,'content':60,'lifecycle':29,'scrollbar':17,'releasePE':7,'status':'PASS before changes'},
               'passed':total,'failed':0,'suites':suites,'files':inventory['files'],
               'authenticode':inventory['authenticode'],'monitorCount':mirror['monitorCount'],
               'actualWgcCanary':mirror['actualWgcCanary'],'canaryElapsedMs':mirror['canaryElapsedMs'],
-              'longSession':soak,'longSessionSourceBinding':core_snapshot,
+              'nativeSourceBindings':native_bindings,
+              'longSession':{'status':'NOT RUN','reason':'No new physical receiver or long session soak requested; historical v0.9.1 soak is excluded from current release evidence and counts'},
+              'sourceWindowGuard':guard,
               'listedVideoControllers':controllers,
               'pdfCooperativeBudgetMs':750,'pdfStressObservedMs':viewer['renderBudgetTestMilliseconds'],
               'browser':{'metrics':browser['metrics'],'notTested':browser['notTested'],'profile':'Separate local profile; never exported'},
@@ -90,10 +118,10 @@ def main():
               'screenshots':'Native renderer with synthetic data in a separate QA build; not HTML mockups or receiver evidence'}
     internal = ROOT/'artifacts/qa-release'
     internal.mkdir(parents=True,exist_ok=True)
-    (internal/'test-evidence-v0.9.1.json').write_text(json.dumps(evidence,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
+    (internal/f'test-evidence-v{VERSION}.json').write_text(json.dumps(evidence,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
     rows='\n'.join(f"| {s['name']} | {s['passed']} | 0 | PASS |" for s in suites)
     hashes='\n'.join(f"| `{name}` | {file['bytes']:,} | `{file['sha256']}` |" for name,file in inventory['files'].items())
-    report=f'''# QuietShare v0.9.1 - Test report
+    report=f'''# QuietShare v{VERSION} - Test report
 
 Build and automated validation completed on Windows build {evidence['windowsBuild']} x64. **{total} checks PASS, 0 FAIL.** Physical receiver sign-off remains **NOT TESTED**. The original v0.3 baseline passed before changes; its results are retained in the sanitized evidence.
 
@@ -105,7 +133,7 @@ Requires Windows, Python 3, MinGW-w64 GCC 13.1.0 (or compatible x64 toolchain) a
 
 ```powershell
 .\\build.ps1 -CompilerRoot "C:\\path\\to\\mingw64\\bin"
-.\\tests\\run-all.ps1 -LongSession -CompilerRoot "C:\\path\\to\\mingw64\\bin"
+.\\tests\\run-all.ps1 -CompilerRoot "C:\\path\\to\\mingw64\\bin"
 .\\package.ps1
 ```
 
@@ -118,7 +146,7 @@ Requires Windows, Python 3, MinGW-w64 GCC 13.1.0 (or compatible x64 toolchain) a
 {rows}
 | **Total** | **{total}** | **0** | **PASS** |
 
-Detailed sanitized check names and payload metadata: [test-evidence-v0.9.1.json](docs/test-evidence-v0.9.1.json). Raw fixtures, pixels, temporary profiles and diagnostics are local-only and excluded from Git and the portable package; temporary payloads can be cleaned after the final evidence is exported.
+Detailed sanitized check names and payload metadata: [test-evidence-v{VERSION}.json](test-evidence-v{VERSION}.json). Raw fixtures, pixels, temporary profiles and diagnostics are local-only and excluded from Git and the portable package; temporary payloads can be cleaned after the final evidence is exported.
 
 ## What the checks establish
 
@@ -136,7 +164,8 @@ Detailed sanitized check names and payload metadata: [test-evidence-v0.9.1.json]
 - **File icons and screen identity:** Explorer caches its type-icon image list per DPI, with distinct code/language/config/image/PDF/folder icons and matching document-tab icons. Native tests cover image-list reuse/replacement and folder expansion state. Display labels use the Windows display number, primary role and the current window's monitor, retaining distinct source/destination defaults even at equal resolutions. Single-monitor live identity is tested; the physical dual-monitor label mapping still needs receiver-side observation.
 - **Optional browser:** the shipping EXE starts with browsing off and creates no web profile until explicit enable. The actual WebView2 SVG marker passes positive and excluded WGC capture; native black backing cannot satisfy its positive test. Local HTTP fixtures exercise navigation, Back/Forward/Reload, popup/script/credential-dialog suppression, geolocation denial, F8, actual background suspension/resume, process exit on disable, pending-enable cancellation, separate-profile cookies, restart-default-off and offline readers without the loader. Input checks cover domains, URLs, localhost ports, Vietnamese/emoji UTF-8 queries and unsafe-scheme rejection. Shipping checks observe Vietnamese Google search navigation and Google/ChatGPT shortcuts. Cold start plus browser canary on this host was {browser['metrics']['coldStartAndCanaryMs']} ms. Public ChatGPT HTTPS load observed: {browser['metrics'].get('chatgptPublicHttpsLoaded',False)}; public Google search HTTPS load observed: {browser['metrics'].get('googleSearchPublicHttpsLoaded',False)}. Authenticated ChatGPT messages, third-party OAuth, client certificates and clean-machine missing-runtime behavior are not verified. User web data and raw profiles are excluded from exported evidence and Git.
 - **D3D11:** the production shader/swapchain renderer presents a synthetic public texture using WARP, with framebuffer readback for aspect-preserving letterbox/pillarbox, blanking and owned GPU resource release. This is real software D3D rendering, not evidence of a physical destination screen.
-- **Long sessions:** the native clock checks cross the former five-minute boundary, ten minutes, one hour and 24 hours with visible and minimized owners. A separate real-time run keeps the actual WGC source and production renderer active for {soak['elapsedSeconds']} seconds, observing {soak['framesPresented']} successful presents, including minimize/restore. It uses a protected synthetic destination on the available monitor, not a second physical Extend receiver. Affinity loss after the run still stops output and releases the scoped execution request. Native notice checks cover a persistent translated caption, taskbar/sound requests, stale/duplicate rejection, intentional Stop/F8, and no focus or window restoration. The native request restores earlier thread execution flags; deliberate user sleep is not overridden.
+- **Source containment:** the current native fixture covers geometry and real HWND move/resize lifecycle to keep the controller within the verified source work area before Windows applies a position, including near-edge moves, resize, maximize and restore. Minimized owners remain permitted. These checks use synthetic monitor geometry and do not reproduce the reported TV disappearance or establish its cause.
+- **Session lifetime:** the native clock checks cross the former five-minute boundary, ten minutes, one hour and 24 hours with visible and minimized owners. Affinity loss still stops output and releases the scoped execution request. Native notice checks cover a persistent translated caption, taskbar/sound requests, stale/duplicate rejection, intentional Stop/F8, and no focus or window restoration. The native request restores earlier thread execution flags; deliberate user sleep is not overridden. No new real-time soak or physical receiver test was run for this release. The historical v0.9.1 720-second run is excluded from the current evidence and check count.
 
 ## PASS / FAIL / NOT TESTED matrix
 
@@ -170,7 +199,7 @@ Detailed sanitized check names and payload metadata: [test-evidence-v0.9.1.json]
 
 Installer RCDATA 301-306 matches the portable EXE, four DLLs and full redistribution notices byte for byte. Only the 195 KB WebView2 loader is bundled; the shared Evergreen Runtime is separate and optional for offline readers. The portable ZIP is checked against every staged release file before publication. The implementation specification is copied unchanged; old Git releases/history are retained.
 '''
-    (internal/'TEST_REPORT_v0.9.1.md').write_text(report,encoding='utf-8')
+    (internal/f'TEST_REPORT_v{VERSION}.md').write_text(report,encoding='utf-8')
     print(f'Internal validation exported: {total} PASS, 0 FAIL; shipping EXE {actual_hash}')
 
 if __name__=='__main__':

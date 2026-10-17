@@ -29,6 +29,10 @@ function Compile-Resource([string]$source, [string]$output) {
         }
         if ($attempt -lt 3) { Start-Sleep -Milliseconds 700 }
     }
+    # The res-to-COFF converter can also hit this toolchain's heap bug. Retry
+    # the same small manifest/icon/font input through the direct RC path.
+    $resourceProcess = Start-Process -FilePath $windres -ArgumentList @('-I.',$source,'-O','coff','-o',$output) -WorkingDirectory (Get-Location).Path -WindowStyle Hidden -PassThru -Wait
+    if ($resourceProcess.ExitCode -eq 0) { return }
     throw "Resource compilation failed: $source (exit $($resourceProcess.ExitCode))"
 }
 Push-Location (Join-Path $projectRoot 'src')

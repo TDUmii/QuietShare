@@ -2,11 +2,12 @@
 
 Updated: 2026-10-17
 Repository: private `TDUmii/QuietShare`
-Expected baseline: `main` at `f08eede29a354f8302fcd900530368eeea8f6368`, release `v0.9.1`
+Original incident baseline: release `v0.9.1` at `f08eede29a354f8302fcd900530368eeea8f6368`
+Current application version and release target: `v0.9.2`
 
 ## Goal
 
-The original hardware protocol below is retained as project reference. The presenter has since reported an afternoon of physical laptop/TV Extend use without noticing a spontaneous stop, and an unmeasured disappearance while dragging the control window to the TV. This is not a measured soak or a reproduced cause. The implementation follow-up uses source/native automated checks; the user explicitly does not request a repeat TV/timed run. See `handoff/QUIETSHARE_CONTEXT.md` for the current handoff state. The consumed field report is removed from the current Git tree at the user's request.
+The original hardware protocol below is retained as project reference. The presenter has since reported an afternoon of physical laptop/TV Extend use without noticing a spontaneous stop, and an unmeasured disappearance while dragging the control window to the TV. This is not a measured soak or a reproduced cause. The implementation follow-up uses source/native automated checks; the user explicitly does not request a repeat TV/timed run. The user subsequently authorized publishing the source-window containment and compact UI changes as v0.9.2. This authorization does not imply new hardware evidence. See `handoff/QUIETSHARE_CONTEXT.md` for the current handoff state. The consumed field report is removed from the current Git tree at the user's request.
 
 Reproduce or rule out the report that QuietShare stops showing the projection on a physically extended display after about 5-10 minutes. This check must use the company laptop with two physical displays in Windows Extend mode. Do not treat the earlier synthetic destination as physical-display validation.
 
@@ -16,7 +17,11 @@ The previous build had an unconditional five-minute verification lease in `src/M
 
 The code still stops projection on safety failures, explicit Stop/F8, close, suspend, display change, capture/device errors, or failed topology/privacy checks. It does not automatically restart a failed projection.
 
-The v0.9.1 soak ran 12 minutes with WGC and renderer on one physical monitor plus a synthetic destination, including minimize/restore. It did not validate a real second monitor. The physical Extend test below is the missing evidence.
+The v0.9.1 soak ran 12 minutes with WGC and renderer on one physical monitor plus a synthetic destination, including minimize/restore. It did not validate a real second monitor. The physical Extend protocol below remains a reference for a future explicitly requested run.
+
+## What changed in v0.9.2
+
+While projecting, the complete control window stays within the verified source display's work area before Windows applies a move, resize, maximize or restore. It does not follow a drag to the audience display. Runtime safety checks remain fail-closed, with no automatic restart after a failure. Shell controls and browser navigation are more compact for small windows; the secondary browser toolbar can be hidden through Layout. These changes prevent an invalid control-window position and do not establish a reproduced cause for the presenter's earlier disappearance report.
 
 ## Laptop test procedure
 

@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.9.2
+
+- Giữ toàn bộ cửa sổ điều khiển trong vùng làm việc của màn hình nguồn đã xác minh khi đang chiếu, kể cả khi kéo sát mép, đổi kích thước, phóng to hoặc khôi phục cửa sổ.
+- Giữ các kiểm tra quyền riêng tư, capture, cấu hình màn hình và thiết bị. Lỗi an toàn vẫn dừng chiếu và yêu cầu người dùng chủ động bắt đầu lại.
+- Thu nhỏ thanh bên, icon và nút điều khiển để dành thêm diện tích cho nội dung trong cửa sổ nhỏ.
+- Thu gọn trang trình duyệt: tab và nút cửa sổ dùng chung hàng trên, điều hướng và địa chỉ dùng chung một hàng; thanh Google/ChatGPT/zoom có thể ẩn tại **Bố cục > Thanh công cụ**.
+- Đồng bộ phiên bản trên Tổng quan, ứng dụng, bộ cài và hướng dẫn VI/EN thành **v0.9.2**.
+- Keep the entire control window inside the verified source display's work area during projection, including edge dragging, resizing, maximizing and restoring.
+- Retain privacy, capture, display-topology and device checks. Safety failures still stop projection and require an explicit restart by the user.
+- Reduce sidebar, icon and control sizes to give content more room in small windows.
+- Compact the browser page: tabs share the top row with window controls, navigation shares a row with the address field, and **Layout > Toolbar** can hide the Google/ChatGPT/zoom row.
+- Align Overview, application, installer and VI/EN guidance with **v0.9.2**.
+
 ## 0.9.1
 
 - Sửa Smart Mirror tự dừng sau khoảng 5 phút do giới hạn thời gian xác minh cố định. Phiên Extend tiếp tục khi capture, cấu hình màn hình và điều kiện bảo vệ còn hợp lệ.
