@@ -120,6 +120,7 @@ bool compactUi = false;
 std::vector<HWND> buttons;
 WNDPROC editorProc;
 bool qa = false, qaVisual = false, qaStorage = false, qaInteractive = false, qaCaptureOk = true, qaPass = true;
+bool projectionStoppedNotice=false,shuttingDown=false;
 bool qaReading = false, qaReadOnly = false, qaFont = false, qaScrolled = false, qaPaused = false,
      qaMasked = false, qaCompact = false, qaUnchanged = false, qaEditReturned = false, qaLanguage = false;
 bool qaRoundtrip = false, qaPlaintextAbsent = false, qaAutosave = false;
@@ -135,6 +136,35 @@ std::wstring qaDir, qaContent;
 const wchar_t *T(const wchar_t *vietnamese, const wchar_t *englishText)
 {
     return english ? englishText : vietnamese;
+}
+
+void UpdateProjectionNoticeCaption()
+{
+    if(window&&IsWindow(window))SetWindowTextW(window,projectionStoppedNotice?
+        T(L"QuietShare - Trình chiếu đã dừng",L"QuietShare - Projection stopped"):L"QuietShare");
+}
+void UpdateProjectionStopButton()
+{
+    if(window&&IsWindow(window))EnableWindow(GetDlgItem(window,MIRROR_STOP),projectionStoppedNotice||(mirror&&mirror->Running()));
+}
+void ClearProjectionStoppedNotice()
+{
+    if(!projectionStoppedNotice)return;
+    projectionStoppedNotice=false;UpdateProjectionNoticeCaption();UpdateProjectionStopButton();
+    if(window&&IsWindow(window)&&!qa) {
+        FLASHWINFO flash{sizeof(flash),window,FLASHW_STOP,0,0};FlashWindowEx(&flash);
+    }
+}
+void ShowProjectionStoppedNotice()
+{
+    if(shuttingDown||masked||projectionStoppedNotice||!window||!IsWindow(window))return;
+    projectionStoppedNotice=true;UpdateProjectionNoticeCaption();UpdateProjectionStopButton();InvalidateRect(window,nullptr,FALSE);
+    // Fixed public text, sound and taskbar attention never restore or focus the
+    // private window. The reason remains available on Overview/Presentation.
+    if(!qa) {
+        MessageBeep(MB_ICONEXCLAMATION);
+        FLASHWINFO flash{sizeof(flash),window,FLASHW_TRAY,3,0};FlashWindowEx(&flash);
+    }
 }
 
 void ApplyTextFormat();
@@ -535,7 +565,7 @@ void UpdateButtons()
     SetWindowTextW(GetDlgItem(window,LAYOUT_MENU),T(L"Bố cục",L"Layout"));
     SetTip(LAYOUT_MENU,T(L"Bố cục: thanh bên, tab, công cụ, trạng thái",L"Layout: activity bar, tabs, toolbar and status bar"));
     SetTip(SHOW_TREE,T(L"Ẩn Explorer - Ctrl+B",L"Hide Explorer - Ctrl+B"));
-    SetWindowTextW(window, L"QuietShare");
+    UpdateProjectionNoticeCaption();
     SetWindowTextW(GetDlgItem(window, MODE), T(reading ? L"Sửa lời" : L"Đọc", reading ? L"Edit" : L"Read"));
     SetWindowTextW(GetDlgItem(window, NAV_SCRIPT), T(L"Lời nhắc", L"Script"));
     SetWindowTextW(GetDlgItem(window, NAV_READ), T(L"Đọc", L"Read"));
@@ -572,7 +602,7 @@ void UpdateButtons()
         EnableWindow(GetDlgItem(window,id),!Blocked());
     EnableWindow(GetDlgItem(window,VERIFY_PRIVACY),!masked&&!verifying&&!storageBlocked);
     EnableWindow(GetDlgItem(window,MIRROR_START),!Blocked()&&monitors.size()>1&&SelectedMonitor(sourceMonitor)!=SelectedMonitor(destinationMonitor));
-    EnableWindow(GetDlgItem(window,MIRROR_STOP),mirror&&mirror->Running());
+    UpdateProjectionStopButton();
     for (int id : {MODE, PLAY, SMALLER, LARGER, SPEED, RESET_ZOOM, NAV_SCRIPT, NAV_READ, OPEN_FILE, OPEN_DROP,
                    HOME_SCRIPT, VIEW_FILE})
         EnableWindow(GetDlgItem(window, id), !Blocked());
@@ -1061,6 +1091,7 @@ void ScrollTick()
 }
 void ToggleMask()
 {
+    ClearProjectionStoppedNotice();
     masked = !masked;
     Pause();
     if(masked){browser.Lock();documentHost.Hide();SendMessageW(tooltips,TTM_POP,0,0);}
@@ -1480,14 +1511,15 @@ void Paint(HDC dc)
     }
     if(focusMode||!statusVisible)return;
     RECT footer{S(contentLeft),client.bottom-S(22),S(contentRight),client.bottom-S(2)};
-    std::wstring label=Blocked()?T(L"Nội dung đang khóa",L"Content locked"):page==Page::Browser?(browser.Ready()?browser.Status(english):L""):
+    std::wstring label=projectionStoppedNotice?T(L"Trình chiếu đã dừng - mở Trình chiếu để bắt đầu lại.",L"Projection stopped - open Presentation to start again."):
+        Blocked()?T(L"Nội dung đang khóa",L"Content locked"):page==Page::Browser?(browser.Ready()?browser.Status(english):L""):
         saveFailed?T(L"Không lưu được lời nhắc",L"Script save failed"):
         savedNoteRecovered&&!dirty&&!reading?T(L"Đã giữ bản dự phòng lời nhắc cũ",L"Old script recovery copy preserved"):
         dirty?T(L"Đang lưu...",L"Saving..."):!sizeError.empty()?sizeError:!findMessage.empty()?findMessage:
         !importError.empty()?importError:IsPdf()?std::to_wstring(pdfViewer.GetState().page+1)+L" / "+std::to_wstring(pdfViewer.PageCount()):
         viewingFile?ActiveContent().displayName:page==Page::Content?T(L"Lời nhắc · Tự lưu trên máy",L"Script · Saved locally"):L"";
     size_t split=label.find(L" / ");if(split!=std::wstring::npos && !IsPdf())label=english?label.substr(split+3):label.substr(0,split);
-    DrawTextAt(dc,label,footer,saveFailed||!importError.empty()?AMBER:MUTED,metaFont,DT_LEFT|DT_VCENTER|DT_SINGLELINE|DT_END_ELLIPSIS);
+    DrawTextAt(dc,label,footer,projectionStoppedNotice||saveFailed||!importError.empty()?AMBER:MUTED,metaFont,DT_LEFT|DT_VCENTER|DT_SINGLELINE|DT_END_ELLIPSIS);
 }
 void DrawActionIcon(HDC dc,int id,RECT r,COLORREF color)
 {
@@ -2410,6 +2442,9 @@ LRESULT CALLBACK Proc(HWND h, UINT message, WPARAM wp, LPARAM lp)
     case BrowserChangedMessage:
         if(wp!=browser.Generation())return 0;
         Layout();return 0;
+    case MirrorStoppedMessage:
+        if(!shuttingDown&&mirror&&mirror->ConsumeStoppedNotice((unsigned)wp))ShowProjectionStoppedNotice();
+        return 0;
     case BrowserTabActionMessage:
         if(wp==browser.Generation()&&page==Page::Browser&&!Blocked()) {
             browser.ProcessTabAction((int)lp);Layout();
@@ -2702,9 +2737,9 @@ LRESULT CALLBACK Proc(HWND h, UINT message, WPARAM wp, LPARAM lp)
         case MIRROR_START:
             if(!mirror || masked)break;
             documentHost.Hide();verifying=true;Layout();
-            mirror->Start(SelectedMonitor(sourceMonitor),SelectedMonitor(destinationMonitor),mirrorPointer);
+            if(mirror->Start(SelectedMonitor(sourceMonitor),SelectedMonitor(destinationMonitor),mirrorPointer))ClearProjectionStoppedNotice();
             verifying=false;Layout();break;
-        case MIRROR_STOP:documentHost.Hide();if(mirror)mirror->Stop();Layout();break;
+        case MIRROR_STOP:ClearProjectionStoppedNotice();documentHost.Hide();if(mirror)mirror->Stop();Layout();break;
         case POINTER:mirrorPointer=!mirrorPointer;UpdateButtons();break;
         case OPEN_FOLDER:ChooseFolder();break;
         case OVERFLOW:OverflowMenu();break;
@@ -2762,6 +2797,7 @@ LRESULT CALLBACK Proc(HWND h, UINT message, WPARAM wp, LPARAM lp)
             break;
         case LANGUAGE:
             english = !english;
+            UpdateProjectionNoticeCaption();
             labeledWindowMonitor=nullptr;UpdateMonitorLabels();
             Layout();
             break;
@@ -2847,9 +2883,10 @@ LRESULT CALLBACK Proc(HWND h, UINT message, WPARAM wp, LPARAM lp)
                         L"QuietShare", MB_OK | MB_ICONWARNING);
             return 0;
         }
-        DestroyWindow(h);
+        shuttingDown=true;DestroyWindow(h);
         return 0;
     case WM_DESTROY:
+        shuttingDown=true;
         browser.Disable();
         for (UINT_PTR timer : {PRIVACY_TIMER, SCROLL_TIMER, SAVE_TIMER, QA_TIMER,(UINT_PTR)5})
             KillTimer(h, timer);

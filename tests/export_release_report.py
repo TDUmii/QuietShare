@@ -26,6 +26,13 @@ def main():
     life = read('lifecycle-check.json')
     browser = read('qa-browser/browser-regression.json')
     settings = read('qa-settings/settings-regression.json')
+    soak = read('qa-mirror/mirror-soak-720.json')
+    core_snapshot = read('qa-mirror/soak-source.json')
+    assert soak['failed'] == 0 and soak['soakSeconds'] == 720 and soak['elapsedSeconds'] >= 720
+    assert soak['actualWgcCanary'] and soak['framesPresented'] >= 720 and soak['minimized'] and soak['restored']
+    for name, expected_hash in core_snapshot.items():
+        path = 'artifacts/qa-mirror/mirror-soak-regression.exe' if name == 'testBinarySha256' else name
+        assert hashlib.sha256((ROOT / path).read_bytes()).hexdigest() == expected_hash, path
     actual_hash = hashlib.sha256((ROOT / 'dist/QuietShare.exe').read_bytes()).hexdigest()
     assert inventory['passed'] and production['exeSha256'] == life['exeSha256'] == actual_hash
     assert browser['exeSha256']==actual_hash and not browser['failure']
@@ -36,6 +43,8 @@ def main():
         ('Scintilla / Lexilla / PDFium','qa-viewers/viewer-regression.json'),
         ('WGC / canary / cancellation','qa-mirror/mirror-regression.json'),
         ('D3D11 production renderer / WARP','qa-mirror/mirror-render-regression.json'),
+        ('Long session / real WGC and renderer / synthetic destination','qa-mirror/mirror-soak-720.json'),
+        ('Projection interruption / native shell notice','qa-projection-notice/projection-notice-regression.json'),
         ('Native UI / fixtures / DPAPI / resources','local-qa-report.json'),
         ('Release PE / imports / embedded payloads','release-inventory.json'),
         ('Shipping EXE / script lifecycle','lifecycle-check.json'),
@@ -65,11 +74,12 @@ def main():
         env=probe_env,text=True))
     if isinstance(controllers,dict):controllers=[controllers]
     gpu_text='; '.join(f"{item['Name']} (driver {item['DriverVersion']})" for item in controllers)
-    evidence={'version':'0.9.0','platform':'win-x64','windowsBuild':sys.getwindowsversion().build,
+    evidence={'version':'0.9.1','platform':'win-x64','windowsBuild':sys.getwindowsversion().build,
               'baselineV03':{'nativeUI':179,'content':60,'lifecycle':29,'scrollbar':17,'releasePE':7,'status':'PASS before changes'},
               'passed':total,'failed':0,'suites':suites,'files':inventory['files'],
               'authenticode':inventory['authenticode'],'monitorCount':mirror['monitorCount'],
               'actualWgcCanary':mirror['actualWgcCanary'],'canaryElapsedMs':mirror['canaryElapsedMs'],
+              'longSession':soak,'longSessionSourceBinding':core_snapshot,
               'listedVideoControllers':controllers,
               'pdfCooperativeBudgetMs':750,'pdfStressObservedMs':viewer['renderBudgetTestMilliseconds'],
               'browser':{'metrics':browser['metrics'],'notTested':browser['notTested'],'profile':'Separate local profile; never exported'},
@@ -80,10 +90,10 @@ def main():
               'screenshots':'Native renderer with synthetic data in a separate QA build; not HTML mockups or receiver evidence'}
     internal = ROOT/'artifacts/qa-release'
     internal.mkdir(parents=True,exist_ok=True)
-    (internal/'test-evidence-v0.9.0.json').write_text(json.dumps(evidence,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
+    (internal/'test-evidence-v0.9.1.json').write_text(json.dumps(evidence,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
     rows='\n'.join(f"| {s['name']} | {s['passed']} | 0 | PASS |" for s in suites)
     hashes='\n'.join(f"| `{name}` | {file['bytes']:,} | `{file['sha256']}` |" for name,file in inventory['files'].items())
-    report=f'''# QuietShare v0.9.0 - Test report
+    report=f'''# QuietShare v0.9.1 - Test report
 
 Build and automated validation completed on Windows build {evidence['windowsBuild']} x64. **{total} checks PASS, 0 FAIL.** Physical receiver sign-off remains **NOT TESTED**. The original v0.3 baseline passed before changes; its results are retained in the sanitized evidence.
 
@@ -95,7 +105,7 @@ Requires Windows, Python 3, MinGW-w64 GCC 13.1.0 (or compatible x64 toolchain) a
 
 ```powershell
 .\\build.ps1 -CompilerRoot "C:\\path\\to\\mingw64\\bin"
-.\\tests\\run-all.ps1 -CompilerRoot "C:\\path\\to\\mingw64\\bin"
+.\\tests\\run-all.ps1 -LongSession -CompilerRoot "C:\\path\\to\\mingw64\\bin"
 .\\package.ps1
 ```
 
@@ -108,7 +118,7 @@ Requires Windows, Python 3, MinGW-w64 GCC 13.1.0 (or compatible x64 toolchain) a
 {rows}
 | **Total** | **{total}** | **0** | **PASS** |
 
-Detailed sanitized check names and payload metadata: [test-evidence-v0.9.0.json](docs/test-evidence-v0.9.0.json). Raw fixtures, pixels, temporary profiles and diagnostics are local-only and excluded from Git and the portable package; temporary payloads can be cleaned after the final evidence is exported.
+Detailed sanitized check names and payload metadata: [test-evidence-v0.9.1.json](docs/test-evidence-v0.9.1.json). Raw fixtures, pixels, temporary profiles and diagnostics are local-only and excluded from Git and the portable package; temporary payloads can be cleaned after the final evidence is exported.
 
 ## What the checks establish
 
@@ -126,6 +136,7 @@ Detailed sanitized check names and payload metadata: [test-evidence-v0.9.0.json]
 - **File icons and screen identity:** Explorer caches its type-icon image list per DPI, with distinct code/language/config/image/PDF/folder icons and matching document-tab icons. Native tests cover image-list reuse/replacement and folder expansion state. Display labels use the Windows display number, primary role and the current window's monitor, retaining distinct source/destination defaults even at equal resolutions. Single-monitor live identity is tested; the physical dual-monitor label mapping still needs receiver-side observation.
 - **Optional browser:** the shipping EXE starts with browsing off and creates no web profile until explicit enable. The actual WebView2 SVG marker passes positive and excluded WGC capture; native black backing cannot satisfy its positive test. Local HTTP fixtures exercise navigation, Back/Forward/Reload, popup/script/credential-dialog suppression, geolocation denial, F8, actual background suspension/resume, process exit on disable, pending-enable cancellation, separate-profile cookies, restart-default-off and offline readers without the loader. Input checks cover domains, URLs, localhost ports, Vietnamese/emoji UTF-8 queries and unsafe-scheme rejection. Shipping checks observe Vietnamese Google search navigation and Google/ChatGPT shortcuts. Cold start plus browser canary on this host was {browser['metrics']['coldStartAndCanaryMs']} ms. Public ChatGPT HTTPS load observed: {browser['metrics'].get('chatgptPublicHttpsLoaded',False)}; public Google search HTTPS load observed: {browser['metrics'].get('googleSearchPublicHttpsLoaded',False)}. Authenticated ChatGPT messages, third-party OAuth, client certificates and clean-machine missing-runtime behavior are not verified. User web data and raw profiles are excluded from exported evidence and Git.
 - **D3D11:** the production shader/swapchain renderer presents a synthetic public texture using WARP, with framebuffer readback for aspect-preserving letterbox/pillarbox, blanking and owned GPU resource release. This is real software D3D rendering, not evidence of a physical destination screen.
+- **Long sessions:** the native clock checks cross the former five-minute boundary, ten minutes, one hour and 24 hours with visible and minimized owners. A separate real-time run keeps the actual WGC source and production renderer active for {soak['elapsedSeconds']} seconds, observing {soak['framesPresented']} successful presents, including minimize/restore. It uses a protected synthetic destination on the available monitor, not a second physical Extend receiver. Affinity loss after the run still stops output and releases the scoped execution request. Native notice checks cover a persistent translated caption, taskbar/sound requests, stale/duplicate rejection, intentional Stop/F8, and no focus or window restoration. The native request restores earlier thread execution flags; deliberate user sleep is not overridden.
 
 ## PASS / FAIL / NOT TESTED matrix
 
@@ -146,7 +157,7 @@ Detailed sanitized check names and payload metadata: [test-evidence-v0.9.0.json]
 
 ## Limits
 
-- Projection requires two Extend displays on the same GPU, different source/destination and the whole private window on the verified source. Duplicate, unknown topology, failed/expired verification, uncovered private surfaces and capture/device changes lock content and stop output. No override toggle is provided. External cameras and other OS/driver capture paths are outside the verified scope.
+- Projection requires two Extend displays on the same GPU, different source/destination and the whole private window on the verified source. Duplicate, unknown topology, failed or invalidated verification, uncovered private surfaces and capture/device changes lock content and stop output. No override toggle is provided. External cameras and other OS/driver capture paths are outside the verified scope.
 - PDF is deliberately one active page and one in-memory bitmap, capped at 64 MiB source, 10,000 pages and 16 million rendered pixels / 64 MiB bitmap. Password PDFs and rotation are unsupported. Its PDFium viewer uses no browser, OCR, disk thumbnails or persistent file-path history; optional web browsing is a separate on-demand surface.
 - The 750 ms PDF budget is **cooperative**, not a hard real-time deadline. The stress fixture took **{viewer['renderBudgetTestMilliseconds']} ms** before rejecting unfinished output and recovering. A PDFium call may overrun a checkpoint.
 - The EXE and Setup are **NotSigned** according to Windows Authenticode inspection. No signing certificate is bundled. Bundled DLLs are pinned AMD64 files and direct PE imports are Windows system libraries; clean-machine compatibility remains unverified.
@@ -159,7 +170,7 @@ Detailed sanitized check names and payload metadata: [test-evidence-v0.9.0.json]
 
 Installer RCDATA 301-306 matches the portable EXE, four DLLs and full redistribution notices byte for byte. Only the 195 KB WebView2 loader is bundled; the shared Evergreen Runtime is separate and optional for offline readers. The portable ZIP is checked against every staged release file before publication. The implementation specification is copied unchanged; old Git releases/history are retained.
 '''
-    (internal/'TEST_REPORT_v0.9.0.md').write_text(report,encoding='utf-8')
+    (internal/'TEST_REPORT_v0.9.1.md').write_text(report,encoding='utf-8')
     print(f'Internal validation exported: {total} PASS, 0 FAIL; shipping EXE {actual_hash}')
 
 if __name__=='__main__':

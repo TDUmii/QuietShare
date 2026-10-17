@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.9.1
+
+- Sửa Smart Mirror tự dừng sau khoảng 5 phút do giới hạn thời gian xác minh cố định. Phiên Extend tiếp tục khi capture, cấu hình màn hình và điều kiện bảo vệ còn hợp lệ.
+- Giữ kiểm tra bảo vệ trong lúc chạy; thay đổi màn hình, suspend và lỗi capture vẫn dừng chiếu, không tự khởi động lại đầu chiếu.
+- Yêu cầu Windows giữ máy/màn hình hoạt động khi đang chiếu để tránh ngủ do không có thao tác; dừng chiếu sẽ khôi phục yêu cầu trước đó. Lệnh ngủ chủ động và đóng nắp máy vẫn theo Windows.
+- Báo gián đoạn qua tiêu đề cửa sổ, thanh trạng thái màu hổ phách, nháy taskbar và một yêu cầu âm báo Windows; không giành focus hoặc tự khôi phục cửa sổ. Thao tác Dừng hoặc F8 chủ động không tạo cảnh báo.
+- Cập nhật phiên bản trên Tổng quan, bộ cài và hướng dẫn VI/EN lên **v0.9.1**.
+- Fixed Smart Mirror stopping after about five minutes because of a fixed verification lifetime. Extend sessions continue while capture, display configuration and protection conditions remain valid.
+- Retained runtime protection checks. Display changes, suspend and capture failures still stop projection without automatically restarting it.
+- Request Windows system/display wakefulness during projection to prevent idle sleep; stopping restores the previous thread requirements. Intentional sleep and lid closure retain Windows behavior.
+- Indicate interruptions through the window title, amber status bar, taskbar flash and one requested Windows warning sound without taking focus or restoring the window. Intentional Stop and F8 actions do not trigger the warning.
+- Updated the Overview label, installer and VI/EN guidance to **v0.9.1**.
+
 ## 0.9.0
 
 - Trình duyệt hỗ trợ tối đa 8 tab với trang, lịch sử điều hướng và mức zoom riêng; các tab dùng chung hồ sơ web cục bộ. Thanh địa chỉ và các nút điều hướng áp dụng cho tab đang chọn.

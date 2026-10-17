@@ -119,6 +119,23 @@ template<class T> HRESULT Factory(const wchar_t *name, REFIID iid, Com<T> &facto
     return hr;
 }
 bool SameLuid(LUID a, LUID b) { return a.LowPart == b.LowPart && a.HighPart == b.HighPart; }
+struct ProjectionExecutionRequest
+{
+    EXECUTION_STATE previous=0;
+    ~ProjectionExecutionRequest() { Release(); }
+    bool Acquire()
+    {
+        if(previous)return true;
+        previous=SetThreadExecutionState(ES_CONTINUOUS|ES_SYSTEM_REQUIRED|ES_DISPLAY_REQUIRED);
+        return previous!=0;
+    }
+    void Release()
+    {
+        if(!previous)return;
+        const auto restore=previous;previous=0;
+        SetThreadExecutionState(restore|ES_CONTINUOUS);
+    }
+};
 INT64 CounterTime100ns(INT64 counter, INT64 frequency)
 {
     if(counter<=0||frequency<=0)return 0;
@@ -585,11 +602,27 @@ struct MirrorController::Impl
     bool verified=false,busy=false,running=false,roInitialized=false,clearing=false,clearPending=false;
     unsigned operations=0;
     unsigned epoch=0;
-    ULONGLONG checkTick=0,verifiedTick=0,framesTick=0;
+    unsigned stoppedSerial=0;
+    bool stoppedNoticePending=false;
+    ProjectionExecutionRequest execution;
+    ULONGLONG checkTick=0,framesTick=0;
+#if defined(QUIETSHARE_MIRROR_REGRESSION)
+    ULONGLONG testElapsed=0;
+    unsigned testPresentedFrames=0;
+#endif
     INT64 presentAfter=0,nextFrameAt=0;
     int resourceMode=2;
     unsigned frameCount=0;
     double fps=0;
+    ULONGLONG Now() const
+    {
+#if defined(QUIETSHARE_MIRROR_REGRESSION)
+        return GetTickCount64()+testElapsed;
+#else
+        return GetTickCount64();
+#endif
+    }
+    void CancelStoppedNotice() { ++stoppedSerial;stoppedNoticePending=false; }
     Impl()
     {
         const HRESULT hr=RoInitialize(RO_INIT_SINGLETHREADED);
@@ -610,6 +643,7 @@ struct MirrorController::Impl
     };
     bool BeginVerification(HWND owner,const std::wstring &id,bool mounted)
     {
+        CancelStoppedNotice();
         const bool preserve=mounted&&running&&verified&&projector&&owner==privateWindow&&id==sourceId;
         // Keep every verified capture/output object while a same-source surface
         // is probed. Native verification and explicit Start still start fresh.
@@ -620,6 +654,9 @@ struct MirrorController::Impl
     void Clear()
     {
         ++epoch;verified=false;running=false;fps=0;frameCount=0;presentAfter=0;nextFrameAt=0;
+        // Clear revokes output immediately, even when COM teardown is deferred.
+        // Release only our own UI thread's request; retain its earlier state.
+        execution.Release();
         const bool defer=operations||clearing;
         if(!defer)clearing=true;
         if(projector)ShowWindow(projector,SW_HIDE);
@@ -650,7 +687,21 @@ struct MirrorController::Impl
         }
         return true;
     }
-    void Fail(State reason) { Clear();state=reason; }
+    void Fail(State reason)
+    {
+        const bool wasRunning=running;
+        const unsigned expectedEpoch=epoch+1,noticeAttempt=stoppedSerial;
+        Clear();
+        // Native teardown can dispatch an explicit Stop/close synchronously.
+        // That later user action owns the outcome and invalidates this notice.
+        if(epoch!=expectedEpoch||stoppedSerial!=noticeAttempt)return;
+        state=reason;
+        if(wasRunning&&IsWindow(privateWindow))
+        {
+            ++stoppedSerial;stoppedNoticePending=true;
+            PostMessageW(privateWindow,MirrorStoppedMessage,stoppedSerial,0);
+        }
+    }
     static LRESULT CALLBACK ProjectorProc(HWND hwnd,UINT message,WPARAM wparam,LPARAM lparam)
     {
         if(message==WM_NCCREATE)
@@ -769,8 +820,8 @@ bool MirrorController::Verify(HWND privateWindow,const std::wstring &sourceId,co
                     if(s.epoch!=attempt)return false;
                     if(preserveProjection&&(!PrivateWindowLocationSafe(privateWindow,*source)||!Affinity(s.projector)))
                         return finish(State::Unsafe);
-                    s.verified=true;s.verifiedTick=GetTickCount64();s.checkTick=s.verifiedTick;
-                    s.framesTick=s.verifiedTick;s.frameCount=0;s.fps=0;s.nextFrameAt=0;
+                    s.verified=true;s.checkTick=s.Now();
+                    s.framesTick=s.checkTick;s.frameCount=0;s.fps=0;s.nextFrameAt=0;
                     s.state=preserveProjection?State::Running:State::Verified;
                     return finish(State::Verified);
                 }
@@ -797,7 +848,7 @@ void MirrorController::SetResourceMode(int mode)
     auto &s=*impl;
     const int selected=std::clamp(mode,0,2);
     if(s.resourceMode==selected)return;
-    s.resourceMode=selected;s.nextFrameAt=0;s.framesTick=GetTickCount64();s.frameCount=0;s.fps=0;
+    s.resourceMode=selected;s.nextFrameAt=0;s.framesTick=s.Now();s.frameCount=0;s.fps=0;
 }
 int MirrorController::ResourceMode() const {return impl->resourceMode;}
 unsigned MirrorController::TargetFps() const
@@ -810,7 +861,7 @@ bool MirrorController::IsVerified() const
 {
     const auto &s=*impl;
     return s.verified&&!s.busy&&(!s.running||PrivateWindowLocationSafe(s.privateWindow,s.source))&&
-           BasicSafe(s.privateWindow,&s.publicPopups)&&GetTickCount64()-s.verifiedTick<300000;
+           BasicSafe(s.privateWindow,&s.publicPopups);
 }
 void MirrorController::SetPublicPopups(const std::vector<HWND> &lists)
 {
@@ -835,6 +886,7 @@ bool MirrorController::Start(const std::wstring &sourceId,const std::wstring &de
     const auto lifetime=impl;
     auto &s=*lifetime;
     if(s.busy||s.clearing||s.operations)return false;
+    s.CancelStoppedNotice();
     const auto monitors=EnumerateMonitors();
     if(monitors.size()<2){s.Fail(State::NeedTwoMonitors);return false;}
     if(sourceId==destinationId){s.Fail(State::SameMonitor);return false;}
@@ -855,9 +907,17 @@ bool MirrorController::Start(const std::wstring &sourceId,const std::wstring &de
     s.destination=*destination;s.destinationId=destinationId;
     if(!s.SameTopology()||!s.CreateProjector()){s.Fail(State::RenderFailed);return false;}
     if(s.epoch!=attempt)return false;
-    s.running=true;s.state=State::Running;s.framesTick=GetTickCount64();s.frameCount=0;s.fps=0;return true;
+    if(!s.execution.Acquire()){s.Fail(State::CaptureFailed);return false;}
+    if(s.epoch!=attempt){s.execution.Release();return false;}
+    s.running=true;s.state=State::Running;s.framesTick=s.Now();s.frameCount=0;s.fps=0;return true;
 }
-void MirrorController::Stop() {impl->Clear();impl->state=State::Unverified;}
+void MirrorController::Stop() {impl->CancelStoppedNotice();impl->Clear();impl->state=State::Unverified;}
+bool MirrorController::ConsumeStoppedNotice(unsigned serial)
+{
+    auto &s=*impl;
+    if(!s.stoppedNoticePending||serial!=s.stoppedSerial||s.running)return false;
+    s.stoppedNoticePending=false;return true;
+}
 void MirrorController::Tick()
 {
     const auto lifetime=impl;
@@ -865,8 +925,10 @@ void MirrorController::Tick()
     if(s.busy||s.clearing||s.operations||!s.verified)return;
     Impl::Operation operation(s);
     const unsigned attempt=s.epoch;
-    const ULONGLONG now=GetTickCount64();
-    if(!BasicSafe(s.privateWindow,&s.publicPopups)||now-s.verifiedTick>=300000 ||
+    const ULONGLONG now=s.Now();
+    // Confidence belongs to this exact capture session. Continuously check the
+    // actual safety invariants rather than expiring a healthy lesson by age.
+    if(!BasicSafe(s.privateWindow,&s.publicPopups)||
        FAILED(s.capture.device->GetDeviceRemovedReason())||
        (s.projector&&!Affinity(s.projector))) {s.Fail(State::Unsafe);return;}
     if(s.epoch!=attempt)return;
@@ -889,7 +951,13 @@ void MirrorController::Tick()
         const bool presented=!s.running||s.renderer.Present(s.capture,texture.get());
         CloseObject(frame.get());
         if(!presented){s.Fail(State::RenderFailed);return;}
-        if(s.running)++s.frameCount;
+        if(s.running)
+        {
+            ++s.frameCount;
+#if defined(QUIETSHARE_MIRROR_REGRESSION)
+            ++s.testPresentedFrames;
+#endif
+        }
     }
     if(s.running&&now-s.framesTick>=1000)
     {

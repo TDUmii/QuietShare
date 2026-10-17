@@ -4,11 +4,29 @@
 #include "../src/Mirror.cpp"
 #include <fstream>
 #include <iostream>
+#include <cstdlib>
+#include <psapi.h>
 
 using namespace quietshare;
 namespace
 {
 int passed=0,failed=0;
+struct SoakMetrics
+{
+    bool actualWgcCanary=false;
+    size_t monitorCount=0;
+    ULONGLONG elapsedMs=0,workingSetStart=0,workingSetEnd=0,workingSetMin=0,workingSetMax=0;
+    unsigned framesPresented=0,samples=0;
+    DWORD gdiStart=0,gdiEnd=0;
+    bool minimized=false,restored=false;
+} soak;
+ULONGLONG WorkingSetBytes()
+{
+    using Query=BOOL(WINAPI *)(HANDLE,PPROCESS_MEMORY_COUNTERS,DWORD);
+    const auto query=Procedure<Query>(GetModuleHandleW(L"kernel32.dll"),"K32GetProcessMemoryInfo");
+    PROCESS_MEMORY_COUNTERS info{};info.cb=sizeof(info);
+    return query&&query(GetCurrentProcess(),&info,sizeof(info))?info.WorkingSetSize:0;
+}
 void Check(bool result,const char *name)
 {
     std::cout<<(result?"PASS ":"FAIL ")<<name<<'\n';if(result)++passed;else++failed;
@@ -58,6 +76,26 @@ void CheckFrameTiming()
     frame.timestamp=101;Check(FrameAfter(&frame,100)==S_OK,"only compositor frames strictly after teardown can present");
     frame.result=E_FAIL;Check(FAILED(FrameAfter(&frame,100)),"unreadable compositor timestamp fails closed");
     Check(FAILED(FrameAfter(nullptr,100)),"missing capture frame fails closed");
+}
+EXECUTION_STATE ExecutionState()
+{
+    const auto previous=SetThreadExecutionState(ES_CONTINUOUS);
+    if(previous)SetThreadExecutionState(previous|ES_CONTINUOUS);
+    return previous;
+}
+void CheckExecutionRequest()
+{
+    const auto baseline=ExecutionState();
+    Check(baseline!=0,"thread execution state can be inspected and restored");
+    ProjectionExecutionRequest request;
+    Check(request.Acquire(),"projection acquires its own system/display execution request");
+    constexpr EXECUTION_STATE required=ES_SYSTEM_REQUIRED|ES_DISPLAY_REQUIRED;
+    Check((ExecutionState()&required)==required,"active projection requests both system and display awake");
+    Check(request.Acquire(),"repeated projection acquisition keeps the original restoration state");
+    request.Release();
+    Check(ExecutionState()==baseline,"projection release restores the prior UI thread execution state");
+    request.Release();
+    Check(ExecutionState()==baseline,"repeated release does not alter another execution request");
 }
 bool ReadBack(Capture &capture,Renderer &renderer,std::vector<unsigned char>&out)
 {
@@ -118,12 +156,14 @@ struct MirrorRegressionAccess
         MonitorInfo source{};GetWindowRect(window,&source.bounds);
         Check(ApplyPrivacy(window).applied,"native minimize fixture keeps capture exclusion applied");
         auto prepare=[&]() {
+            s.CancelStoppedNotice();s.testElapsed=0;
             s.privateWindow=window;s.source=source;s.verified=true;s.running=true;s.state=State::Running;
-            s.verifiedTick=GetTickCount64();s.checkTick=s.verifiedTick;
+            s.checkTick=s.Now();s.framesTick=s.checkTick;s.topology=EnumerateMonitors();
             // Exercise the production safety branch without fabricating a WGC
             // frame or needing a second physical destination.
             s.nextFrameAt=CaptureClock()+100000000;
             device->AddRef();*s.capture.device.put()=device;
+            Check(s.execution.Acquire(),"running fixture acquires a scoped execution request");
         };
         prepare();const unsigned epoch=s.epoch;
         ShowWindow(window,SW_SHOWMINNOACTIVE);controller.Tick();
@@ -137,16 +177,134 @@ struct MirrorRegressionAccess
         controller.Tick();
         Check(!s.running&&!s.verified&&s.state==State::WrongLocation,
               "production Tick revokes projection restored partly outside its source");
+        Check(!s.execution.previous,"unsafe location releases the projection execution request");
+        const unsigned wrongLocationSerial=s.stoppedSerial;
+        Check(controller.ConsumeStoppedNotice(wrongLocationSerial)&&!controller.ConsumeStoppedNotice(wrongLocationSerial),
+              "unexpected failure notice is serial guarded and consumed only once");
         SetWindowPos(window,nullptr,source.bounds.left,source.bounds.top,0,0,
                      SWP_NOSIZE|SWP_NOZORDER|SWP_NOACTIVATE);
-        prepare();ShowWindow(window,SW_SHOWMINNOACTIVE);s.verifiedTick-=300000;controller.Tick();
-        Check(!s.running&&!s.verified&&s.state==State::Unsafe,
-              "verification expiry still revokes while minimized");
+        for(bool minimized:{false,true})
+        {
+            prepare();ShowWindow(window,minimized?SW_SHOWMINNOACTIVE:SW_SHOWNOACTIVATE);
+            const unsigned stableEpoch=s.epoch;
+            for(ULONGLONG elapsed:{299999ull,300000ull,600000ull,3600000ull,86400000ull})
+            {
+                s.testElapsed=elapsed;s.nextFrameAt=CaptureClock()+100000000;controller.Tick();
+                Check(s.running&&controller.IsVerified()&&s.epoch==stableEpoch&&s.execution.previous,
+                      minimized?"healthy minimized capture survives former five/ten-minute and long-session boundaries":
+                                "healthy visible capture survives former five/ten-minute and long-session boundaries");
+            }
+            ShowWindow(window,SW_SHOWNOACTIVATE);controller.Tick();
+            Check(s.running&&controller.IsVerified(),"restoring a healthy long-running session does not restart or revoke it");
+        }
         prepare();ShowWindow(window,SW_SHOWMINNOACTIVE);controller.Invalidate();
         Check(!s.running&&!s.verified,"F8/topology invalidation still revokes while minimized");
+        Check(!s.execution.previous,"invalidation releases the execution request immediately");
+        const unsigned staleSerial=s.stoppedSerial;controller.Stop();
+        Check(!controller.ConsumeStoppedNotice(staleSerial),"explicit Stop cancels an older queued failure notice");
         prepare();controller.Stop();
-        Check(!s.running&&!s.verified,"explicit Stop still revokes while minimized");
+        Check(!s.running&&!s.verified&&!s.execution.previous,"explicit Stop still revokes while minimized and releases awake state");
+        prepare();unsigned deferredSerial=0;
+        {
+            MirrorController::Impl::Operation operation(s);
+            controller.Invalidate();deferredSerial=s.stoppedSerial;
+            Check(s.clearPending&&!s.execution.previous,"deferred native teardown still releases the execution request at revocation");
+        }
+        Check(controller.ConsumeStoppedNotice(deferredSerial),"deferred COM teardown retains the matching unexpected-stop notice");
+        prepare();controller.Invalidate();const unsigned oldSerial=s.stoppedSerial;
+        s.BeginVerification(window,L"synthetic source",false);s.busy=false;
+        Check(!controller.ConsumeStoppedNotice(oldSerial),"fresh verification cancels an older queued failure notice");
         ShowWindow(window,SW_SHOWNOACTIVATE);
+    }
+    static void RunSoak(HWND window,unsigned seconds)
+    {
+        const auto monitors=EnumerateMonitors();
+        soak.monitorCount=monitors.size();
+        Check(!monitors.empty(),"soak has a real WGC source display");
+        if(monitors.empty())return;
+        const auto source=monitors.front();
+        SetWindowPos(window,nullptr,source.bounds.left+16,source.bounds.top+16,350,260,
+                     SWP_NOZORDER|SWP_NOACTIVATE);
+        MirrorController controller;
+        soak.actualWgcCanary=controller.Verify(window,source.stableId);
+        Check(soak.actualWgcCanary,"soak performs a fresh real WGC positive/exclusion proof");
+        if(!controller.IsVerified())return;
+        auto &s=*controller.impl;
+        // This harness alone mounts a small protected synthetic destination on
+        // the available source monitor. Production Start still requires two
+        // distinct same-GPU Extend displays and exposes no bypass.
+        s.destination=source;s.destinationId=source.stableId;
+        s.destination.bounds={source.bounds.right-336,source.bounds.top+16,source.bounds.right-16,source.bounds.top+196};
+        const bool created=s.CreateProjector();
+        Check(created,"soak creates the production renderer on an explicitly synthetic destination");
+        if(!created)return;
+        Check(s.execution.Acquire(),"soak acquires the real scoped awake request");
+        if(!s.execution.previous)return;
+        s.running=true;s.state=State::Running;s.framesTick=s.Now();
+        CanaryWindows scene;
+        const bool sceneReady=scene.Create(source)&&ApplyPrivacy(scene.overlay).applied;
+        Check(sceneReady,"synthetic public animation keeps the real source capture active");
+        if(!sceneReady)return;
+        const auto started=GetTickCount64();
+        auto lastReport=started,lastPaint=started;
+        soak.workingSetStart=WorkingSetBytes();soak.workingSetMin=soak.workingSetMax=soak.workingSetStart;
+        bool minimized=false,restored=false,healthy=true;
+        soak.gdiStart=GetGuiResources(GetCurrentProcess(),GR_GDIOBJECTS);
+        while(GetTickCount64()-started<ULONGLONG(seconds)*1000)
+        {
+            const auto now=GetTickCount64(),elapsed=now-started;
+            MSG message{};
+            while(PeekMessageW(&message,nullptr,0,0,PM_REMOVE))
+            {
+                if(message.message==WM_QUIT){controller.Stop();healthy=false;break;}
+                TranslateMessage(&message);DispatchMessageW(&message);
+            }
+            if(!healthy)break;
+            if(!minimized&&elapsed>=ULONGLONG(seconds)*250)
+            {ShowWindow(window,SW_SHOWMINNOACTIVE);minimized=true;}
+            if(!restored&&elapsed>=ULONGLONG(seconds)*750)
+            {ShowWindow(window,SW_SHOWNOACTIVATE);restored=true;}
+            if(now-lastPaint>=100)
+            {
+                lastPaint=now;std::swap(scene.publicPaint.a,scene.publicPaint.b);
+                InvalidateRect(scene.underlay,nullptr,FALSE);UpdateWindow(scene.underlay);
+            }
+            controller.Tick();
+            if(!controller.Running()||!controller.IsVerified()||!s.projector)
+            {healthy=false;break;}
+            if(now-lastReport>=30000)
+            {
+                lastReport=now;++soak.samples;
+                const auto memory=WorkingSetBytes();
+                soak.workingSetMin=std::min(soak.workingSetMin,memory);soak.workingSetMax=std::max(soak.workingSetMax,memory);
+                std::cout<<"SOAK elapsedSeconds="<<elapsed/1000<<" frames="<<s.testPresentedFrames
+                         <<" minimized="<<(IsIconic(window)?1:0)<<'\n';
+            }
+            Sleep(8);
+        }
+        soak.elapsedMs=GetTickCount64()-started;soak.framesPresented=s.testPresentedFrames;
+        soak.minimized=minimized;soak.restored=restored;
+        soak.gdiEnd=GetGuiResources(GetCurrentProcess(),GR_GDIOBJECTS);
+        soak.workingSetEnd=WorkingSetBytes();
+        soak.workingSetMin=std::min(soak.workingSetMin,soak.workingSetEnd);
+        soak.workingSetMax=std::max(soak.workingSetMax,soak.workingSetEnd);
+        Check(healthy&&soak.elapsedMs>=ULONGLONG(seconds)*1000,
+              "real WGC and production Tick remain running for the complete requested soak duration");
+        Check(minimized&&restored,"real soak includes minimize and restore without restarting capture");
+        Check(soak.framesPresented>=seconds,"real source continues delivering rendered frames throughout the soak");
+        Check(soak.gdiEnd<=soak.gdiStart+2,
+              "long-running production capture does not accumulate GDI objects");
+        std::cout<<"SOAK durationSeconds="<<seconds<<" frames="<<soak.framesPresented<<" samples="<<soak.samples
+                 <<" syntheticDestination=1 physicalExtend=NOT_TESTED\n";
+        // A failure still revokes promptly after a long healthy session. No
+        // automatic retry or projection resume is involved.
+        SetWindowDisplayAffinity(window,0);controller.Tick();
+        Check(!controller.Running()&&!controller.IsVerified()&&!controller.Projector()&&!s.execution.previous,
+              "post-soak affinity loss immediately removes output and releases the awake request");
+        const unsigned serial=s.stoppedSerial;
+        Check(controller.ConsumeStoppedNotice(serial),"post-soak unexpected stop emits a consumable notice");
+        controller.Stop();
+        Check(!controller.ConsumeStoppedNotice(serial),"intentional Stop cannot replay the soak failure notice");
     }
     static void CheckProbePreparation()
     {
@@ -184,7 +342,18 @@ struct MirrorRegressionAccess
 int wmain(int argc,wchar_t**argv)
 {
     std::cout.setf(std::ios::unitbuf);
+    unsigned soakSeconds=0;
+    const wchar_t *reportPath=argc>1?argv[1]:nullptr;
+    if(argc>1&&std::wcscmp(argv[1],L"--soak-seconds")==0)
+    {
+        wchar_t *end=nullptr;
+        const unsigned long requested=argc>2?std::wcstoul(argv[2],&end,10):0;
+        Check(requested>0&&requested<=3600&&end&&!*end,"soak duration is explicitly bounded to 1-3600 seconds");
+        if(failed)return 1;
+        soakSeconds=static_cast<unsigned>(requested);reportPath=argc>3?argv[3]:nullptr;
+    }
     CheckFrameTiming();
+    CheckExecutionRequest();
     MirrorRegressionAccess::CheckProbePreparation();
     if(argc>1&&std::wcscmp(argv[1],L"--timing-only")==0)return failed?1:0;
     SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
@@ -230,12 +399,20 @@ int wmain(int argc,wchar_t**argv)
     Check(ColorAt(pixels,800,50,100,0)&&ColorAt(pixels,800,750,100,0),"pillarbox left and right are black");
     capture.context->ClearState();renderer.Clear();
     Check(!renderer.swap&&!renderer.target&&!renderer.copy&&!renderer.resource,"renderer releases all owned GPU resources");
+    if(soakSeconds)MirrorRegressionAccess::RunSoak(window,soakSeconds);
     DestroyWindow(window);
-    if(argc>1)
+    if(reportPath)
     {
-        std::ofstream report(argv[1],std::ios::binary);
+        std::ofstream report(reportPath,std::ios::binary);
         report<<"{\"passed\":"<<passed<<",\"failed\":"<<failed
-              <<",\"adapter\":\"WARP software\",\"physicalDestination\":\"NOT TESTED\"}\n";
+              <<",\"adapter\":\"WARP software renderer checks; real source GPU for optional soak\",\"soakSeconds\":"<<soakSeconds
+              <<",\"elapsedSeconds\":"<<soak.elapsedMs/1000.0<<",\"actualWgcCanary\":"<<(soak.actualWgcCanary?"true":"false")
+              <<",\"framesPresented\":"<<soak.framesPresented<<",\"monitorCount\":"<<soak.monitorCount
+              <<",\"workingSetStartBytes\":"<<soak.workingSetStart<<",\"workingSetEndBytes\":"<<soak.workingSetEnd
+              <<",\"workingSetMinBytes\":"<<soak.workingSetMin<<",\"workingSetMaxBytes\":"<<soak.workingSetMax
+              <<",\"samples\":"<<soak.samples<<",\"minimized\":"<<(soak.minimized?"true":"false")
+              <<",\"restored\":"<<(soak.restored?"true":"false")<<",\"gdiStart\":"<<soak.gdiStart<<",\"gdiEnd\":"<<soak.gdiEnd
+              <<",\"physicalDestination\":\"NOT TESTED\",\"fixtureSingleMonitor\":true}\n";
     }
     return failed?1:0;
 }

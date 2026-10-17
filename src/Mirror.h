@@ -13,6 +13,7 @@
 
 namespace quietshare
 {
+inline constexpr UINT MirrorStoppedMessage = WM_APP + 27;
 struct MonitorInfo
 {
     HMONITOR handle = nullptr;
@@ -59,6 +60,9 @@ public:
     bool Start(const std::wstring &sourceId, const std::wstring &destinationId,
                bool capturePointer = true);
     void Stop();
+    // Only an unexpected running-to-stopped transition posts a notice. A new
+    // verification/start or explicit Stop invalidates any queued old notice.
+    bool ConsumeStoppedNotice(unsigned serial);
     void Tick();
     bool Running() const;
     bool Busy() const;

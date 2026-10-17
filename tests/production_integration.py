@@ -227,11 +227,11 @@ def main() -> int:
         check("productionWindowOwned", bool(window) and native.window_pid(window) == app.pid)
         check("productionControlsInitialized", bool(wait_for(lambda: USER32.GetDlgItem(window,110),8)))
         version_label=wait_for(lambda:USER32.GetDlgItem(window,192),8)
-        check("homeVersionLabelExistsBeforePrivacyGate",bool(version_label) and native.control_text(version_label)=="v0.9.0")
+        check("homeVersionLabelExistsBeforePrivacyGate",bool(version_label) and native.control_text(version_label)=="v0.9.1")
         check("actualProductionPrivacyPreflight", bool(wait_for(lambda: send(window, GATE, timeout=6000), 20)),
               "Real production WGC gate; no QA bypass")
         USER32.ShowWindow(window, 4)
-        check("homeVersionLabelVisible",visible(version_label) and query(39)==900)
+        check("homeVersionLabelVisible",visible(version_label) and query(39)==901)
         affinity = wintypes.DWORD()
         check("productionAffinityReadback", USER32.GetWindowDisplayAffinity(window, ctypes.byref(affinity)) and affinity.value == 0x11)
         all_children = children(window, app.pid)
@@ -549,9 +549,16 @@ def main() -> int:
         tree_bounds=rect(tree,window)
         start_x,start_y=tree_bounds[2]+round(8*scale),round(100*scale)
         send(window,0x201,1,(start_y<<16)|start_x)
-        send(window,0x200,1,(start_y<<16)|round((56+264)*scale))
-        send(window,0x202,0,(start_y<<16)|round((56+264)*scale))
-        check("explorerSplitterStoresExactWidth", query(17)==264)
+        splitter_owned=query(18)
+        # Queue the final move/release together before native cursor input can
+        # run between separate synchronous calls while this HWND has capture.
+        drag_end=(start_y<<16)|round((56+264)*scale)
+        if not (USER32.PostMessageW(window,0x200,1,drag_end) and USER32.PostMessageW(window,0x202,0,drag_end)):
+            raise RuntimeError("Could not queue owned splitter movement/release")
+        check("explorerSplitterReleasesDrag",bool(wait_for(lambda:query(18)==0)))
+        check("explorerSplitterStoresExactWidth", query(17)==264,
+              {"ownedAfterDown":splitter_owned,"widthAfterUp":query(17),
+               "treeBounds":tree_bounds,"scale":scale,"gate":query(16)})
         resized_tree,resized_code=rect(tree,window),rect(code,window)
         check("explorerSplitterResizesBothPanes", resized_tree[2]>tree_bounds[2] and resized_tree[2]<=resized_code[0])
         drag_x=resized_tree[2]+round(8*scale)

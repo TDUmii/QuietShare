@@ -1,4 +1,4 @@
-# QuietShare 0.9.0
+# QuietShare 0.9.1
 
 QuietShare là ứng dụng Windows để đọc lời nhắc, mã nguồn, ảnh, PDF và nội dung web trong cửa sổ riêng khi thuyết trình. Smart Mirror chiếu hình ảnh công khai từ màn hình nguồn sang màn hình Extend khác, trong khi cửa sổ QuietShare được loại khỏi đường capture đã xác minh.
 
@@ -37,7 +37,7 @@ QuietShare is a Windows application for scripts, source code, images, PDFs and o
 
 ### 3. Cài đặt và nâng cấp
 
-1. Tải gói tại [QuietShare v0.9.0](https://github.com/TDUmii/QuietShare/releases/tag/v0.9.0), giải nén toàn bộ và chạy `QuietShare-Setup.exe`.
+1. Tải gói tại [QuietShare v0.9.1](https://github.com/TDUmii/QuietShare/releases/tag/v0.9.1), giải nén toàn bộ và chạy `QuietShare-Setup.exe`.
 2. Bộ cài áp dụng cho tài khoản Windows hiện tại, không cần quyền quản trị. Nút **EN / VI** đổi ngôn ngữ bộ cài.
 3. Để dùng portable, chạy `QuietShare.exe` trong thư mục đã giải nén. Giữ `Scintilla.dll`, `Lexilla.dll`, `pdfium.dll` và `WebView2Loader.dll` cạnh EXE; không chỉ sao chép EXE.
 4. Đóng QuietShare trước khi nâng cấp bằng bộ cài mới. Nâng cấp và gỡ ứng dụng giữ lại lời nhắc đã lưu.
@@ -46,7 +46,7 @@ Nếu trình duyệt không khởi tạo được, cài/cập nhật WebView2 Ru
 
 ### 4. Sử dụng tài liệu và không gian làm việc
 
-Khi mở ứng dụng, đợi quá trình xác minh capture. Góc trên trang **Tổng quan** hiển thị **v0.9.0** để nhận diện phiên bản đang chạy. Nếu nội dung bị khóa và cần xác minh lại, chọn **Kiểm tra WGC** tại **Tổng quan** hoặc **Trình chiếu**. Nội dung chỉ được hiển thị khi các điều kiện bảo vệ đạt.
+Khi mở ứng dụng, đợi quá trình xác minh capture. Góc trên trang **Tổng quan** hiển thị **v0.9.1** để nhận diện phiên bản đang chạy. Nếu nội dung bị khóa và cần xác minh lại, chọn **Kiểm tra WGC** tại **Tổng quan** hoặc **Trình chiếu**. Nội dung chỉ được hiển thị khi các điều kiện bảo vệ đạt.
 
 - **Lời nhắc:** mở trang Lời nhắc để nhập hoặc dán nội dung. **Ctrl+Enter** chuyển soạn/đọc; **Space** trong vùng đọc bắt đầu/dừng cuộn. Lời nhắc được tự lưu và khôi phục ở lần mở tiếp theo.
 - **File:** chọn **Mở hoặc thả file**, **Ctrl+O** hoặc kéo thả nhiều file. Dấu **×**, chuột giữa hoặc **Ctrl+W** đóng tab file. Menu **⋯** có lệnh đóng các tab khác/mọi file; tab lời nhắc được giữ. Khi mở lại file đã thay đổi, chọn **Tải lại** hoặc **Giữ bản đang xem**.
@@ -98,6 +98,10 @@ Trình duyệt dành cho đọc và chat bằng chữ. Tải lên/tải xuống 
 3. Dùng nhãn **Màn N · Chính · Cửa sổ này · độ phân giải** để nhận biết màn hình. Nhãn vai trò chỉ hiện khi áp dụng; số 1 không nhất thiết là màn chính. Di chuyển QuietShare cập nhật nhãn mà không tự đổi lựa chọn nguồn/đích.
 4. Mở **Trình chiếu**, chọn **Kiểm tra WGC**, sau đó **Bắt đầu**. **Thiết lập màn hình** quay thẳng tới nhóm cài đặt tương ứng. Nút **-** có thể thu nhỏ QuietShare trong khi tiếp tục chiếu.
 5. Chọn **Dừng** để kết thúc. **F8** che mọi nội dung, tên tab và Explorer, đồng thời dừng cuộn và chiếu. F8 lần nữa mở lại nội dung khi các điều kiện bảo vệ cho phép; cần bắt đầu lại nếu muốn tiếp tục chiếu.
+
+Phiên Smart Mirror không còn tự hết hạn theo mốc 5 phút. Phiên tiếp tục khi đường capture, cấu hình màn hình và các điều kiện bảo vệ vẫn hợp lệ; thu nhỏ QuietShare không kết thúc phiên. Khi đang chiếu, QuietShare yêu cầu Windows giữ máy và màn hình hoạt động để tránh ngủ do không có thao tác. Lệnh ngủ chủ động hoặc đóng nắp máy vẫn được xử lý theo Windows và dừng chiếu khi hệ thống suspend.
+
+Nếu phiên chiếu bị gián đoạn ngoài thao tác chủ động, tiêu đề cửa sổ chuyển thành **QuietShare - Trình chiếu đã dừng**, thanh trạng thái hiển thị cảnh báo màu hổ phách khi đang hiện, đồng thời ứng dụng nháy taskbar và phát một âm báo Windows nếu âm thanh hệ thống cho phép. Cảnh báo không giành focus, mở cửa sổ mới hoặc tự khôi phục cửa sổ đang thu nhỏ. Mở **Trình chiếu** để xem trạng thái; khi cần, dùng **Kiểm tra WGC** rồi **Bắt đầu** để tiếp tục. Ứng dụng không tự khởi động lại đầu chiếu sau khi mất điều kiện bảo vệ. Cảnh báo được xóa khi bắt đầu chiếu thành công hoặc chủ động dùng **Dừng/F8**; các thao tác chủ động này không phát cảnh báo gián đoạn.
 
 **Duplicate luôn khóa nội dung riêng.** Xác minh thất bại, thay đổi màn hình, suspend hoặc capture mất an toàn sẽ dừng chiếu và khóa nội dung. Trạng thái **Windows đã nhận** xác nhận API loại trừ capture; **người xem chưa được xác minh** yêu cầu quan sát phía người nhận trong đúng Zoom/Meet/Teams/OBS hoặc máy chiếu sử dụng. Xác nhận bằng nội dung mẫu trước buổi trình bày. Phần mềm không ngăn máy ảnh bên ngoài quay màn hình.
 
@@ -164,7 +168,7 @@ Phím **toàn hệ thống** dùng được khi ứng dụng khác đang nhận 
 
 ### 3. Installation and upgrades
 
-1. Download [QuietShare v0.9.0](https://github.com/TDUmii/QuietShare/releases/tag/v0.9.0), extract the complete package and run `QuietShare-Setup.exe`.
+1. Download [QuietShare v0.9.1](https://github.com/TDUmii/QuietShare/releases/tag/v0.9.1), extract the complete package and run `QuietShare-Setup.exe`.
 2. Installation applies to the current Windows account without administrator privileges. **EN / VI** switches the installer language.
 3. For portable use, run `QuietShare.exe` in the extracted folder. Keep `Scintilla.dll`, `Lexilla.dll`, `pdfium.dll` and `WebView2Loader.dll` beside it; do not copy only the EXE.
 4. Close QuietShare before upgrading. Upgrades and uninstallation retain the saved script.
@@ -173,7 +177,7 @@ If browsing cannot initialize, install/update WebView2 Runtime, then disable and
 
 ### 4. Documents and workspace
 
-Wait for capture verification at startup. The upper corner of **Overview** displays **v0.9.0** to identify the running version. If content is locked and verification is requested, select **Verify WGC privacy** on **Overview** or **Presentation**. Readers become available only after the protection conditions pass.
+Wait for capture verification at startup. The upper corner of **Overview** displays **v0.9.1** to identify the running version. If content is locked and verification is requested, select **Verify WGC privacy** on **Overview** or **Presentation**. Readers become available only after the protection conditions pass.
 
 - **Script:** open Script to type or paste content. **Ctrl+Enter** switches editing/reading; **Space** in the reading area starts/stops auto-scroll. The script is saved automatically and restored on the next launch.
 - **Files:** use **Open or drop files**, **Ctrl+O** or a multi-file drop. **×**, middle-click and **Ctrl+W** close file tabs. The **⋯** menu closes other/all files while keeping the script. Reopening a changed file offers **Reload** or **Keep current preview**.
@@ -225,6 +229,10 @@ The browser supports reading and text chat. File uploads/downloads, camera, micr
 3. Identify displays with **Display N · Main · This window · resolution**. Role labels appear only when applicable; Display 1 is not necessarily primary. Moving QuietShare updates labels without automatically changing the selected source/destination.
 4. Open **Presentation**, select **Verify WGC privacy**, then **Start**. **Display settings** jumps to its Settings group. **-** can minimize QuietShare while projection continues.
 5. Select **Stop** to finish. **F8** masks viewers, tab names and Explorer, and stops auto-scroll and projection. Pressing F8 again reveals content when protection conditions allow; restart projection explicitly if needed.
+
+Smart Mirror sessions no longer expire at a fixed five-minute boundary. A session continues while the capture path, display configuration and protection conditions remain valid; minimizing QuietShare does not end it. During projection, QuietShare requests that Windows keep the system and display awake to avoid idle sleep. Intentional sleep commands and lid closure retain Windows behavior and stop projection when the system suspends.
+
+If projection is interrupted without an intentional stop, the window title changes to **QuietShare - Projection stopped** and the status bar shows an amber warning when visible. QuietShare also flashes its taskbar button and requests one Windows warning sound, subject to system sound settings. The warning does not take focus, open another window or restore a minimized window. Open **Presentation** to inspect the status; use **Verify WGC privacy**, then **Start**, when required to resume. The application does not restart projection automatically after protection conditions are lost. A successful Start or intentional **Stop/F8** clears the warning; intentional stop actions do not trigger an interruption alert.
 
 **Duplicate always locks private content.** Failed verification, display changes, suspend or unsafe capture stop projection and lock readers. **Windows accepted** confirms the capture-exclusion API state; **Viewer unverified** requires receiver-side observation in the actual Zoom/Meet/Teams/OBS or projector setup. Confirm with sample content before a presentation. Software cannot prevent an external camera from filming a display.
 
