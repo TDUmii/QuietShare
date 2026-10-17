@@ -677,13 +677,14 @@ struct PdfViewer::Impl
             if (SendMessageW(owner, WM_APP + 14, 0, 0) != 1)
                 Mask();
         }
-        // Registered F8 arrives as WM_HOTKEY. A local fallback uses the owner's
-        // same masking command. Leave every unrelated key/command queued.
-        while (PeekMessageW(&message, owner, WM_KEYDOWN, WM_KEYDOWN, PM_NOREMOVE) && message.wParam == VK_F8)
+        // The owner identifies its current emergency binding. Only that key is
+        // pulled during a render; unrelated input stays in the normal queue.
+        while (PeekMessageW(&message, owner, WM_KEYDOWN, WM_KEYDOWN, PM_NOREMOVE) &&
+               SendMessageW(owner,WM_APP+30,message.wParam,0)==1)
         {
             PeekMessageW(&message, owner, WM_KEYDOWN, WM_KEYDOWN, PM_REMOVE);
             if (!(message.lParam & (1u << 30)))
-                SendMessageW(owner, WM_HOTKEY, 2, 0);
+                SendMessageW(owner, WM_KEYDOWN, message.wParam, message.lParam);
         }
     }
     static FPDF_BOOL NeedPause(IFSDK_PAUSE *pause)

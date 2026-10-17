@@ -3,7 +3,15 @@
 Updated: 2026-10-17
 Repository: private `TDUmii/QuietShare`
 Original incident baseline: release `v0.9.1` at `f08eede29a354f8302fcd900530368eeea8f6368`
-Current application version and release target: `v0.9.2`
+Current application version and release target: `v0.10.0`
+
+## Current follow-up
+
+The latest user clarification is that the application remains open while projection disappears. No exact action, warning or recorded event yet identifies the cause. v0.10.0 validates actual invariants for display notifications and live-session WGC checks, retaining a healthy capture/output instead of stopping solely because a notification or check was requested. Actual privacy, topology, capture, DWM, device or source-location failures still stop safely without automatic restart.
+
+Projection controls now live on the activity bar, with source/destination/pointer/resources and status in Settings > Projection. A local `projection-stop.json` retains one overwritten unexpected-stop record with fixed reason codes, UTC/session timing, HRESULT and resource mode. It contains no pixels, content, URL, path or monitor identifier. Use its reason code to guide any later incident investigation; do not commit raw personal logs or browser profiles.
+
+The application also adds a local browser New tab page with saved shortcuts, centered/select-all address input, smoother icons, five Settings categories, ten remappable commands, uniform window opacity 40-100% including text, and script weights 400/600/700. None of these changes authorizes a repeat physical TV/timed run. Keep the historical hardware protocol below as reference; distinguish code/native checks from physical receiver evidence.
 
 ## Goal
 

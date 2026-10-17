@@ -149,6 +149,96 @@ namespace quietshare
 // Compile-only friendship exposes state to this harness, never to a shipped EXE.
 struct MirrorRegressionAccess
 {
+    static void CheckDisplayNotifications(HWND window,ID3D11Device *device,const wchar_t *reportPath)
+    {
+        const auto monitors=EnumerateMonitors();
+        Check(!monitors.empty(),"display-notification fixture has native monitor inventory");
+        if(monitors.empty())return;
+        const auto source=monitors.front();
+        SetWindowPos(window,nullptr,source.bounds.left+16,source.bounds.top+16,0,0,
+                     SWP_NOSIZE|SWP_NOZORDER|SWP_NOACTIVATE);
+        MirrorController controller;
+        auto &s=*controller.impl;
+        const std::wstring diagnostic=reportPath?std::wstring(reportPath)+L".stop.json":L"";
+        controller.SetDiagnosticPath(diagnostic);
+        WNDCLASSW wc{};wc.lpfnWndProc=MirrorController::Impl::ProjectorProc;wc.hInstance=GetModuleHandleW(nullptr);
+        wc.lpszClassName=L"QuietShareSyntheticDisplayNotification";RegisterClassW(&wc);
+        auto prepare=[&]() {
+            controller.Stop();
+            s.privateWindow=window;s.source=source;s.sourceId=source.stableId;s.topology=EnumerateMonitors();
+            s.checkTick=s.Now();s.framesTick=s.checkTick;s.sessionStarted=s.checkTick-1234;
+            s.nextFrameAt=CaptureClock()+100000000;
+            device->AddRef();*s.capture.device.put()=device;
+            s.projector=CreateWindowExW(WS_EX_TOOLWINDOW|WS_EX_NOACTIVATE,wc.lpszClassName,L"Synthetic public notification target",
+                WS_POPUP,source.bounds.left+16,source.bounds.top+16,64,64,nullptr,nullptr,wc.hInstance,&s);
+            Check(s.projector&&ApplyPrivacy(s.projector).applied,"native projector callback fixture is protected before display notifications");
+            s.verified=true;s.running=true;s.state=State::Running;
+            return s.projector!=nullptr;
+        };
+        if(!prepare())return;
+        const auto original=s.projector;const unsigned epoch=s.epoch;
+        for(int i=0;i<3;++i)SendMessageW(original,WM_DISPLAYCHANGE,32,MAKELPARAM(source.bounds.right-source.bounds.left,
+                                                                               source.bounds.bottom-source.bounds.top));
+        Check(s.running&&s.verified&&s.projector==original&&s.epoch==epoch,
+              "unchanged WM_DISPLAYCHANGE broadcasts keep the exact native projector and verified session");
+        Check(controller.HandleDisplayChange()&&s.running&&s.projector==original&&s.epoch==epoch,
+              "control-window display notification validates invariants without replacing a healthy session");
+        ShowWindow(window,SW_SHOWMINNOACTIVE);
+        Check(controller.HandleDisplayChange()&&s.running&&s.epoch==epoch,
+              "unchanged display notification does not revoke a minimized source");
+        ShowWindow(window,SW_SHOWNOACTIVATE);
+        s.topology.front().bounds.right+=1;
+        SendMessageW(original,WM_DISPLAYCHANGE,32,0);
+        Check(!s.running&&!s.verified&&!s.projector&&s.state==State::Changed,
+              "actual topology mismatch still synchronously revokes output after a display notification");
+        Check(!controller.HandleDisplayChange()&&!s.running&&!s.projector,
+              "later display notifications never automatically restart a failed session");
+        auto readDiagnostic=[&]() {
+            std::ifstream file(diagnostic.c_str(),std::ios::binary);
+            return std::string(std::istreambuf_iterator<char>(file),std::istreambuf_iterator<char>());
+        };
+        if(reportPath) {
+            const auto record=readDiagnostic();
+            Check(!record.empty()&&record.size()<512&&record.find("\"reason\":\"display-topology\"")!=std::string::npos&&
+                  record.find("\"sessionMs\":")!=std::string::npos&&record.find("\"utc\":")!=std::string::npos,
+                  "unexpected stop persists one bounded record with fixed reason, UTC and session duration");
+            Check(record.find("\"path\"")==std::string::npos&&record.find("\"source\"")==std::string::npos&&
+                  record.find("\"destination\"")==std::string::npos&&record.find("\"url\"")==std::string::npos,
+                  "projection diagnostic excludes private paths, URLs and display identifiers");
+            Check(controller.Status(true).find(L"[display-topology]")!=std::wstring::npos,
+                  "presenter status identifies the exact unexpected-stop reason code");
+        }
+        if(!prepare())return;
+        SetWindowDisplayAffinity(window,0);
+        Check(!controller.HandleDisplayChange()&&!s.running&&!s.projector&&s.state==State::Unsafe&&
+              controller.Status(true).find(L"[control-affinity]")!=std::wstring::npos,
+              "unchanged topology cannot bypass a lost private-window capture exclusion");
+        Check(ApplyPrivacy(window).applied,"private-window exclusion is restored for independent native fixtures");
+        if(!prepare())return;
+        HWND popup=CreateWindowExW(WS_EX_TOOLWINDOW,L"STATIC",L"Synthetic unprotected popup",WS_POPUP,
+            source.bounds.left+16,source.bounds.top+16,64,64,nullptr,nullptr,wc.hInstance,nullptr);
+        ShowWindow(popup,SW_SHOWNOACTIVATE);
+        Check(!controller.HandleDisplayChange()&&!s.running&&s.state==State::Unsafe&&
+              controller.Status(true).find(L"[private-popup-affinity]")!=std::wstring::npos,
+              "unchanged notification still revokes on an unprotected private popup");
+        DestroyWindow(popup);
+        if(!prepare())return;
+        s.capture.device.reset();
+        Check(!controller.HandleDisplayChange()&&!s.running&&!s.projector&&
+              controller.Status(true).find(L"[device-removed]")!=std::wstring::npos,
+              "unavailable capture device fails closed with a distinct device diagnostic");
+        if(reportPath) {
+            const auto record=readDiagnostic();
+            Check(record.find("\"reason\":\"device-removed\"")!=std::string::npos&&
+                  record.find("\"hresult\":\"0x80004003\"")!=std::string::npos&&
+                  record.find("display-topology")==std::string::npos,
+                  "latest stop replaces the earlier bounded record and retains the numeric HRESULT");
+            if(!prepare())return;
+            controller.Stop();
+            Check(readDiagnostic()==record,"explicit Stop preserves the most recent unexpected-stop evidence");
+        }
+        controller.Stop();
+    }
     static void CheckMinimizedTick(HWND window,ID3D11Device *device)
     {
         MirrorController controller;
@@ -368,6 +458,7 @@ int wmain(int argc,wchar_t**argv)
         nullptr,0,D3D11_SDK_VERSION,capture.device.put(),&level,capture.context.put())),"software D3D11 device");
     if(!capture.device){DestroyWindow(window);return 1;}
     MirrorRegressionAccess::CheckMinimizedTick(window,capture.device.get());
+    MirrorRegressionAccess::CheckDisplayNotifications(window,capture.device.get(),reportPath);
     capture.size={400,200};
     std::vector<unsigned char> source(400*200*4);
     for(size_t i=0;i<source.size();i+=4){source[i]=54;source[i+1]=178;source[i+2]=31;source[i+3]=255;}

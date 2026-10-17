@@ -1,5 +1,6 @@
 #include "Mirror.h"
 #include "Privacy.h"
+#include "Version.h"
 #include <d3d11.h>
 #include <d3dcompiler.h>
 #include <dxgi.h>
@@ -11,6 +12,7 @@
 #include <cmath>
 #include <cstring>
 #include <cwchar>
+#include <cstdio>
 #include <utility>
 
 namespace quietshare
@@ -242,13 +244,18 @@ bool PrivateWindowsCovered(const PublicPopupPolicy *policy=nullptr)
     },reinterpret_cast<LPARAM>(&check));
     return enumerated&&check.covered;
 }
-bool BasicSafe(HWND hwnd,const PublicPopupPolicy *policy=nullptr)
+const char *BasicFailure(HWND hwnd,const PublicPopupPolicy *policy=nullptr)
 {
     bool cloned = true;
     BOOL composition = FALSE;
-    return WindowsBuild() >= 19041 && SUCCEEDED(DwmIsCompositionEnabled(&composition)) && composition &&
-           Affinity(hwnd) && PrivateWindowsCovered(policy) && TryGetDisplayCloned(cloned) && !cloned;
+    if(WindowsBuild()<19041)return "windows-unsupported";
+    if(FAILED(DwmIsCompositionEnabled(&composition))||!composition)return "dwm-unavailable";
+    if(!Affinity(hwnd))return "control-affinity";
+    if(!PrivateWindowsCovered(policy))return "private-popup-affinity";
+    if(!TryGetDisplayCloned(cloned))return "topology-unavailable";
+    return cloned?"display-cloned":nullptr;
 }
+bool BasicSafe(HWND hwnd,const PublicPopupPolicy *policy=nullptr) {return !BasicFailure(hwnd,policy);}
 bool Near(const unsigned char *pixel, COLORREF color)
 {
     return std::abs(int(pixel[2]) - GetRValue(color)) <= 18 &&
@@ -605,7 +612,7 @@ enum class State
 };
 } // namespace
 
-struct MirrorController::Impl
+struct MirrorController::Impl : std::enable_shared_from_this<MirrorController::Impl>
 {
     Capture capture;
     Renderer renderer;
@@ -622,6 +629,9 @@ struct MirrorController::Impl
     unsigned epoch=0;
     unsigned stoppedSerial=0;
     bool stoppedNoticePending=false;
+    std::wstring diagnosticPath;
+    const char *failureCode=nullptr;
+    ULONGLONG sessionStarted=0;
     ProjectionExecutionRequest execution;
     ULONGLONG checkTick=0,framesTick=0;
 #if defined(QUIETSHARE_MIRROR_REGRESSION)
@@ -662,6 +672,7 @@ struct MirrorController::Impl
     bool BeginVerification(HWND owner,const std::wstring &id,bool mounted)
     {
         CancelStoppedNotice();
+        failureCode=nullptr;
         const bool preserve=mounted&&running&&verified&&projector&&owner==privateWindow&&id==sourceId;
         // Keep every verified capture/output object while a same-source surface
         // is probed. Native verification and explicit Start still start fresh.
@@ -716,20 +727,71 @@ struct MirrorController::Impl
         if(!SourceMovementInfo(info)||!IntersectRect(&sourceMovementBounds,&source.bounds,&info.rcWork))return false;
         sourceDeviceName=info.szDevice;return true;
     }
-    void Fail(State reason)
+    void WriteStopDiagnostic(const char *code,HRESULT error,ULONGLONG duration)
+    {
+        if(diagnosticPath.empty())return;
+        SYSTEMTIME utc{};GetSystemTime(&utc);
+        char record[512]{};
+        const int bytes=std::snprintf(record,sizeof(record),
+            "{\"schema\":1,\"version\":\"" QUIETSHARE_VERSION_TEXT "\",\"utc\":\"%04u-%02u-%02uT%02u:%02u:%02uZ\","
+            "\"reason\":\"%s\",\"hresult\":\"0x%08lx\",\"sessionMs\":%llu,\"resourceMode\":%d}\n",
+            unsigned(utc.wYear),unsigned(utc.wMonth),unsigned(utc.wDay),unsigned(utc.wHour),
+            unsigned(utc.wMinute),unsigned(utc.wSecond),code,static_cast<unsigned long>(error),
+            static_cast<unsigned long long>(duration),resourceMode);
+        if(bytes<=0||static_cast<size_t>(bytes)>=sizeof(record))return;
+        // One small overwritten record, never a growing event history. Failure
+        // to write diagnostics must not change revocation or resume capture.
+        HANDLE file=CreateFileW(diagnosticPath.c_str(),GENERIC_WRITE,FILE_SHARE_READ,nullptr,
+                                CREATE_ALWAYS,FILE_ATTRIBUTE_NORMAL,nullptr);
+        if(file==INVALID_HANDLE_VALUE)return;
+        DWORD written=0;WriteFile(file,record,static_cast<DWORD>(bytes),&written,nullptr);CloseHandle(file);
+    }
+    void Fail(State reason,const char *code=nullptr,HRESULT error=S_OK)
     {
         const bool wasRunning=running;
+        const ULONGLONG duration=sessionStarted?Now()-sessionStarted:0;
         const unsigned expectedEpoch=epoch+1,noticeAttempt=stoppedSerial;
         Clear();
         // Native teardown can dispatch an explicit Stop/close synchronously.
         // That later user action owns the outcome and invalidates this notice.
         if(epoch!=expectedEpoch||stoppedSerial!=noticeAttempt)return;
         state=reason;
+        if(!code) {
+            switch(reason) {
+            case State::Unsafe:code="privacy-unsafe";break;
+            case State::WrongLocation:code="control-location";break;
+            case State::CaptureFailed:code="capture-frame";break;
+            case State::CanaryFailed:code="canary-failed";break;
+            case State::RenderFailed:code="render-frame";break;
+            default:code="environment-invalidated";break;
+            }
+        }
+        failureCode=code;
+        if(wasRunning)WriteStopDiagnostic(code,error,duration);
         if(wasRunning&&IsWindow(privateWindow))
         {
             ++stoppedSerial;stoppedNoticePending=true;
             PostMessageW(privateWindow,MirrorStoppedMessage,stoppedSerial,0);
         }
+    }
+    bool ValidateEnvironment(bool topologyNow)
+    {
+        if(!verified||clearing)return false;
+        const unsigned attempt=epoch;
+        const char *unsafe=BasicFailure(privateWindow,&publicPopups);
+        if(epoch!=attempt)return false;
+        if(unsafe){Fail(State::Unsafe,unsafe);return false;}
+        const HRESULT deviceError=capture.device?capture.device->GetDeviceRemovedReason():E_POINTER;
+        if(epoch!=attempt)return false;
+        if(FAILED(deviceError)){Fail(State::Unsafe,"device-removed",deviceError);return false;}
+        if(projector&&!Affinity(projector)){Fail(State::Unsafe,"projector-affinity");return false;}
+        if(running&&!PrivateWindowLocationSafe(privateWindow,source)){Fail(State::WrongLocation);return false;}
+        if(topologyNow) {
+            if(!SameTopology()){Fail(State::Changed,"display-topology");return false;}
+            if(epoch!=attempt)return false;
+            checkTick=Now();
+        }
+        return true;
     }
     static LRESULT CALLBACK ProjectorProc(HWND hwnd,UINT message,WPARAM wparam,LPARAM lparam)
     {
@@ -746,10 +808,18 @@ struct MirrorController::Impl
             PAINTSTRUCT ps;HDC dc=BeginPaint(hwnd,&ps);RECT r{};GetClientRect(hwnd,&r);
             FillRect(dc,&r,static_cast<HBRUSH>(GetStockObject(BLACK_BRUSH)));EndPaint(hwnd,&ps);return 0;
         }
-        if(self&&(message==WM_CLOSE || message==WM_DISPLAYCHANGE ||
+        if(self&&message==WM_DISPLAYCHANGE) {
+            const auto lifetime=self->shared_from_this();
+            Operation operation(*lifetime);
+            // Windows may notify an unchanged mode (for example when another
+            // application reapplies it). Validate facts, not the notification.
+            lifetime->ValidateEnvironment(true);return 0;
+        }
+        if(self&&(message==WM_CLOSE ||
             (message==WM_KEYDOWN&&wparam==VK_ESCAPE) ||
             (message==WM_POWERBROADCAST&&wparam==PBT_APMSUSPEND)))
-        {self->Fail(State::Changed);return 0;}
+        {self->Fail(State::Changed,message==WM_CLOSE?"projector-closed":
+                   message==WM_KEYDOWN?"projector-escape":"system-suspend");return 0;}
         return DefWindowProcW(hwnd,message,wparam,lparam);
     }
     bool CreateProjector()
@@ -939,14 +1009,22 @@ bool MirrorController::Start(const std::wstring &sourceId,const std::wstring &de
     if(s.epoch!=attempt)return false;
     if(!s.execution.Acquire()){s.Fail(State::CaptureFailed);return false;}
     if(s.epoch!=attempt){s.execution.Release();return false;}
-    s.running=true;s.state=State::Running;s.framesTick=s.Now();s.frameCount=0;s.fps=0;return true;
+    s.running=true;s.state=State::Running;s.sessionStarted=s.Now();s.framesTick=s.sessionStarted;s.frameCount=0;s.fps=0;return true;
 }
-void MirrorController::Stop() {impl->CancelStoppedNotice();impl->Clear();impl->state=State::Unverified;}
+void MirrorController::Stop() {impl->CancelStoppedNotice();impl->Clear();impl->state=State::Unverified;impl->failureCode=nullptr;}
 bool MirrorController::ConsumeStoppedNotice(unsigned serial)
 {
     auto &s=*impl;
     if(!s.stoppedNoticePending||serial!=s.stoppedSerial||s.running)return false;
     s.stoppedNoticePending=false;return true;
+}
+void MirrorController::SetDiagnosticPath(const std::wstring &path) {impl->diagnosticPath=path;}
+bool MirrorController::HandleDisplayChange()
+{
+    const auto lifetime=impl;
+    auto &s=*lifetime;
+    Impl::Operation operation(s);
+    return s.ValidateEnvironment(true);
 }
 void MirrorController::Tick()
 {
@@ -958,24 +1036,14 @@ void MirrorController::Tick()
     const ULONGLONG now=s.Now();
     // Confidence belongs to this exact capture session. Continuously check the
     // actual safety invariants rather than expiring a healthy lesson by age.
-    if(!BasicSafe(s.privateWindow,&s.publicPopups)||
-       FAILED(s.capture.device->GetDeviceRemovedReason())||
-       (s.projector&&!Affinity(s.projector))) {s.Fail(State::Unsafe);return;}
-    if(s.epoch!=attempt)return;
-    if(s.running&&!PrivateWindowLocationSafe(s.privateWindow,s.source)){s.Fail(State::WrongLocation);return;}
-    if(now-s.checkTick>=500)
-    {
-        s.checkTick=now;
-        if(!s.SameTopology()){s.Fail(State::Changed);return;}
-        if(s.epoch!=attempt)return;
-    }
+    if(!s.ValidateEnvironment(now-s.checkTick>=500))return;
     const INT64 frameTime=CaptureClock();
     if(!frameTime){s.Fail(State::CaptureFailed);return;}
     if(!FrameDue(frameTime,TargetFps(),s.nextFrameAt))return;
     Com<CaptureFrame> frame;Com<ID3D11Texture2D> texture;
     const HRESULT hr=s.capture.Next(frame,texture,s.presentAfter);
     if(s.epoch!=attempt){CloseObject(frame.get());return;}
-    if(FAILED(hr)){CloseObject(frame.get());s.Fail(State::CaptureFailed);return;}
+    if(FAILED(hr)){CloseObject(frame.get());s.Fail(State::CaptureFailed,"capture-frame",hr);return;}
     if(frame&&texture)
     {
         const bool presented=!s.running||s.renderer.Present(s.capture,texture.get());
@@ -1006,7 +1074,7 @@ bool MirrorController::ConstrainPrivateWindowRect(RECT &proposed)
        !ConstrainRectToBounds(proposed,s.sourceMovementBounds))
     {
         GetWindowRect(s.privateWindow,&proposed);
-        s.Fail(State::Changed);
+        s.Fail(State::Changed,"source-monitor-changed");
     }
     return true;
 }
@@ -1061,6 +1129,12 @@ std::wstring MirrorController::Status(bool english) const
     case State::WrongLocation:vi=L"Đã khóa: đặt toàn bộ cửa sổ riêng trên màn hình nguồn rồi xác minh lại.";en=L"Locked: place the entire private window on the source display, then verify again.";break;
     default:break;
     }
-    return english?en:vi;
+    std::wstring status=english?en:vi;
+    if(impl->failureCode) {
+        status+=L" [";
+        for(const char *code=impl->failureCode;*code;++code)status+=static_cast<wchar_t>(*code);
+        status+=L"]";
+    }
+    return status;
 }
 } // namespace quietshare

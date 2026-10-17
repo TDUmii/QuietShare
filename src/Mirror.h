@@ -63,6 +63,12 @@ public:
     // Only an unexpected running-to-stopped transition posts a notice. A new
     // verification/start or explicit Stop invalidates any queued old notice.
     bool ConsumeStoppedNotice(unsigned serial);
+    // A display notification alone is not a topology change. Validate the
+    // current capture/privacy invariants before revoking a healthy session.
+    bool HandleDisplayChange();
+    // Optional local-only, overwritten last-failure record. Contains fixed
+    // reason codes/timing only, never screen pixels, paths, URLs or device IDs.
+    void SetDiagnosticPath(const std::wstring &path);
     void Tick();
     // Apply before Windows commits a move/resize. A running projection pins the
     // private control window to its verified source display, never the output.

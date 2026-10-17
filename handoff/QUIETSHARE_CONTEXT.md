@@ -2,8 +2,8 @@
 
 Updated: 2026-10-17
 Repository: private `TDUmii/QuietShare`
-Current application version and release target: `v0.9.2`
-Current `main` includes the 5-minute session-expiry fix, pre-move source-window containment and compact shell/browser controls. Following the source-only handoff, the user authorized building and publishing these changes as v0.9.2. Keep application, installer, portable package and release metadata aligned; historical releases remain available.
+Current application version and release target: `v0.10.0`
+Current implementation retains the 5-minute session-expiry fix, pre-move source-window containment and compact shell/browser controls. The v0.10.0 follow-up adds a local browser New tab page with user-saved shortcuts, five Settings categories, configurable command shortcuts, window opacity and script weight, and quick projection actions on the activity bar. Keep application, installer, portable package and release metadata aligned; historical releases remain available.
 
 ## Product purpose
 
@@ -38,7 +38,15 @@ A real 720-second soak passed on one physical monitor with WGC/renderer and a sy
 
 ## Current handoff task
 
-The source follow-up adds pre-move containment of the control window within its captured source display during projection, keeping the runtime fail-closed guards. It also reduces shell controls and browser chrome for small windows. The initial scope requested source/native automated checks without another physical TV test, timed hardware soak or release. The user subsequently authorized publishing the finished build as v0.9.2; this does not authorize or imply a repeat physical/timed run. The consumed field report is removed from the current Git tree at the user's request; retain this context and `handoff/EXTEND_LAPTOP_HANDOFF.md`.
+The user subsequently reports that QuietShare remains open while only projection disappears. No exact triggering action, warning or event record has established the cause of that latest report. Do not describe the current changes as a reproduction or proof that every physical Extend failure is fixed.
+
+The v0.10.0 follow-up keeps healthy sessions during an active-session WGC check and display notifications that do not change actual privacy/topology/device conditions. Actual safety failures still revoke output with no automatic restart. A single local `projection-stop.json` is overwritten on unexpected stops and contains fixed reason codes, UTC/session timing, HRESULT and resource mode only. It excludes content, images, URLs, paths and display identifiers; do not commit personal diagnostics or browser profiles.
+
+The control window uses uniform 40-100% alpha, including text; it does not provide background-only transparency. Script weight supports 400/600/700. Settings has Appearance, Reading, Workspace, Projection and Shortcuts. Projection configuration/status replaces the separate Presentation page; WGC verification and start/stop live on the activity bar. Ten command bindings are configurable, with global mask/recall registration preserved on rejected changes.
+
+The browser opens a local New tab page instead of fixed Google/ChatGPT destinations, with up to ten saved shortcut tiles and up to eight simultaneous web tabs. Saved URLs belong to the local browser profile and never to Git or release payloads. The centered address selects all on click; existing per-tab capture checks and permission limits remain.
+
+No repeat physical TV or timed hardware run is requested in this follow-up. The consumed field report remains removed from the current Git tree; retain this context and `handoff/EXTEND_LAPTOP_HANDOFF.md`. Keep product documentation and release notes focused on features, installation, use and actual limitations; keep local validation evidence out of the payload.
 
 Clearly distinguish presenter observations, geometry/native HWND checks and physical-hardware evidence. Do not infer that the drag-triggered disappearance was reproduced or that every physical Extend failure is resolved. Future releases still require a user-requested publishing step.
 

@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.10.0
+
+- Thay Google/ChatGPT cố định bằng trang Tab mới cục bộ có ô tìm kiếm/địa chỉ và tối đa 10 lối tắt tự thêm, sửa, xóa; lưu cùng hồ sơ web trên máy.
+- Căn giữa ô địa chỉ, bấm để chọn toàn bộ URL; gom thao tác trình duyệt phụ vào menu và giữ 8 tab với lịch sử/zoom riêng.
+- Chia Cài đặt thành Giao diện, Nội dung, Bố cục, Trình chiếu và Phím tắt; thêm độ mờ toàn cửa sổ 40-100% cùng độ đậm chữ lời nhắc 400/600/700. Độ mờ áp dụng cả chữ; hình chiếu công khai vẫn đục.
+- Cho tùy chỉnh mười phím tắt, giữ hai tác vụ che/gọi cửa sổ toàn hệ thống; từ chối tổ hợp trùng/dành riêng và giữ thiết lập cũ khi đăng ký thất bại.
+- Tích hợp kiểm tra WGC và bắt đầu/dừng chiếu trên thanh bên; chuyển thiết lập/trạng thái vào Cài đặt > Trình chiếu, thay trang riêng. Dựng icon mịn theo DPI.
+- Kiểm tra WGC trong phiên đang chạy và thông báo màn hình không đổi điều kiện thực tế giữ phiên hợp lệ. Lỗi affinity, topology, capture, DWM hoặc thiết bị vẫn dừng an toàn, không tự khởi động lại; mã lý do và một bản ghi cục bộ giúp nhận biết gián đoạn mà không lưu nội dung riêng.
+- Replaced fixed Google/ChatGPT buttons with a local New tab page, search/address input and up to 10 editable, locally saved shortcuts.
+- Centered the address field with click-to-select-all; grouped secondary browser actions in a menu while retaining 8 tabs with independent history/zoom.
+- Organized Settings into Appearance, Reading, Workspace, Projection and Shortcuts; added uniform 40-100% window opacity and 400/600/700 script weight. Opacity includes text; public projection remains opaque.
+- Added ten configurable shortcuts, retaining global mask/recall; reject duplicate/reserved bindings and preserve old registrations if a change fails.
+- Added WGC check and start/stop to the activity bar, moving configuration/status into Settings > Projection and replacing the separate page. Smoothed icon rendering at the active DPI.
+- Active-session WGC checks and display notifications without actual invariant changes retain healthy projection. Affinity, topology, capture, DWM and device failures still stop safely without automatic restart; reason codes and one local record identify interruptions without saving private content.
+
 ## 0.9.2
 
 - Giữ toàn bộ cửa sổ điều khiển trong vùng làm việc của màn hình nguồn đã xác minh khi đang chiếu, kể cả khi kéo sát mép, đổi kích thước, phóng to hoặc khôi phục cửa sổ.

@@ -42,6 +42,22 @@ int wmain()
     const HWND stopButton=CreateWindowExW(0,L"BUTTON",L"Stop",WS_CHILD|WS_DISABLED,
                                          0,0,80,24,window,(HMENU)MIRROR_STOP,GetModuleHandleW(nullptr),nullptr);
     check("hiddenStopButtonStartsDisabled",stopButton&&!IsWindowVisible(stopButton)&&!IsWindowEnabled(stopButton));
+    privacy=ApplyPrivacy(window);
+    check("appearanceFixtureHasRealCaptureExclusion",privacy.applied);
+    preferences.opacityPercent=67;ApplyWindowAppearance();
+    BYTE alpha=0;DWORD flags=0,affinity=0;
+    check("appearanceTransparencyKeepsRealCaptureExclusion",
+          GetLayeredWindowAttributes(window,nullptr,&alpha,&flags)&&alpha==MulDiv(255,67,100)&&
+          GetWindowDisplayAffinity(window,&affinity)&&affinity==0x11);
+    preferences.opacityPercent=100;ApplyWindowAppearance();
+    check("appearanceOpaqueRestoreRetainsLayeredSurfaceAndCaptureExclusion",
+          (GetWindowLongPtrW(window,GWL_EXSTYLE)&WS_EX_LAYERED)&&
+          GetLayeredWindowAttributes(window,nullptr,&alpha,&flags)&&alpha==255&&
+          GetWindowDisplayAffinity(window,&affinity)&&affinity==0x11);
+    ApplyWindowAppearance();
+    check("appearanceRepeatedOpaqueApplyKeepsCaptureExclusion",
+          GetLayeredWindowAttributes(window,nullptr,&alpha,&flags)&&alpha==255&&
+          GetWindowDisplayAffinity(window,&affinity)&&affinity==0x11);
     mirror=std::make_unique<MirrorController>();
     auto caption=[](){wchar_t value[256]{};GetWindowTextW(window,value,256);return std::wstring(value);};
     const HWND foreground=GetForegroundWindow();RECT before{};GetWindowRect(window,&before);

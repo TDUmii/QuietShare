@@ -7,7 +7,8 @@ namespace quietshare {
 constexpr UINT BrowserChangedMessage=WM_APP+20, BrowserProbeMessage=WM_APP+21,
                BrowserZoomMessage=WM_APP+22, // WPARAM generation, LPARAM delta; zero resets.
                BrowserZoomChangedMessage=WM_APP+23,
-               BrowserTabActionMessage=WM_APP+24;
+               BrowserTabActionMessage=WM_APP+24,
+               BrowserCommandMessage=WM_APP+28;
 enum BrowserTabAction { BrowserTabNew=1, BrowserTabClose, BrowserTabNext, BrowserTabPrevious, BrowserTabQueued };
 struct BrowserTab {
     unsigned id=0;
@@ -15,12 +16,16 @@ struct BrowserTab {
     bool loading=false,ready=false,active=false;
     int zoomPercent=100;
 };
+struct BrowserShortcut { std::wstring name,address; };
+struct BrowserCommandShortcut { UINT key=0,modifiers=0,command=0; };
 // Starts only on explicit enable. Callbacks hold weak state, never the UI owner.
 class Browser {
 public:
     Browser(); ~Browser();
     Browser(const Browser&)=delete;Browser& operator=(const Browser&)=delete;
-    bool Enable(HWND parent,const std::wstring& profile,const std::wstring& address=L"https://www.google.com");
+    bool Enable(HWND parent,const std::wstring& profile,const std::wstring& address=L"");
+    void SetEnglish(bool english);
+    void SetCommandShortcuts(const std::vector<BrowserCommandShortcut>& shortcuts);
     void Disable();
     void SetBounds(RECT bounds);
     void ParentMoved();
@@ -34,7 +39,7 @@ public:
     int ActiveTab()const;
     unsigned ActiveTabId()const;
     bool CanNewTab()const;
-    bool NewTab(const std::wstring& address=L"https://www.google.com");
+    bool NewTab(const std::wstring& address=L"");
     bool CloseTab(unsigned id);
     bool ActivateTab(unsigned id);
     bool CycleTab(bool previous=false);
@@ -66,4 +71,6 @@ private:
 bool NormalizeWebAddress(const std::wstring& input,std::wstring& output);
 // Address-bar input only. Navigation events still use the strict URL validator.
 bool ResolveWebInput(const std::wstring& input,std::wstring& output);
+// Saved shortcuts are explicit HTTP / HTTPS URLs, never search queries or scripts.
+bool NormalizeBrowserShortcut(const std::wstring& name,const std::wstring& address,BrowserShortcut& output);
 }

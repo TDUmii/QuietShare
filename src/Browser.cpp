@@ -58,6 +58,82 @@ constexpr wchar_t kDomPolicy[]=LR"JS((()=>{
  Object.defineProperty(window,'print',{value:()=>{},writable:false,configurable:false});
  Object.defineProperty(window,'__quietShareNativeUiPolicy',{value:true});
 })())JS";
+constexpr wchar_t kShortcutCommand[]=L"https://quietshare.invalid/shortcut/";
+constexpr size_t kShortcutLimit=10;
+std::wstring Html(const std::wstring& value){
+    std::wstring result;for(wchar_t c:value){switch(c){case L'&':result+=L"&amp;";break;case L'<':result+=L"&lt;";break;
+        case L'>':result+=L"&gt;";break;case L'\"':result+=L"&quot;";break;case L'\'':result+=L"&#39;";break;default:result+=c;}}
+    return result;
+}
+bool DecodeComponent(const std::wstring& value,std::wstring& output){
+    output.clear();if(value.size()>24576)return false;std::string bytes;
+    auto hex=[](wchar_t c){return c>=L'0'&&c<=L'9'?c-L'0':c>=L'A'&&c<=L'F'?c-L'A'+10:c>=L'a'&&c<=L'f'?c-L'a'+10:-1;};
+    for(size_t i=0;i<value.size();++i){const wchar_t c=value[i];if(c==L'%'){if(i+2>=value.size())return false;
+        int a=hex(value[++i]),b=hex(value[++i]);if(a<0||b<0)return false;bytes+=static_cast<char>(a*16+b);}
+        else if(c>127)return false;else bytes+=static_cast<char>(c);}
+    if(bytes.empty())return true;
+    int count=MultiByteToWideChar(CP_UTF8,MB_ERR_INVALID_CHARS,bytes.data(),static_cast<int>(bytes.size()),nullptr,0);if(!count)return false;
+    output.resize(count);return MultiByteToWideChar(CP_UTF8,MB_ERR_INVALID_CHARS,bytes.data(),static_cast<int>(bytes.size()),output.data(),count)==count;
+}
+std::wstring HostHtmlUri(const std::wstring& html){
+    const int count=WideCharToMultiByte(CP_UTF8,WC_ERR_INVALID_CHARS,html.data(),static_cast<int>(html.size()),nullptr,0,nullptr,nullptr);
+    if(!count)return L"";std::string bytes(count,'\0');
+    if(WideCharToMultiByte(CP_UTF8,WC_ERR_INVALID_CHARS,html.data(),static_cast<int>(html.size()),bytes.data(),count,nullptr,nullptr)!=count)return L"";
+    constexpr wchar_t base64[]=L"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+    std::wstring uri=L"data:text/html;charset=utf-8;base64,";
+    for(size_t i=0;i<bytes.size();i+=3){const unsigned a=static_cast<unsigned char>(bytes[i]);
+        const unsigned b=i+1<bytes.size()?static_cast<unsigned char>(bytes[i+1]):0,c=i+2<bytes.size()?static_cast<unsigned char>(bytes[i+2]):0;
+        uri+=base64[a>>2];uri+=base64[((a&3)<<4)|(b>>4)];uri+=i+1<bytes.size()?base64[((b&15)<<2)|(c>>6)]:L'=';uri+=i+2<bytes.size()?base64[c&63]:L'=';
+    }return uri;
+}
+bool ReadShortcuts(const std::wstring& path,std::vector<BrowserShortcut>& result){
+    result.clear();HANDLE file=CreateFileW(path.c_str(),GENERIC_READ,FILE_SHARE_READ,nullptr,OPEN_EXISTING,FILE_ATTRIBUTE_NORMAL,nullptr);
+    if(file==INVALID_HANDLE_VALUE)return GetLastError()==ERROR_FILE_NOT_FOUND||GetLastError()==ERROR_PATH_NOT_FOUND;
+    LARGE_INTEGER size{};const bool bounded=GetFileSizeEx(file,&size)&&size.QuadPart>=2&&size.QuadPart<=131072&&size.QuadPart%2==0;
+    std::wstring text(bounded?static_cast<size_t>(size.QuadPart/2):0,L'\0');DWORD read=0;
+    const bool readOk=bounded&&ReadFile(file,text.data(),static_cast<DWORD>(size.QuadPart),&read,nullptr)&&read==size.QuadPart;CloseHandle(file);
+    if(!readOk||text[0]!=0xfeff)return false;
+    size_t start=1;while(start<text.size()){
+        auto end=text.find(L'\n',start);if(end==std::wstring::npos){result.clear();return false;}auto line=text.substr(start,end-start);auto split=line.find(L'\t');BrowserShortcut item;
+        if(split==std::wstring::npos||result.size()>=kShortcutLimit||!NormalizeBrowserShortcut(line.substr(0,split),line.substr(split+1),item)){result.clear();return false;}
+        result.push_back(std::move(item));start=end+1;
+    }return true;
+}
+bool WriteShortcuts(const std::wstring& profile,const std::vector<BrowserShortcut>& values){
+    if(profile.empty()||values.size()>kShortcutLimit)return false;
+    std::wstring text(1,0xfeff);for(const auto& item:values)text+=item.name+L"\t"+item.address+L"\n";
+    if(!CreateDirectoryW(profile.c_str(),nullptr)&&GetLastError()!=ERROR_ALREADY_EXISTS)return false;
+    const auto path=profile+L"\\quietshare-shortcuts.txt",temp=path+L".tmp";
+    HANDLE file=CreateFileW(temp.c_str(),GENERIC_WRITE,0,nullptr,CREATE_ALWAYS,FILE_ATTRIBUTE_NORMAL,nullptr);if(file==INVALID_HANDLE_VALUE)return false;
+    DWORD written=0,bytes=static_cast<DWORD>(text.size()*sizeof(wchar_t));bool ok=WriteFile(file,text.data(),bytes,&written,nullptr)&&written==bytes&&FlushFileBuffers(file);CloseHandle(file);
+    if(ok)ok=MoveFileExW(temp.c_str(),path.c_str(),MOVEFILE_REPLACE_EXISTING|MOVEFILE_WRITE_THROUGH)!=FALSE;
+    if(!ok)DeleteFileW(temp.c_str());return ok;
+}
+std::wstring NewTabHtml(bool en,const std::vector<BrowserShortcut>& shortcuts,const std::wstring& nonce,const std::wstring& error){
+    auto t=[&](const wchar_t* vi,const wchar_t* english){return en?english:vi;};
+    const std::wstring globe=L"<svg viewBox='0 0 24 24' aria-hidden='true'><circle cx='12' cy='12' r='9'/><path d='M3 12h18M12 3a17 17 0 0 1 0 18 17 17 0 0 1 0-18'/></svg>";
+    const std::wstring plus=L"<svg viewBox='0 0 24 24' aria-hidden='true'><path d='M12 5v14M5 12h14'/></svg>";
+    std::wstring html=LR"HTML(<!doctype html><html><head><meta charset='utf-8'><meta name='referrer' content='no-referrer'><meta http-equiv='Content-Security-Policy' content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; form-action 'none'; base-uri 'none'"><title>)HTML";
+    html+=t(L"Tab mới",L"New tab");
+    html+=LR"HTML(</title><style>
+*{box-sizing:border-box}html{color-scheme:dark;scrollbar-color:#484e50 #1e1e1e}body{margin:0;background:#1e1e1e;color:#f2f5f7;font:13px 'Segoe UI',sans-serif;min-height:100vh;display:grid;place-items:center}::selection{background:#094771;color:#fff}main{width:100%;max-width:500px;padding:24px 18px}h1{font-size:20px;line-height:1.25;font-weight:600;text-align:center;margin:0 0 20px}button,input{font:inherit;color:inherit}button,a{touch-action:manipulation}button{cursor:pointer}button:disabled{opacity:.45;cursor:default}a,button,input{outline:none}a:focus-visible,button:focus-visible,input:focus-visible{outline:2px solid #007acc;outline-offset:3px}input{width:100%;background:#252526;border:1px solid #414749;border-radius:7px;padding:9px 11px;caret-color:#007acc}input::placeholder{color:#aaaaaa}.search{margin-bottom:22px}.search input{border-radius:18px;padding:10px 16px;background:#252526}.grid{display:flex;justify-content:center;flex-wrap:wrap;gap:10px 6px}.tile{position:relative;flex:0 0 82px;width:82px;border-radius:9px}.tile>a,.add{display:flex;align-items:center;flex-direction:column;gap:8px;width:100%;min-height:88px;padding:10px 3px 7px;color:inherit;text-decoration:none;border:0;background:transparent;border-radius:9px}.tile:hover,.add:hover{background:#37373d}.symbol{display:grid;place-items:center;width:36px;height:36px;border-radius:50%;background:#333337;color:#9cdcfe}svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}.caption{display:block;max-width:76px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px}.edit{position:absolute;right:0;top:0;display:grid;place-items:center;width:23px;height:23px;background:#343a3b;border:0;border-radius:50%;opacity:0}.edit svg{width:14px;height:14px}.tile:hover .edit,.edit:focus-visible{opacity:1}.edit:hover{background:#485052}form[hidden],.grid[hidden]{display:none}.editor{margin:0 auto;max-width:360px}.editor label{display:block;color:#bbc5c0;font-size:12px;margin:12px 0 6px}.actions{display:flex;justify-content:flex-end;align-items:center;gap:7px;margin-top:15px}.actions button{background:#333337;border:0;border-radius:6px;min-height:31px;padding:6px 12px}.actions button:hover{background:#41494b}.actions .save{background:#007acc;color:#ffffff;font-weight:600}.actions .save:hover{background:#168bd2}.actions .remove{margin-right:auto;color:#ffa9a2;background:transparent}.notice{margin:14px 0 0;color:#ffbbb4;font-size:12px;text-align:center;min-height:16px}.empty{color:#aaaaaa;text-align:center;font-size:12px;line-height:1.5;margin:8px 0 14px}@media(max-width:340px),(max-height:260px){main{padding:14px 12px}h1{font-size:18px;margin-bottom:14px}.search{margin-bottom:12px}.tile>a,.add{min-height:76px;padding-top:6px;gap:6px}.symbol{width:30px;height:30px}.grid{gap:4px}}
+</style><style>.notice:empty{display:none}@media(max-height:260px){h1,.empty{display:none}main{padding:12px}.search{margin-bottom:10px}}</style></head><body><main><h1>QuietShare</h1><form class='search' id='search'><input id='query' autocomplete='off' aria-label=')HTML";
+    const std::wstring search=t(L"Tìm kiếm hoặc nhập địa chỉ web",L"Search or enter a web address");html+=Html(search)+L"' placeholder='"+Html(search)+L"'></form><div class='grid' id='grid'>";
+    for(size_t i=0;i<shortcuts.size();++i){const auto& item=shortcuts[i];html+=L"<div class='tile'><a href='"+Html(item.address)+L"'><span class='symbol'>"+globe+L"</span><span class='caption'>"+Html(item.name)+L"</span></a><button class='edit' data-index='"+std::to_wstring(i)+L"' data-name='"+Html(item.name)+L"' data-url='"+Html(item.address)+L"' aria-label='"+Html(std::wstring(t(L"Sửa ",L"Edit "))+item.name)+L"'><svg viewBox='0 0 24 24'><circle cx='5' cy='12' r='1'/><circle cx='12' cy='12' r='1'/><circle cx='19' cy='12' r='1'/></svg></button></div>";}
+    if(shortcuts.size()<kShortcutLimit)html+=L"<div class='tile'><button class='add' id='add'><span class='symbol'>"+plus+L"</span><span class='caption'>"+t(L"Thêm lối tắt",L"Add shortcut")+L"</span></button></div>";
+    html+=L"</div>";if(shortcuts.empty())html+=L"<p class='empty' id='empty'>"+std::wstring(t(L"Lưu trang bạn dùng để mở nhanh tại đây.",L"Save the pages you use for quick access here."))+L"</p>";
+    html+=L"<form class='editor' id='editor' hidden><label for='name'>"+std::wstring(t(L"Tên",L"Name"))+L"</label><input id='name' maxlength='80' autocomplete='off'><label for='url'>"+t(L"Địa chỉ web",L"Web address")+L"</label><input id='url' maxlength='4096' autocomplete='off' placeholder='https://example.com'><div class='actions'><button type='button' class='remove' id='remove'>"+t(L"Xóa",L"Remove")+L"</button><button type='button' id='cancel'>"+t(L"Hủy",L"Cancel")+L"</button><button class='save' id='save'>"+t(L"Lưu",L"Save")+L"</button></div></form><p class='notice' id='notice' role='status'>"+Html(error)+L"</p>";
+    html+=LR"JS(<script>(()=>{'use strict';const $=id=>document.getElementById(id);let index=-1;const prefix=')JS"+std::wstring(kShortcutCommand)+nonce+LR"JS(/';
+const send=(action,value='')=>{location.href=prefix+action+'/'+index+'?'+value};
+const edit=(n,name='',url='')=>{index=n;$('grid').hidden=true;$('search').hidden=true;if($('empty'))$('empty').hidden=true;$('editor').hidden=false;$('name').value=name;$('url').value=url;$('remove').hidden=n<0;$('name').focus()};
+const cancel=()=>{$('editor').hidden=true;$('grid').hidden=false;$('search').hidden=false;if($('empty'))$('empty').hidden=false};
+if($('add'))$('add').onclick=()=>edit(-1);for(const button of document.querySelectorAll('.edit'))button.onclick=()=>edit(Number(button.dataset.index),button.dataset.name,button.dataset.url);
+$('cancel').onclick=cancel;$('remove').onclick=()=>send('remove');$('editor').onsubmit=e=>{e.preventDefault();send('save','name='+encodeURIComponent($('name').value)+'&url='+encodeURIComponent($('url').value))};
+$('search').onsubmit=e=>{e.preventDefault();const value=$('query').value.trim();if(value)send('search','value='+encodeURIComponent(value))};
+addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('editor').hidden){e.preventDefault();cancel()}});
+})()</script></main></body></html>)JS";
+    return html;
+}
 }
 bool NormalizeWebAddress(const std::wstring& input,std::wstring& output){
     output.clear();if(input.empty()||input.size()>4096)return false;
@@ -105,10 +181,25 @@ bool ResolveWebInput(const std::wstring& input,std::wstring& output){
     }
     return NormalizeWebAddress(address,output);
 }
+bool NormalizeBrowserShortcut(const std::wstring& name,const std::wstring& address,BrowserShortcut& output){
+    output={};if(name.size()>80||address.size()>4096)return false;
+    const auto start=name.find_first_not_of(L' '),end=name.find_last_not_of(L' ');
+    if(start==std::wstring::npos)return false;
+    std::wstring clean=name.substr(start,end-start+1);for(wchar_t c:clean)if(c<32||c==127)return false;
+    if(!WideCharToMultiByte(CP_UTF8,WC_ERR_INVALID_CHARS,clean.data(),static_cast<int>(clean.size()),nullptr,0,nullptr,nullptr))return false;
+    auto beginUrl=address.find_first_not_of(L' '),endUrl=address.find_last_not_of(L' ');std::wstring normalized;
+    if(beginUrl==std::wstring::npos||!NormalizeWebAddress(address.substr(beginUrl,endUrl-beginUrl+1),normalized)||normalized.size()>4096||
+       !WideCharToMultiByte(CP_UTF8,WC_ERR_INVALID_CHARS,normalized.data(),static_cast<int>(normalized.size()),nullptr,0,nullptr,nullptr))return false;
+    output={std::move(clean),std::move(normalized)};return true;
+}
 struct Browser::Impl:std::enable_shared_from_this<Browser::Impl> {
     HWND parent=nullptr;RECT bounds{};bool enabled=false,ready=false,verified=false,visible=false,probing=false,locked=false,suspendPending=false;
     unsigned generation=0,pid=0;UINT64 navigationId=0;int error=0;bool loaded=false,navigating=false;std::wstring address,pending,notice,title;
     int zoomPercent=100;
+    bool english=false,localPage=false,localNavigation=false,hasNewTab=false;
+    std::wstring profile,localNonce,localDocumentUri,newTabError;
+    std::vector<BrowserShortcut> shortcuts;
+    std::vector<BrowserCommandShortcut> commandShortcuts;
     // The manager owns one environment; tab states own only their controller.
     std::weak_ptr<Impl> owner;
     std::vector<std::shared_ptr<Impl>> tabs;
@@ -126,7 +217,16 @@ struct Browser::Impl:std::enable_shared_from_this<Browser::Impl> {
         manager->actions.push_back({manager->generation,id,kind,value,std::move(address)});
         PostMessageW(parent,BrowserTabActionMessage,manager->generation,BrowserTabQueued);
     }
-    void Close(){++generation;enabled=ready=verified=visible=probing=locked=suspendPending=false;pid=0;error=0;loaded=navigating=false;address.clear();pending.clear();notice.clear();title.clear();
+    void LoadNewTab(){
+        auto manager=owner.lock();if(!manager||!enabled||!ready||!verified||locked||!web)return;
+        GUID guid{};if(FAILED(CoCreateGuid(&guid))){Fail(331);return;}
+        localNonce.clear();constexpr wchar_t hex[]=L"0123456789abcdef";for(unsigned char c:std::string(reinterpret_cast<const char*>(&guid),sizeof(guid))){localNonce+=hex[c>>4];localNonce+=hex[c&15];}
+        hasNewTab=localPage=localNavigation=true;address.clear();title=manager->english?L"New tab":L"Tab mới";loaded=false;navigating=true;notice.clear();
+        auto html=NewTabHtml(manager->english,manager->shortcuts,localNonce,newTabError);
+        localDocumentUri=HostHtmlUri(html);if(localDocumentUri.empty()){Fail(332);return;}
+        if(FAILED(web->NavigateToString(html.c_str()))){localPage=localNavigation=false;navigating=false;notice=L"navigation";}Notify();
+    }
+    void Close(){++generation;enabled=ready=verified=visible=probing=locked=suspendPending=false;pid=0;error=0;loaded=navigating=localPage=localNavigation=false;localNonce.clear();localDocumentUri.clear();newTabError.clear();address.clear();pending.clear();notice.clear();title.clear();
         auto closingTabs=std::move(tabs);tabs.clear();actions.clear();activeId=pendingId=0;
         Com<ICoreWebView2Controller> closingController;closingController.reset(controller.detach());
         Com<ICoreWebView2> closingWeb;closingWeb.reset(web.detach());
@@ -221,10 +321,18 @@ struct Browser::Impl:std::enable_shared_from_this<Browser::Impl> {
         bool ok=true;
         ok=Event<ICoreWebView2AcceleratorKeyPressedEventHandler,ICoreWebView2Controller*,ICoreWebView2AcceleratorKeyPressedEventArgs*>([valid](auto,auto args){
             auto s=valid();if(!s||!s->ready||!s->verified||s->locked||!s->visible)return S_OK;
-            if(!(GetKeyState(VK_CONTROL)&0x8000)||(GetKeyState(VK_MENU)&0x8000)||
-               (GetKeyState(VK_LWIN)&0x8000)||(GetKeyState(VK_RWIN)&0x8000))return S_OK;
             COREWEBVIEW2_KEY_EVENT_KIND kind{};UINT key=0;
             if(FAILED(args->get_KeyEventKind(&kind))||FAILED(args->get_VirtualKey(&key)))return S_OK;
+            const UINT modifiers=((GetKeyState(VK_CONTROL)&0x8000)?MOD_CONTROL:0)|((GetKeyState(VK_MENU)&0x8000)?MOD_ALT:0)|
+                ((GetKeyState(VK_SHIFT)&0x8000)?MOD_SHIFT:0)|(((GetKeyState(VK_LWIN)|GetKeyState(VK_RWIN))&0x8000)?MOD_WIN:0);
+            if(auto manager=s->owner.lock())for(const auto& shortcut:manager->commandShortcuts)if(shortcut.key==key&&shortcut.modifiers==modifiers){
+                if(FAILED(args->put_Handled(TRUE)))return S_OK;
+                COREWEBVIEW2_PHYSICAL_KEY_STATUS status{};args->get_PhysicalKeyStatus(&status);
+                if(!status.WasKeyDown&&(kind==COREWEBVIEW2_KEY_EVENT_KIND_KEY_DOWN||kind==COREWEBVIEW2_KEY_EVENT_KIND_SYSTEM_KEY_DOWN))s->Queue(9,shortcut.command);
+                return S_OK;
+            }
+            if(!(GetKeyState(VK_CONTROL)&0x8000)||(GetKeyState(VK_MENU)&0x8000)||
+               (GetKeyState(VK_LWIN)&0x8000)||(GetKeyState(VK_RWIN)&0x8000))return S_OK;
             int action=0,delta=0;
             if(key==L'T')action=BrowserTabNew;
             else if(key==L'W')action=BrowserTabClose;
@@ -254,8 +362,23 @@ struct Browser::Impl:std::enable_shared_from_this<Browser::Impl> {
             // fixture exists; public Navigate() is disabled until proof passes.
             if(s->probing){args->get_NavigationId(&s->navigationId);return S_OK;}
             LPWSTR raw=nullptr;args->get_Uri(&raw);auto uri=TakeString(raw);std::wstring normalized;
+            // NavigateToString emits about:blank on some runtimes, and the
+            // exact UTF-8 data URI on others. This single pending host HTML
+            // navigation is the only data document ever admitted.
+            if(s->verified&&s->localPage&&s->localNavigation&&(uri==L"about:blank"||uri==s->localDocumentUri)){
+                s->localNavigation=false;args->get_NavigationId(&s->navigationId);return S_OK;
+            }
+            // A history step to our former blank entry is rebuilt from native
+            // saved data. Never trust HTML restored by the browser's cache.
+            if(s->verified&&s->hasNewTab&&(uri==L"about:blank"||uri==s->localDocumentUri)){args->put_Cancel(TRUE);if(s->visible)s->Queue(10);return S_OK;}
+            const auto commandPrefix=std::wstring(kShortcutCommand)+s->localNonce+L"/";
+            if(uri.rfind(kShortcutCommand,0)==0){
+                args->put_Cancel(TRUE);
+                if(s->verified&&s->visible&&s->localPage&&!s->localNavigation&&!s->localNonce.empty()&&uri.rfind(commandPrefix,0)==0)s->Queue(8,0,std::move(uri));
+                return S_OK;
+            }
             if(!s->verified||!NormalizeWebAddress(uri,normalized))args->put_Cancel(TRUE);
-            else {args->get_NavigationId(&s->navigationId);s->navigating=true;s->loaded=false;s->Notify();}
+            else {s->localPage=s->localNavigation=false;s->localNonce.clear();args->get_NavigationId(&s->navigationId);s->navigating=true;s->loaded=false;s->Notify();}
             return S_OK;
         },[&](auto h,auto t){return web->add_NavigationStarting(h,t);})&&ok;
         ok=Event<ICoreWebView2NavigationCompletedEventHandler,ICoreWebView2*,ICoreWebView2NavigationCompletedEventArgs*>([valid](auto,auto args){
@@ -272,7 +395,7 @@ struct Browser::Impl:std::enable_shared_from_this<Browser::Impl> {
             }
             else{s->navigating=false;s->loaded=success;s->notice=success?L"":L"navigation";s->Notify();if(!s->visible)s->Suspend();}return S_OK;
         },[&](auto h,auto t){return web->add_NavigationCompleted(h,t);})&&ok;
-        ok=Event<ICoreWebView2SourceChangedEventHandler,ICoreWebView2*,ICoreWebView2SourceChangedEventArgs*>([valid](auto,auto){auto s=valid();if(s&&!s->probing){LPWSTR p=nullptr;s->web->get_Source(&p);s->address=TakeString(p);s->Notify();}return S_OK;},[&](auto h,auto t){return web->add_SourceChanged(h,t);})&&ok;
+        ok=Event<ICoreWebView2SourceChangedEventHandler,ICoreWebView2*,ICoreWebView2SourceChangedEventArgs*>([valid](auto,auto){auto s=valid();if(s&&!s->probing){LPWSTR p=nullptr;s->web->get_Source(&p);auto source=TakeString(p);s->address=s->localPage&&(source==L"about:blank"||source==s->localDocumentUri)?L"":source;s->Notify();}return S_OK;},[&](auto h,auto t){return web->add_SourceChanged(h,t);})&&ok;
         ok=Event<ICoreWebView2HistoryChangedEventHandler,ICoreWebView2*,IUnknown*>([valid](auto,auto){if(auto s=valid())s->Notify();return S_OK;},[&](auto h,auto t){return web->add_HistoryChanged(h,t);})&&ok;
         ok=Event<ICoreWebView2DocumentTitleChangedEventHandler,ICoreWebView2*,IUnknown*>([valid](auto,auto){
             if(auto s=valid();s&&!s->probing){LPWSTR raw=nullptr;s->web->get_DocumentTitle(&raw);s->title=TakeString(raw);if(s->title.size()>160)s->title.resize(160);
@@ -299,10 +422,13 @@ struct Browser::Impl:std::enable_shared_from_this<Browser::Impl> {
     }
 };
 Browser::Browser():impl(std::make_shared<Impl>()){}Browser::~Browser(){Disable();}
+void Browser::SetEnglish(bool english){auto s=impl;if(s->english==english)return;s->english=english;auto tab=s->Active();if(tab&&tab->localPage)tab->LoadNewTab();}
+void Browser::SetCommandShortcuts(const std::vector<BrowserCommandShortcut>& shortcuts){impl->commandShortcuts=shortcuts;}
 bool Browser::Enable(HWND parent,const std::wstring& profile,const std::wstring& initial){
     auto s=impl;if(s->enabled)return true;
-    std::wstring address;if(!ResolveWebInput(initial,address))address=L"https://www.google.com";
+    std::wstring address;if(!initial.empty())ResolveWebInput(initial,address);
     s->Close();s->parent=parent;s->enabled=true;s->error=0;s->locked=false;
+    s->profile=profile;ReadShortcuts(profile+L"\\quietshare-shortcuts.txt",s->shortcuts);
     auto first=s->AddTab(address);
     // Load only our pinned loader from beside the EXE, never a working-directory DLL.
     wchar_t executable[32768]{};GetModuleFileNameW(nullptr,executable,32768);std::wstring path=executable;path=path.substr(0,path.find_last_of(L"\\"))+L"\\WebView2Loader.dll";
@@ -359,7 +485,8 @@ void Browser::FinishProbe(bool passed,unsigned token){auto s=impl;auto tab=s->Fi
     // The canary has passed before any untrusted address reaches this controller.
     s->pendingId=0;
     auto initial=std::move(tab->pending);tab->pending.clear();tab->loaded=false;tab->navigating=true;
-    const auto hr=web->Navigate(initial.c_str());if(!valid())return;if(FAILED(hr)){tab->navigating=false;tab->notice=L"navigation";}
+    if(initial.empty())tab->LoadNewTab();
+    else{const auto hr=web->Navigate(initial.c_str());if(!valid())return;if(FAILED(hr)){tab->navigating=false;tab->notice=L"navigation";}}
     s->UpdateVisible();tab->Notify();
 }
 std::vector<BrowserTab> Browser::Tabs()const{std::vector<BrowserTab> result;
@@ -368,7 +495,7 @@ std::vector<BrowserTab> Browser::Tabs()const{std::vector<BrowserTab> result;
 int Browser::ActiveTab()const{for(size_t i=0;i<impl->tabs.size();++i)if(impl->tabs[i]->id==impl->activeId)return static_cast<int>(i);return -1;}
 unsigned Browser::ActiveTabId()const{return impl->activeId;}
 bool Browser::CanNewTab()const{return impl->enabled&&!impl->locked&&impl->environment&&!impl->pendingId&&impl->tabs.size()<8;}
-bool Browser::NewTab(const std::wstring& value){auto s=impl;std::wstring address;if(!CanNewTab()||!ResolveWebInput(value,address))return false;auto tab=s->AddTab(address);s->CreateController(tab);return true;}
+bool Browser::NewTab(const std::wstring& value){auto s=impl;std::wstring address;if(!CanNewTab()||(!value.empty()&&!ResolveWebInput(value,address)))return false;auto tab=s->AddTab(address);s->CreateController(tab);return true;}
 bool Browser::CloseTab(unsigned id){auto s=impl;auto found=std::find_if(s->tabs.begin(),s->tabs.end(),[&](const auto& tab){return tab->id==id;});if(found==s->tabs.end())return false;
     auto closing=*found;const size_t index=static_cast<size_t>(found-s->tabs.begin());const bool active=s->activeId==id;const unsigned epoch=s->generation;
     if(s->tabs.size()==1)s->zoomPercent=closing->zoomPercent;if(s->pendingId==id)s->pendingId=0;
@@ -378,7 +505,7 @@ bool Browser::CloseTab(unsigned id){auto s=impl;auto found=std::find_if(s->tabs.
     if(active)s->activeId=s->tabs[std::min(index,s->tabs.size()-1)]->id;
     closing->Close();if(!s->enabled||s->generation!=epoch)return true;s->UpdateVisible();s->Notify();return true;}
 bool Browser::ActivateTab(unsigned id){auto s=impl;auto tab=s->Find(id);if(!s->enabled||s->locked||!tab)return false;if(s->activeId==id)return true;
-    s->actions.clear();s->activeId=id;s->UpdateVisible();s->Notify();s->NotifyZoom();return true;}
+    s->actions.clear();s->activeId=id;s->UpdateVisible();if(tab->localPage)tab->LoadNewTab();s->Notify();s->NotifyZoom();return true;}
 bool Browser::CycleTab(bool previous){const int active=ActiveTab(),count=static_cast<int>(impl->tabs.size());if(active<0||!count)return false;return ActivateTab(impl->tabs[(active+count+(previous?-1:1))%count]->id);}
 bool Browser::ProcessTabAction(int action){auto s=impl;int value=0;std::wstring address;
     if(action==BrowserTabQueued){if(s->actions.empty())return false;auto queued=std::move(s->actions.front());s->actions.pop_front();auto source=s->Find(queued.id);
@@ -391,6 +518,35 @@ bool Browser::ProcessTabAction(int action){auto s=impl;int value=0;std::wstring 
     if(action==BrowserTabPrevious)return CycleTab(true);
     if(action==6)return NewTab(address);
     if(action==7)return value?AdjustZoomPercent(value):ResetZoom();
+    if(action==9){PostMessageW(s->parent,BrowserCommandMessage,s->generation,value);return true;}
+    if(action==10){auto tab=s->Active();if(!tab||!tab->hasNewTab)return false;tab->LoadNewTab();return true;}
+    if(action==8){
+        auto tab=s->Active();if(!tab||!tab->localPage||tab->localNonce.empty())return false;
+        auto prefix=std::wstring(kShortcutCommand)+tab->localNonce+L"/";if(address.rfind(prefix,0)!=0)return false;
+        auto command=address.substr(prefix.size());auto slash=command.find(L'/'),query=command.find(L'?');
+        if(slash==std::wstring::npos||query==std::wstring::npos||query<=slash)return false;
+        auto kind=command.substr(0,slash),indexText=command.substr(slash+1,query-slash-1),fields=command.substr(query+1);
+        int index=-1;if(indexText!=L"-1"){
+            if(indexText.empty()||indexText.size()>2||!std::all_of(indexText.begin(),indexText.end(),[](wchar_t c){return c>=L'0'&&c<=L'9';}))return false;
+            index=std::stoi(indexText);if(index>=static_cast<int>(s->shortcuts.size()))return false;
+        }
+        if(kind==L"search"){
+            std::wstring input;if(fields.rfind(L"value=",0)!=0||!DecodeComponent(fields.substr(6),input))return false;
+            Navigate(input);return true;
+        }
+        auto updated=s->shortcuts;bool valid=false;
+        if(kind==L"remove"&&index>=0&&fields.empty()){updated.erase(updated.begin()+index);valid=true;}
+        if(kind==L"save"&&(index>=0||updated.size()<kShortcutLimit)&&fields.rfind(L"name=",0)==0){
+            auto separator=fields.find(L"&url=",5);std::wstring name,url;BrowserShortcut item;
+            if(separator!=std::wstring::npos&&DecodeComponent(fields.substr(5,separator-5),name)&&DecodeComponent(fields.substr(separator+5),url)&&NormalizeBrowserShortcut(name,url,item)){
+                if(index<0)updated.push_back(std::move(item));else updated[index]=std::move(item);valid=true;
+            }
+        }
+        if(!valid)tab->newTabError=s->english?L"Enter a name and an HTTP / HTTPS web address.":L"Nhập tên và địa chỉ web HTTP / HTTPS.";
+        else if(!WriteShortcuts(s->profile,updated))tab->newTabError=s->english?L"Could not save the shortcut. Check access to the browser profile.":L"Không lưu được lối tắt. Kiểm tra quyền ghi hồ sơ trình duyệt.";
+        else{s->shortcuts=std::move(updated);tab->newTabError.clear();}
+        tab->LoadNewTab();return true;
+    }
     return false;
 }
 void Browser::ClearQueuedActions(){impl->actions.clear();}
@@ -400,10 +556,11 @@ unsigned Browser::BackgroundSuspendedCount()const{auto s=impl;unsigned count=0;c
 unsigned Browser::PendingTabCount()const{return impl->pendingId?1:0;}
 unsigned Browser::ControllerCount()const{unsigned count=0;for(const auto& tab:impl->tabs)if(tab->controller)++count;return count;}
 void Browser::Navigate(const std::wstring& value){auto s=impl;auto tab=s->Active();std::wstring address;if(!tab||!tab->ready||tab->locked||s->locked||!tab->web)return;
+    if(value.empty()){tab->newTabError.clear();tab->LoadNewTab();return;}
     if(!ResolveWebInput(value,address)){tab->notice=L"address";tab->Notify();return;}tab->loaded=false;tab->navigating=true;tab->notice.clear();if(FAILED(tab->web->Navigate(address.c_str()))){tab->navigating=false;tab->notice=L"navigation";tab->Notify();}}
 void Browser::Back(){auto tab=impl->Active();if(Ready()&&!impl->locked&&!tab->locked)tab->web->GoBack();}
 void Browser::Forward(){auto tab=impl->Active();if(Ready()&&!impl->locked&&!tab->locked)tab->web->GoForward();}
-void Browser::Reload(){auto tab=impl->Active();if(Ready()&&!impl->locked&&!tab->locked)tab->web->Reload();}
+void Browser::Reload(){auto tab=impl->Active();if(Ready()&&!impl->locked&&!tab->locked){if(tab->localPage)tab->LoadNewTab();else tab->web->Reload();}}
 void Browser::Focus(){auto tab=impl->Active();if(Ready()&&tab->visible&&!impl->locked)tab->controller->MoveFocus(COREWEBVIEW2_MOVE_FOCUS_REASON_PROGRAMMATIC);}
 int Browser::ZoomPercent()const{auto tab=impl->Active();return tab?tab->zoomPercent:impl->zoomPercent;}
 bool Browser::SetZoomPercent(int percent){auto tab=impl->Active();if(tab)return !impl->locked&&tab->SetZoom(percent);return impl->SetZoom(percent);}

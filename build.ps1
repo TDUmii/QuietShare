@@ -45,7 +45,7 @@ try {
     foreach ($runtimeName in @('Scintilla.dll','Lexilla.dll','pdfium.dll','WebView2Loader.dll')) { Copy-Item -LiteralPath (Join-Path $distDir $runtimeName) -Destination (Join-Path $buildDir $runtimeName) -Force }
     if (Test-Path -LiteralPath 'Installer.cpp') {
         Compile-Resource 'installer.rc' '../build/installer.res'
-        & $compiler '-std=c++17' '-O2' '-s' '-static' '-static-libgcc' '-static-libstdc++' '-municode' '-mwindows' '-DUNICODE' '-D_UNICODE' 'Installer.cpp' (Join-Path $buildDir 'installer.res') '-o' (Join-Path $distDir 'QuietShare-Setup.exe') '-lole32' '-lshell32' '-luuid' '-ladvapi32' '-lcomctl32' '-luser32' '-lgdi32' '-lversion'
+        & $compiler '-std=c++17' '-O2' '-s' '-static' '-static-libgcc' '-static-libstdc++' '-municode' '-mwindows' '-DUNICODE' '-D_UNICODE' 'Installer.cpp' (Join-Path $buildDir 'installer.res') '-o' (Join-Path $distDir 'QuietShare-Setup.exe') '-lole32' '-lshell32' '-luuid' '-ladvapi32' '-lcomctl32' '-luser32' '-lgdi32' '-lmsimg32' '-lversion'
         if ($LASTEXITCODE) { throw 'Installer compilation failed.' }
         if (-not ('QuietShareBuildResources' -as [type])) {
             Add-Type -TypeDefinition @'

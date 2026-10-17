@@ -20,11 +20,12 @@ std::vector<Check> checks;
 PdfViewer *testPdf = nullptr;
 int safetyCalls = 0, ordinaryCommands = 0;
 bool confidenceLost = false;
+UINT testMaskKey=VK_F8;
 const LoadedContent *reopenFixture = nullptr;
 bool busyOpenRejected = false, busyPageRejected = false, busyStateRejected = false;
 LRESULT CALLBACK QaOwnerProc(HWND window, UINT message, WPARAM wp, LPARAM lp)
 {
-    if ((message == WM_HOTKEY || message == WM_POWERBROADCAST) && testPdf)
+    if ((message == WM_HOTKEY || message == WM_POWERBROADCAST || (message==WM_KEYDOWN&&wp==testMaskKey)) && testPdf)
     {
         ++safetyCalls;
         testPdf->SetPrivateVisible(false);
@@ -34,6 +35,7 @@ LRESULT CALLBACK QaOwnerProc(HWND window, UINT message, WPARAM wp, LPARAM lp)
         ++ordinaryCommands;
     if (message == WM_APP + 14)
         return confidenceLost ? 0 : 1;
+    if(message==WM_APP+30)return wp==testMaskKey;
     if (message == WM_CLOSE && testPdf)
     {
         if (reopenFixture)
@@ -315,6 +317,9 @@ int wmain(int argc, wchar_t **argv)
     const int callsBeforeRepeat = safetyCalls;
     PostMessageW(pdf.Window(), WM_KEYDOWN, VK_F8, static_cast<LPARAM>(1u << 30));
     check("pdfLocalF8RepeatIgnored", pdf.RenderCurrentPage() && safetyCalls == callsBeforeRepeat);
+    testMaskKey=VK_F7;PostMessageW(pdf.Window(),WM_KEYDOWN,VK_F7,1);
+    check("pdfConfiguredEmergencyKeyPreemptsRender",!pdf.RenderCurrentPage()&&!(GetWindowLongPtrW(pdf.Window(),GWL_STYLE)&WS_VISIBLE));
+    testMaskKey=VK_F8;pdf.SetPrivateVisible(true);
     const int ordinaryBefore = ordinaryCommands;
     PostMessageW(owner, WM_COMMAND, 777, 0);
     check("pdfDoesNotPumpOrdinaryCommands", pdf.RenderCurrentPage() && ordinaryCommands == ordinaryBefore);

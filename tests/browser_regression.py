@@ -29,6 +29,9 @@ USER32.GetKeyboardState.argtypes=[ctypes.POINTER(ctypes.c_ubyte)]
 USER32.GetKeyboardState.restype=wintypes.BOOL
 USER32.SetKeyboardState.argtypes=[ctypes.POINTER(ctypes.c_ubyte)]
 USER32.SetKeyboardState.restype=wintypes.BOOL
+USER32.SetFocus.argtypes=[wintypes.HWND]
+USER32.SetFocus.restype=wintypes.HWND
+USER32.GetFocus.restype=wintypes.HWND
 USER32.PeekMessageW.argtypes=[ctypes.POINTER(wintypes.MSG),wintypes.HWND,wintypes.UINT,wintypes.UINT,wintypes.UINT]
 USER32.PeekMessageW.restype=wintypes.BOOL
 native.KERNEL32.GetCurrentThreadId.restype=wintypes.DWORD
@@ -94,7 +97,7 @@ def main():
         if not compiler:raise RuntimeError('MinGW-w64 is required for the browser input regression.')
         input_exe=folder/'browser-input-regression.exe'
         subprocess.run([compiler,'-std=c++17','-O2','-static','-static-libgcc','-static-libstdc++','-DUNICODE','-D_UNICODE',
-            '-D_WIN32_WINNT=0x0A00',str(ROOT/'tests/browser_input_regression.cpp'),str(ROOT/'src/Browser.cpp'),
+            '-D_WIN32_WINNT=0x0A00',str(ROOT/'tests/browser_input_regression.cpp'),
             '-I'+str(ROOT/'vendor/webview2/build/native/include'),'-o',str(input_exe),'-lole32','-luuid','-luser32'],check=True)
         input_result=subprocess.run([str(input_exe)],capture_output=True,text=True)
         for item in json.loads(input_result.stdout)['checks']:check(item['name'],item['passed'])
@@ -115,6 +118,15 @@ def main():
         # clock, not server receipt order, to identify the latest rendered state.
         def viewport(page):return max((entry for entry in viewports if entry['page']==page),key=lambda entry:entry['tick'],default=None)
         def form_state(page):return max((entry for entry in form_states if entry['page']==page),key=lambda entry:entry['tick'],default=None)
+        def viewport_settles(page):
+            previous=None;since=time.monotonic();deadline=since+4
+            while time.monotonic()<deadline:
+                current=viewport(page)
+                dimensions=(current['width'],current['height'],current['dpr']) if current else None
+                if dimensions!=previous:previous=dimensions;since=time.monotonic()
+                if dimensions and time.monotonic()-since>=.25:return True
+                time.sleep(.025)
+            return False
         def modifier_key(key,condition,shift=False):
             # Only the owned app's input queue is attached. No SendInput,
             # clipboard, physical keystrokes or foreign UI is touched.
@@ -132,11 +144,29 @@ def main():
                 return wait(condition,6)
             finally:
                 USER32.SetKeyboardState(original);USER32.AttachThreadInput(current,owner,False)
+        def address_selects_all_on_focus():
+            # WM_SETFOCUS by itself is only a notification. Attach to this
+            # owned input queue to perform the real focus transition instead.
+            pending=wintypes.MSG();USER32.PeekMessageW(ctypes.byref(pending),None,0,0,0)
+            owner=USER32.GetWindowThreadProcessId(window,None);current=native.KERNEL32.GetCurrentThreadId()
+            if not USER32.AttachThreadInput(current,owner,True):return None
+            try:
+                USER32.SetFocus(window);USER32.SetFocus(address)
+                selection=native.send(address,0xB0)
+                return USER32.GetFocus()==address and (selection&0xffff)==0 and (selection>>16)==len(native.control_text(address))
+            finally:USER32.AttachThreadInput(current,owner,False)
         check('browserOffByDefault',q(10)==0 and q(11)==0)
         check('noBrowserProfileBeforeEnable',not (profile/'QuietShare'/'WebProfile').exists())
         cmd(154);address=USER32.GetDlgItem(window,164)
         check('browserPageDoesNotStartRuntime',q(10)==0 and q(11)==0 and not hits)
         check('browserZoomDefaults100AndControlsWaitForEnable',q(24)==100 and not USER32.IsWindowEnabled(USER32.GetDlgItem(window,167)))
+        check('fixedGoogleAndChatGptButtonsRemoved',not USER32.GetDlgItem(window,159) and not USER32.GetDlgItem(window,166))
+        cmd(155)
+        check('defaultNewTabPassesRenderedCanary',wait(lambda:q(10)==2 and q(12)==1 and q(13)==1,25))
+        check('defaultNewTabKeepsAddressEmptyAndMakesNoLocalRequest',native.control_text(address)=='' and not hits)
+        check('newTabDoesNotSaveHistoryAsShortcuts',not (profile/'QuietShare'/'WebProfile'/'quietshare-shortcuts.txt').exists())
+        cmd(155)
+        check('defaultNewTabCanBeDisabledWithoutChangingBaseGate',q(10)==q(11)==0 and native.send(window,0x800E,timeout=6000)==1)
         native.set_control_text(address,base+'/first')
         cmd(123)
         check('browserCanBeConfiguredFromSettings',q(21)==1 and q(10)==0)
@@ -152,14 +182,15 @@ def main():
         check('dedicatedProfileCreatedOnlyOnEnable',(profile/'QuietShare'/'WebProfile').exists())
         check('addressReflectsPage',native.control_text(address)==base+'/first')
         check('zoomFixtureReportsActualViewport',wait(lambda:viewport('/first')))
+        check('initialBrowserViewportSettlesAfterMountAndPageSwitch',viewport_settles('/first'))
         initial_viewport=viewport('/first').copy()
-        # Verify compact browser chrome against the live WebView viewport,
-        # including the optional toolbar, without changing Windows DPI.
+        # Verify the single compact browser row against the live WebView
+        # viewport. Reader toolbar visibility must not reserve a second row.
         original_bounds=wintypes.RECT();USER32.GetWindowRect(window,ctypes.byref(original_bounds))
         scale=USER32.GetDpiForWindow(window)/96
         compact_metrics=[]
-        controls=(122,120,139,154,123,105,188,180,156,157,158,164,165,166,159,167,168,169,155,190,191)
-        essential=(156,157,158,164,165,155,190,191,105,188,180)
+        controls=(122,120,139,154,123,105,188,180,156,157,158,164,212,155,190,191)
+        essential=(156,157,158,164,212,190,191,105,188,180)
         def chrome_fits():
             client=wintypes.RECT();USER32.GetClientRect(window,ctypes.byref(client));bounds=[]
             for control_id in controls:
@@ -187,30 +218,30 @@ def main():
                 check(label+':essentialControlsVisible',all(USER32.IsWindowVisible(USER32.GetDlgItem(window,control)) for control in essential))
                 check(label+':webDominatesSmallWindow',shown['width']*shown['dpr']>=client.right*.84-2 and
                       shown['height']*shown['dpr']>=client.bottom*.58-2)
+                selected=address_selects_all_on_focus()
+                if selected is None:not_tested.append(label+': owned address focus attachment unavailable')
+                else:check(label+':addressFocusSelectsEntireUrl',selected)
                 cmd(183)
-                check(label+':hiddenToolbarGivesWebMoreHeight',wait(lambda:viewport('/first')['tick']>shown['tick'] and
-                      viewport('/first')['height']>shown['height']))
                 hidden=viewport('/first').copy()
-                check(label+':hiddenToolbarKeepsEssentialControls',not q(16)&4 and chrome_fits() and
+                check(label+':readerToolbarToggleKeepsBrowserCompact',not q(16)&4 and hidden['height']==shown['height'] and chrome_fits() and
                       all(USER32.IsWindowVisible(USER32.GetDlgItem(window,control)) for control in essential))
-                check(label+':hiddenToolbarWebDominatesHeight',hidden['height']*hidden['dpr']>=client.bottom*.70-2)
+                check(label+':singleToolbarWebDominatesHeight',hidden['height']*hidden['dpr']>=client.bottom*.66-2)
                 check(label+':layoutKeepsControllerAndPrivacy',q(10)==2 and q(12)==1 and q(11)!=0 and q(34)==1 and
                       native.control_text(address)==base+'/first')
                 compact_metrics.append({'language':language,'logicalSize':[width,height],'dpi':round(scale*96),
                     'clientPixels':[client.right,client.bottom],'withToolbar':shown,'withoutToolbar':hidden})
                 cmd(183)
-                check(label+':toolbarRestoresViewport',wait(lambda:q(16)&4 and viewport('/first')['tick']>hidden['tick'] and
-                      abs(viewport('/first')['height']-shown['height'])<=1))
+                check(label+':readerToolbarRestoresWithoutReservingBrowserRow',q(16)&4 and abs(viewport('/first')['height']-shown['height'])<=1)
         cmd(107)
         USER32.SetWindowPos(window,None,0,0,original_bounds.right-original_bounds.left,original_bounds.bottom-original_bounds.top,0x16)
         check('compactBrowserRestoresOriginalViewport',wait(lambda:
               abs(viewport('/first')['width']-initial_viewport['width'])<=1 and abs(viewport('/first')['height']-initial_viewport['height'])<=1))
         metrics['compactBrowser']=compact_metrics
-        check('browserZoomStarts100',q(24)==100 and native.control_text(USER32.GetDlgItem(window,168))=='100%')
+        check('browserZoomStarts100',q(24)==100)
         cmd(169)
         check('browserZoomInUpdatesActualViewport',wait(lambda:q(24)==110 and viewport('/first')['width']<initial_viewport['width']
               and abs(viewport('/first')['width']-initial_viewport['width']/1.1)<=3))
-        check('browserZoomLabelTracksActualValue',native.control_text(USER32.GetDlgItem(window,168))=='110%')
+        check('browserZoomStateTracksActualValue',q(24)==110)
         cmd(167)
         check('browserZoomOutRestoresActualViewport',wait(lambda:q(24)==100 and abs(viewport('/first')['width']-initial_viewport['width'])<=1))
         for _ in range(40):native.send(window,0x111,169)
@@ -271,7 +302,7 @@ def main():
         cmd(154);check('browserSessionReturns',q(10)==2 and q(11)==pid)
         check('visibleBrowserResumes',wait(lambda:q(15)==0))
         USER32.SetWindowPos(window,None,0,0,460,360,0x16);time.sleep(.2)
-        check('narrowBrowserKeepsControls',USER32.IsWindowVisible(address) and USER32.IsWindowVisible(USER32.GetDlgItem(window,155)))
+        check('narrowBrowserKeepsControls',USER32.IsWindowVisible(address) and USER32.IsWindowVisible(USER32.GetDlgItem(window,212)))
         process_handle=native.KERNEL32.OpenProcess(0x00100000,False,pid)
         check('ownedBrowserProcessCanBeObserved',bool(process_handle))
         cmd(155);check('disableReleasesBrowserObjects',q(10)==0 and q(11)==0 and q(12)==0)
@@ -308,8 +339,17 @@ def main():
                 else:check(label+'CtrlT',routed)
             else:cmd(190)
             check(label+'GetsStableNewId',wait(lambda:q(34)==before+1 and q(35) not in (0,previous)))
-            selected=q(35)
             check(label+'PassesOwnRenderedCanary',wait(lambda:q(10)==2 and q(12)==1 and q(37)==0,25))
+            check(label+'DefaultsToLocalNewTab',wait(lambda:q(13)==1 and native.control_text(address)==''))
+            # The canary deliberately gates numeric diagnostics while busy.
+            # Read the actual ID after proof/page readiness, not in the gap
+            # between observing allocation and the asynchronous proof starting.
+            selected=0
+            def ready_id():
+                nonlocal selected
+                selected=q(35)
+                return selected not in (0,previous)
+            check(label+'ReadyTabHasStableNonzeroId',wait(ready_id))
             return selected
         def navigate(path):
             native.set_control_text(address,base+path);cmd(165)
@@ -367,8 +407,9 @@ def main():
         else:check('CtrlShiftTabCyclesBrowserTabsBackwards',routed)
         # Reach the actual controller cap, then exercise both the disabled
         # native button's command route and its keyboard sibling at the limit.
-        # Readiness is sufficient; public Google navigation is not awaited.
+        # Each controller renders a local New Tab page after its own proof.
         extra_tabs=[new_tab('capacityTab'+str(index)) for index in range(4,9)]
+        metrics['capacityTabIds']=extra_tabs
         check('eightVerifiedTabsReachControllerLimit',q(34)==q(38)==8 and q(37)==0 and q(11)==session_pid)
         check('newTabButtonDisabledAtEight',not USER32.IsWindowEnabled(USER32.GetDlgItem(window,190)))
         limited_id=q(35);native.send(window,0x111,190);time.sleep(.15)
@@ -379,6 +420,7 @@ def main():
         else:check('CtrlTCannotExceedEightTabs',routed)
         for index,tab in enumerate(reversed(extra_tabs)):
             native.send(window,0x8000+26,tab)
+            metrics['capacityLastClose']={'requested':tab,'index':index,'tabs':q(34),'active':q(35),'pending':q(37),'controllers':q(38)}
             check('capacityTabCloseReleasesController:'+str(index),wait(lambda:q(34)==q(38)==7-index and q(37)==0))
         check('capacityCloseRestoresOriginalThreeTabs',q(34)==q(38)==3 and q(35)==tab_c and USER32.IsWindowEnabled(USER32.GetDlgItem(window,190)))
         check('originalFirstTabSurvivesCapacityCycle',activate_tab(tab_a) and native.control_text(address)==base+'/first' and q(24)==110)
@@ -409,8 +451,6 @@ def main():
         native.set_control_text(address,base+'/first');cmd(155)
         check('enableAfterMultiTabDisableStartsOneVerifiedTab',wait(lambda:q(10)==2 and q(12)==1 and q(34)==q(38)==1 and q(37)==0,25))
         check('multiTabDisableDoesNotRestoreOldTabUrls',wait(lambda:q(13)==1 and native.control_text(address)==base+'/first',12))
-        cmd(159)
-        metrics['chatgptPublicHttpsLoaded']=wait(lambda:native.control_text(address).startswith('https://chatgpt.com') and q(13)==1,20)
         query='QuietShare nội dung mẫu'
         native.set_control_text(address,query);cmd(165)
         def query_address():
@@ -418,13 +458,10 @@ def main():
             return current.scheme=='https' and current.hostname in ('www.google.com','google.com') and current.path=='/search' and parse_qs(current.query).get('q')==[query]
         check('addressBarVietnameseSearchNavigatesGoogle',wait(query_address,12))
         metrics['googleSearchPublicHttpsLoaded']=wait(lambda:query_address() and q(13)==1,12)
-        cmd(166)
-        def google_home():
-            current=urlsplit(native.control_text(address))
-            return current.scheme=='https' and current.hostname in ('www.google.com','google.com') and current.path in ('','/')
-        check('googleShortcutNavigatesHome',wait(google_home,12))
+        before_display=(q(11),q(35),q(34),q(38))
         native.send(window,0x7E,0,0)
-        check('displayChangeClosesBrowser',q(10)==0 and q(11)==0 and q(34)==q(38)==0)
+        check('unchangedDisplayNotificationKeepsBrowserSession',q(10)==2 and q(12)==1 and
+              (q(11),q(35),q(34),q(38))==before_display and native.send(window,0x800E,timeout=6000)==1)
         native.send(window,0x10,timeout=6000);app.wait(timeout=8)
         app=subprocess.Popen([str(EXE)],cwd=EXE.parent,env=env,startupinfo=startup)
         check('restartWithExistingWebProfile',wait(get_window))
@@ -443,7 +480,7 @@ def main():
         failure={'type':type(e).__name__,'message':str(e)}
         if app and app.poll() is None and window:
             try:metrics['failureState']={'baseGate':native.send(window,0x800E,timeout=6000),'caption':native.control_text(window),
-                'zoom':q(24),'tab':q(35),'state':q(10),'address':native.control_text(address),'recentViewport':viewports[-10:]}
+                'zoom':q(24),'tab':q(35),'tabs':q(34),'controllers':q(38),'pending':q(37),'state':q(10),'address':native.control_text(address),'recentViewport':viewports[-10:]}
             except Exception:pass
     finally:
         if app and app.poll() is None:

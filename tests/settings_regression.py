@@ -1,4 +1,4 @@
-"""Consolidated Settings behavior in the separately built synthetic QA app.
+"""Tabbed Settings behavior in the separately built synthetic QA app.
 
 Targets only the owned child PID and native controls. It never samples desktop
 pixels, changes a personal profile, or sends physical keyboard/mouse input.
@@ -39,6 +39,8 @@ USER32.GetDpiForWindow.restype = wintypes.UINT
 USER32.AttachThreadInput.argtypes = [wintypes.DWORD, wintypes.DWORD, wintypes.BOOL]
 USER32.AttachThreadInput.restype = wintypes.BOOL
 USER32.GetFocus.restype = wintypes.HWND
+USER32.PostMessageW.argtypes = [wintypes.HWND, wintypes.UINT, wintypes.WPARAM, wintypes.LPARAM]
+USER32.PostMessageW.restype = wintypes.BOOL
 USER32.SetFocus.argtypes = [wintypes.HWND]
 USER32.SetFocus.restype = wintypes.HWND
 USER32.PeekMessageW.argtypes = [ctypes.POINTER(wintypes.MSG), wintypes.HWND,
@@ -225,6 +227,24 @@ def main():
         # Posted keys pass through the real IsDialogMessage/dispatch loop.
         posted_key(163, 0x0D)
 
+    def category(index):
+        command(200 + index)
+        if query(40) != index:
+            raise AssertionError("Requested Settings category did not activate")
+
+    def set_opacity(value):
+        real_focus(205)
+        native.set_control_text(control(205), value)
+        posted_key(205, 0x0D)
+
+    def record_shortcut(index, key, modifiers=0):
+        # A registered chord reaches WM_HOTKEY while recording. Send that same
+        # bounded message to our owned QA HWND, without changing keyboard state.
+        command(220 + index)
+        if query(43) != index + 1:
+            raise AssertionError("Shortcut button did not enter capture mode")
+        native.send(window, 0x312, 0, (key << 16) | modifiers)
+
     try:
         check("noExistingQuietShareWindow", not native.app_windows())
         startup = subprocess.STARTUPINFO()
@@ -240,17 +260,51 @@ def main():
               round(430 * scale), round(320 * scale), 0x16))
         command(123)
         check("settingsPageActive", query(21) == 1)
+        check("settingsStartsWithAppearance", query(40) == 0)
         check("fontSliderRemoved", not control(130))
         identifiers = (106, 107, 163, 108, 104, 146, 181, 151, 182, 183, 184,
-                       185, 152, 155, 160, 161, 143, 187, 189)
+                       185, 152, 155, 160, 161, 143, 187, 189, 200, 201, 202,
+                       203, 204, 205, 206, 207, *range(220, 230))
         check("consolidatedControlsKeepStableMainParent", all(control(identifier) and
               USER32.GetParent(control(identifier)) == window for identifier in identifiers))
         scrollbar_class = ctypes.create_unicode_buffer(64)
         USER32.GetClassNameW(control(187), scrollbar_class, len(scrollbar_class))
         check("settingsUsesNativeScrollbar", scrollbar_class.value.casefold() == "scrollbar")
-        check("minimumSettingsCanScroll", query(20) > 0 and region_visible(control(187)))
+        check("appearanceHidesOtherCategoryControls", not region_visible(control(163)) and not region_visible(control(160))
+              and not region_visible(control(220)))
+        check("opacityStartsOpaque", query(41) == 100 and native.control_text(control(205)) == "100")
+        for value in (40, 67, 100):
+            set_opacity(str(value))
+            check("windowOpacityManualValue:" + str(value), query(41) == value
+                  and native.control_text(control(205)) == str(value) and query(44) == 0)
+        for label, value in (("below", "39"), ("above", "101"), ("invalid", "abc")):
+            set_opacity(value)
+            check("invalidOpacityRestoresLastValid:" + label, query(41) == 100 and query(44) == 1
+                  and native.control_text(control(205)) == "100")
+        set_opacity("100")
+        check("validOpacityClearsError", query(44) == 0)
+        check("scriptWeightStartsRegular", query(42) == 400)
+        for weight in (600, 700, 400):
+            command(206)
+            check("scriptWeightCycles:" + str(weight), query(42) == weight and bool(native.control_text(control(206))))
+        category(1)
+        check("readingHidesAppearanceControls", not region_visible(control(205)) and not region_visible(control(206)))
+        reading_window, reading_client = wintypes.RECT(), wintypes.RECT()
+        USER32.GetWindowRect(window, ctypes.byref(reading_window))
+        USER32.GetClientRect(window, ctypes.byref(reading_client))
+        metrics["readingMinimumGeometry"] = {"window": [reading_window.left,reading_window.top,reading_window.right,reading_window.bottom],
+              "client": [reading_client.right,reading_client.bottom],"dpi":USER32.GetDpiForWindow(window),
+              "offset":query(19),"maximum":query(20),"scrollbarVisible":region_visible(control(187))}
+        # Opacity's focus commit deliberately posts its final layout. Wait for
+        # the new category's native viewport instead of racing that message.
+        check("minimumSettingsCanScroll", bool(wait_for(lambda: query(20) > 0 and region_visible(control(187)), 2)))
         scroll(6)
         check("settingsScrollTop", query(19) == 0)
+        numeric, viewport = wintypes.RECT(), wintypes.RECT()
+        USER32.GetWindowRect(control(163), ctypes.byref(numeric))
+        USER32.GetWindowRect(control(187), ctypes.byref(viewport))
+        partial_offset = round((numeric.top - viewport.top + (numeric.bottom - numeric.top) // 2) / scale)
+        scroll(4, min(query(20), partial_offset))
         actual, expected, numeric_height = numeric_clip_bounds(control(163), control(187))
         check("minimumNumericEditPartiallyClipped", 0 < actual[3] - actual[1] < numeric_height)
         check("minimumNumericClipMatchesFullViewportIntersection", actual == expected)
@@ -258,11 +312,15 @@ def main():
         actual, expected, numeric_height = numeric_clip_bounds(control(163), control(187))
         check("focusedNumericClipMatchesFullViewportIntersection", actual == expected)
         check("focusedNumericEditFullyVisible", actual[1] == 0 and actual[3] == numeric_height)
-        scroll(6)
+        scroll(4, min(query(20), partial_offset))
         command(107)
         command(107)
         actual, expected, numeric_height = numeric_clip_bounds(control(163), control(187))
         check("numericClipPreservedAfterSettingsRelayout", actual == expected and 0 < actual[3] - actual[1] < numeric_height)
+        category(4)
+        check("categorySwitchResetsScrollOffset", query(19) == 0)
+        check("shortcutCategoryShowsOnlyBindings", region_visible(control(220)) and not region_visible(control(163))
+              and not region_visible(control(160)))
         maximum = query(20)
         thumb_heights, native_pages = [], []
         for index, position in enumerate((maximum // 4, maximum // 2, maximum)):
@@ -321,14 +379,16 @@ def main():
             scrollbar_pointer(0x202, pointer_x, pointer_y)
         scroll(7)
         check("settingsScrollBottom", query(19) == query(20))
-        check("lastDisplayControlVisibleAtBottom", region_visible(control(143)))
+        check("lastShortcutControlVisibleAtBottom", region_visible(control(207)))
         scroll(6)
-        check("offscreenDisplayControlIsClipped", not region_visible(control(143)))
-        focus(143)
-        check("buttonFocusScrollsIntoView", query(19) > 0 and region_visible(control(143)))
-        scroll(6)
+        check("offscreenShortcutControlIsClipped", not region_visible(control(229)))
+        focus(229)
+        check("buttonFocusScrollsIntoView", query(19) > 0 and region_visible(control(229)))
+        category(3)
+        scroll(7)
+        projection_bottom = query(19)
         focus(160)
-        check("comboFocusScrollsIntoView", query(19) > 0 and region_visible(control(160)))
+        check("comboFocusScrollsIntoView", query(19) < projection_bottom and region_visible(control(160)))
         check("sourceMonitorListAvailableInSettings", native.send(control(160), 0x146) >= 1)
         check("destinationMonitorListAvailableInSettings", native.send(control(161), 0x146) >= 1)
         primary_number, monitor_count = query(29), query(30)
@@ -338,8 +398,9 @@ def main():
         check("windowDisplayMarkerPresentOnSingleDisplay", monitor_count != 1 or "Cửa sổ này" in source_text)
         check("destinationDefaultsOtherDisplayWhenAvailable", monitor_count == 1 or
               native.send(control(160), 0x147) != native.send(control(161), 0x147))
+        category(4)
         scroll(6)
-        native.send(control(106), 0x20A, 0xFF880000)
+        native.send(control(220), 0x20A, 0xFF880000)
         check("wheelOverSettingScrollsPage", query(19) > 0)
         scroll(6)
         native.send(window, 0x20A, 0x00780000)
@@ -364,10 +425,10 @@ def main():
             wheel(-1)
         check("topEdgeDiscardsOutwardWheelCarry", query(19) == 2)
         before = query(19)
-        wheel(-15, 163)
-        check("smallWheelOverNumericInputScrollsPage", query(19) == before + 6)
+        wheel(-15, 220)
+        check("smallWheelOverShortcutButtonScrollsPage", query(19) == before + 6)
         before = query(19)
-        wheel(-15, 106)
+        wheel(-15, 221)
         check("smallWheelOverButtonScrollsPage", query(19) == before + 6)
         scroll(7)
         wheel(-15)
@@ -377,28 +438,64 @@ def main():
         scroll(6)
         durations, movements = [], []
         previous = query(19)
-        for _ in range(120):
+        stream_events = min(120, query(20) // 6)
+        for _ in range(stream_events):
             begin = time.perf_counter_ns()
             wheel(-15)
             durations.append((time.perf_counter_ns() - begin) / 1_000_000)
             current = query(19)
             movements.append(current - previous)
             previous = current
-        metrics["wheel120Delta15"] = {"events": 120, "deltaPerEvent": -15,
+        metrics["wheelStreamDelta15"] = {"events": stream_events, "deltaPerEvent": -15,
               "positionsDistribution": {str(value): movements.count(value) for value in sorted(set(movements))},
               "totalMovement": sum(movements), "medianMs": statistics.median(durations),
               "p95Ms": sorted(durations)[int(.95 * (len(durations) - 1))], "maxMs": max(durations),
               "method": "Distribution of offset changes per owned WM_MOUSEWHEEL event at 430x320; no physical touchpad; timings are observations, not pass thresholds"}
-        check("smallWheelStreamMovesOnEveryEvent", movements == [6] * 120)
+        check("smallWheelStreamMovesOnEveryEvent", stream_events >= 20 and movements == [6] * stream_events)
+
+        category(0)
+        check("appearanceHasIndependentScrollOrigin", query(19) == 0)
+        category(4)
+        check("returningCategoryResetsScrollOrigin", query(19) == 0)
+        check("allShortcutButtonsHaveNativeLabels", all(native.control_text(control(identifier)) for identifier in range(220, 230)))
+        check("verifyShortcutStartsF9", query(47) == 0x78)
+        custom_verify_binding = ord("K") | ((2 | 4) << 8)
+        record_shortcut(2, ord("K"), 2 | 4)
+        check("customShortcutRecorded", query(47) == custom_verify_binding and query(43) == 0 and query(44) == 0)
+        check("customShortcutLabelUpdated", "Ctrl" in native.control_text(control(222))
+              and "Shift" in native.control_text(control(222)) and "K" in native.control_text(control(222)))
+        record_shortcut(2, 0x7A)  # Existing F11 focus binding.
+        check("duplicateShortcutRejectedWithoutChangingBinding", query(47) == custom_verify_binding
+              and query(43) == 0 and query(44) == 1)
+        command(222)
+        posted_key(222, 0x1B)
+        check("escapeCancelsShortcutCapture", query(43) == 0 and query(47) == custom_verify_binding)
+        record_shortcut(2, ord("T"), 2)
+        check("browserReservedShortcutRejected", query(47) == custom_verify_binding and query(44) == 1)
+        command(222)
+        category(0)
+        check("changingCategoryCancelsShortcutCapture", query(43) == 0 and query(44) == 0 and query(19) == 0)
+        set_opacity("40")
+        command(206)
+        check("customAppearanceReadyBeforeReset", query(41) == 40 and query(42) == 600)
+        category(4)
+        focus(207)
+        command(207)
+        check("restoreShortcutDefaultsPreservesAppearance", query(47) == 0x78 and query(45) == 0x77 and query(46) == (ord("Q") | ((2 | 1) << 8))
+              and query(41) == 40 and query(42) == 600 and query(44) == 0)
+        category(0)
+        command(207)
+        check("restoreAppearanceDefaultsPreservesShortcutDefaults",query(41) == 100 and query(42) == 400 and query(47) == 0x78 and query(44) == 0)
 
         command(120)
         command(123)
-        real_focus(106)
+        category(1)
+        real_focus(108)
         native.send(control(163), 0xB1, 0, 0)
         focus(163)
         length = len(native.control_text(control(163)))
         check("numericFocusCollapsesCaretAtEnd", selection() == (length, length))
-        real_focus(106)
+        real_focus(108)
         native.send(control(163), 0xB1, 0, 0)
         click_size()
         check("firstNumericClickCollapsesCaretAtEnd", selection() == (length, length))
@@ -419,39 +516,49 @@ def main():
             set_size(value)
             check("invalidFontRestoresLastValid:" + label, native.control_text(control(163)) == "200"
                   and query(4) == 200 * 100 // 24 and query(22) == 1)
+        category(2)
         command(184)
         check("statusBarHiddenIndependently", not query(16) & 8)
+        category(1)
         set_size("9999")
         check("sizeErrorSurvivesHiddenStatusBar", query(22) == 1 and query(4) == 200 * 100 // 24)
         set_size("24")
         check("validSizeClearsInlineError", query(22) == 0 and native.control_text(control(163)) == "24")
+        category(2)
         command(184)
+        category(1)
 
         before = native.control_text(control(146))
         command(146)
         check("scriptWrapRemainsDisabledAndUnchanged", not USER32.IsWindowEnabled(control(146))
               and native.control_text(control(146)) == before)
-        for identifier, label in ((106, "topmost"), (152, "ignoredFolders"), (143, "pointer")):
+        for identifier, label, tab in ((106, "topmost", 0), (152, "ignoredFolders", 2), (143, "pointer", 3)):
+            category(tab)
             before = native.control_text(control(identifier))
             command(identifier)
             after = native.control_text(control(identifier))
             check("settingToggleUpdatesState:" + label, bool(before) and bool(after) and before != after and query(21) == 1)
             command(identifier)
             check("settingToggleRestoresState:" + label, native.control_text(control(identifier)) == before and query(21) == 1)
+        category(1)
         before = native.control_text(control(104))
         speed_labels = []
         for _ in range(3):
             command(104)
             speed_labels.append(native.control_text(control(104)))
         check("readingSpeedCyclesInSettings", len(set(speed_labels)) == 3 and speed_labels[-1] == before and query(21) == 1)
+        category(0)
         before = native.control_text(control(107))
         command(107)
         check("languageChangesInSettings", bool(native.control_text(control(107))) and native.control_text(control(107)) != before and query(21) == 1)
+        category(3)
         source_text = native.control_text(control(160))
         check("englishMonitorIdentityUsesWindowsDisplayNumber", source_text.startswith("Display " + str(primary_number) + " ·") and "Main" in source_text)
         check("englishWindowDisplayMarkerOnSingleDisplay", monitor_count != 1 or "This window" in source_text)
+        category(0)
         command(107)
         check("languageRestoresInSettings", native.control_text(control(107)) == before)
+        category(3)
         focus(189)
         check("resourceSettingFocusScrollsIntoView", region_visible(control(189)) and query(19) > 0)
         check("resourceDefaultIsPerformance60", query(26) == 2 and query(27) == 60)
@@ -460,6 +567,7 @@ def main():
             check("resourceModeCycles:" + str(mode), query(26) == mode and query(27) == fps and query(21) == 1)
             check("resourceModeLabelMatchesTarget:" + str(mode), str(fps) + " FPS" in native.control_text(control(189)))
             check("resourceModeDoesNotStartProjectionOrBrowser:" + str(mode), query(25) == 0 and query(10) == 0 and query(11) == 0)
+        category(2)
         for identifier, bit, label in ((181, 1, "activity"), (151, 16, "explorer"),
                                        (182, 2, "tabs"), (183, 4, "toolbar"), (184, 8, "status")):
             before = query(16)
@@ -471,6 +579,7 @@ def main():
         check("qaSettingsDoesNotStartBrowser", query(10) == 0 and query(11) == 0)
         command(121)
         command(123)
+        category(0)
         focus(106)
         before = native.control_text(control(106))
         check("readerPausedBeforeSettingsKey", query(23) == 0)
@@ -481,11 +590,11 @@ def main():
         check("settingsSpaceRestoresFocusedButton", native.control_text(control(106)) == before and query(23) == 0)
 
         command(139)
-        check("monitorSelectorsNotInPresentation", not USER32.IsWindowVisible(control(160))
-              and not USER32.IsWindowVisible(control(161)))
-        check("displaySettingsShortcutAvailable", region_visible(control(186)))
+        check("projectionEntryOpensDedicatedSettingsCategory", query(21) == 1 and query(40) == 3)
+        check("projectionSelectorsVisibleInDedicatedSettings", region_visible(control(160))
+              and region_visible(control(161)))
         command(186)
-        check("displayShortcutOpensSettingsAtDisplay", query(21) == 1 and query(19) > 0
+        check("displayShortcutOpensSettingsAtDisplay", query(21) == 1 and query(40) == 3 and query(19) == 0
               and region_visible(control(160)) and region_visible(control(161)))
 
         fixture = folder / "settings_sample.py"
@@ -493,6 +602,7 @@ def main():
         native.drop_file(window, fixture)
         check("syntheticCodePreviewOpened", wait_for(lambda: query(3) == 2))
         command(123)
+        category(1)
         before = native.control_text(control(146))
         command(146)
         check("codeWrapToggleEnabledInSettings", USER32.IsWindowEnabled(control(146))
@@ -510,7 +620,7 @@ def main():
         check("resizeToLargerSettingsWindow", USER32.SetWindowPos(window, None, 0, 0,
               round(840 * scale), round(700 * scale), 0x16))
         check("settingsOffsetClampedAfterResize", 0 <= query(19) <= query(20))
-        real_focus(106)
+        real_focus(108)
         focus(163)
         check("sizeFocusScrollsIntoViewAfterResize", region_visible(control(163)))
     except Exception as error:

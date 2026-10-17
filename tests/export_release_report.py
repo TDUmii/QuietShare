@@ -8,7 +8,7 @@ import shutil
 import subprocess
 
 ROOT = Path(__file__).resolve().parents[1]
-VERSION = '0.9.2'
+VERSION = '0.10.0'
 
 def sha256(path):
     return hashlib.sha256((ROOT / path).read_bytes()).hexdigest()
@@ -33,16 +33,32 @@ def main():
     scrollbar = read('scrollbar-check.json')
     local_ui = read('local-qa-report.json')
     guard = read('qa-mirror-window-guard/mirror-window-guard-regression.json')
+    newtab = read('qa-browser-newtab/browser-newtab-fixture.json')
     actual_hash = sha256('dist/QuietShare.exe')
     qa_hash = sha256('build/QuietShare-QA.exe')
     assert inventory['passed'] and inventory['version'] == VERSION
     for name, payload in inventory['files'].items():
         assert sha256('dist/' + name) == payload['sha256'], name
     assert production['exeSha256'] == life['exeSha256'] == actual_hash
+    assert not production.get('failure') and not life.get('failure'), 'Incomplete shipping integration evidence'
     assert browser['exeSha256']==actual_hash and not browser['failure']
     assert settings['testedBinarySha256'] == scrollbar['testedBinarySha256'] == qa_hash and not settings['failure']
     assert local_ui['passed'] and local_ui['applicationVersion'] == VERSION
+    local_binary = next(item for item in local_ui['checks'] if item.get('check') == 'binary.x64PE')
+    assert local_binary['details']['sha256'] == actual_hash, 'Local UI evidence predates shipping binary'
+    qa_timestamp = (ROOT/'build/QuietShare-QA.exe').stat().st_mtime_ns
+    for capture, details in local_ui['captures'].items():
+        path = ROOT/'artifacts'/capture
+        assert path.stat().st_mtime_ns >= qa_timestamp, capture
+        assert sha256(path) == details['sha256'], capture
+    for folder in ('qa-visible', 'qa-excluded', 'qa-storage'):
+        assert (ROOT/'artifacts'/folder/'diagnostics.json').stat().st_mtime_ns >= qa_timestamp, folder
     assert guard['physicalTwoDisplayTest'] is False
+    for path, expected_hash in newtab['sourceSha256'].items():
+        assert sha256(path) == expected_hash, path
+    assert sha256('artifacts/qa-browser-newtab/browser-newtab-fixture.exe') == newtab['fixtureSha256']
+    for preview in newtab['screenshots']:
+        assert sha256('artifacts/qa-browser-newtab/' + preview['name']) == preview['sha256']
     assert (ROOT/'artifacts/qa-installer-smoke/installer-smoke.json').stat().st_mtime_ns >= max(
         (ROOT/'dist/QuietShare.exe').stat().st_mtime_ns,
         (ROOT/'dist/QuietShare-Setup.exe').stat().st_mtime_ns), 'Installer evidence predates release binaries'
@@ -51,6 +67,7 @@ def main():
     native_bindings = {}
     native_sources = sorted([*ROOT.glob('src/*.cpp'), *ROOT.glob('src/*.h')])
     for folder, stem, fixture in (
+        ('qa-preferences', 'preferences-regression', 'preferences_regression.cpp'),
         ('qa-mirror', 'mirror-regression', 'mirror_regression.cpp'),
         ('qa-mirror', 'mirror-render-regression', 'mirror_render_regression.cpp'),
         ('qa-mirror-window-guard', 'mirror-window-guard-regression', 'mirror_window_guard_regression.cpp'),
@@ -65,6 +82,7 @@ def main():
                                 'sourceSha256': {path.relative_to(ROOT).as_posix(): sha256(path) for path in sources}}
     reports = [
         ('Content / file policy','qa-content/content-regression.json'),
+        ('Preferences / atomic shortcuts / validation','qa-preferences/preferences-regression.json'),
         ('Tabs / lazy project tree','qa-documents/documents-regression.json'),
         ('Scintilla / Lexilla / PDFium','qa-viewers/viewer-regression.json'),
         ('WGC / canary / cancellation','qa-mirror/mirror-regression.json'),
@@ -77,11 +95,13 @@ def main():
         ('Native scrollbar / separate QA EXE','scrollbar-check.json'),
         ('Shipping EXE / multi-view integration','production-integration.json'),
         ('Optional browser / rendered WGC surface / lifecycle','qa-browser/browser-regression.json'),
-        ('Consolidated Settings / validation / scrolling / controls','qa-settings/settings-regression.json'),
+        ('New tab / synthetic DOM and rendering only','qa-browser-newtab/browser-newtab-fixture.json'),
+        ('Tabbed Settings / validation / shortcuts / opacity / scrolling','qa-settings/settings-regression.json'),
         ('Installer / upgrade / uninstall / rollback','qa-installer-smoke/installer-smoke.json')]
     suites=[]
     for name,path in reports:
         data=read(path)
+        assert not data.get('failure'), (name, data.get('failure'))
         items=checks(data)
         if not items: # Mirror reports retain aggregate counts, with no private pixels/content.
             passed,failed=data['passed'],data['failed']
@@ -157,12 +177,12 @@ Detailed sanitized check names and payload metadata: [test-evidence-v{VERSION}.j
 - **Focus and UI:** a minimal command strip with tabs and Windows caption hidden in F11; restored caption and user preferences on exit, compact exit action, overflowing tabs and content below controls at 826x553 and 430x320. Independent activity/tab/toolbar/status toggles, a protected Layout menu, local preference persistence and reset are exercised in the shipping EXE. Shell layouts cover VI/EN at simulated 96/120/144/192 DPI (320 normal-page/state combinations and 40 focus combinations), including the optional browser's off state. These are logical-scale tests, not physical multi-DPI monitor observations. Native captures of all pages, code, image, PDF, empty/error/masked states and focus were visually inspected.
 - **Production privacy:** all four QA command-line switches are rejected by the shipping EXE. The separately compiled QA EXE uses only synthetic data. Production integration requires the actual WGC gate; F8 hides every host, tab/path/project/find surface and returns zero for gated numeric diagnostics. Ctrl+Tab/Shift+Tab/W travel through the real message loop using keyboard state shared only with the test-owned app; no global physical keystrokes are injected.
 - **Recall:** the shipping Ctrl+Alt+Q handler is exercised through PID-bound WM_HOTKEY messages. Hidden/minimized restoration preserves foreground focus, keeps the unpinned style, retains capture exclusion, restores the real WGC gate and never clears F8 masking. Any required preflight is queued after restoration. Physical shortcut delivery while using another application is not part of these automated message tests.
-- **Native pickers and Settings:** the shipping EXE opens capture-protected file/project pickers, multi-opens actual fixture files and loads a project tree on this host's single display. Battery and unrelated device notifications preserve the dialog; F8 closes it and locks content. Exact manual 37 / 91 pt input and invalid-size rejection with a hidden status bar are tested. The separate synthetic Settings suite covers native scrolling/clipping, focus-into-view handlers, 8-200 pt and 25-400% manual input, inline validation, consolidated toggles, layout reset and the Display shortcut. Caret-at-end on focus/first click, native subsequent editing, small wheel packets, fractional motion, reversal and edge clamping are covered. Shipping tab-strip checks compare a whole notch with ten and 120 smaller packets on each axis and preserve active-tab visibility. Settings moves existing rows in a deferred native batch instead of refreshing the document/browser workspace for each wheel packet. The removed font slider is absent. These HWND tests do not claim physical touchpad, Tab or pointer delivery.
+- **Native pickers and Settings:** the shipping EXE opens capture-protected file/project pickers, multi-opens actual fixture files and loads a project tree on this host's single display. Battery and unrelated device notifications preserve the dialog; F8 closes it and locks content. Exact manual 37 / 91 pt input and invalid-size rejection with a hidden status bar are tested. The separate synthetic Settings suite covers native scrolling/clipping, focus-into-view handlers, 8-200 pt and 25-400% manual input, inline validation, category-based controls, layout reset and the Display shortcut. Caret-at-end on focus/first click, native subsequent editing, small wheel packets, fractional motion, reversal and edge clamping are covered. Shipping tab-strip checks compare a whole notch with ten and 120 smaller packets on each axis and preserve active-tab visibility. Settings moves existing rows in a deferred native batch instead of refreshing the document/browser workspace for each wheel packet. The removed font slider is absent. These HWND tests do not claim physical touchpad, Tab or pointer delivery.
 - **WGC:** real positive-control capture sees an unprotected marker, then protected capture excludes it while public checkerboard pixels remain visible. Canary PASS on {mirror['monitorCount']} enumerated display, observed {mirror['canaryElapsedMs']} ms. Black/ambiguous/partial/invalid frames fail. Affinity loss, uncovered private popups, state invalidation, UI cancellation and synchronous close during WinRT initialization revoke confidence safely. The tools popup owns WDA 0x11 before it appears; real WGC tests confirm verification stays valid while open and after Esc. Only exact registered public monitor lists use the public-popup exception.
 - **Capture pacing and resources:** Saver/Balanced/Performance target 15/30/60 FPS, with 33/16/8 ms polling and a QPC frame deadline that retains fractional cadence without catch-up bursts. Performance 60 is the default. Changing profiles does not stop projection; the idle safety watchdog uses 33 ms rather than the former 8 ms, while the independent 250 ms display-affinity/topology guard remains. Profiles cap application polling/copy/render work, not the Windows WGC producer or website memory. Native timing checks cover the targets, and shipping checks cover local preference V2 persistence with V1 migration. The user reported approximately 60 FPS in Extend before this release; physical two-monitor FPS and latency were not independently measured on this one-monitor host.
 - **Browser verification during projection:** a same-owner/source mounted browser proof preserves the existing capture, destination and projector while presentation stays frozen on its last safe public frame. The positive control and two consecutive excluded frames still run. Canary unmount/destruction and DWM flush precede a compositor QPC timestamp barrier; queued positive/checker frames at or before that barrier cannot reach output. Focused native-state and frame-timestamp regressions cover preservation, cancellation, no automatic resurrection and stale-frame rejection. Failed/unsafe proofs still stop and lock output. The actual browser WGC proof is exercised on this host; the complete simultaneous browser-plus-physical-projector sequence remains unverified without a second display.
 - **File icons and screen identity:** Explorer caches its type-icon image list per DPI, with distinct code/language/config/image/PDF/folder icons and matching document-tab icons. Native tests cover image-list reuse/replacement and folder expansion state. Display labels use the Windows display number, primary role and the current window's monitor, retaining distinct source/destination defaults even at equal resolutions. Single-monitor live identity is tested; the physical dual-monitor label mapping still needs receiver-side observation.
-- **Optional browser:** the shipping EXE starts with browsing off and creates no web profile until explicit enable. The actual WebView2 SVG marker passes positive and excluded WGC capture; native black backing cannot satisfy its positive test. Local HTTP fixtures exercise navigation, Back/Forward/Reload, popup/script/credential-dialog suppression, geolocation denial, F8, actual background suspension/resume, process exit on disable, pending-enable cancellation, separate-profile cookies, restart-default-off and offline readers without the loader. Input checks cover domains, URLs, localhost ports, Vietnamese/emoji UTF-8 queries and unsafe-scheme rejection. Shipping checks observe Vietnamese Google search navigation and Google/ChatGPT shortcuts. Cold start plus browser canary on this host was {browser['metrics']['coldStartAndCanaryMs']} ms. Public ChatGPT HTTPS load observed: {browser['metrics'].get('chatgptPublicHttpsLoaded',False)}; public Google search HTTPS load observed: {browser['metrics'].get('googleSearchPublicHttpsLoaded',False)}. Authenticated ChatGPT messages, third-party OAuth, client certificates and clean-machine missing-runtime behavior are not verified. User web data and raw profiles are excluded from exported evidence and Git.
+- **Optional browser:** the shipping EXE starts with browsing off and creates no web profile until explicit enable. The actual WebView2 SVG marker passes positive and excluded WGC capture; native black backing cannot satisfy its positive test. Local HTTP fixtures exercise navigation, Back/Forward/Reload, popup/script/credential-dialog suppression, geolocation denial, F8, actual background suspension/resume, process exit on disable, pending-enable cancellation, separate-profile cookies, restart-default-off and offline readers without the loader. Input checks cover domains, URLs, localhost ports, Vietnamese/emoji UTF-8 queries and unsafe-scheme rejection. Shipping checks observe explicit address-bar Vietnamese Google search and public HTTPS navigation. A separate synthetic New Tab DOM/render fixture covers add/edit/remove, persistence, unsafe URL rejection and VI/EN previews; its simulated gate is not privacy proof. Cold start plus browser canary on this host was {browser['metrics']['coldStartAndCanaryMs']} ms. Public ChatGPT HTTPS load observed: {browser['metrics'].get('chatgptPublicHttpsLoaded',False)}; public Google search HTTPS load observed: {browser['metrics'].get('googleSearchPublicHttpsLoaded',False)}. Authenticated ChatGPT messages, third-party OAuth, client certificates and clean-machine missing-runtime behavior are not verified. User web data and raw profiles are excluded from exported evidence and Git.
 - **D3D11:** the production shader/swapchain renderer presents a synthetic public texture using WARP, with framebuffer readback for aspect-preserving letterbox/pillarbox, blanking and owned GPU resource release. This is real software D3D rendering, not evidence of a physical destination screen.
 - **Source containment:** the current native fixture covers geometry and real HWND move/resize lifecycle to keep the controller within the verified source work area before Windows applies a position, including near-edge moves, resize, maximize and restore. Minimized owners remain permitted. These checks use synthetic monitor geometry and do not reproduce the reported TV disappearance or establish its cause.
 - **Session lifetime:** the native clock checks cross the former five-minute boundary, ten minutes, one hour and 24 hours with visible and minimized owners. Affinity loss still stops output and releases the scoped execution request. Native notice checks cover a persistent translated caption, taskbar/sound requests, stale/duplicate rejection, intentional Stop/F8, and no focus or window restoration. The native request restores earlier thread execution flags; deliberate user sleep is not overridden. No new real-time soak or physical receiver test was run for this release. The historical v0.9.1 720-second run is excluded from the current evidence and check count.
