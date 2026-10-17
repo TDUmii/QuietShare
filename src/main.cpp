@@ -58,7 +58,7 @@ constexpr int MODE = 100, PLAY = 101, SMALLER = 102, LARGER = 103, SPEED = 104, 
               LAYOUT_MENU=180,SHOW_ACTIVITY=181,SHOW_TABS=182,SHOW_TOOLBAR=183,SHOW_STATUS=184,RESET_LAYOUT=185,
               OPEN_DISPLAY_SETTINGS=186,SETTINGS_SCROLL=187,PIN_WINDOW=188,RESOURCE_MODE=189,
               WEB_NEW_TAB=190,HOME_VERSION=192;
-constexpr int NORMAL_SIDEBAR = 44, COMPACT_SIDEBAR = 44, CONTROL_HEIGHT = 36, CONTROL_GAP = 8;
+constexpr int NORMAL_SIDEBAR = 36, COMPACT_SIDEBAR = 36;
 constexpr UINT_PTR PRIVACY_TIMER = 1, SCROLL_TIMER = 2, SAVE_TIMER = 3, QA_TIMER = 4;
 HINSTANCE instance;
 HWND window, editor, underlay, tooltips, hoveredButton, imageViewer, settingsScroll, filePicker,
@@ -468,10 +468,10 @@ void DrawSidebar(HDC dc, int sidebar, int height, bool compact)
     FillRect(dc, &divider, brush);
     DeleteObject(brush);
 
-    int logoLeft=(sidebar-24)/2;
-    RECT logo{S(logoLeft), S(20), S(logoLeft+24), S(44)};
+    int logoLeft=(sidebar-20)/2;
+    RECT logo{S(logoLeft), S(12), S(logoLeft+20), S(32)};
     FillRoundRect(dc, logo, ACCENT, S(6));
-    DrawCodicon(dc,0xeaf0,logo,TEXT,S(16));
+    DrawCodicon(dc,0xeaf0,logo,TEXT,S(14));
     if (!compact)
     {
         RECT brand{S(56), S(20), S(sidebar - 8), S(52)};
@@ -535,9 +535,10 @@ void UpdateButtons()
         if(changed)webAddressEdited=false;
         displayedBrowserTab=browser.ActiveTabId();
     }
-    SetWindowTextW(GetDlgItem(window,BROWSER_TOGGLE),page==Page::Browser&&contentRight-contentLeft<548
-        ?T(browser.Enabled()?L"Tắt web":L"Bật web",browser.Enabled()?L"Disable web":L"Enable web")
-        :T(browser.Enabled()?L"Tắt trình duyệt":L"Bật trình duyệt",browser.Enabled()?L"Disable browser":L"Enable browser"));
+    SetWindowTextW(GetDlgItem(window,BROWSER_TOGGLE),T(browser.Enabled()?L"Tắt trình duyệt":L"Bật trình duyệt",
+        browser.Enabled()?L"Disable browser":L"Enable browser"));
+    SetTip(BROWSER_TOGGLE,T(browser.Enabled()?L"Tắt trình duyệt":L"Bật trình duyệt",
+        browser.Enabled()?L"Disable browser":L"Enable browser"));
     SetWindowTextW(GetDlgItem(window,WEB_NEW_TAB),T(L"Tab web mới",L"New web tab"));
     EnableWindow(GetDlgItem(window,WEB_NEW_TAB),!Blocked()&&browser.CanNewTab());
     SetTip(WEB_NEW_TAB,T(L"Tab web mới · Ctrl+T",L"New web tab · Ctrl+T"));
@@ -713,18 +714,18 @@ void Layout()
     int width=MulDiv(client.right,96,dpi),height=MulDiv(client.bottom,96,dpi);
     compactUi=width<750;
     railWidth=focusMode||!activityVisible?0:compactUi?COMPACT_SIDEBAR:NORMAL_SIDEBAR;
-    int gutter=focusMode?8:12;
+    int gutter=8;
     contentLeft=railWidth+gutter;contentRight=width-gutter;
     std::vector<HWND> visibleControls;
     auto reveal=[&](HWND control){visibleControls.push_back(control);};
     fontLabelRect={};explorerRect={};splitterRect={};
-    const int bottom=height-(!focusMode&&statusVisible?24:8);
+    const int bottom=height-(!focusMode&&statusVisible?20:4);
     auto move=[&](int id,int left,int top,int w,int h=32){
         HWND child=GetDlgItem(window,id);MoveWindow(child,S(left),S(top),S(w),S(h),TRUE);reveal(child);
     };
     if(!focusMode&&activityVisible) {
-        int y=56;for(int id:{NAV_HOME,NAV_SCRIPT,NAV_PRESENTATION,NAV_BROWSER,NAV_SETTINGS}){
-            move(id,6,y,railWidth-12,32);y+=36;
+        int y=40;for(int id:{NAV_HOME,NAV_SCRIPT,NAV_PRESENTATION,NAV_BROWSER,NAV_SETTINGS}){
+            move(id,4,y,railWidth-8,28);y+=32;
         }
     }
     contentCardRect={S(contentLeft),S(48),S(contentRight),S(bottom)};
@@ -739,24 +740,24 @@ void Layout()
         }
         contentLeft=left;
         int x=contentRight;
-        auto action=[&](int id,int w=28){x-=w;move(id,x,2,w,28);};
+        auto action=[&](int id,int w=24){x-=w;move(id,x,2,w,24);};
         action(OVERFLOW);action(MASK);action(FOCUS);action(PIN_WINDOW);
         if(!focusMode)action(LAYOUT_MENU);
         if(!focusMode&&tabsVisible) {
-            MoveWindow(documentBar.Window(),S(contentLeft),0,S(std::max(64,x-contentLeft-4)),S(32),TRUE);
+            MoveWindow(documentBar.Window(),S(contentLeft),0,S(std::max(64,x-contentLeft-4)),S(28),TRUE);
             reveal(documentBar.Window());
         }
-        int bodyTop=40;
+        int bodyTop=32;
         if(!focusMode&&toolbarVisible) {
             int toolX=contentLeft;
             for(int id:{SMALLER,RESET_ZOOM,LARGER,OPEN_FILE}) {
-                const int w=id==RESET_ZOOM?48:28;
+                const int w=id==RESET_ZOOM?44:24;
                 if(toolX+w>contentRight)break;
-                move(id,toolX,36,w,28);toolX+=w+4;
+                move(id,toolX,30,w,24);toolX+=w+4;
             }
-            if(!viewingFile&&toolX+28<=contentRight){move(MODE,toolX,36,28,28);toolX+=32;}
-            if(reading&&!viewingFile&&toolX+28<=contentRight)move(PLAY,toolX,36,28,28);
-            bodyTop=72;
+            if(!viewingFile&&toolX+24<=contentRight){move(MODE,toolX,30,24,24);toolX+=28;}
+            if(reading&&!viewingFile&&toolX+24<=contentRight)move(PLAY,toolX,30,24,24);
+            bodyTop=60;
         }
         contentCardRect={S(contentLeft),S(bodyTop),S(contentRight),S(bottom)};
         if(findVisible && !reloadPending && !Blocked()) {
@@ -831,38 +832,48 @@ void Layout()
         }
     }
     else if(page==Page::Browser) {
-        const bool showWebTabs=browser.Enabled()&&tabsVisible;
-        int x=contentLeft,y=showWebTabs?80:48;
-        if(showWebTabs) {
-            MoveWindow(browserTabBar.Window(),S(contentLeft),S(44),S(contentRight-contentLeft-36),S(32),TRUE);
-            if(!Blocked()){reveal(browserTabBar.Window());move(WEB_NEW_TAB,contentRight-28,46,28,28);}
+        // Tabs share the shell strip; navigation and address share one row.
+        // The existing Toolbar switch controls the secondary shortcuts/zoom.
+        if(browser.Enabled()) {
+            const int actionsLeft=contentRight-(toolbarVisible?78:104);
+            if(tabsVisible) {
+                MoveWindow(browserTabBar.Window(),S(contentLeft),0,S(std::max(64,actionsLeft-contentLeft-30)),S(28),TRUE);
+                if(!Blocked())reveal(browserTabBar.Window());
+            }
+            if(!Blocked())move(WEB_NEW_TAB,actionsLeft-26,2,24,24);
+            int x=contentLeft;
+            for(int id:{WEB_BACK,WEB_FORWARD,WEB_RELOAD}){move(id,x,30,24,26);x+=26;}
+            MoveWindow(webAddress,S(x+4),S(30),S(std::max(48,contentRight-x-32)),S(26),TRUE);
+            if(!Blocked()){reveal(webAddress);move(WEB_GO,contentRight-24,30,24,26);}
+            if(toolbarVisible) {
+                move(WEB_GOOGLE,contentLeft,60,52,24);move(WEB_CHATGPT,contentLeft+56,60,64,24);
+                const int zoomLeft=contentRight-128;
+                move(WEB_ZOOM_OUT,zoomLeft,60,24,24);move(WEB_ZOOM_RESET,zoomLeft+26,60,44,24);
+                move(WEB_ZOOM_IN,zoomLeft+72,60,24,24);move(BROWSER_TOGGLE,contentRight-24,60,24,24);
+            } else move(BROWSER_TOGGLE,contentRight-104,2,24,24);
+            contentCardRect={S(contentLeft),S(toolbarVisible?88:60),S(contentRight),S(bottom)};
+        } else {
+            move(BROWSER_TOGGLE,contentLeft,48,std::min(164,contentRight-contentLeft),28);
+            contentCardRect={S(contentLeft),S(84),S(contentRight),S(bottom)};
         }
-        for(int id:{WEB_BACK,WEB_FORWARD,WEB_RELOAD}){move(id,x,y,28,28);x+=32;}
-        const bool narrow=contentRight-contentLeft<548;
-        if(!narrow){move(WEB_GOOGLE,x,y,64,28);x+=68;move(WEB_CHATGPT,x,y,76,28);}
-        move(BROWSER_TOGGLE,contentRight-(narrow?128:152),y,narrow?128:152,28);
-        const int zoomLeft=contentRight-(narrow?248:276);
-        move(WEB_ZOOM_OUT,zoomLeft,y,28,28);move(WEB_ZOOM_RESET,zoomLeft+30,y,52,28);move(WEB_ZOOM_IN,zoomLeft+84,y,28,28);
-        int addressY=y+36,addressWidth=std::max(48,contentRight-contentLeft-56);
-        MoveWindow(webAddress,S(contentLeft),S(addressY),S(addressWidth),S(28),TRUE);
-        if(!Blocked()){reveal(webAddress);move(WEB_GO,contentRight-48,addressY,48,28);}
-        contentCardRect={S(contentLeft),S(addressY+36),S(contentRight),S(bottom)};
     }
     else if(page==Page::Presentation) {
         move(OPEN_DISPLAY_SETTINGS,contentLeft,116,std::min(220,contentRight-contentLeft),28);
         move(VERIFY_PRIVACY,contentLeft,152,std::min(220,contentRight-contentLeft),28);
         move(MIRROR_START,contentLeft,188,84);move(MIRROR_STOP,contentLeft+92,188,84);
     }
-    if(!focusMode&&page!=Page::Content) {
+    if(!focusMode&&page==Page::Browser) {
+        move(LAYOUT_MENU,contentRight-24,2,24,24);
+        move(PIN_WINDOW,contentRight-50,2,24,24);move(MASK,contentRight-76,2,24,24);
+    } else if(!focusMode&&page!=Page::Content) {
         move(LAYOUT_MENU,contentRight-28,8,28,28);
         move(PIN_WINDOW,contentRight-60,8,28,28);
-        if(page==Page::Browser)move(MASK,contentRight-92,8,28,28);
     }
     if(splitterRect.right<=splitterRect.left&&(splitterDragging||splitterHovered)) {
         splitterDragging=splitterHovered=false;
         if(GetCapture()==window)ReleaseCapture();
     }
-    RECT body=contentCardRect;InflateRect(&body,-S(4),-S(4));
+    RECT body=contentCardRect;InflateRect(&body,-S(page==Page::Browser?2:4),-S(page==Page::Browser?2:4));
     std::vector<HWND> shellControls=buttons;
     for(HWND control:{settingsScroll,sizeInput,findInput,webAddress,sourceMonitor,destinationMonitor,documentBar.Window(),browserTabBar.Window(),homeVersion,projectTree.Handle()})shellControls.push_back(control);
     for(HWND control:shellControls)if(control) {
@@ -1428,7 +1439,7 @@ void Paint(HDC dc)
     RECT title{S(contentLeft),S(12),S(contentRight),S(40)};
     if(page==Page::Settings){title.left=settingsViewport.left+S(16);title.right=settingsViewport.right-S(16);}
     if(page==Page::Home)title.right=S(contentRight-172);
-    if(!focusMode && page!=Page::Content)DrawTextAt(dc,page==Page::Home?T(L"Tổng quan",L"Overview"):
+    if(!focusMode && page!=Page::Content && !(page==Page::Browser&&browser.Enabled()))DrawTextAt(dc,page==Page::Home?T(L"Tổng quan",L"Overview"):
         page==Page::Settings?T(L"Cài đặt",L"Settings"):page==Page::Browser?T(L"Trình duyệt",L"Browser"):T(L"Trình chiếu",L"Presentation"),title,TEXT,titleFont);
     if(page==Page::Content || focusMode) {
         FillRoundRect(dc,contentCardRect,CARD,S(12));
@@ -1456,10 +1467,10 @@ void Paint(HDC dc)
     }
     else if(page==Page::Browser) {
         FillRoundRect(dc,contentCardRect,CARD,S(12));
-        if(!Blocked()) {
+        if(!Blocked()&&browser.Enabled()&&IsWindowVisible(webAddress)) {
             RECT input{};GetWindowRect(webAddress,&input);MapWindowPoints(nullptr,window,(POINT*)&input,2);InflateRect(&input,1,1);
             HPEN border=CreatePen(PS_SOLID,1,DIVIDER);auto old=SelectObject(dc,border),brush=SelectObject(dc,GetStockObject(NULL_BRUSH));
-            Rectangle(dc,input.left,input.top,input.right,input.bottom);SelectObject(dc,brush);SelectObject(dc,old);DeleteObject(border);
+            RoundRect(dc,input.left,input.top,input.right,input.bottom,S(6),S(6));SelectObject(dc,brush);SelectObject(dc,old);DeleteObject(border);
         }
         if(Blocked()||!browser.Ready())DrawCenteredMessage(dc,contentCardRect,
             Blocked()?T(L"Nội dung đang che",L"Content hidden"):T(L"Web",L"Web"),
@@ -1510,7 +1521,7 @@ void Paint(HDC dc)
         DrawTextAt(dc,text,status,MUTED,metaFont,DT_LEFT|DT_WORDBREAK);
     }
     if(focusMode||!statusVisible)return;
-    RECT footer{S(contentLeft),client.bottom-S(22),S(contentRight),client.bottom-S(2)};
+    RECT footer{S(contentLeft),client.bottom-S(20),S(contentRight),client.bottom-S(2)};
     std::wstring label=projectionStoppedNotice?T(L"Trình chiếu đã dừng - mở Trình chiếu để bắt đầu lại.",L"Projection stopped - open Presentation to start again."):
         Blocked()?T(L"Nội dung đang khóa",L"Content locked"):page==Page::Browser?(browser.Ready()?browser.Status(english):L""):
         saveFailed?T(L"Không lưu được lời nhắc",L"Script save failed"):
@@ -1526,8 +1537,9 @@ void DrawActionIcon(HDC dc,int id,RECT r,COLORREF color)
     wchar_t glyph=id==SMALLER?0xeb3b:id==LARGER?0xea60:id==FOCUS?(focusMode?0xeb4d:0xeb4c):
         id==MASK?(masked?0xeae7:0xea70):id==WEB_NEW_TAB?0xea60:id==TOPMOST||id==PIN_WINDOW?0xeb2b:id==OPEN_FILE?0xea7f:
         id==PLAY?(running?0xead1:0xeb2c):id==MODE?0xea73:id==OVERFLOW?0xea7c:id==LAYOUT_MENU?0xebeb:id==SHOW_TREE?0xea76:
-        id==FIND_CLOSE?0xea76:id==FIND_PREV?0xeab5:0xeab6;
-    DrawCodicon(dc,glyph,r,color,S(16));
+        id==BROWSER_TOGGLE||id==FIND_CLOSE?0xea76:id==WEB_GO?0xea9c:
+        id==WEB_ZOOM_OUT?0xeb3b:id==WEB_ZOOM_IN?0xea60:id==FIND_PREV?0xeab5:0xeab6;
+    DrawCodicon(dc,glyph,r,color,S(14));
 }
 void DrawButton(DRAWITEMSTRUCT *item)
 {
@@ -1572,6 +1584,8 @@ void DrawButton(DRAWITEMSTRUCT *item)
                                  : ELEVATED;
     if (primary && hover && !pressed)
         color = RGB(17,139,220);
+    if(page==Page::Browser&&!nav&&!(item->CtlID==BROWSER_TOGGLE&&!browser.Enabled())&&!hover&&!pressed)
+        color=BG;
     HBRUSH background = CreateSolidBrush(nav ? SIDEBAR : zoom ? ELEVATED : page == Page::Settings&&item->CtlID!=PIN_WINDOW ? CARD : BG);
     FillRect(item->hDC, &item->rcItem, background);
     DeleteObject(background);
@@ -1585,12 +1599,14 @@ void DrawButton(DRAWITEMSTRUCT *item)
         COLORREF iconColor = disabled ? DISABLED : (activeNav ? TEXT : MUTED);
         wchar_t glyph=item->CtlID==NAV_HOME?0xeb06:item->CtlID==NAV_SCRIPT?0xeaf0:
             item->CtlID==NAV_SETTINGS?0xeb51:item->CtlID==NAV_BROWSER?0xeb01:0xea7a;
-        DrawCodicon(item->hDC,glyph,button,iconColor,S(18));
+        DrawCodicon(item->hDC,glyph,button,iconColor,S(16));
     }
     else if(item->CtlID==WEB_BACK||item->CtlID==WEB_FORWARD||item->CtlID==WEB_RELOAD) {
-        DrawCodicon(item->hDC,item->CtlID==WEB_BACK?0xea9b:item->CtlID==WEB_FORWARD?0xea9c:0xeb37,button,disabled?DISABLED:TEXT,S(16));
+        DrawCodicon(item->hDC,item->CtlID==WEB_BACK?0xea9b:item->CtlID==WEB_FORWARD?0xea9c:0xeb37,button,disabled?DISABLED:TEXT,S(14));
     }
-    else if(item->CtlID==WEB_NEW_TAB||item->CtlID==PIN_WINDOW||item->CtlID==LAYOUT_MENU||item->CtlID==SHOW_TREE || (strip && (item->CtlID==FOCUS || item->CtlID==MASK || item->CtlID==TOPMOST || item->CtlID==SMALLER || item->CtlID==LARGER || item->CtlID==MODE || item->CtlID==PLAY || item->CtlID==OPEN_FILE || item->CtlID==OVERFLOW || item->CtlID==FIND_CLOSE || item->CtlID==FIND_PREV || item->CtlID==FIND_NEXT)))
+    else if(item->CtlID==WEB_NEW_TAB||item->CtlID==WEB_GO||item->CtlID==WEB_ZOOM_OUT||item->CtlID==WEB_ZOOM_IN||
+        (item->CtlID==BROWSER_TOGGLE&&page==Page::Browser&&browser.Enabled())||
+        item->CtlID==PIN_WINDOW||item->CtlID==LAYOUT_MENU||item->CtlID==SHOW_TREE || (strip && (item->CtlID==FOCUS || item->CtlID==MASK || item->CtlID==TOPMOST || item->CtlID==SMALLER || item->CtlID==LARGER || item->CtlID==MODE || item->CtlID==PLAY || item->CtlID==OPEN_FILE || item->CtlID==OVERFLOW || item->CtlID==FIND_CLOSE || item->CtlID==FIND_PREV || item->CtlID==FIND_NEXT)))
         DrawActionIcon(item->hDC,item->CtlID,button,disabled?DISABLED:item->CtlID==PIN_WINDOW&&!topmost?MUTED:TEXT);
     else
     {
@@ -1860,7 +1876,7 @@ bool CompactFits()
     std::vector<RECT> controls;
     std::vector<HWND> children=buttons;
     if(page==Page::Home)children.push_back(homeVersion);
-    if(page==Page::Browser&&browser.Enabled()&&tabsVisible)children.push_back(browserTabBar.Window());
+    if(page==Page::Browser){children.push_back(webAddress);if(browser.Enabled()&&tabsVisible)children.push_back(browserTabBar.Window());}
     if(page==Page::Settings)for(HWND control:{sizeInput,sourceMonitor,destinationMonitor,settingsScroll})children.push_back(control);
     for (HWND child : children)
     {
@@ -1882,10 +1898,10 @@ bool CompactFits()
         }
         controls.push_back(rect);
     }
-    if (page != Page::Content && !Blocked()) return true;
+    if (page != Page::Content && page!=Page::Browser) return true;
     RECT rect{};
-    GetWindowRect(IsImage() ? imageViewer : editor, &rect);
-    MapWindowPoints(nullptr, window, (POINT *)&rect, 2);
+    if(page==Page::Browser){rect=contentCardRect;InflateRect(&rect,-S(2),-S(2));}
+    else {GetWindowRect(IsImage() ? imageViewer : editor, &rect);MapWindowPoints(nullptr, window, (POINT *)&rect, 2);}
     for (const RECT &control : controls)
     {
         RECT overlap{};
@@ -1893,7 +1909,7 @@ bool CompactFits()
             return false;
     }
     return rect.left >= 0 && rect.right <= client.right && rect.top >= 0 &&
-           rect.bottom <= client.bottom - S(focusMode||!statusVisible ? 4 : 24) && rect.bottom - rect.top >= S(80);
+           rect.bottom <= client.bottom - S(focusMode||!statusVisible ? 4 : 20) && rect.bottom - rect.top >= S(80);
 }
 void WriteQa()
 {
@@ -2158,7 +2174,7 @@ void QaTick()
         RECT focusButton{};GetWindowRect(GetDlgItem(window,FOCUS),&focusButton);
         qaFocus = focusMode && !(GetWindowLongPtrW(window,GWL_STYLE)&WS_CAPTION) && !IsWindowVisible(GetDlgItem(window,NAV_SCRIPT)) &&
                   !IsWindowVisible(documentBar.Window()) && !IsWindowVisible(GetDlgItem(window,SMALLER)) &&
-                  focusButton.right-focusButton.left==S(28) && CompactFits();
+                  focusButton.right-focusButton.left==S(24) && CompactFits();
         Capture(L"focus.bmp");
         SendMessageW(window,WM_COMMAND,MAKEWPARAM(FOCUS,BN_CLICKED),0);
         qaFocusRestored = !focusMode && (GetWindowLongPtrW(window,GWL_STYLE)&WS_CAPTION)==WS_CAPTION && IsWindowVisible(GetDlgItem(window,NAV_SCRIPT)) &&
@@ -2226,7 +2242,7 @@ void QaTick()
                 for(int width:{430,460,640,840,1080}) {
                     SetWindowPos(window,nullptr,0,0,S(width),S(width<500?320:560),SWP_NOMOVE|SWP_NOZORDER|SWP_NOACTIVATE);
                     Layout();RECT exit{};GetClientRect(GetDlgItem(window,FOCUS),&exit);
-                    qaV04=!IsWindowVisible(documentBar.Window())&&exit.bottom==S(28)&&CompactFits()&&qaV04;
+                    qaV04=!IsWindowVisible(documentBar.Window())&&exit.bottom==S(24)&&CompactFits()&&qaV04;
                 }
             }
             dpi=actualDpi;english=false;RefreshFonts();ToggleFocus();
@@ -2511,6 +2527,17 @@ LRESULT CALLBACK Proc(HWND h, UINT message, WPARAM wp, LPARAM lp)
         if(splitterDragging){ReleaseCapture();SaveLayoutPreferences();return 0;}break;
     case WM_CAPTURECHANGED:
         if(splitterDragging){splitterDragging=false;InvalidateRect(h,&splitterRect,FALSE);}return 0;
+    case WM_WINDOWPOSCHANGING: {
+        // Windows applies its size constraints first; then keep the complete
+        // private frame on this capture session's source before it can move.
+        const auto result=DefWindowProcW(h,message,wp,lp);
+        if(mirror)mirror->ConstrainPrivateWindowPosition(*reinterpret_cast<WINDOWPOS *>(lp));
+        return result;
+    }
+    case WM_MOVING:
+    case WM_SIZING:
+        if(mirror&&mirror->ConstrainPrivateWindowRect(*reinterpret_cast<RECT *>(lp)))return TRUE;
+        break;
     case WM_SIZE:
         if (wp == SIZE_MINIMIZED)
             Pause();

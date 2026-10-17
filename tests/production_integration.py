@@ -552,7 +552,10 @@ def main() -> int:
         splitter_owned=query(18)
         # Queue the final move/release together before native cursor input can
         # run between separate synchronous calls while this HWND has capture.
-        drag_end=(start_y<<16)|round((56+264)*scale)
+        # Derive the Explorer card's origin from its native tree inset instead
+        # of assuming a particular activity-rail/gutter width.
+        explorer_left=tree_bounds[0]-round(4*scale)
+        drag_end=(start_y<<16)|(explorer_left+round(264*scale))
         if not (USER32.PostMessageW(window,0x200,1,drag_end) and USER32.PostMessageW(window,0x202,0,drag_end)):
             raise RuntimeError("Could not queue owned splitter movement/release")
         check("explorerSplitterReleasesDrag",bool(wait_for(lambda:query(18)==0)))

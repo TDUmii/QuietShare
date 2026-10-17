@@ -4,6 +4,10 @@ QuietShare là ứng dụng Windows để đọc lời nhắc, mã nguồn, ản
 
 QuietShare is a Windows application for scripts, source code, images, PDFs and optional web content during presentations. Smart Mirror projects the public source display onto a separate Extend display while excluding the QuietShare window from the verified capture path.
 
+Nhánh `main` có các thay đổi chưa phát hành về giữ cửa sổ trong màn hình nguồn và bố cục gọn. Các gói tải v0.9.1 giữ nguyên; cần build từ mã nguồn để dùng các thay đổi này.
+
+`main` includes unreleased source-window containment and compact-layout changes. Published v0.9.1 downloads are unchanged; build from source to use these changes.
+
 ![Cài đặt và nút Ghim / Settings and Pin control](docs/quietshare-settings.png)
 
 ## Tiếng Việt
@@ -79,7 +83,7 @@ Chế độ tài nguyên giới hạn tốc độ xử lý chiếu của ứng d
 
 Bật tại **Cài đặt > Tiện ích > Trình duyệt web**, đợi xác minh vùng web rồi chọn icon quả địa cầu. Có thể bật/tắt trực tiếp trên trang trình duyệt. Trình duyệt luôn tắt ở mỗi lần khởi động ứng dụng.
 
-Nhập URL, tên miền, địa chỉ như `localhost:3000` hoặc từ khóa rồi Enter/**Mở**. Khi cửa sổ đủ rộng, nút **Google** và **ChatGPT** mở trang tương ứng; ở bố cục hẹp dùng thanh địa chỉ. **- / phần trăm / +** thay đổi zoom 25-400%; bấm phần trăm để về 100%. Zoom web độc lập với tab file.
+Nhập URL, tên miền, địa chỉ như `localhost:3000` hoặc từ khóa rồi Enter/nút mũi tên. Ô địa chỉ dùng chung một hàng với các nút quay lại, tiến tới và tải lại. **Google**, **ChatGPT** và **- / phần trăm / +** nằm trên thanh công cụ phụ; zoom web thay đổi 25-400%, bấm phần trăm để về 100%. **Bố cục > Thanh công cụ** ẩn hàng phụ để mở rộng trang web, vẫn giữ điều hướng và phím tắt zoom. Nút **×** ở thanh công cụ (hoặc hàng tab khi ẩn công cụ) tắt toàn bộ trình duyệt. Zoom web độc lập với tab file.
 
 Dùng **+** hoặc **Ctrl+T** để mở tab web mới tại Google; chọn tiêu đề tab để chuyển trang. Dấu **×** hoặc **Ctrl+W** đóng tab đang chọn. Đóng tab web cuối cùng sẽ tắt trình duyệt, giữ QuietShare và các tab tài liệu đang mở. **Ctrl+Tab / Ctrl+Shift+Tab** chuyển tab web tiếp/trước khi ở trang trình duyệt, kể cả lúc đang nhập trong trang web.
 
@@ -96,7 +100,7 @@ Trình duyệt dành cho đọc và chat bằng chữ. Tải lên/tải xuống 
 1. Chọn **Win+P > Extend** trong Windows và đặt toàn bộ QuietShare trên màn hình nguồn.
 2. Mở **Cài đặt > Trình chiếu**. Chọn nguồn và đích khác nhau, cùng tùy chọn con trỏ.
 3. Dùng nhãn **Màn N · Chính · Cửa sổ này · độ phân giải** để nhận biết màn hình. Nhãn vai trò chỉ hiện khi áp dụng; số 1 không nhất thiết là màn chính. Di chuyển QuietShare cập nhật nhãn mà không tự đổi lựa chọn nguồn/đích.
-4. Mở **Trình chiếu**, chọn **Kiểm tra WGC**, sau đó **Bắt đầu**. **Thiết lập màn hình** quay thẳng tới nhóm cài đặt tương ứng. Nút **-** có thể thu nhỏ QuietShare trong khi tiếp tục chiếu.
+4. Mở **Trình chiếu**, chọn **Kiểm tra WGC**, sau đó **Bắt đầu**. **Thiết lập màn hình** quay thẳng tới nhóm cài đặt tương ứng. Khi đang chiếu, toàn bộ cửa sổ điều khiển được giữ trong màn hình nguồn, kể cả khi kéo hoặc đổi kích thước sát mép. Nút **-** có thể thu nhỏ QuietShare trong khi tiếp tục chiếu.
 5. Chọn **Dừng** để kết thúc. **F8** che mọi nội dung, tên tab và Explorer, đồng thời dừng cuộn và chiếu. F8 lần nữa mở lại nội dung khi các điều kiện bảo vệ cho phép; cần bắt đầu lại nếu muốn tiếp tục chiếu.
 
 Phiên Smart Mirror không còn tự hết hạn theo mốc 5 phút. Phiên tiếp tục khi đường capture, cấu hình màn hình và các điều kiện bảo vệ vẫn hợp lệ; thu nhỏ QuietShare không kết thúc phiên. Khi đang chiếu, QuietShare yêu cầu Windows giữ máy và màn hình hoạt động để tránh ngủ do không có thao tác. Lệnh ngủ chủ động hoặc đóng nắp máy vẫn được xử lý theo Windows và dừng chiếu khi hệ thống suspend.
@@ -210,7 +214,7 @@ Resource modes cap application projection processing. Achieved FPS depends on di
 
 Enable **Settings > Tools > Web browser**, wait for web capture verification and select the globe icon. Browsing can also be enabled/disabled on its own page. Every application launch starts with browsing disabled.
 
-Enter a URL, domain, address such as `localhost:3000`, or search terms, then press Enter/**Go**. Wider windows show **Google** and **ChatGPT** shortcuts; use the address field in compact layouts. **- / percentage / +** controls 25-400% zoom; click the percentage to reset to 100%. Browser zoom is independent of file tabs.
+Enter a URL, domain, address such as `localhost:3000`, or search terms, then press Enter/the arrow button. The address field shares one row with Back, Forward and Reload. **Google**, **ChatGPT** and **- / percentage / +** sit on the secondary toolbar; zoom ranges from 25-400%, and clicking the percentage resets it to 100%. **Layout > Toolbar** hides this row to expand the page while keeping navigation and zoom shortcuts available. The **×** on the toolbar (or tab strip when the toolbar is hidden) disables the entire browser. Browser zoom is independent of file tabs.
 
 Use **+** or **Ctrl+T** to open a web tab at Google; select a tab title to switch pages. **×** or **Ctrl+W** closes the selected tab. Closing the last web tab disables browsing while keeping QuietShare and its document tabs open. **Ctrl+Tab / Ctrl+Shift+Tab** selects the next/previous web tab on the browser page, including while typing in web content.
 
@@ -227,7 +231,7 @@ The browser supports reading and text chat. File uploads/downloads, camera, micr
 1. Select **Win+P > Extend** in Windows and place the entire QuietShare window on the source display.
 2. Open **Settings > Presentation**. Select different source/destination displays and the pointer option.
 3. Identify displays with **Display N · Main · This window · resolution**. Role labels appear only when applicable; Display 1 is not necessarily primary. Moving QuietShare updates labels without automatically changing the selected source/destination.
-4. Open **Presentation**, select **Verify WGC privacy**, then **Start**. **Display settings** jumps to its Settings group. **-** can minimize QuietShare while projection continues.
+4. Open **Presentation**, select **Verify WGC privacy**, then **Start**. **Display settings** jumps to its Settings group. During projection, the entire control window stays within the source display, including when dragging or resizing at its edges. **-** can minimize QuietShare while projection continues.
 5. Select **Stop** to finish. **F8** masks viewers, tab names and Explorer, and stops auto-scroll and projection. Pressing F8 again reveals content when protection conditions allow; restart projection explicitly if needed.
 
 Smart Mirror sessions no longer expire at a fixed five-minute boundary. A session continues while the capture path, display configuration and protection conditions remain valid; minimizing QuietShare does not end it. During projection, QuietShare requests that Windows keep the system and display awake to avoid idle sleep. Intentional sleep commands and lid closure retain Windows behavior and stop projection when the system suspends.

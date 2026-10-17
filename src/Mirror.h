@@ -64,6 +64,10 @@ public:
     // verification/start or explicit Stop invalidates any queued old notice.
     bool ConsumeStoppedNotice(unsigned serial);
     void Tick();
+    // Apply before Windows commits a move/resize. A running projection pins the
+    // private control window to its verified source display, never the output.
+    bool ConstrainPrivateWindowRect(RECT &proposed);
+    void ConstrainPrivateWindowPosition(WINDOWPOS &proposed);
     bool Running() const;
     bool Busy() const;
     double Fps() const;

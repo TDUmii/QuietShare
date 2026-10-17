@@ -6,6 +6,8 @@ Expected baseline: `main` at `f08eede29a354f8302fcd900530368eeea8f6368`, release
 
 ## Goal
 
+The original hardware protocol below is retained as project reference. The presenter has since reported an afternoon of physical laptop/TV Extend use without noticing a spontaneous stop, and an unmeasured disappearance while dragging the control window to the TV. This is not a measured soak or a reproduced cause. The implementation follow-up uses source/native automated checks; the user explicitly does not request a repeat TV/timed run. See `handoff/QUIETSHARE_CONTEXT.md` for the current handoff state. The consumed field report is removed from the current Git tree at the user's request.
+
 Reproduce or rule out the report that QuietShare stops showing the projection on a physically extended display after about 5-10 minutes. This check must use the company laptop with two physical displays in Windows Extend mode. Do not treat the earlier synthetic destination as physical-display validation.
 
 ## What changed in v0.9.1

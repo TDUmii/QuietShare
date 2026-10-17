@@ -112,9 +112,9 @@ void DocumentBar::Paint(HDC dc) {
         if(r.right<=arrows || r.left>=client.right-arrows) continue;
         bool active=tabs_[i].id==active_;
         Fill(dc,r,active || (int)i==hovered_?Raised:Panel);
-        int iconX=r.left+MulDiv(10,dpi_,96), center=(r.top+r.bottom)/2;
-        RECT icon{iconX,center-MulDiv(8,dpi_,96),iconX+MulDiv(16,dpi_,96),center+MulDiv(8,dpi_,96)};
-        if(browser_)DrawCodicon(dc,0xeb01,icon,active?Text:Muted,MulDiv(16,dpi_,96));
+        int iconX=r.left+MulDiv(8,dpi_,96), center=(r.top+r.bottom)/2;
+        RECT icon{iconX,center-MulDiv(7,dpi_,96),iconX+MulDiv(14,dpi_,96),center+MulDiv(7,dpi_,96)};
+        if(browser_)DrawCodicon(dc,0xeb01,icon,active?Text:Muted,MulDiv(14,dpi_,96));
         else DrawFileTypeIcon(dc,tabs_[i].script?FileIconKind::Text:FileIconForName(tabs_[i].path.empty()?tabs_[i].name:tabs_[i].path),icon);
         RECT label=r; label.left+=MulDiv(26,dpi_,96); label.right-=MulDiv(tabs_[i].script?8:24,dpi_,96);
         SetTextColor(dc,active?Text:Muted); DrawTextW(dc,tabs_[i].name.c_str(),-1,&label,DT_LEFT|DT_VCENTER|DT_SINGLELINE|DT_END_ELLIPSIS);

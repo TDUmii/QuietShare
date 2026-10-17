@@ -17,6 +17,10 @@ USER32.PostMessageW.restype=wintypes.BOOL
 USER32.SetWindowPos.argtypes=[wintypes.HWND,wintypes.HWND,ctypes.c_int,ctypes.c_int,ctypes.c_int,ctypes.c_int,wintypes.UINT]
 USER32.GetClientRect.argtypes=[wintypes.HWND,ctypes.POINTER(wintypes.RECT)]
 USER32.GetClientRect.restype=wintypes.BOOL
+USER32.GetWindowRect.argtypes=[wintypes.HWND,ctypes.POINTER(wintypes.RECT)]
+USER32.GetWindowRect.restype=wintypes.BOOL
+USER32.MapWindowPoints.argtypes=[wintypes.HWND,wintypes.HWND,ctypes.POINTER(wintypes.POINT),wintypes.UINT]
+USER32.MapWindowPoints.restype=ctypes.c_int
 USER32.GetDpiForWindow.argtypes=[wintypes.HWND]
 USER32.GetDpiForWindow.restype=wintypes.UINT
 USER32.AttachThreadInput.argtypes=[wintypes.DWORD,wintypes.DWORD,wintypes.BOOL]
@@ -43,7 +47,7 @@ class Site(BaseHTTPRequestHandler):
         cookies.append(bool(self.headers.get('Cookie')))
         if self.path.startswith('/viewport?'):
             values=parse_qs(urlsplit(self.path).query)
-            viewports.append({'width':int(values['w'][0]),'dpr':float(values['dpr'][0]),'page':values['page'][0],'tick':float(values['tick'][0])})
+            viewports.append({'width':int(values['w'][0]),'height':int(values['h'][0]),'dpr':float(values['dpr'][0]),'page':values['page'][0],'tick':float(values['tick'][0])})
             self.send_response(204);self.end_headers();return
         if self.path.startswith('/form-state?'):
             values=parse_qs(urlsplit(self.path).query)
@@ -60,7 +64,7 @@ class Site(BaseHTTPRequestHandler):
               "try{document.querySelector('#s').showPicker()}catch(e){}"
               "navigator.geolocation.getCurrentPosition(()=>fetch('/unexpected-location'),()=>{});fetch('/policy-finished');}"
               "const tick=()=>performance.timeOrigin+performance.now();"
-              "const viewport=()=>fetch('/viewport?w='+innerWidth+'&dpr='+devicePixelRatio+'&page='+encodeURIComponent(location.pathname)+'&tick='+tick());"
+              "const viewport=()=>fetch('/viewport?w='+innerWidth+'&h='+innerHeight+'&dpr='+devicePixelRatio+'&page='+encodeURIComponent(location.pathname)+'&tick='+tick());"
               "addEventListener('resize',viewport);viewport();for(const ms of [250,750,1500])setTimeout(viewport,ms);"
               # A per-document unsent form value proves that switching tabs
               # keeps the existing DOM; this does not emulate physical typing.
@@ -149,6 +153,59 @@ def main():
         check('addressReflectsPage',native.control_text(address)==base+'/first')
         check('zoomFixtureReportsActualViewport',wait(lambda:viewport('/first')))
         initial_viewport=viewport('/first').copy()
+        # Verify compact browser chrome against the live WebView viewport,
+        # including the optional toolbar, without changing Windows DPI.
+        original_bounds=wintypes.RECT();USER32.GetWindowRect(window,ctypes.byref(original_bounds))
+        scale=USER32.GetDpiForWindow(window)/96
+        compact_metrics=[]
+        controls=(122,120,139,154,123,105,188,180,156,157,158,164,165,166,159,167,168,169,155,190,191)
+        essential=(156,157,158,164,165,155,190,191,105,188,180)
+        def chrome_fits():
+            client=wintypes.RECT();USER32.GetClientRect(window,ctypes.byref(client));bounds=[]
+            for control_id in controls:
+                control=USER32.GetDlgItem(window,control_id)
+                if not control or not USER32.IsWindowVisible(control):continue
+                box=wintypes.RECT();USER32.GetWindowRect(control,ctypes.byref(box))
+                points=(wintypes.POINT*2)(wintypes.POINT(box.left,box.top),wintypes.POINT(box.right,box.bottom))
+                USER32.MapWindowPoints(None,window,points,2)
+                box=(points[0].x,points[0].y,points[1].x,points[1].y)
+                if not (0<=box[0]<box[2]<=client.right and 0<=box[1]<box[3]<=client.bottom):return False
+                if any(min(box[2],previous[2])>max(box[0],previous[0]) and
+                       min(box[3],previous[3])>max(box[1],previous[1]) for previous in bounds):return False
+                bounds.append(box)
+            return True
+        for language in ('vi','en'):
+            if language=='en':cmd(107)
+            for width,height in ((430,320),(460,360)):
+                label='compactBrowser:'+language+':'+str(width)
+                before=viewport('/first').copy()
+                USER32.SetWindowPos(window,None,0,0,round(width*scale),round(height*scale),0x16)
+                check(label+':actualViewportResizes',wait(lambda:viewport('/first')['tick']>before['tick'] and
+                      (viewport('/first')['width'],viewport('/first')['height'])!=(before['width'],before['height'])))
+                shown=viewport('/first').copy();client=wintypes.RECT();USER32.GetClientRect(window,ctypes.byref(client))
+                check(label+':allControlsFitWithoutOverlap',chrome_fits())
+                check(label+':essentialControlsVisible',all(USER32.IsWindowVisible(USER32.GetDlgItem(window,control)) for control in essential))
+                check(label+':webDominatesSmallWindow',shown['width']*shown['dpr']>=client.right*.84-2 and
+                      shown['height']*shown['dpr']>=client.bottom*.58-2)
+                cmd(183)
+                check(label+':hiddenToolbarGivesWebMoreHeight',wait(lambda:viewport('/first')['tick']>shown['tick'] and
+                      viewport('/first')['height']>shown['height']))
+                hidden=viewport('/first').copy()
+                check(label+':hiddenToolbarKeepsEssentialControls',not q(16)&4 and chrome_fits() and
+                      all(USER32.IsWindowVisible(USER32.GetDlgItem(window,control)) for control in essential))
+                check(label+':hiddenToolbarWebDominatesHeight',hidden['height']*hidden['dpr']>=client.bottom*.70-2)
+                check(label+':layoutKeepsControllerAndPrivacy',q(10)==2 and q(12)==1 and q(11)!=0 and q(34)==1 and
+                      native.control_text(address)==base+'/first')
+                compact_metrics.append({'language':language,'logicalSize':[width,height],'dpi':round(scale*96),
+                    'clientPixels':[client.right,client.bottom],'withToolbar':shown,'withoutToolbar':hidden})
+                cmd(183)
+                check(label+':toolbarRestoresViewport',wait(lambda:q(16)&4 and viewport('/first')['tick']>hidden['tick'] and
+                      abs(viewport('/first')['height']-shown['height'])<=1))
+        cmd(107)
+        USER32.SetWindowPos(window,None,0,0,original_bounds.right-original_bounds.left,original_bounds.bottom-original_bounds.top,0x16)
+        check('compactBrowserRestoresOriginalViewport',wait(lambda:
+              abs(viewport('/first')['width']-initial_viewport['width'])<=1 and abs(viewport('/first')['height']-initial_viewport['height'])<=1))
+        metrics['compactBrowser']=compact_metrics
         check('browserZoomStarts100',q(24)==100 and native.control_text(USER32.GetDlgItem(window,168))=='100%')
         cmd(169)
         check('browserZoomInUpdatesActualViewport',wait(lambda:q(24)==110 and viewport('/first')['width']<initial_viewport['width']
@@ -222,7 +279,12 @@ def main():
         try:check('disabledBrowserProcessExits',native.KERNEL32.WaitForSingleObject(process_handle,8000)==0)
         finally:native.KERNEL32.CloseHandle(process_handle)
         for cycle in range(3):
-            cmd(155);cmd(155);check('cancelPendingEnable:'+str(cycle),wait(lambda:q(10)==0 and q(11)==0))
+            # Cancel the pending environment before starting a mounted canary.
+            # cmd()'s 150 ms pause can enter that proof; cancelling it correctly
+            # revokes the common gate and is not a harmless pending-enable case.
+            native.send(window,0x111,155);native.send(window,0x111,155);time.sleep(.15)
+            check('cancelPendingEnable:'+str(cycle),wait(lambda:native.send(window,0x800E,timeout=6000)==1 and
+                  q(10)==q(11)==q(34)==q(38)==0))
         viewport_start=len(viewports);form_start=len(form_states)
         native.set_control_text(address,base+'/first');cmd(155)
         check('reEnableRunsFreshCanary',wait(lambda:q(10)==2 and q(12)==1,25))
@@ -380,7 +442,8 @@ def main():
     except Exception as e:
         failure={'type':type(e).__name__,'message':str(e)}
         if app and app.poll() is None and window:
-            try:metrics['failureState']={'zoom':q(24),'tab':q(35),'state':q(10),'address':native.control_text(address),'recentViewport':viewports[-10:]}
+            try:metrics['failureState']={'baseGate':native.send(window,0x800E,timeout=6000),'caption':native.control_text(window),
+                'zoom':q(24),'tab':q(35),'state':q(10),'address':native.control_text(address),'recentViewport':viewports[-10:]}
             except Exception:pass
     finally:
         if app and app.poll() is None:

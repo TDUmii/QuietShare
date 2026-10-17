@@ -3,7 +3,7 @@
 Updated: 2026-10-17
 Repository: private `TDUmii/QuietShare`
 Current application release: `v0.9.1`
-Current `main` includes the 5-minute session-expiry fix; the handoff documents were added separately and do not change the application version or release payload.
+Current `main` includes the 5-minute session-expiry fix plus unreleased source-window containment and compact UI changes. The tracked `dist` binaries, root v0.9.1 ZIP and published Release remain the previously shipped v0.9.1 payload; build the current source before checking the new containment/UI behavior. The application version has not been bumped and no release has been created for this follow-up.
 
 ## Product purpose
 
@@ -34,14 +34,14 @@ QuietShare is a Windows 10/11 desktop app for showing selected code, images, doc
 
 The report was that an Extend projection disappeared after roughly 5-10 minutes. In v0.9.0, `src/Mirror.cpp` used a fixed 300,000 ms verification lease, and a healthy running capture could be stopped when that lease expired. v0.9.1 removed this age-based stop while preserving runtime privacy/topology/capture guards. It also requests that Windows keep the system/display awake only during projection and restores the previous thread execution state after projection ends. Unexpected interruptions now notify without stealing focus.
 
-A real 720-second soak passed on one physical monitor with WGC/renderer and a synthetic destination, including minimize/restore. It did **not** prove behavior on two physical displays. This is why the company-laptop run must use actual physical monitors in Windows Extend mode. Do not claim the physical Extend issue is fully resolved until that run passes or a reproducible root cause is fixed and verified.
+A real 720-second soak passed on one physical monitor with WGC/renderer and a synthetic destination, including minimize/restore. It did **not** prove behavior on two physical displays. The presenter later reported using a laptop and a separate physical TV in Extend throughout the afternoon without noticing a spontaneous stop. That report has no timed checkpoints or exact session duration and must not be recorded as a measured 20/30-minute soak. Dragging the control window to the audience display reportedly caused a disappearance, but warning text and window/process state were not captured; its cause has not been reproduced.
 
 ## Current handoff task
 
-Read `handoff/EXTEND_LAPTOP_HANDOFF.md`, test with the v0.9.1 release (or a later build that retains the fix) on a two-physical-display Windows 10/11 laptop, then complete `handoff/EXTEND_FIELD_TEST_RESULT_TEMPLATE.md` as `handoff/EXTEND_FIELD_TEST_RESULT.md`. Commit and push only the result file and any necessary, scoped fix. Do not include personal content or unfiltered system logs.
+The current source adds pre-move containment of the control window within its captured source display during projection, keeping the runtime fail-closed guards. It also reduces shell controls and browser chrome for small windows. The user requested source/native automated checks only for this implementation; no repeat physical TV test, no 20/30-minute soak and no release. The consumed field report is removed from the current Git tree at the user's request; retain this context and `handoff/EXTEND_LAPTOP_HANDOFF.md`.
 
-After the result appears, inspect the observed failure time, app state, stopped notice, display topology and sanitized errors. Reproduce locally or on the company laptop as evidence allows, fix the cause, build and run relevant checks. Clearly distinguish physical-hardware evidence from synthetic/native harness results. Do not cut a new release unless that is the user-requested next step.
+Clearly distinguish presenter observations, geometry/native HWND checks and physical-hardware evidence. Do not infer that the drag-triggered disappearance was reproduced or that every physical Extend failure is resolved. Do not cut a new release unless that is the user-requested next step.
 
 ## Start prompt for Codex on the company laptop
 
-> Continue the QuietShare Extend hardware test from `handoff/QUIETSHARE_CONTEXT.md` and `handoff/EXTEND_LAPTOP_HANDOFF.md`. Use the private repository and the same signed-in Codex account. No admin access is needed: prefer the portable v0.9.1 ZIP in a user-writable folder; the per-user Setup is also `asInvoker`. Do not access Chrome or other browser tabs for this task. Test QuietShare on two physical displays in Windows Extend mode for at least 20 minutes. Fill `handoff/EXTEND_FIELD_TEST_RESULT.md` with sanitized observations and push only that report unless a concrete, reproducible source fix is necessary. Do not publish a release. Preserve the app's privacy and safety behavior, and report anything you could not verify.
+> Read `handoff/QUIETSHARE_CONTEXT.md` and `handoff/EXTEND_LAPTOP_HANDOFF.md` before continuing QuietShare work. The physical-use report has already been consumed; do not rerun the old timed hardware protocol or create a release unless the user requests it. Use the private repository and the same signed-in Codex account. Preserve all capture/privacy/topology/device guards and distinguish automated checks from physical-display observations.

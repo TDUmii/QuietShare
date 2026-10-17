@@ -169,6 +169,22 @@ bool SameRect(RECT a, RECT b)
 {
     return a.left == b.left && a.top == b.top && a.right == b.right && a.bottom == b.bottom;
 }
+bool ConstrainRectToBounds(RECT &rect,RECT bounds,INT64 left,INT64 top,INT64 width,INT64 height)
+{
+    const INT64 availableWidth=static_cast<INT64>(bounds.right)-bounds.left;
+    const INT64 availableHeight=static_cast<INT64>(bounds.bottom)-bounds.top;
+    if(availableWidth<=0||availableHeight<=0)return false;
+    width=std::clamp<INT64>(width,1,availableWidth);height=std::clamp<INT64>(height,1,availableHeight);
+    left=std::clamp<INT64>(left,bounds.left,static_cast<INT64>(bounds.right)-width);
+    top=std::clamp<INT64>(top,bounds.top,static_cast<INT64>(bounds.bottom)-height);
+    rect={static_cast<LONG>(left),static_cast<LONG>(top),static_cast<LONG>(left+width),static_cast<LONG>(top+height)};
+    return true;
+}
+bool ConstrainRectToBounds(RECT &rect,RECT bounds)
+{
+    return ConstrainRectToBounds(rect,bounds,rect.left,rect.top,
+                                static_cast<INT64>(rect.right)-rect.left,static_cast<INT64>(rect.bottom)-rect.top);
+}
 bool WithinMonitor(HWND hwnd,const MonitorInfo &monitor)
 {
     RECT r{};
@@ -596,6 +612,8 @@ struct MirrorController::Impl
     HWND privateWindow=nullptr,projector=nullptr;
     std::wstring sourceId,destinationId;
     MonitorInfo source{},destination{};
+    RECT sourceMovementBounds{};
+    std::wstring sourceDeviceName;
     PublicPopupPolicy publicPopups;
     std::vector<MonitorInfo> topology;
     State state=State::Unverified;
@@ -686,6 +704,17 @@ struct MirrorController::Impl
                !SameLuid(now->adapter,before.adapter))return false;
         }
         return true;
+    }
+    bool SourceMovementInfo(MONITORINFOEXW &info)
+    {
+        info={};info.cbSize=sizeof(info);
+        return source.handle&&GetMonitorInfoW(source.handle,&info)&&SameRect(info.rcMonitor,source.bounds);
+    }
+    bool PinSourceMovement()
+    {
+        MONITORINFOEXW info{};
+        if(!SourceMovementInfo(info)||!IntersectRect(&sourceMovementBounds,&source.bounds,&info.rcWork))return false;
+        sourceDeviceName=info.szDevice;return true;
     }
     void Fail(State reason)
     {
@@ -905,7 +934,8 @@ bool MirrorController::Start(const std::wstring &sourceId,const std::wstring &de
        FAILED(cursor->SetCursorEnabled(pointer))) {s.Fail(State::CaptureFailed);return false;}
     if(s.epoch!=attempt)return false;
     s.destination=*destination;s.destinationId=destinationId;
-    if(!s.SameTopology()||!s.CreateProjector()){s.Fail(State::RenderFailed);return false;}
+    if(!s.SameTopology()||!s.PinSourceMovement()){s.Fail(State::Changed);return false;}
+    if(!s.CreateProjector()){s.Fail(State::RenderFailed);return false;}
     if(s.epoch!=attempt)return false;
     if(!s.execution.Acquire()){s.Fail(State::CaptureFailed);return false;}
     if(s.epoch!=attempt){s.execution.Release();return false;}
@@ -962,6 +992,49 @@ void MirrorController::Tick()
     if(s.running&&now-s.framesTick>=1000)
     {
         s.fps=1000.0*s.frameCount/(now-s.framesTick);s.frameCount=0;s.framesTick=now;
+    }
+}
+bool MirrorController::ConstrainPrivateWindowRect(RECT &proposed)
+{
+    const auto lifetime=impl;
+    auto &s=*lifetime;
+    if(!s.running)return false;
+    MONITORINFOEXW info{};
+    // The cached source is owned by this capture session. A removed/reassigned
+    // monitor is a safety failure, never a reason to follow the moving HWND.
+    if(!s.SourceMovementInfo(info)||s.sourceDeviceName!=info.szDevice||
+       !ConstrainRectToBounds(proposed,s.sourceMovementBounds))
+    {
+        GetWindowRect(s.privateWindow,&proposed);
+        s.Fail(State::Changed);
+    }
+    return true;
+}
+void MirrorController::ConstrainPrivateWindowPosition(WINDOWPOS &proposed)
+{
+    const auto lifetime=impl;
+    const auto &s=*lifetime;
+    if(!s.running||proposed.hwnd!=s.privateWindow||IsIconic(s.privateWindow))return;
+    RECT current{};if(!GetWindowRect(s.privateWindow,&current))return;
+    RECT next=current;
+    if(!ConstrainPrivateWindowRect(next))return;
+    if(s.running)ConstrainRectToBounds(next,s.sourceMovementBounds,
+        proposed.flags&SWP_NOMOVE?current.left:proposed.x,
+        proposed.flags&SWP_NOMOVE?current.top:proposed.y,
+        proposed.flags&SWP_NOSIZE?static_cast<INT64>(current.right)-current.left:proposed.cx,
+        proposed.flags&SWP_NOSIZE?static_cast<INT64>(current.bottom)-current.top:proposed.cy);
+    // Honor moves and resizes whose original flags omit the other operation:
+    // an oversized resize or a restore can need both size and position fixed.
+    if(next.left!=current.left||next.top!=current.top){
+        proposed.x=next.left;proposed.y=next.top;proposed.flags&=~SWP_NOMOVE;
+    }else if(!(proposed.flags&SWP_NOMOVE)){
+        proposed.x=next.left;proposed.y=next.top;
+    }
+    const int width=next.right-next.left,height=next.bottom-next.top;
+    if(width!=current.right-current.left||height!=current.bottom-current.top){
+        proposed.cx=width;proposed.cy=height;proposed.flags&=~SWP_NOSIZE;
+    }else if(!(proposed.flags&SWP_NOSIZE)){
+        proposed.cx=width;proposed.cy=height;
     }
 }
 bool MirrorController::Running() const {return impl->running;}

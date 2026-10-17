@@ -267,8 +267,9 @@ def main() -> int:
                 if before == "editing.bmp":
                     # Edit/read now share an uncluttered document surface. Verify
                     # the changing commands rather than require decorative body changes.
-                    # Tabs and tools occupy separate rows below the native caption.
-                    top, bottom = 32, min(112,first.height,second.height)
+                    # The compact tabs/tools occupy 60 px below the native
+                    # caption; exclude the now-larger unchanged reader area.
+                    top, bottom = 32, min(92,first.height,second.height)
                     rows = bottom-top
                     first = Bitmap(first.width,rows,first.rgb[top*first.width*3:bottom*first.width*3])
                     second = Bitmap(second.width,rows,second.rgb[top*second.width*3:bottom*second.width*3])
