@@ -107,6 +107,8 @@ int wmain(int argc, wchar_t **argv)
     PdfViewer pdf;
     testPdf = &pdf;
     check("ScintillaLexillaCreate", code.Create(owner, 201, error));
+    check("codeUsesDirectWriteAntialiasing", SendMessageW(code.Window(),SCI_GETTECHNOLOGY,0,0)==SC_TECHNOLOGY_DIRECTWRITE);
+    check("codeUsesLcdFontQuality", SendMessageW(code.Window(),SCI_GETFONTQUALITY,0,0)==SC_EFF_QUALITY_LCD_OPTIMIZED);
     check("PDFiumCreate", pdf.Create(owner, 202, error));
     MoveWindow(code.Window(), 0, 0, 780, 480, FALSE);
     MoveWindow(pdf.Window(), 0, 0, 780, 480, FALSE);

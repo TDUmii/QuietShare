@@ -9,6 +9,7 @@ struct ToolMenuItem { int id;std::wstring label;bool enabled;wchar_t icon;bool c
 class ToolMenu {
     std::vector<ToolMenuItem> items;
     HWND popup=nullptr;
+    bool restoreFocus=true;
     int current=-1,result=0,row=30,scale=96;
     HFONT font=nullptr;
     int S(int n)const{return MulDiv(n,scale,96);}
@@ -24,6 +25,7 @@ class ToolMenu {
         auto self=reinterpret_cast<ToolMenu*>(GetWindowLongPtrW(hwnd,GWLP_USERDATA));
         if(msg==WM_NCCREATE){self=static_cast<ToolMenu*>(reinterpret_cast<CREATESTRUCTW*>(lp)->lpCreateParams);SetWindowLongPtrW(hwnd,GWLP_USERDATA,reinterpret_cast<LONG_PTR>(self));}
         if(!self)return DefWindowProcW(hwnd,msg,wp,lp);
+        if(msg==WM_CLOSE){self->restoreFocus=false;self->Finish(false);return 0;}
         if(msg==WM_ACTIVATE&&LOWORD(wp)==WA_INACTIVE){self->Finish(false);return 0;}
         if(msg==WM_KEYDOWN){if(wp==VK_ESCAPE)self->Finish(false);else if(wp==VK_RETURN||wp==VK_SPACE)self->Finish(true);else if(wp==VK_DOWN)self->Move(1);else if(wp==VK_UP)self->Move(-1);return 0;}
         if(msg==WM_MOUSEMOVE||msg==WM_LBUTTONUP){int index=(GET_Y_LPARAM(lp)-self->S(5))/self->row;
@@ -68,7 +70,7 @@ public:
             if(status<=0){Finish(false);if(status==0)PostQuitMessage(int(message.wParam));break;}
             if(!IsWindow(parent)){Finish(false);break;}
             TranslateMessage(&message);DispatchMessageW(&message);}
-        if(IsWindow(parent))SetForegroundWindow(parent);
+        if(restoreFocus&&IsWindow(parent))SetForegroundWindow(parent);
         return result;
     }
 };

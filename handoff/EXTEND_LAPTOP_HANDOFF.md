@@ -3,17 +3,17 @@
 Updated: 2026-10-18
 Repository: private `TDUmii/QuietShare`
 Original incident baseline: release `v0.9.1` at `f08eede29a354f8302fcd900530368eeea8f6368`
-Current application version: `v0.12.1`. This release carries forward the projection safeguards and updates the compact control and browser settings UI.
+Current application version: `v0.12.2`. This release carries forward the projection safeguards and updates the compact control and browser settings UI.
 
-## Tình trạng mới nhất - v0.12.1
+## Tình trạng mới nhất - v0.12.2
 
 Home có lịch sử thật được DPAPI mã hóa, ghim/xóa/mở lại; không có dữ liệu mẫu trong sản phẩm. Hai tùy chọn nhớ kích thước cửa sổ và cho phép sửa văn bản/code mặc định bật. File lưu chủ động, kiểm tra thay đổi bên ngoài và bảo vệ bản sửa chưa lưu. UI nhàn rỗi dùng nhịp 250 ms; tránh resize viewer trùng.
 
-Người dùng đã xác nhận toàn bộ kiểm thử thực tế hiện không còn lỗi. Ghi nhận theo lời người dùng, không suy ra thời lượng đo, build cụ thể hay nguyên nhân lần mất hình cũ. Lượt phát triển v0.12.1 không lặp lại TV/hardware soak và không xác nhận độc lập phần cứng. Các mục sự cố/protocol bên dưới giữ làm lịch sử tham khảo.
+Ở lượt trước, người dùng đã xác nhận kiểm thử thực tế không còn lỗi; báo mới mô tả lỗi khôi phục sau Duplicate → Extend. Ghi nhận theo lời người dùng, không suy ra thời lượng đo, build cụ thể hay nguyên nhân lần mất hình cũ. Lượt phát triển v0.12.1 không lặp lại TV/hardware soak và không xác nhận độc lập phần cứng. Các mục sự cố/protocol bên dưới giữ làm lịch sử tham khảo.
 
 ## Current follow-up
 
-The latest user clarification is that the application remains open while projection disappears. No exact action, warning or recorded event yet identifies the cause. v0.10.0 validates actual invariants for display notifications and live-session WGC checks, retaining a healthy capture/output instead of stopping solely because a notification or check was requested. Actual privacy, topology, capture, DWM, device or source-location failures still stop safely without automatic restart.
+The latest report identifies Extend → Duplicate → Extend: locking during Duplicate is correct, but a collapsed source/destination pair remained identical and disabled Start on return. v0.12.2 repairs distinct selection and refreshes enumeration before explicit Verify. Physical display recovery still needs confirmation on the presenter setup. v0.10.0 validates actual invariants for display notifications and live-session WGC checks, retaining a healthy capture/output instead of stopping solely because a notification or check was requested. Actual privacy, topology, capture, DWM, device or source-location failures still stop safely without automatic restart.
 
 Projection controls now live on the activity bar, with source/destination/pointer/resources and status in Settings > Projection. A local `projection-stop.json` retains one overwritten unexpected-stop record with fixed reason codes, UTC/session timing, HRESULT and resource mode. It contains no pixels, content, URL, path or monitor identifier. Use its reason code to guide any later incident investigation; do not commit raw personal logs or browser profiles.
 
@@ -64,3 +64,6 @@ Bộ chọn file/dự án v0.12.1 dùng layout File Explorer với Desktop, Down
 Từ v0.12.1: NAV_SCRIPT (120) là Tệp đang mở, chỉ trở lại content hiện tại, không chọn script hay nạp lại native viewer. HOME_SCRIPT (127) là Soạn lời nhắc chủ động. Script id 0 vẫn giữ trong model để tương thích dữ liệu nhưng không có tab; UI Ctrl+Tab bỏ qua id 0. Home có layout thấp riêng và icon xác nhận capture đúng readback.
 
 Zoom mặc định từ v0.12.1: DefaultZoomPercent=50 dùng chung src/Zoom.h; text/script 12 pt, code 7 pt tương ứng các cỡ chuẩn 24/14. Ctrl+0/Reset về 50; PDF FitPage/FitWidth chủ động vẫn 100% của khung. Giữ canary web ở 1.0 trong probe và áp dụng zoom nội dung sau khi xác minh.
+
+
+Theo báo lỗi mới: Duplicate khóa đúng nhưng trở lại Extend không khôi phục nút Start. v0.12.2 sửa cặp nguồn/đích trùng sau collapse, cập nhật màn trước Verify; vẫn fail closed và không tự chiếu lại. Chữ Segoe UI/ClearType và code DirectWrite/LCD, Home Trang chủ, menu nhấp phải Tệp đang mở, ghim xanh lá thống nhất. Kiểm thử tự động không thay cho xác nhận lại trên hai màn vật lý.

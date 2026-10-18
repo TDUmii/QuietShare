@@ -10,6 +10,7 @@
 #include <functional>
 #include <string>
 #include <vector>
+#include <utility>
 
 namespace quietshare
 {
@@ -26,6 +27,8 @@ struct MonitorInfo
     int displayNumber = 0; // Native \\.\DISPLAYn number, separate from the stable device ID.
 };
 std::vector<MonitorInfo> EnumerateMonitors();
+std::pair<int,int> SelectMonitorPair(const std::vector<MonitorInfo>& monitors,
+                                   const std::wstring& source,const std::wstring& destination);
 
 // This classifier examines only synthetic canary pixels, never notes or files.
 // It is shared by the real WGC preflight and positive/negative regression tests.

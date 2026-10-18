@@ -2,14 +2,14 @@
 
 Updated: 2026-10-18
 Repository: private `TDUmii/QuietShare`
-Current application version: `v0.12.1`
+Current application version: `v0.12.2`
 Current implementation retains the 5-minute session-expiry fix, pre-move source-window containment and compact shell/browser controls. The v0.10.0 release includes a local browser New tab page with user-saved shortcuts, six Settings categories, configurable command shortcuts, window opacity and script weight, and quick projection actions on the activity bar. v0.10.1 adds centered numeric/address controls, configurable icon size, browser audio and device permissions, and compact browser zoom controls while preserving the projection safeguards. Historical releases remain available.
 
-## Tình trạng mới nhất - v0.12.1
+## Tình trạng mới nhất - v0.12.2
 
 Home có lịch sử thật được DPAPI mã hóa, ghim/xóa/mở lại; không có dữ liệu mẫu trong sản phẩm. Hai tùy chọn nhớ kích thước cửa sổ và cho phép sửa văn bản/code mặc định bật. File lưu chủ động, kiểm tra thay đổi bên ngoài và bảo vệ bản sửa chưa lưu. UI nhàn rỗi dùng nhịp 250 ms; tránh resize viewer trùng.
 
-Người dùng đã xác nhận toàn bộ kiểm thử thực tế hiện không còn lỗi. Ghi nhận theo lời người dùng, không suy ra thời lượng đo, build cụ thể hay nguyên nhân lần mất hình cũ. Lượt phát triển v0.12.1 không lặp lại TV/hardware soak và không xác nhận độc lập phần cứng. Các mục sự cố/protocol bên dưới giữ làm lịch sử tham khảo.
+Ở lượt trước, người dùng đã xác nhận kiểm thử thực tế không còn lỗi; báo mới mô tả lỗi khôi phục sau Duplicate → Extend. Ghi nhận theo lời người dùng, không suy ra thời lượng đo, build cụ thể hay nguyên nhân lần mất hình cũ. Lượt phát triển v0.12.1 không lặp lại TV/hardware soak và không xác nhận độc lập phần cứng. Các mục sự cố/protocol bên dưới giữ làm lịch sử tham khảo.
 
 ## Product purpose
 
@@ -45,7 +45,7 @@ A real 720-second soak passed on one physical monitor with WGC/renderer and a sy
 
 ## Current handoff task
 
-The user subsequently reports that QuietShare remains open while only projection disappears. No exact triggering action, warning or event record has established the cause of that latest report. Do not describe the current changes as a reproduction or proof that every physical Extend failure is fixed.
+The latest report identifies the sequence: projection works in Extend, Duplicate correctly locks content, then returning to Extend and verifying leaves projection unavailable and the sidebar Start disabled. The source/destination selectors retained the same monitor after the single-display collapse; v0.12.2 repairs that pair before fresh verification. Automated checks cover selection recovery and explicit WGC re-verification, without changing system display mode or proving two physical monitors. Do not describe the current changes as a reproduction or proof that every physical Extend failure is fixed.
 
 The v0.10.0 follow-up keeps healthy sessions during an active-session WGC check and display notifications that do not change actual privacy/topology/device conditions. Actual safety failures still revoke output with no automatic restart. A single local `projection-stop.json` is overwritten on unexpected stops and contains fixed reason codes, UTC/session timing, HRESULT and resource mode only. It excludes content, images, URLs, paths and display identifiers; do not commit personal diagnostics or browser profiles.
 
@@ -68,3 +68,6 @@ Bộ chọn file/dự án v0.12.1 dùng layout File Explorer với Desktop, Down
 Từ v0.12.1: NAV_SCRIPT (120) là Tệp đang mở, chỉ trở lại content hiện tại, không chọn script hay nạp lại native viewer. HOME_SCRIPT (127) là Soạn lời nhắc chủ động. Script id 0 vẫn giữ trong model để tương thích dữ liệu nhưng không có tab; UI Ctrl+Tab bỏ qua id 0. Home có layout thấp riêng và icon xác nhận capture đúng readback.
 
 Zoom mặc định từ v0.12.1: DefaultZoomPercent=50 dùng chung src/Zoom.h; text/script 12 pt, code 7 pt tương ứng các cỡ chuẩn 24/14. Ctrl+0/Reset về 50; PDF FitPage/FitWidth chủ động vẫn 100% của khung. Giữ canary web ở 1.0 trong probe và áp dụng zoom nội dung sau khi xác minh.
+
+
+Theo báo lỗi mới: Duplicate khóa đúng nhưng trở lại Extend không khôi phục nút Start. v0.12.2 sửa cặp nguồn/đích trùng sau collapse, cập nhật màn trước Verify; vẫn fail closed và không tự chiếu lại. Chữ Segoe UI/ClearType và code DirectWrite/LCD, Home Trang chủ, menu nhấp phải Tệp đang mở, ghim xanh lá thống nhất. Kiểm thử tự động không thay cho xác nhận lại trên hai màn vật lý.

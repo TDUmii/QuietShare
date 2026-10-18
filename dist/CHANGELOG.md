@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.12.2
+
+- Khôi phục lựa chọn hai màn khác nhau sau Duplicate → Extend; kiểm tra lại danh sách màn trước WGC. Vẫn cần xác minh và bắt đầu lại chủ động.
+- Chữ giao diện dùng Segoe UI với ClearType; văn bản dùng Segoe UI; code dùng DirectWrite và chất lượng chữ LCD, giữ zoom mặc định 50%.
+- Home dùng tiêu đề ngắn Trang chủ; thanh bên phân nhóm và có menu chuyển tệp qua nhấp phải. Màu ghim đồng nhất xanh lá/xám.
+- Menu chuyển tệp chia trang và đóng ngay khi che/khóa nội dung, không gọi cửa sổ điều khiển lên lại do lệnh đóng an toàn.
+
 ## Unreleased
 
 ## 0.12.1

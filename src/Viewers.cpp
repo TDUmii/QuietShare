@@ -488,6 +488,8 @@ bool CodeViewer::Create(HWND parent, int id, std::wstring &error)
         return false;
     SetWindowTheme(impl->window, L"DarkMode_Explorer", nullptr);
     SetWindowSubclass(impl->window, Impl::Subclass, 1, reinterpret_cast<DWORD_PTR>(impl.get()));
+    impl->Send(SCI_SETTECHNOLOGY, SC_TECHNOLOGY_DIRECTWRITE);
+    impl->Send(SCI_SETFONTQUALITY, SC_EFF_QUALITY_LCD_OPTIMIZED);
     impl->Send(SCI_SETCODEPAGE, SC_CP_UTF8);
     impl->Send(SCI_SETREADONLY, TRUE);
     impl->Send(SCI_SETTABWIDTH, 4);

@@ -75,6 +75,21 @@ struct Closable : IInspectable
 {
     virtual HRESULT STDMETHODCALLTYPE Close() = 0;
 };
+std::pair<int,int> SelectMonitorPair(const std::vector<MonitorInfo>& monitors,
+                                   const std::wstring& source,const std::wstring& destination)
+{
+    if(monitors.empty())return {-1,-1};
+    int src=0;
+    for(size_t i=0;i<monitors.size();++i)if(monitors[i].primary){src=int(i);break;}
+    for(size_t i=0;i<monitors.size();++i)if(monitors[i].stableId==source){src=int(i);break;}
+    int dst=-1;
+    for(size_t i=0;i<monitors.size();++i)if(monitors[i].stableId==destination){dst=int(i);break;}
+    // Duplicate collapses both selectors onto one display. A returning Extend
+    // must pick a separate destination; verification and Start remain explicit.
+    if(dst<0||dst==src)dst=monitors.size()>1?(src==0?1:0):src;
+    return {src,dst};
+}
+
 namespace mirror_detail
 {
 constexpr GUID kItem = {0x79c3f95b,0x31f7,0x4ec2,{0xa4,0x64,0x63,0x2e,0xf5,0xd3,0x07,0x60}};

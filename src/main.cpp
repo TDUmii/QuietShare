@@ -45,6 +45,7 @@ constexpr COLORREF BG = RGB(30, 30, 30), SIDEBAR = RGB(51, 51, 51), CARD = RGB(3
                    ACCENT_DARK = RGB(4, 57, 94), TEXT = RGB(242, 245, 247), MUTED = RGB(170, 170, 170),
                    DIVIDER = RGB(52, 59, 66), GREEN = RGB(110, 231, 160), AMBER = RGB(245, 184, 82),
                    DISABLED = RGB(105, 112, 121);
+constexpr COLORREF PIN_BG=RGB(35,81,64);
 constexpr COLORREF HOME_BG=RGB(20,22,23),HOME_CARD=RGB(34,39,40),HOME_RAIL=RGB(35,40,40);
 constexpr int MODE = 100, PLAY = 101, SMALLER = 102, LARGER = 103, SPEED = 104, MASK = 105, TOPMOST = 106,
               LANGUAGE = 107, RESET_ZOOM = 108, EDITOR = 110, NAV_SCRIPT = 120, NAV_READ = 121,
@@ -517,6 +518,10 @@ void DrawSidebar(HDC dc, int sidebar, int height, bool compact)
     FillRect(dc, &divider, brush);
     DeleteObject(brush);
 
+    if(compact) {
+        RECT separator{S(8),S(124),S(sidebar-8),S(125)};
+        HBRUSH line=CreateSolidBrush(DIVIDER);FillRect(dc,&separator,line);DeleteObject(line);
+    }
     if (!compact)
     {
         RECT brand{S(56), S(20), S(sidebar - 8), S(52)};
@@ -720,6 +725,7 @@ void UpdateButtons()
     SetTip(NAV_HOME, T(L"Chuẩn bị nội dung", L"Prepare content"));
     SetTip(NAV_SETTINGS, T(L"Tùy chỉnh hiển thị", L"Display settings"));
     SetTip(NAV_PRESENTATION,T(L"Trình chiếu Smart Mirror",L"Smart Mirror presentation"));
+    SetTip(NAV_SCRIPT,T(L"Tệp đang mở. Nhấp phải để chọn tệp hoặc soạn lời nhắc",L"Open files. Right-click to switch files or compose a script"));
     SetTip(OVERFLOW,T(L"Các lệnh và tab khác",L"More commands and tab actions"));
     SetTip(FIND_PREV,T(L"Kết quả trước",L"Previous match"));
     SetTip(FIND_NEXT,T(L"Kết quả sau - Enter",L"Next match - Enter"));
@@ -771,6 +777,13 @@ void ClipSettingsControls(bool redraw=true)
 void Layout()
 {
     if(!window || !editor) return;
+    if(Blocked())EnumThreadWindows(GetCurrentThreadId(),[](HWND popup,LPARAM owner)->BOOL {
+        wchar_t name[64]{};GetClassNameW(popup,name,64);
+        if(GetWindow(popup,GW_OWNER)==(HWND)owner&&wcscmp(name,L"QuietShareToolMenu")==0) {
+            SendMessageW(popup,WM_CLOSE,0,0);
+        }
+        return TRUE;
+    },(LPARAM)window);
     if(IsIconic(window)) {
         // Preserve viewer bounds and scroll state while Windows gives the
         // minimized owner an off-screen rectangle. Projection has its own HWND.
@@ -804,10 +817,10 @@ void Layout()
     };
     if(!focusMode&&activityVisible) {
         int y=12;for(int id:{NAV_HOME,NAV_SCRIPT,NAV_BROWSER}){
-            move(id,4,y,railWidth-8,28);y+=32;
+            move(id,4,y,railWidth-8,32);y+=36;
         }
-        move(VERIFY_PRIVACY,4,y+8,railWidth-8,28);move(MIRROR_ACTION,4,y+40,railWidth-8,28);
-        move(NAV_SETTINGS,4,std::max(y+76,height-56),railWidth-8,28);
+        move(VERIFY_PRIVACY,4,y+12,railWidth-8,32);move(MIRROR_ACTION,4,y+48,railWidth-8,32);
+        move(NAV_SETTINGS,4,std::max(y+88,height-56),railWidth-8,28);
     }
     contentCardRect={S(contentLeft),S(48),S(contentRight),S(bottom)};
     if(page==Page::Content || focusMode) {
@@ -1092,7 +1105,7 @@ void ApplyTextFormat()
     if(preferences.textWeight>=600)cf.dwEffects|=CFE_BOLD;
     cf.yHeight = ActiveTextSize() * 20;
     cf.crTextColor = TEXT;
-    wcscpy_s(cf.szFaceName, IsCode() ? L"Consolas" : L"Segoe UI Variable");
+    wcscpy_s(cf.szFaceName, IsCode() ? L"Consolas" : L"Segoe UI");
     SendMessageW(editor, EM_SETCHARFORMAT, SCF_ALL, (LPARAM)&cf);
     CHARRANGE selection{};
     SendMessageW(editor, EM_EXGETSEL, 0, (LPARAM)&selection);
@@ -1112,13 +1125,13 @@ void RefreshFonts()
 {
     HFONT oldUi = uiFont, oldTitle = titleFont, oldBrand = brandFont, oldMeta = metaFont;
     uiFont = CreateFontW(-S(14), 0, 0, 0, FW_NORMAL, FALSE, FALSE, FALSE, DEFAULT_CHARSET, 0, 0,
-                         CLEARTYPE_QUALITY, 0, L"Segoe UI Variable");
+                         CLEARTYPE_QUALITY, 0, L"Segoe UI");
     titleFont = CreateFontW(-S(22), 0, 0, 0, FW_SEMIBOLD, FALSE, FALSE, FALSE, DEFAULT_CHARSET, 0, 0,
-                            CLEARTYPE_QUALITY, 0, L"Segoe UI Variable");
+                            CLEARTYPE_QUALITY, 0, L"Segoe UI");
     brandFont = CreateFontW(-S(16), 0, 0, 0, FW_SEMIBOLD, FALSE, FALSE, FALSE, DEFAULT_CHARSET, 0, 0,
-                            CLEARTYPE_QUALITY, 0, L"Segoe UI Variable");
+                            CLEARTYPE_QUALITY, 0, L"Segoe UI");
     metaFont = CreateFontW(-S(13), 0, 0, 0, FW_NORMAL, FALSE, FALSE, FALSE, DEFAULT_CHARSET, 0, 0,
-                           CLEARTYPE_QUALITY, 0, L"Segoe UI Variable");
+                           CLEARTYPE_QUALITY, 0, L"Segoe UI");
     for (HWND button : buttons)
         SendMessageW(button, WM_SETFONT, (WPARAM)uiFont, TRUE);
     for(HWND control:{findInput,sizeInput,opacityInput,iconSizeInput,webAddress,sourceMonitor,destinationMonitor,projectTree.Handle()})if(control)SendMessageW(control,WM_SETFONT,(WPARAM)uiFont,TRUE);
@@ -1456,14 +1469,10 @@ void UpdateMonitors()
 {
     auto source=SelectedMonitor(sourceMonitor),destination=SelectedMonitor(destinationMonitor);
     monitors=EnumerateMonitors();
-    int src=0;
-    for(size_t i=0;i<monitors.size();++i)if(monitors[i].primary){src=(int)i;break;}
-    int dst=monitors.size()>1?(src==0?1:0):src;
-    for(size_t i=0;i<monitors.size();++i) {
-        const auto &monitor=monitors[i];
-        if(monitor.stableId==source)src=(int)i;if(monitor.stableId==destination)dst=(int)i;
-    }
-    labeledWindowMonitor=nullptr;UpdateMonitorLabels();
+    const auto [src,dst]=SelectMonitorPair(monitors,source,destination);
+    labeledWindowMonitor=nullptr;
+    if(monitors.empty())for(HWND combo:{sourceMonitor,destinationMonitor})SendMessageW(combo,CB_RESETCONTENT,0,0);
+    UpdateMonitorLabels();
     SendMessageW(sourceMonitor,CB_SETCURSEL,src,0);SendMessageW(destinationMonitor,CB_SETCURSEL,dst,0);
 }
 void UpdateMonitorLabels()
@@ -1496,6 +1505,7 @@ void VerifyPrivacy()
         if(!mirror->HandleDisplayChange()){browser.Lock();documentHost.Hide();SendMessageW(tooltips,TTM_POP,0,0);}
         Layout();return;
     }
+    UpdateMonitors();
     verifying=true;documentHost.Hide();Layout();privacy=ApplyPrivacy(window);topologyKnown=TryGetDisplayCloned(cloned);
     bool basic=privacy.applied && topologyKnown && !cloned;
     if(basic)mirror->Verify(window,SelectedMonitor(sourceMonitor));
@@ -1558,6 +1568,35 @@ void OverflowMenu()
     int selected=menu.Show(window,r,dpi,uiFont,std::move(entries));
     if(selected)SendMessageW(window,WM_COMMAND,selected,0);
 }
+void OpenContentMenu()
+{
+    if(Blocked())return;
+    std::vector<DocumentId> ids;
+    for(const auto& doc:documents.Items())if(doc->id)ids.push_back(doc->id);
+    size_t offset=0;
+    while(!Blocked()) {
+        std::vector<ToolMenuItem> entries;
+        const size_t end=std::min(ids.size(),offset+8);
+        for(size_t i=offset;i<end;++i)if(const auto* doc=documents.Get(ids[i]))
+            entries.push_back({7000+int(i),doc->displayName+(doc->dirty?L" *":L""),true,
+                               0xea7f,doc->id==documents.Active().id});
+        if(offset)entries.push_back({6998,T(L"Tệp trước",L"Previous files"),true,0xea9b});
+        if(end<ids.size())entries.push_back({6999,T(L"Tệp tiếp",L"More files"),true,0xea9c});
+        entries.push_back({OPEN_FILE,T(L"Mở file…",L"Open files…"),true,0xea7f});
+        entries.push_back({HOME_SCRIPT,T(L"Soạn lời nhắc",L"Compose script"),true,0xea73,documents.Active().id==0});
+        RECT anchor{};GetWindowRect(GetDlgItem(window,NAV_SCRIPT),&anchor);
+        ToolMenu menu;const int action=menu.Show(window,anchor,dpi,uiFont,std::move(entries));
+        if(Blocked())return;
+        if(action==6998){offset-=8;continue;}
+        if(action==6999){offset+=8;continue;}
+        if(action>=7000&&size_t(action-7000)<ids.size()) {
+            focusMode=false;
+            if(ids[action-7000]==documents.Active().id){page=Page::Content;Layout();SetFocus(ContentWindow());}
+            else ActivateDocument(ids[action-7000]);
+        } else if(action)SendMessageW(window,WM_COMMAND,action,0);
+        return;
+    }
+}
 void LayoutMenu()
 {
     std::vector<ToolMenuItem> entries={
@@ -1567,7 +1606,7 @@ void LayoutMenu()
         {SHOW_TOOLBAR,T(L"Thanh công cụ",L"Toolbar"),true,0xeb51,toolbarVisible},
         {SHOW_STATUS,T(L"Thanh trạng thái",L"Status bar"),true,0xeb01,statusVisible},
         {RESET_LAYOUT,T(L"Khôi phục bố cục",L"Reset layout"),true,0xeb37},
-        {NAV_HOME,T(L"Không gian của bạn.",L"Your workspace."),true,0xeb06},
+        {NAV_HOME,T(L"Trang chủ",L"Home"),true,0xeb06},
         {NAV_SCRIPT,T(L"Tệp đang mở",L"Open files"),!Blocked(),0xeaf0},
         {HOME_SCRIPT,T(L"Soạn lời nhắc",L"Compose script"),!Blocked(),0xea73},
         {NAV_BROWSER,T(L"Trình duyệt",L"Browser"),true,0xeb01},
@@ -1662,7 +1701,7 @@ void Paint(HDC dc)
     if(page==Page::Settings){title.left=settingsViewport.left+S(16);title.right=settingsViewport.right-S(16);}
     if(page==Page::Home){title.right=S(contentRight-(homeCompact?64:0));title.top=S(homeCompact?8:34);title.bottom=S(homeCompact?36:66);
         if(!homeCompact)DrawTextAt(dc,L"WORKSPACE / HOME",{S(contentLeft),S(10),S(contentRight-72),S(28)},MUTED,metaFont);}
-    if(!focusMode && page!=Page::Content && !(page==Page::Browser&&browser.Enabled()))DrawTextAt(dc,page==Page::Home?T(L"Không gian của bạn.",L"Your workspace."):
+    if(!focusMode && page!=Page::Content && !(page==Page::Browser&&browser.Enabled()))DrawTextAt(dc,page==Page::Home?T(L"Trang chủ",L"Home"):
         page==Page::Settings?T(L"Cài đặt",L"Settings"):page==Page::Browser?T(L"Trình duyệt",L"Browser"):T(L"Trình chiếu",L"Presentation"),title,TEXT,page==Page::Home&&homeCompact?brandFont:titleFont,DT_LEFT|DT_VCENTER|DT_SINGLELINE|DT_END_ELLIPSIS);
     if(page==Page::Content || focusMode) {
         FillRoundRect(dc,contentCardRect,CARD,S(12));
@@ -1817,7 +1856,10 @@ void DrawButtonContents(DRAWITEMSTRUCT *item)
             const size_t index=recentOffset+(item->CtlID-RECENT_FIRST)/3;const int part=(item->CtlID-RECENT_FIRST)%3;
             if(index<recentWorkspace.entries.size()){
                 const auto& entry=recentWorkspace.entries[index];
-                if(part)DrawCodicon(item->hDC,part==1?0xeb2b:0xea76,r,part==1&&entry.pinned?GREEN:MUTED,S(16));
+                if(part) {
+                    if(part==1&&entry.pinned)FillRoundRect(item->hDC,r,hover?HOVER:PIN_BG,S(8));
+                    DrawCodicon(item->hDC,part==1?0xeb2b:0xea76,r,part==1&&entry.pinned?GREEN:MUTED,S(16));
+                }
                 else{
                     DrawFileTypeIcon(item->hDC,FileIconForName(entry.path,entry.folder),{S(10),S(homeCompact?10:16),S(28),S(homeCompact?28:34)});
                     const auto name=entry.path.substr(entry.path.find_last_of(L"\\/")+1);
@@ -1840,7 +1882,7 @@ void DrawButtonContents(DRAWITEMSTRUCT *item)
         RECT button=item->rcItem;InflateRect(&button,-1,-1);
         if(hover&&!disabled)FillRoundRect(item->hDC,button,HOVER,S(8));
         RECT track{button.right-S(44),button.top+S(6),button.right-S(8),button.top+S(24)};
-        FillRoundRect(item->hDC,track,disabled?DIVIDER:value?ACCENT:ELEVATED,S(18));
+        FillRoundRect(item->hDC,track,disabled?DIVIDER:value?(id==TOPMOST?PIN_BG:ACCENT):ELEVATED,S(18));
         const int knobLeft=track.left+S(value?20:2);
         RECT knob{knobLeft,track.top+S(2),knobLeft+S(14),track.bottom-S(2)};
         FillRoundRect(item->hDC,knob,disabled?DISABLED:TEXT,S(14));
@@ -1866,10 +1908,11 @@ void DrawButtonContents(DRAWITEMSTRUCT *item)
     bool hover = hoveredButton == item->hwndItem && !disabled;
     bool zoom = item->CtlID == SMALLER || item->CtlID == LARGER;
     const bool stepper=StepperButton(item->CtlID);
+    const bool pinnedWindow=(item->CtlID==PIN_WINDOW||item->CtlID==TOPMOST)&&topmost;
     COLORREF color = disabled    ? CARD
                      : pressed   ? (primary ? ACCENT_DARK : DIVIDER)
                      : hover     ? HOVER
-                     : activeNav || (item->CtlID==PIN_WINDOW&&topmost) ? (page==Page::Home?RGB(35,81,64):ACCENT_DARK)
+                     : activeNav ? (page==Page::Home?RGB(35,81,64):ACCENT_DARK)
                      : primary   ? ACCENT
                      : nav       ? SIDEBAR
                                  : ELEVATED;
@@ -1879,6 +1922,7 @@ void DrawButtonContents(DRAWITEMSTRUCT *item)
         color=BG;
     const bool settingsRow=page==Page::Settings&&std::find(clippedSettingsControls.begin(),clippedSettingsControls.end(),item->hwndItem)!=clippedSettingsControls.end();
     if(page==Page::Home&&!nav&&!primary)color=hover?HOVER:HOME_BG;
+    if(pinnedWindow&&!disabled)color=hover?HOVER:PIN_BG;
     HBRUSH background = CreateSolidBrush(page==Page::Home?(nav?HOME_RAIL:HOME_BG):nav ? SIDEBAR : zoom||stepper ? ELEVATED : settingsRow ? CARD : BG);
     FillRect(item->hDC, &item->rcItem, background);
     DeleteObject(background);
@@ -1904,7 +1948,7 @@ void DrawButtonContents(DRAWITEMSTRUCT *item)
     else if(stepper||item->CtlID==WEB_MENU||item->CtlID==WEB_NEW_TAB||item->CtlID==WEB_GO||item->CtlID==WEB_ZOOM_OUT||item->CtlID==WEB_ZOOM_IN||
         (item->CtlID==BROWSER_TOGGLE&&page==Page::Browser&&browser.Enabled())||
         item->CtlID==PIN_WINDOW||item->CtlID==LAYOUT_MENU||item->CtlID==SHOW_TREE || (strip && (item->CtlID==FOCUS || item->CtlID==MASK || item->CtlID==TOPMOST || item->CtlID==SMALLER || item->CtlID==LARGER || item->CtlID==MODE || item->CtlID==PLAY || item->CtlID==OPEN_FILE || item->CtlID==OVERFLOW || item->CtlID==FIND_CLOSE || item->CtlID==FIND_PREV || item->CtlID==FIND_NEXT)))
-        DrawActionIcon(item->hDC,item->CtlID,button,disabled?DISABLED:item->CtlID==PIN_WINDOW&&!topmost?MUTED:TEXT);
+        DrawActionIcon(item->hDC,item->CtlID,button,disabled?DISABLED:(item->CtlID==PIN_WINDOW||item->CtlID==TOPMOST)?(topmost?GREEN:MUTED):TEXT);
     else
     {
         DrawTextAt(item->hDC, TextOf(item->hwndItem), button,
@@ -2178,6 +2222,12 @@ bool CompactFits()
 {
     RECT client{};
     GetClientRect(window, &client);
+    if(page==Page::Home) {
+        HDC dc=GetDC(window);auto old=SelectObject(dc,homeCompact?brandFont:titleFont);
+        SIZE label{};const auto text=T(L"Trang chủ",L"Home");
+        GetTextExtentPoint32W(dc,text,lstrlenW(text),&label);SelectObject(dc,old);ReleaseDC(window,dc);
+        if(label.cx>S(contentRight-contentLeft-(homeCompact?64:0)))return false;
+    }
     std::vector<RECT> controls;
     std::vector<HWND> children=buttons;
     if(page==Page::Home)children.push_back(homeVersion);
@@ -2319,7 +2369,9 @@ void QaTick()
         CHARFORMAT2W format{};
         format.cbSize = sizeof(format);
         SendMessageW(editor, EM_GETCHARFORMAT, SCF_DEFAULT, (LPARAM)&format);
-        qaFont = fontPoints == DefaultTextPoints+4 && format.yHeight == (DefaultTextPoints+4)*20;
+        LOGFONTW nativeFont{};GetObjectW(uiFont,sizeof(nativeFont),&nativeFont);
+        qaFont = fontPoints == DefaultTextPoints+4 && format.yHeight == (DefaultTextPoints+4)*20 &&
+                 nativeFont.lfQuality==CLEARTYPE_QUALITY && wcscmp(format.szFaceName,L"Segoe UI")==0;
         Capture(L"large-text.bmp");
         qaStartY = ScrollPosition().y;
         SendMessageW(window, WM_COMMAND, MAKEWPARAM(PLAY, BN_CLICKED), 0);
@@ -3013,6 +3065,9 @@ LRESULT CALLBACK Proc(HWND h, UINT message, WPARAM wp, LPARAM lp)
             POINT point{};GetCursorPos(&point);ScreenToClient(h,&point);
             if(splitterDragging||PtInRect(&splitterRect,point)){SetCursor(LoadCursorW(nullptr,IDC_SIZEWE));return TRUE;}
         }
+        break;
+    case WM_CONTEXTMENU:
+        if((HWND)wp==GetDlgItem(h,NAV_SCRIPT)){OpenContentMenu();return 0;}
         break;
     case WM_LBUTTONDOWN: {
         POINT point{GET_X_LPARAM(lp),GET_Y_LPARAM(lp)};

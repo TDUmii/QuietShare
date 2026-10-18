@@ -41,7 +41,7 @@ This guide describes `main`; **Unreleased** in the [CHANGELOG](CHANGELOG.md) lis
 
 ### 3. Cài đặt và nâng cấp
 
-1. Tải `QuietShare-Setup.exe` tại [QuietShare v0.12.1](https://github.com/TDUmii/QuietShare/releases/tag/v0.12.1) và chạy bộ cài. Nếu dùng ZIP, giải nén toàn bộ trước khi chạy ứng dụng.
+1. Tải `QuietShare-Setup.exe` tại [QuietShare v0.12.2](https://github.com/TDUmii/QuietShare/releases/tag/v0.12.2) và chạy bộ cài. Nếu dùng ZIP, giải nén toàn bộ trước khi chạy ứng dụng.
 2. Bộ cài áp dụng cho tài khoản Windows hiện tại, không cần quyền quản trị. Nút **EN / VI** đổi ngôn ngữ bộ cài.
 3. Để dùng portable, chạy `QuietShare.exe` trong thư mục đã giải nén. Giữ `Scintilla.dll`, `Lexilla.dll`, `pdfium.dll` và `WebView2Loader.dll` cạnh EXE; không chỉ sao chép EXE.
 4. Đóng QuietShare trước khi nâng cấp bằng bộ cài mới. Nâng cấp và gỡ ứng dụng giữ lại lời nhắc đã lưu.
@@ -50,7 +50,7 @@ Nếu trình duyệt không khởi tạo được, cài/cập nhật WebView2 Ru
 
 ### 4. Sử dụng tài liệu và không gian làm việc
 
-Khi mở ứng dụng, đợi quá trình xác minh capture. Chân trang **Không gian của bạn** hiển thị **v0.12.1** để nhận diện phiên bản đang chạy. Nếu nội dung bị khóa và cần xác minh lại, chọn icon **Kiểm tra WGC** tại thanh bên trái. Nội dung chỉ được hiển thị khi các điều kiện bảo vệ đạt.
+Khi mở ứng dụng, đợi quá trình xác minh capture. Chân trang **Trang chủ** hiển thị **v0.12.2** để nhận diện phiên bản đang chạy. Nếu nội dung bị khóa và cần xác minh lại, chọn icon **Kiểm tra WGC** tại thanh bên trái. Nội dung chỉ được hiển thị khi các điều kiện bảo vệ đạt.
 
 - **Home / Gần đây:** mở lại file hoặc dự án đã mở thành công, ghim mục yêu thích hoặc xóa từng mục bằng nút ×. Các nút trước/sau duyệt tối đa 32 mục. **Xóa lịch sử** xóa cả ghim, không xóa file gốc. Lịch sử được Windows DPAPI mã hóa trên máy và tên file được che khi nội dung đang khóa. Lần chạy đầu không có dữ liệu mẫu.
 - **Sửa file:** văn bản và code mặc định cho phép sửa. Nhấn **Lưu** hoặc **Ctrl+S** để ghi file; lời nhắc vẫn tự lưu riêng. Khi đóng tab có thay đổi, chọn lưu, bỏ thay đổi hoặc hủy. QuietShare giữ mã hóa UTF-8/UTF-16 và BOM; nếu file đã đổi bên ngoài, thao tác lưu bị chặn và bản sửa vẫn ở trong tab. Tắt tại **Cài đặt > Nội dung > Cho phép sửa file văn bản / code** để chỉ xem; bản sửa chưa lưu được giữ trong phiên.
@@ -189,7 +189,7 @@ Phím **toàn hệ thống** dùng được khi ứng dụng khác đang nhận 
 
 ### 3. Installation and upgrades
 
-1. Download `QuietShare-Setup.exe` from [QuietShare v0.12.1](https://github.com/TDUmii/QuietShare/releases/tag/v0.12.1) and run it. For ZIP use, extract the complete archive before running the application.
+1. Download `QuietShare-Setup.exe` from [QuietShare v0.12.2](https://github.com/TDUmii/QuietShare/releases/tag/v0.12.2) and run it. For ZIP use, extract the complete archive before running the application.
 2. Installation applies to the current Windows account without administrator privileges. **EN / VI** switches the installer language.
 3. For portable use, run `QuietShare.exe` in the extracted folder. Keep `Scintilla.dll`, `Lexilla.dll`, `pdfium.dll` and `WebView2Loader.dll` beside it; do not copy only the EXE.
 4. Close QuietShare before upgrading. Upgrades and uninstallation retain the saved script.
@@ -198,7 +198,7 @@ If browsing cannot initialize, install/update WebView2 Runtime, then disable and
 
 ### 4. Documents and workspace
 
-Wait for capture verification at startup. The **Your workspace** footer displays **v0.12.1** to identify the running version. If content is locked and verification is requested, select **Verify WGC privacy** on the left activity bar. Readers become available only after the protection conditions pass.
+Wait for capture verification at startup. The **Home** footer displays **v0.12.2** to identify the running version. If content is locked and verification is requested, select **Verify WGC privacy** on the left activity bar. Readers become available only after the protection conditions pass.
 
 - **Home / Recent:** reopen successfully opened files/projects, pin favorites or remove an entry with ×. Previous/next browse up to 32 entries. **Clear history** removes pins as well, without deleting source files. Windows DPAPI encrypts this local history; filenames are concealed while content is locked. No sample history appears at first launch.
 - **File editing:** text and code editing is enabled by default. Use **Save** or **Ctrl+S** to write the file; script autosave remains separate. Closing a modified tab offers save, discard or cancel. QuietShare retains UTF-8/UTF-16 encoding and BOM; an external change blocks saving while your draft remains in the tab. Disable **Settings > Reading > Allow text / code editing** for viewing only; unsaved drafts remain in the session.
@@ -322,3 +322,12 @@ The Open files activity button resumes the current file without resetting its na
 Web, tab web mới, code, ảnh và PDF mở ở 50%; văn bản/lời nhắc dùng 12 pt, tương ứng 50% của cỡ chuẩn 24 pt. Nút đặt lại zoom và Ctrl+0 trở về mức mặc định này. Zoom tự chọn vẫn được giữ riêng theo tab trong phiên; các lệnh PDF Vừa trang / Vừa ngang vẫn căn theo khung khi chọn chủ động. Kích thước giao diện điều khiển theo DPI Windows như hiện tại.
 
 Web pages, new browser tabs, code, images and PDFs default to 50%; text/scripts default to 12 pt. Reset and Ctrl+0 restore these defaults. Per-tab user zoom remains independent for the session. Explicit PDF Fit Page / Fit Width still fit the viewport.
+
+
+### Khôi phục sau khi đổi chế độ màn hình
+
+Khi chuyển Duplicate về Extend, QuietShare chọn lại nguồn và đích khác nhau. Chọn **Kiểm tra WGC**, rồi **Bắt đầu trình chiếu** để tạo phiên mới; ứng dụng không tự chiếu lại sau khi bị khóa. Nhấp phải biểu tượng **Tệp đang mở** ở thanh trái để chọn nhanh tệp hoặc soạn lời nhắc. Nút ghim dùng xanh lá khi bật và xám khi tắt.
+
+### Returning from Duplicate to Extend
+
+QuietShare selects distinct source and destination displays again. Select **Verify WGC**, then **Start projection** for a fresh session; output never resumes automatically after a safety stop. Right-click **Open files** on the activity bar to switch files or compose a script. Pin controls use green when enabled and gray when disabled.

@@ -143,6 +143,16 @@ int wmain(int argc,wchar_t **argv)
     Check(!controller.Verify(nullptr,L"invalid")&&!controller.IsVerified(),"invalid private window locks");
     controller.Invalidate();controller.Tick();
     Check(!controller.IsVerified()&&!controller.Projector(),"invalidation leaves no output");
+    MonitorInfo laptop{},screen{};laptop.stableId=L"laptop";laptop.primary=true;screen.stableId=L"screen";
+    auto pair=SelectMonitorPair({laptop,screen},L"laptop",L"screen");
+    Check(pair==std::pair<int,int>{0,1},"Extend retains distinct selected displays");
+    pair=SelectMonitorPair({laptop},laptop.stableId,screen.stableId);
+    Check(pair==std::pair<int,int>{0,0},"Duplicate collapse has only one selectable display");
+    pair=SelectMonitorPair({laptop,screen},laptop.stableId,laptop.stableId);
+    Check(pair==std::pair<int,int>{0,1},"returning Extend repairs collapsed source and destination selection");
+    Check(SelectMonitorPair({screen,laptop},L"laptop",L"laptop")==std::pair<int,int>{1,0},"returning Extend works with reordered monitor enumeration");
+    Check(SelectMonitorPair({laptop,screen},L"missing",L"missing")==std::pair<int,int>{0,1},"removed identities fall back to a distinct pair");
+    Check(SelectMonitorPair({},L"laptop",L"screen")==std::pair<int,int>{-1,-1},"no displays leaves both selectors empty");
     const auto monitors=EnumerateMonitors();
     Check(!monitors.empty(),"active monitors enumerated");
     if(!monitors.empty())
@@ -172,6 +182,9 @@ int wmain(int argc,wchar_t **argv)
         Check(actualWgc,"real WGC positive control then protected exclusion");
         if(actualWgc)
         {
+            controller.Invalidate();
+            Check(!controller.Running()&&!controller.IsVerified()&&!controller.Projector(),"topology invalidation never restarts output automatically");
+            Check(controller.Verify(privateWindow,monitors.front().stableId)&&!controller.Running(),"explicit fresh WGC verification restores confidence after invalidation without starting output");
             for(int mode=0;mode<3;++mode)
             {
                 controller.SetResourceMode(mode);
