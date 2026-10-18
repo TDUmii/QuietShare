@@ -84,11 +84,35 @@ bool Preview(quietshare::Browser& browser,const std::wstring& path){
     HANDLE file=CreateFileW(path.c_str(),GENERIC_WRITE,0,nullptr,CREATE_ALWAYS,FILE_ATTRIBUTE_NORMAL,nullptr);if(file==INVALID_HANDLE_VALUE)return false;
     DWORD written=0;bool saved=WriteFile(file,bytes.data(),static_cast<DWORD>(bytes.size()),&written,nullptr)&&written==bytes.size();CloseHandle(file);return saved;
 }
+void CheckPastePolicy(quietshare::Browser& browser){
+    const std::wstring policy=quietshare::kDomPolicy;
+    const auto start=policy.find(L" for(const name of ['paste','drop'])");
+    const auto end=policy.find(L" Object.defineProperty(window,'print'",start);
+    Check("imagePastePolicyAvailable",start!=std::wstring::npos&&end!=std::wstring::npos);
+    if(start==std::wstring::npos||end==std::wstring::npos)return;
+    // Execute the exact production listener with synthetic event records.
+    // No OS clipboard, physical input, user content or remote upload is used.
+    const auto listener=policy.substr(start,end-start);
+    auto check=[&](const char* name,const wchar_t* event,bool allowed){
+        const auto script=LR"JS((()=>{let handler;const addEventListener=(name,fn)=>{if(name==='paste')handler=fn;};)JS"+
+            listener+LR"JS(const target=document.createElement('div');target.contentEditable='true';document.body.append(target);
+             const image=new File(['fixture'],'fixture.png',{type:'image/png'}),file=new File(['fixture'],'fixture.txt',{type:'text/plain'});
+             let stopped=false;const e={type:'paste',isTrusted:true,target,clipboardData:{files:[image]},preventDefault(){stopped=true},stopImmediatePropagation(){}};
+             )JS"+std::wstring(event)+L";handler(e);target.remove();return !stopped})()";
+        Check(name,Script(browser,script)==(allowed?L"true":L"false"));
+    };
+    check("imagePastePolicyAllowsTrustedRasterImageInEditor",L"",true);
+    check("imagePastePolicyKeepsTextPaste",L"e.clipboardData.files=[]",true);
+    check("imagePastePolicyRejectsSyntheticFileEvents",L"e.isTrusted=false",false);
+    check("imagePastePolicyRejectsNonImageAndMixedFiles",L"e.clipboardData.files.push(file)",false);
+    check("imagePastePolicyRejectsDrop",L"e.type='drop'",false);
+    check("imagePastePolicyRequiresAnEditableTarget",L"target.contentEditable='false'",false);
+}
 }
 
 int wmain(int argc,wchar_t** argv){
     if(argc!=2)return 2;
-    std::puts("{\"method\":\"Native media-policy / rendering; simulated canary gate; isolated synthetic profile; WebView CapturePreview; no device access, desktop capture or network navigation\",\"checks\":[");
+    std::puts("{\"method\":\"Native media-policy / rendering; simulated canary gate; isolated synthetic profile; WebView CapturePreview; synthetic paste event records; no OS clipboard access, device access, desktop capture or network navigation\",\"checks\":[");
     const std::wstring output=argv[1];CreateDirectoryW(output.c_str(),nullptr);
     const std::wstring profile=output+L"\\Profile-"+std::to_wstring(GetCurrentProcessId())+L"-"+std::to_wstring(GetTickCount64());
     if(FAILED(CoInitializeEx(nullptr,COINIT_APARTMENTTHREADED)))return 2;
@@ -147,6 +171,7 @@ int wmain(int argc,wchar_t** argv){
             Check("newTabLanguageChangeUpdatesActualDom",Pump([&](){return browser.Loaded()&&nonce()!=beforeLanguage;})&&Script(browser,L"document.title==='New tab'&&document.querySelector('.add .caption').textContent==='Add shortcut'")==L"true");
             Check("compactEnglishNewTabHasNoHorizontalOverflow",Script(browser,L"innerWidth>250&&innerHeight>130&&document.documentElement.scrollWidth<=innerWidth")==L"true");
             Check("compactEnglishNewTabPreviewSaved",Preview(browser,output+L"\\newtab-en-358x197.png"));
+            CheckPastePolicy(browser);
             browser.Disable();
             Check("browserMediaPreferencesSurviveDisable",browser.impl->muted&&browser.impl->allowCamera&&browser.impl->allowMicrophone&&!browser.Enabled());
             browser.Enable(window,profile);browser.Show(true);

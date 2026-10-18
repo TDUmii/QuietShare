@@ -1,9 +1,9 @@
-# QuietShare - bàn giao sau v0.12.2
+# QuietShare - bàn giao sau v0.13.0
 
 - Cập nhật: 2026-10-18
 - Repository: private `TDUmii/QuietShare`
 - Nhánh: `main`
-- Bản sản phẩm: `v0.12.2`; xác minh commit bằng tag và Release trực tiếp trước khi tiếp tục.
+- Bản sản phẩm: `v0.13.0`; xác minh commit bằng tag và Release trực tiếp trước khi tiếp tục.
 
 ## Sản phẩm hiện tại
 
@@ -37,3 +37,6 @@ Zoom mặc định từ v0.12.1: DefaultZoomPercent=50 dùng chung src/Zoom.h; t
 
 
 v0.12.2: sửa cặp màn nguồn/đích trùng sau Duplicate → Extend, cập nhật màn trước Verify; không tự khởi động lại. Home Trang chủ, Segoe UI/ClearType và code DirectWrite/LCD, menu nhấp phải Tệp đang mở, ghim xanh lá thống nhất. Kiểm thử tự động không xác nhận hai màn vật lý.
+
+
+v0.13.0: yêu cầu mới cho phép Ctrl+V ảnh raster vào ô nhập web (trusted paste), không nới clipboard-read tự động hay native picker/drop. Thanh xem có ô cỡ chữ, weight thường/vừa/đậm, wrap; code có wrap. Điều khiển dùng chung với Settings, reflow khi hẹp. Bỏ nhãn tự lưu lặp. Không kiểm tra clipboard cá nhân hay gửi ảnh/chat thật trong kiểm thử tự động.

@@ -1,6 +1,6 @@
 # Prompt tiếp tục QuietShare
 
-Tiếp tục private repository `TDUmii/QuietShare` từ bản `v0.12.2`. Đọc `handoff/QUIETSHARE_NEXT_CHAT_HANDOFF.md`, `handoff/QUIETSHARE_CONTEXT.md` và `handoff/EXTEND_LAPTOP_HANDOFF.md`; xác minh live main/origin/main, working tree, tag/Release trước khi thay đổi.
+Tiếp tục private repository `TDUmii/QuietShare` từ bản `v0.13.0`. Đọc `handoff/QUIETSHARE_NEXT_CHAT_HANDOFF.md`, `handoff/QUIETSHARE_CONTEXT.md` và `handoff/EXTEND_LAPTOP_HANDOFF.md`; xác minh live main/origin/main, working tree, tag/Release trước khi thay đổi.
 
 Home dùng lịch sử file/dự án thực, mã hóa DPAPI cục bộ, có mở lại/ghim/xóa. Nhớ kích thước cửa sổ và cho phép sửa văn bản/code mặc định bật; file dùng lưu chủ động và kiểm tra xung đột bên ngoài. Giữ nguyên toàn bộ capture/privacy/topology/source/device guards. Lỗi bảo vệ dừng đầu ra và không tự khởi động lại.
 
@@ -16,3 +16,6 @@ Zoom mặc định từ v0.12.1: DefaultZoomPercent=50 dùng chung src/Zoom.h; t
 
 
 v0.12.2: sửa cặp màn nguồn/đích trùng sau Duplicate → Extend, cập nhật màn trước Verify; không tự khởi động lại. Home Trang chủ, Segoe UI/ClearType và code DirectWrite/LCD, menu nhấp phải Tệp đang mở, ghim xanh lá thống nhất. Kiểm thử tự động không xác nhận hai màn vật lý.
+
+
+v0.13.0: yêu cầu mới cho phép Ctrl+V ảnh raster vào ô nhập web (trusted paste), không nới clipboard-read tự động hay native picker/drop. Thanh xem có ô cỡ chữ, weight thường/vừa/đậm, wrap; code có wrap. Điều khiển dùng chung với Settings, reflow khi hẹp. Bỏ nhãn tự lưu lặp. Không kiểm tra clipboard cá nhân hay gửi ảnh/chat thật trong kiểm thử tự động.

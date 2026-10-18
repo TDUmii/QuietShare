@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.13.0
+
+- Cho phép Ctrl+V dán ảnh raster vào ô nhập web; giữ chặn clipboard tự đọc, hộp chọn file native và file drop.
+- Thêm ô cỡ chữ, độ đậm và xuống dòng trực tiếp trên thanh xem văn bản/lời nhắc; thêm nút xuống dòng cho code. Thanh công cụ tự chia hàng khi cửa sổ hẹp.
+- Xuống dòng văn bản giữ riêng theo tệp trong phiên, không thay nội dung file. Bỏ nhãn tự lưu lặp ở chân trang lời nhắc.
+
 ## v0.12.2
 
 - Khôi phục lựa chọn hai màn khác nhau sau Duplicate → Extend; kiểm tra lại danh sách màn trước WGC. Vẫn cần xác minh và bắt đầu lại chủ động.

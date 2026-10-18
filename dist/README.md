@@ -41,7 +41,7 @@ This guide describes `main`; **Unreleased** in the [CHANGELOG](CHANGELOG.md) lis
 
 ### 3. Cài đặt và nâng cấp
 
-1. Tải `QuietShare-Setup.exe` tại [QuietShare v0.12.2](https://github.com/TDUmii/QuietShare/releases/tag/v0.12.2) và chạy bộ cài. Nếu dùng ZIP, giải nén toàn bộ trước khi chạy ứng dụng.
+1. Tải `QuietShare-Setup.exe` tại [QuietShare v0.13.0](https://github.com/TDUmii/QuietShare/releases/tag/v0.13.0) và chạy bộ cài. Nếu dùng ZIP, giải nén toàn bộ trước khi chạy ứng dụng.
 2. Bộ cài áp dụng cho tài khoản Windows hiện tại, không cần quyền quản trị. Nút **EN / VI** đổi ngôn ngữ bộ cài.
 3. Để dùng portable, chạy `QuietShare.exe` trong thư mục đã giải nén. Giữ `Scintilla.dll`, `Lexilla.dll`, `pdfium.dll` và `WebView2Loader.dll` cạnh EXE; không chỉ sao chép EXE.
 4. Đóng QuietShare trước khi nâng cấp bằng bộ cài mới. Nâng cấp và gỡ ứng dụng giữ lại lời nhắc đã lưu.
@@ -50,12 +50,12 @@ Nếu trình duyệt không khởi tạo được, cài/cập nhật WebView2 Ru
 
 ### 4. Sử dụng tài liệu và không gian làm việc
 
-Khi mở ứng dụng, đợi quá trình xác minh capture. Chân trang **Trang chủ** hiển thị **v0.12.2** để nhận diện phiên bản đang chạy. Nếu nội dung bị khóa và cần xác minh lại, chọn icon **Kiểm tra WGC** tại thanh bên trái. Nội dung chỉ được hiển thị khi các điều kiện bảo vệ đạt.
+Khi mở ứng dụng, đợi quá trình xác minh capture. Chân trang **Trang chủ** hiển thị **v0.13.0** để nhận diện phiên bản đang chạy. Nếu nội dung bị khóa và cần xác minh lại, chọn icon **Kiểm tra WGC** tại thanh bên trái. Nội dung chỉ được hiển thị khi các điều kiện bảo vệ đạt.
 
 - **Home / Gần đây:** mở lại file hoặc dự án đã mở thành công, ghim mục yêu thích hoặc xóa từng mục bằng nút ×. Các nút trước/sau duyệt tối đa 32 mục. **Xóa lịch sử** xóa cả ghim, không xóa file gốc. Lịch sử được Windows DPAPI mã hóa trên máy và tên file được che khi nội dung đang khóa. Lần chạy đầu không có dữ liệu mẫu.
 - **Sửa file:** văn bản và code mặc định cho phép sửa. Nhấn **Lưu** hoặc **Ctrl+S** để ghi file; lời nhắc vẫn tự lưu riêng. Khi đóng tab có thay đổi, chọn lưu, bỏ thay đổi hoặc hủy. QuietShare giữ mã hóa UTF-8/UTF-16 và BOM; nếu file đã đổi bên ngoài, thao tác lưu bị chặn và bản sửa vẫn ở trong tab. Tắt tại **Cài đặt > Nội dung > Cho phép sửa file văn bản / code** để chỉ xem; bản sửa chưa lưu được giữ trong phiên.
 - **Kích thước cửa sổ:** **Cài đặt > Giao diện > Nhớ kích thước cửa sổ** mặc định bật. Ứng dụng nhớ kích thước cửa sổ bình thường khi đóng và điều chỉnh để vừa vùng làm việc hiện tại; khi tắt, lần mở sau dùng kích thước mặc định.
-- **Lời nhắc:** mở trang Lời nhắc để nhập hoặc dán nội dung. **Ctrl+Enter** chuyển soạn/đọc; **Space** trong vùng đọc bắt đầu/dừng cuộn. Lời nhắc được tự lưu và khôi phục ở lần mở tiếp theo.
+- **Lời nhắc:** chọn Soạn lời nhắc trong menu nhấp phải Tệp đang mở để nhập hoặc dán nội dung. **Ctrl+Enter** chuyển soạn/đọc; **Space** trong vùng đọc bắt đầu/dừng cuộn. Lời nhắc được tự lưu và khôi phục ở lần mở tiếp theo.
 - **File:** chọn **Mở hoặc thả file**, **Ctrl+O** hoặc kéo thả nhiều file. Dấu **×**, chuột giữa hoặc **Ctrl+W** đóng tab file. Menu **⋯** có lệnh đóng các tab khác/mọi file; tab lời nhắc được giữ. Khi mở lại file đã thay đổi, chọn **Tải lại** hoặc **Giữ bản đang xem**.
 - **Dự án:** dùng **Ctrl+Shift+O** để chọn thư mục. Nhấp đúp file hoặc dùng mũi tên và Enter trong Explorer. **Ctrl+B** hoặc **Bố cục > Explorer** ẩn/hiện cùng cây đã mở. Mặc định bỏ qua thư mục ẩn và `.git`, `node_modules`, `.venv`, `dist`, `build`; đổi bộ lọc tại **Cài đặt > Bố cục**.
 - **Cỡ chữ/zoom:** dùng các nút thu/phóng, phím tắt hoặc **Cài đặt > Nội dung**. Nhập giá trị rồi Enter; **Đặt lại** khôi phục mặc định. Ô nhập đặt dấu nháy ở cuối khi nhận focus/bấm lần đầu.
@@ -104,7 +104,7 @@ Khi bật web trong phiên Smart Mirror, đầu chiếu giữ khung hình công 
 
 Trong **Cài đặt > Trình duyệt**, **Tắt âm thanh** áp dụng cho các tab web. **Cho phép camera** và **Cho phép micro** mặc định tắt. Khi bật từng quyền, chỉ tab đang hiển thị, đã xác minh capture và mở trang HTTPS mới có thể được cấp quyền native; nguồn yêu cầu phải cùng origin với trang chính (giao thức, tên miền và cổng). Quyền từng website không được lưu vào hồ sơ web; quyền thiết bị của Windows vẫn áp dụng. Tắt một quyền đã được cấp sẽ thu hồi quyền và có thể tải lại tab để dừng các luồng thiết bị đang dùng.
 
-Tải lên/tải xuống file, chia sẻ màn hình, thông báo, DevTools và menu native vẫn bị tắt. Popup tự phát bị chặn; link mở cửa sổ mới do người dùng bấm được mở thành tab trong QuietShare nếu còn chỗ. Đăng nhập OAuth cần popup riêng có thể không tương thích. Dropdown HTML native có thể chọn bằng phím mũi tên. Thay đổi màn hình thực sự tắt trình duyệt và yêu cầu xác minh lại.
+Hộp chọn file web, kéo/thả file, tải xuống, chia sẻ màn hình, thông báo, DevTools và menu native vẫn bị tắt. Có thể chủ động Ctrl+V ảnh raster vào ô nhập web. Popup tự phát bị chặn; link mở cửa sổ mới do người dùng bấm được mở thành tab trong QuietShare nếu còn chỗ. Đăng nhập OAuth cần popup riêng có thể không tương thích. Dropdown HTML native có thể chọn bằng phím mũi tên. Thay đổi màn hình thực sự tắt trình duyệt và yêu cầu xác minh lại.
 
 ### 7. Smart Mirror và giới hạn bảo vệ
 
@@ -189,7 +189,7 @@ Phím **toàn hệ thống** dùng được khi ứng dụng khác đang nhận 
 
 ### 3. Installation and upgrades
 
-1. Download `QuietShare-Setup.exe` from [QuietShare v0.12.2](https://github.com/TDUmii/QuietShare/releases/tag/v0.12.2) and run it. For ZIP use, extract the complete archive before running the application.
+1. Download `QuietShare-Setup.exe` from [QuietShare v0.13.0](https://github.com/TDUmii/QuietShare/releases/tag/v0.13.0) and run it. For ZIP use, extract the complete archive before running the application.
 2. Installation applies to the current Windows account without administrator privileges. **EN / VI** switches the installer language.
 3. For portable use, run `QuietShare.exe` in the extracted folder. Keep `Scintilla.dll`, `Lexilla.dll`, `pdfium.dll` and `WebView2Loader.dll` beside it; do not copy only the EXE.
 4. Close QuietShare before upgrading. Upgrades and uninstallation retain the saved script.
@@ -198,7 +198,7 @@ If browsing cannot initialize, install/update WebView2 Runtime, then disable and
 
 ### 4. Documents and workspace
 
-Wait for capture verification at startup. The **Home** footer displays **v0.12.2** to identify the running version. If content is locked and verification is requested, select **Verify WGC privacy** on the left activity bar. Readers become available only after the protection conditions pass.
+Wait for capture verification at startup. The **Home** footer displays **v0.13.0** to identify the running version. If content is locked and verification is requested, select **Verify WGC privacy** on the left activity bar. Readers become available only after the protection conditions pass.
 
 - **Home / Recent:** reopen successfully opened files/projects, pin favorites or remove an entry with ×. Previous/next browse up to 32 entries. **Clear history** removes pins as well, without deleting source files. Windows DPAPI encrypts this local history; filenames are concealed while content is locked. No sample history appears at first launch.
 - **File editing:** text and code editing is enabled by default. Use **Save** or **Ctrl+S** to write the file; script autosave remains separate. Closing a modified tab offers save, discard or cancel. QuietShare retains UTF-8/UTF-16 encoding and BOM; an external change blocks saving while your draft remains in the tab. Disable **Settings > Reading > Allow text / code editing** for viewing only; unsaved drafts remain in the session.
@@ -252,7 +252,7 @@ Enabling web during Smart Mirror holds the most recent public frame while verifi
 
 In **Settings > Browser**, **Mute audio** applies to web tabs. **Allow camera** and **Allow microphone** are off by default. When individually enabled, native access is eligible only in a visible, capture-verified tab displaying an HTTPS page; the requesting origin must match the main page's origin (scheme, host and port). Website grants are not saved to the web profile, and Windows device permissions still apply. Disabling a previously granted permission revokes it and may reload the affected tab to stop active device streams.
 
-File uploads/downloads, screen sharing, notifications, DevTools and native context menus remain disabled. Unsolicited popups are blocked; user-initiated new-window links open in a QuietShare tab if capacity is available. OAuth flows requiring separate popups may be incompatible. Native HTML selects support arrow-key selection. Actual display changes disable browsing until fresh verification.
+Native web file pickers, file drops, downloads, screen sharing, notifications, DevTools and native context menus remain disabled. Explicit Ctrl+V raster image paste into web editors is supported. Unsolicited popups are blocked; user-initiated new-window links open in a QuietShare tab if capacity is available. OAuth flows requiring separate popups may be incompatible. Native HTML selects support arrow-key selection. Actual display changes disable browsing until fresh verification.
 
 ### 7. Smart Mirror and protection limits
 
@@ -331,3 +331,14 @@ Khi chuyển Duplicate về Extend, QuietShare chọn lại nguồn và đích k
 ### Returning from Duplicate to Extend
 
 QuietShare selects distinct source and destination displays again. Select **Verify WGC**, then **Start projection** for a fresh session; output never resumes automatically after a safety stop. Right-click **Open files** on the activity bar to switch files or compose a script. Pin controls use green when enabled and gray when disabled.
+
+
+### Dán ảnh và đọc văn bản
+
+Ctrl+V có thể dán ảnh raster trong clipboard vào ô nhập trên trang web hỗ trợ ảnh. Thao tác dán do người dùng thực hiện; QuietShare không cấp quyền đọc clipboard tự động. Hộp chọn file web và kéo/thả tệp vẫn bị chặn.
+
+Màn xem văn bản/lời nhắc có ô nhập cỡ chữ 8-200 pt, nút chọn Thường / Vừa / Đậm và nút Xuống dòng; màn code có nút Xuống dòng. Thanh công cụ tự chia hàng khi hẹp. Điều chỉnh cách xem không ghi định dạng vào file text.
+
+### Image paste and reading controls
+
+Ctrl+V can paste clipboard raster images into web editors that support images. QuietShare retains denial of automatic clipboard reads, native web file pickers and file drops. Text/script viewers expose an 8-200 pt size field, regular/semibold/bold weight and word wrap; code has a word-wrap control. The toolbar reflows in narrow windows. Viewing preferences do not write formatting into plain-text files.

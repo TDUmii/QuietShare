@@ -2,10 +2,10 @@
 
 Updated: 2026-10-18
 Repository: private `TDUmii/QuietShare`
-Current application version: `v0.12.2`
+Current application version: `v0.13.0`
 Current implementation retains the 5-minute session-expiry fix, pre-move source-window containment and compact shell/browser controls. The v0.10.0 release includes a local browser New tab page with user-saved shortcuts, six Settings categories, configurable command shortcuts, window opacity and script weight, and quick projection actions on the activity bar. v0.10.1 adds centered numeric/address controls, configurable icon size, browser audio and device permissions, and compact browser zoom controls while preserving the projection safeguards. Historical releases remain available.
 
-## Tình trạng mới nhất - v0.12.2
+## Tình trạng mới nhất - v0.13.0
 
 Home có lịch sử thật được DPAPI mã hóa, ghim/xóa/mở lại; không có dữ liệu mẫu trong sản phẩm. Hai tùy chọn nhớ kích thước cửa sổ và cho phép sửa văn bản/code mặc định bật. File lưu chủ động, kiểm tra thay đổi bên ngoài và bảo vệ bản sửa chưa lưu. UI nhàn rỗi dùng nhịp 250 ms; tránh resize viewer trùng.
 
@@ -53,7 +53,7 @@ The control window uses uniform 40-100% alpha, including text; it does not provi
 
 The browser opens a local New tab page instead of fixed Google/ChatGPT destinations, with up to ten saved shortcut tiles and up to eight simultaneous web tabs. Saved URLs belong to the local browser profile and never to Git or release payloads. The address container remains centered in the navigation row, with single-line text and a vertically centered caret; first-click select-all is retained. Zoom out, zoom level/reset and zoom in are directly available beside navigation, with 25-400% zoom per tab.
 
-Browser Settings contains engine enablement, audio mute, camera and microphone options. The three audio/camera/microphone preferences default to false and persist locally; engine enablement remains off on each application launch. Native camera/microphone grants require the corresponding option, a visible capture-verified HTTPS tab and a requesting origin matching the main page's origin. Website grants are not persisted, and Windows device permissions still apply. Turning off a previously granted permission revokes it and can reload the affected tab to unload active tracks. Keep capture verification, unsolicited-popup blocking, background suspension and the existing restrictions on file upload/download, screen sharing, notifications, DevTools, native context menus, external protocols and native authentication dialogs.
+Browser Settings contains engine enablement, audio mute, camera and microphone options. The three audio/camera/microphone preferences default to false and persist locally; engine enablement remains off on each application launch. Native camera/microphone grants require the corresponding option, a visible capture-verified HTTPS tab and a requesting origin matching the main page's origin. Website grants are not persisted, and Windows device permissions still apply. Turning off a previously granted permission revokes it and can reload the affected tab to unload active tracks. Keep capture verification, unsolicited-popup blocking, background suspension and the restrictions on native file pickers, file drops and downloads (explicit trusted raster image paste is allowed since v0.13.0), screen sharing, notifications, DevTools, native context menus, external protocols and native authentication dialogs.
 
 No repeat physical TV or timed hardware run is requested in this follow-up. The consumed field report remains removed from the current Git tree; retain this context and `handoff/EXTEND_LAPTOP_HANDOFF.md`. Keep product documentation and release notes focused on features, installation, use and actual limitations; keep local validation evidence out of the payload.
 
@@ -71,3 +71,6 @@ Zoom mặc định từ v0.12.1: DefaultZoomPercent=50 dùng chung src/Zoom.h; t
 
 
 Theo báo lỗi mới: Duplicate khóa đúng nhưng trở lại Extend không khôi phục nút Start. v0.12.2 sửa cặp nguồn/đích trùng sau collapse, cập nhật màn trước Verify; vẫn fail closed và không tự chiếu lại. Chữ Segoe UI/ClearType và code DirectWrite/LCD, Home Trang chủ, menu nhấp phải Tệp đang mở, ghim xanh lá thống nhất. Kiểm thử tự động không thay cho xác nhận lại trên hai màn vật lý.
+
+
+v0.13.0: yêu cầu mới cho phép Ctrl+V ảnh raster vào ô nhập web (trusted paste), không nới clipboard-read tự động hay native picker/drop. Thanh xem có ô cỡ chữ, weight thường/vừa/đậm, wrap; code có wrap. Điều khiển dùng chung với Settings, reflow khi hẹp. Bỏ nhãn tự lưu lặp. Không kiểm tra clipboard cá nhân hay gửi ảnh/chat thật trong kiểm thử tự động.

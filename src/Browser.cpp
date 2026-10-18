@@ -66,7 +66,7 @@ std::wstring CanaryHtml(){
     return html+L"</svg></body></html>";
 }
 // Native browser dialogs/popups are outside the app-owned protection boundary.
-// Suppress file uploads and native select popups; DOM dropdowns remain usable.
+// Suppress native file pickers and select popups; explicit image paste and DOM dropdowns remain usable.
 constexpr wchar_t kDomPolicy[]=LR"JS((()=>{
  const blocked=e=>e.target.closest&&e.target.closest('input[type=file],input[type=color],input[type=date],input[type=datetime-local],input[type=time],input[type=month],input[type=week],select');
  for(const name of ['click','mousedown','keydown'])addEventListener(name,e=>{
@@ -82,7 +82,12 @@ constexpr wchar_t kDomPolicy[]=LR"JS((()=>{
  addEventListener('mouseover',e=>{if(e.target.closest){const el=e.target.closest('[title]');if(el)el.removeAttribute('title')}},true);
  const observer=new MutationObserver(records=>{for(const r of records){if(r.type==='attributes'){r.target.removeAttribute(r.attributeName)}else for(const n of r.addedNodes)stripTitle(n)}});
  observer.observe(document,{subtree:true,childList:true,attributes:true,attributeFilter:['title','list']});
- for(const name of ['paste','drop'])addEventListener(name,e=>{const data=e.clipboardData||e.dataTransfer;if(data&&data.files&&data.files.length){e.preventDefault();e.stopImmediatePropagation()}},true);
+ for(const name of ['paste','drop'])addEventListener(name,e=>{
+  const data=e.clipboardData||e.dataTransfer;if(!data||!data.files||!data.files.length)return;
+  const target=e.target,editable=target&&(target.isContentEditable||target.matches&&target.matches('textarea,input:not([type=file])'));
+  const images=e.type==='paste'&&e.isTrusted&&editable&&Array.from(data.files).every(file=>/^image\/(png|jpeg|webp|gif|bmp|avif)$/.test(file.type));
+  if(!images){e.preventDefault();e.stopImmediatePropagation()}
+ },true);
  Object.defineProperty(window,'print',{value:()=>{},writable:false,configurable:false});
  Object.defineProperty(window,'__quietShareNativeUiPolicy',{value:true});
 })())JS";

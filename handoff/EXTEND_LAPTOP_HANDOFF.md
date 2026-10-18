@@ -3,9 +3,9 @@
 Updated: 2026-10-18
 Repository: private `TDUmii/QuietShare`
 Original incident baseline: release `v0.9.1` at `f08eede29a354f8302fcd900530368eeea8f6368`
-Current application version: `v0.12.2`. This release carries forward the projection safeguards and updates the compact control and browser settings UI.
+Current application version: `v0.13.0`. This release carries forward the projection safeguards and updates the compact control and browser settings UI.
 
-## Tình trạng mới nhất - v0.12.2
+## Tình trạng mới nhất - v0.13.0
 
 Home có lịch sử thật được DPAPI mã hóa, ghim/xóa/mở lại; không có dữ liệu mẫu trong sản phẩm. Hai tùy chọn nhớ kích thước cửa sổ và cho phép sửa văn bản/code mặc định bật. File lưu chủ động, kiểm tra thay đổi bên ngoài và bảo vệ bản sửa chưa lưu. UI nhàn rỗi dùng nhịp 250 ms; tránh resize viewer trùng.
 
@@ -67,3 +67,6 @@ Zoom mặc định từ v0.12.1: DefaultZoomPercent=50 dùng chung src/Zoom.h; t
 
 
 Theo báo lỗi mới: Duplicate khóa đúng nhưng trở lại Extend không khôi phục nút Start. v0.12.2 sửa cặp nguồn/đích trùng sau collapse, cập nhật màn trước Verify; vẫn fail closed và không tự chiếu lại. Chữ Segoe UI/ClearType và code DirectWrite/LCD, Home Trang chủ, menu nhấp phải Tệp đang mở, ghim xanh lá thống nhất. Kiểm thử tự động không thay cho xác nhận lại trên hai màn vật lý.
+
+
+v0.13.0: yêu cầu mới cho phép Ctrl+V ảnh raster vào ô nhập web (trusted paste), không nới clipboard-read tự động hay native picker/drop. Thanh xem có ô cỡ chữ, weight thường/vừa/đậm, wrap; code có wrap. Điều khiển dùng chung với Settings, reflow khi hẹp. Bỏ nhãn tự lưu lặp. Không kiểm tra clipboard cá nhân hay gửi ảnh/chat thật trong kiểm thử tự động.

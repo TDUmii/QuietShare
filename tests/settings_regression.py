@@ -642,8 +642,10 @@ def main():
 
         before = native.control_text(control(146))
         command(146)
-        check("scriptWrapRemainsDisabledAndUnchanged", not USER32.IsWindowEnabled(control(146))
-              and native.control_text(control(146)) == before)
+        check("scriptWrapCanBeChangedInSettings", USER32.IsWindowEnabled(control(146))
+              and native.control_text(control(146)) != before)
+        command(146)
+        check("scriptWrapRestoresInSettings", native.control_text(control(146)) == before)
         for identifier, label, tab in ((106, "topmost", 0), (152, "ignoredFolders", 2), (143, "pointer", 3)):
             category(tab)
             before = native.control_text(control(identifier))
