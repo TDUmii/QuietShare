@@ -58,6 +58,21 @@ def main():
         app,window=launch()
         data=profile/'QuietShare'
         check('first launch has no sample history',not (data/'recent.dpapi').exists() and not api.visible(USER32.GetDlgItem(window,400)))
+        check('fresh workspace has no fabricated script or permanent script tab',api.native.control_text(USER32.GetDlgItem(window,110))=='' and send(window,api.QUERY,64)==0)
+        check('Windows capture exclusion acceptance is read back independently',send(window,api.QUERY,65)==1)
+        for width,height in ((430,320),(460,360),(800,680)):
+            scale=USER32.GetDpiForWindow(window)/96
+            USER32.SetWindowPos(window,None,0,0,round(width*scale),round(height*scale),0x16)
+            time.sleep(0.1)
+            file_card=api.rect(USER32.GetDlgItem(window,126),window)
+            project_card=api.rect(USER32.GetDlgItem(window,131),window)
+            clear=api.rect(USER32.GetDlgItem(window,252),window)
+            previous=api.rect(USER32.GetDlgItem(window,254),window)
+            next_page=api.rect(USER32.GetDlgItem(window,253),window)
+            check(f'Home cards and recent actions do not overlap at {width}x{height}',file_card[2]<project_card[0]
+                  and file_card[3]<previous[1] and previous[2]<=next_page[0] and next_page[2]<=clear[0])
+        check('recent navigation uses accessible action names instead of angle brackets',api.native.control_text(USER32.GetDlgItem(window,254)) not in ('<','>')
+              and api.native.control_text(USER32.GetDlgItem(window,253)) not in ('<','>'))
         first=root/'real-opened.py';first.write_bytes(b'value = 1\n')
         second=root/'another.txt';second.write_bytes(b'notes\n')
         api.multi_drop(window,[first]);code=USER32.GetDlgItem(window,170)
@@ -65,6 +80,26 @@ def main():
         send(code,0x102,ord('x'));command(251)
         check('explicit file save writes edits',first.read_bytes()==b'xvalue = 1\n' and send(code,2159)==0)
         send(code,0x102,ord('y'))
+        file_id=send(window,api.QUERY,2)
+        send(code,2025,2)
+        for destination,label in ((154,'browser'),(122,'Home'),(123,'Settings')):
+            command(destination);command(120)
+            check(f'return from {label} retains the selected file and unsaved native buffer',send(window,api.QUERY,2)==file_id
+                  and send(code,2006)==len(b'xyvalue = 1\n') and send(code,2008)==2 and send(code,2159)==1 and api.visible(code))
+        check('file tab strip excludes the optional script',send(window,api.QUERY,64)==1)
+        command(127)
+        editor=USER32.GetDlgItem(window,110)
+        check('compose script is explicit and adds no permanent file tab',send(window,api.QUERY,2)==0 and send(window,api.QUERY,64)==1 and api.visible(editor))
+        api.native.set_control_text(editor,'Prepared script fixture')
+        send(window,api.ACTIVATE,file_id)
+        # Reopening the code control resets its native save-point flag; the
+        # document model still owns the dirty draft. Verify data and disk here,
+        # then prove the draft is saved explicitly below.
+        check('returning from explicit script preserves file edits',send(code,2006)==len(b'xyvalue = 1\n')
+              and send(window,api.QUERY,2)==file_id and api.visible(code) and first.read_bytes()==b'xvalue = 1\n')
+        command(127)
+        check('explicit script can be reopened without losing prepared text',api.native.control_text(editor)=='Prepared script fixture')
+        send(window,api.ACTIVATE,file_id)
         api.multi_drop(window,[second]);api.multi_drop(window,[first])
         check('unsaved code draft survives tab switches',send(code,2006)==len(b'xyvalue = 1\n') and first.read_bytes()==b'xvalue = 1\n')
         command(251)

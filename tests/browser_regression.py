@@ -302,7 +302,7 @@ def main():
         native.send(window,0x312,2)
         check('F8RestoresVerifiedBrowser',wait(lambda:q(10)==2 and q(12)==1))
         check('F8PreservesBrowserZoomPreference',q(24)==110)
-        pid=q(11);cmd(120)
+        pid=q(11);cmd(127)
         check('scriptReaderHidesWebButKeepsSession',not USER32.IsWindowVisible(address) and q(11)==pid)
         check('hiddenBrowserActuallySuspends',wait(lambda:q(15)==1))
         cmd(154);check('browserSessionReturns',q(10)==2 and q(11)==pid)

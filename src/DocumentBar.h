@@ -18,6 +18,7 @@ public:
                 bool english, UINT dpi, HFONT font);
     bool Overflowing() const;
     int Offset() const { return offset_; }
+    size_t Count() const { return tabs_.size(); }
     void Scroll(int amount);
 private:
     static LRESULT CALLBACK Proc(HWND,UINT,WPARAM,LPARAM);

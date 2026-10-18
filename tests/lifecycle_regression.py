@@ -331,7 +331,7 @@ def main() -> int:
         check("sourcePreviewDoesNotReplaceSavedDraft",
               decrypt(notes) == expected_text and notes.read_bytes() == saved_before_preview,
               {"storedCharacters": len(expected_text), "encryptedBytesUnchanged": True})
-        send(reopened_window, 0x0111, 120)
+        send(reopened_window, 0x0111, 127)
         check("previewEditReturnsExactDraft",
               control_text(reopened_editor) == expected_text
               and not (USER32.GetWindowLongW(reopened_editor, -16) & 0x0800),
@@ -379,7 +379,7 @@ def main() -> int:
 
     failed = [item["check"] for item in checks if not item["passed"]]
     report = {
-        "applicationVersion": "0.11.1",
+        "applicationVersion": "0.12.0",
         "passed": not failed,
         "method": "Production EXE with isolated LOCALAPPDATA; PID-bound Win32 control messages and DPAPI decrypt",
         "scope": "Unreadable-file recovery, Unicode autosave, native plaintext mode, single instance, readonly source preview separation and restart restoration",

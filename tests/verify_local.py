@@ -1,4 +1,4 @@
-"""Verify QuietShare 0.11.1 teleprompter GDI captures and export review PNGs.
+"""Verify QuietShare 0.12.0 teleprompter GDI captures and export review PNGs.
 
 This checks one local BitBlt capture path. It cannot establish what Zoom,
 Teams, OBS, another capture API, a remote viewer, or a projector receives.
@@ -21,11 +21,11 @@ PURPLE = (124, 58, 237)
 # Keep the visual smoke test aligned with the native design tokens in src/main.cpp.
 # The check intentionally accepts the shell, sidebar and elevated surfaces because
 # the redesigned layout uses all of them in a single capture.
-DARK_SURFACES = ((30, 30, 30), (37, 37, 38), (51, 51, 51), (60, 60, 60), (70, 70, 70), (25, 29, 33))
+DARK_SURFACES = ((30, 30, 30), (37, 37, 38), (51, 51, 51), (60, 60, 60), (70, 70, 70), (25, 29, 33), (20,22,23), (34,39,40), (35,40,40))
 REQUIRED_CAPTURES = {
     "qa-visible": ("editing.bmp", "visible.bmp", "large-text.bmp", "scrolling.bmp", "masked.bmp", "compact.bmp", "english.bmp",
                    "minimum-editing.bmp", "minimum-masked.bmp", "wide.bmp", "hover.bmp", "pressed.bmp", "english-editing.bmp", "empty.bmp", "empty-reading.bmp",
-                   "dpi-125.bmp", "dpi-150.bmp", "home.bmp", "home-recent.bmp", "settings.bmp", "settings-en.bmp", "settings-appearance.bmp", "settings-shortcuts.bmp", "settings-workspace.bmp", "settings-display.bmp", "settings-minimum.bmp", "focus.bmp", "code-file.bmp",
+                   "dpi-125.bmp", "dpi-150.bmp", "home.bmp", "home-minimum.bmp", "home-minimum-icons.bmp", "home-reference.bmp", "home-recent.bmp", "settings.bmp", "settings-en.bmp", "settings-appearance.bmp", "settings-shortcuts.bmp", "settings-workspace.bmp", "settings-display.bmp", "settings-minimum.bmp", "focus.bmp", "code-file.bmp",
                    "image-file.bmp", "image-focus.bmp", "file-error.bmp", "tabs-overflow.bmp", "code-focus.bmp",
                    "project-wide.bmp", "project-medium.bmp", "project-minimum.bmp", "layout-minimal.bmp", "pdf-file.bmp", "pdf-focus.bmp",
                    "presentation.bmp", "presentation-en.bmp", "tabs-masked.bmp","browser-off.bmp","browser-off-en.bmp","browser-minimum.bmp"),
@@ -165,7 +165,7 @@ def main() -> int:
             check(f"{folder}.diagnosticsReadable", False, str(error))
             diagnostic = {}
         expected = {
-            "applicationVersion": "0.11.1",
+            "applicationVersion": "0.12.0",
             "topologyKnown": True,
             "displayCloned": False,
             "privacyApplied": True,
@@ -322,7 +322,7 @@ def main() -> int:
     installer_report = artifacts / "installer-self-test.json"
     try:
         setup = json.loads(installer_report.read_text(encoding="utf-8-sig"))
-        for field, expected in {"selfTestPassed": True, "version": "0.11.1",
+        for field, expected in {"selfTestPassed": True, "version": "0.12.0",
                                 "versionResourceVerified": True, "payloadResourceId": 301,
                                 "payloadPortableExecutable": True, "fixedInstallPathVerified": True,
                                 "installationWrites": False, "error": ""}.items():
@@ -370,7 +370,7 @@ def main() -> int:
     report = {
         "passed": not failed,
         "method": "GDI BitBlt with SRCCOPY | CAPTUREBLT; synthetic purple underlay and exact window crops",
-        "applicationVersion": "0.11.1",
+        "applicationVersion": "0.12.0",
         "scope": "Local native text teleprompter editing, reading, font controls, timer scroll, pause, mask and compact layout",
         "limits": [
             "A separate QA executable uses synthetic fixtures and controlled visual/privacy gates. The shipping executable rejects these switches.",

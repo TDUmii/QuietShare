@@ -131,7 +131,8 @@ void DocumentBar::Paint(HDC dc) {
     RestoreDC(dc,saved);
     if(arrows) for(int right=0;right<2;right++) {
         int x=right?client.right-arrows/2:arrows/2,y=client.bottom/2,k=MulDiv(3,dpi_,96);
-        Line(dc,x+(right?-k:k),y-k,x,y,Muted,s); Line(dc,x,y,x+(right?-k:k),y+k,Muted,s);
+        RECT slot{right?client.right-arrows:0,0,right?client.right:arrows,client.bottom};
+        DrawCodicon(dc,right?0xea9c:0xea9b,slot,Muted,MulDiv(14,dpi_,96),false);
     }
     SelectObject(dc,old);
 }

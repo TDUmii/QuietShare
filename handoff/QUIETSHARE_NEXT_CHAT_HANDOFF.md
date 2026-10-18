@@ -1,9 +1,9 @@
-# QuietShare - bàn giao sau v0.11.1
+# QuietShare - bàn giao sau v0.12.0
 
 - Cập nhật: 2026-10-18
 - Repository: private `TDUmii/QuietShare`
 - Nhánh: `main`
-- Bản sản phẩm: `v0.11.1`; xác minh commit bằng tag và Release trực tiếp trước khi tiếp tục.
+- Bản sản phẩm: `v0.12.0`; xác minh commit bằng tag và Release trực tiếp trước khi tiếp tục.
 
 ## Sản phẩm hiện tại
 
@@ -19,7 +19,7 @@ Giữ capture exclusion, privacy gate, topology, vị trí nguồn và thiết b
 
 Sau lượt rà soát v0.10.1, người dùng xác nhận toàn bộ đã kiểm thử thực tế và không còn lỗi. Đây là xác nhận của người dùng; không có thời lượng, build hay checkpoint chi tiết mới để ghi thành measured soak. Nguyên nhân lần mất hình trước đó chưa được xác lập. Không lặp lại TV/timed hardware soak nếu người dùng chưa yêu cầu rõ.
 
-Các thay đổi v0.11.1 được kiểm tra tự động trên tiến trình riêng với hồ sơ và file giả lập, không xác nhận TV vật lý. Bằng chứng QA ở `artifacts/`, không vào payload hay Git. Xem báo cáo release cục bộ để lấy số kiểm tra và hash hiện hành.
+Các thay đổi v0.12.0 được kiểm tra tự động trên tiến trình riêng với hồ sơ và file giả lập, không xác nhận TV vật lý. Bằng chứng QA ở `artifacts/`, không vào payload hay Git. Xem báo cáo release cục bộ để lấy số kiểm tra và hash hiện hành.
 
 ## Hoàn tất và quy tắc tiếp tục
 
@@ -29,4 +29,6 @@ Không đưa test case/QA vào specs hay release notes. Không đưa lịch sử
 
 Đọc thêm `QUIETSHARE_CONTEXT.md` và `EXTEND_LAPTOP_HANDOFF.md` để giữ các quyết định lịch sử. Protocol phần cứng cũ chỉ là tham khảo.
 
-Bộ chọn file/dự án v0.11.1 dùng layout File Explorer với Desktop, Downloads, Documents, Pictures, This PC, thanh địa chỉ và lịch sử điều hướng trong phiên. Giữ cửa sổ bảo vệ capture và chính sách đường dẫn cục bộ. Người dùng nhắc lại: mặc định kiểm thử, đóng gói, commit/push và phát hành sau mỗi lần chỉnh sửa dự án.
+Bộ chọn file/dự án v0.12.0 dùng layout File Explorer với Desktop, Downloads, Documents, Pictures, This PC, thanh địa chỉ và lịch sử điều hướng trong phiên. Giữ cửa sổ bảo vệ capture và chính sách đường dẫn cục bộ. Người dùng nhắc lại: mặc định kiểm thử, đóng gói, commit/push và phát hành sau mỗi lần chỉnh sửa dự án.
+
+Từ v0.12.0: NAV_SCRIPT (120) là Tệp đang mở, chỉ trở lại content hiện tại, không chọn script hay nạp lại native viewer. HOME_SCRIPT (127) là Soạn lời nhắc chủ động. Script id 0 vẫn giữ trong model để tương thích dữ liệu nhưng không có tab; UI Ctrl+Tab bỏ qua id 0. Home có layout thấp riêng và icon xác nhận capture đúng readback.

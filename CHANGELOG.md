@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+## 0.12.0
+
+- Bỏ logo tệp trang trí và tab lời nhắc cố định. Nút Tệp đang mở trở lại đúng file, giữ bản sửa, vị trí và zoom khi đi qua Home, trình duyệt hay cài đặt. Soạn lời nhắc mở chủ động từ menu; giữ bản đã lưu, không tạo lời nhắc mẫu cho hồ sơ mới.
+- Home dùng bố cục tối và màu xanh lá sát ảnh tham chiếu; bố trí riêng cho cửa sổ nhỏ, tránh icon và chữ chồng lên nhau, vẫn có hàng lịch sử ở kích thước tối thiểu.
+- Dòng Windows nhận loại trừ capture dùng icon xác nhận xanh; trạng thái người xem chưa xác minh giữ riêng. Thay ký tự chuyển trang và nét chevron tự vẽ bằng icon Codicons.
+
 ## 0.11.1
 
 - Bộ chọn file/dự án có bố cục quen thuộc của File Explorer: truy cập nhanh Desktop, Downloads, Documents, Pictures và ổ đĩa; thanh địa chỉ, quay lại/tiến tới/lên trên, ngày sửa đổi và kích thước file. Giữ bảo vệ capture và kiểm tra đường dẫn cục bộ hiện có.
