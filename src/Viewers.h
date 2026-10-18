@@ -1,4 +1,5 @@
 #pragma once
+#include "Zoom.h"
 #include "Content.h"
 #include <memory>
 #include <string>
@@ -9,7 +10,7 @@ namespace quietshare
 // State is kept by the document model for this session only.
 struct ViewerState
 {
-    int scrollX = 0, scrollY = 0, zoom = 100, page = 0, panX = 0, panY = 0;
+    int scrollX = 0, scrollY = 0, zoom = DefaultZoomPercent, page = 0, panX = 0, panY = 0;
     bool wrap = false;
     bool fitWidth = false;
 };

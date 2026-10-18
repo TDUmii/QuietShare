@@ -159,7 +159,7 @@ def main():
         check('noBrowserProfileBeforeEnable',not (profile/'QuietShare'/'WebProfile').exists())
         cmd(154);address=USER32.GetDlgItem(window,164)
         check('browserPageDoesNotStartRuntime',q(10)==0 and q(11)==0 and not hits)
-        check('browserZoomDefaults100AndControlsWaitForEnable',q(24)==100 and not USER32.IsWindowEnabled(USER32.GetDlgItem(window,167)))
+        check('browserZoomDefaults50AndControlsWaitForEnable',q(24)==50 and not USER32.IsWindowEnabled(USER32.GetDlgItem(window,167)))
         check('fixedGoogleAndChatGptButtonsRemoved',not USER32.GetDlgItem(window,159) and not USER32.GetDlgItem(window,166))
         cmd(155)
         check('defaultNewTabPassesRenderedCanary',wait(lambda:q(10)==2 and q(12)==1 and q(13)==1,25))
@@ -243,26 +243,26 @@ def main():
         check('compactBrowserRestoresOriginalViewport',wait(lambda:
               abs(viewport('/first')['width']-initial_viewport['width'])<=1 and abs(viewport('/first')['height']-initial_viewport['height'])<=1))
         metrics['compactBrowser']=compact_metrics
-        check('browserZoomStarts100',q(24)==100)
+        check('browserZoomStarts50',q(24)==50)
         cmd(169)
-        check('browserZoomInUpdatesActualViewport',wait(lambda:q(24)==110 and viewport('/first')['width']<initial_viewport['width']
-              and abs(viewport('/first')['width']-initial_viewport['width']/1.1)<=3))
-        check('browserZoomStateTracksActualValue',q(24)==110)
+        check('browserZoomInUpdatesActualViewport',wait(lambda:q(24)==60 and viewport('/first')['width']<initial_viewport['width']
+              and abs(viewport('/first')['width']-initial_viewport['width']/1.2)<=3))
+        check('browserZoomStateTracksActualValue',q(24)==60)
         cmd(167)
-        check('browserZoomOutRestoresActualViewport',wait(lambda:q(24)==100 and abs(viewport('/first')['width']-initial_viewport['width'])<=1))
+        check('browserZoomOutRestoresActualViewport',wait(lambda:q(24)==50 and abs(viewport('/first')['width']-initial_viewport['width'])<=1))
         for _ in range(40):native.send(window,0x111,169)
         check('browserZoomClamps400',q(24)==400)
-        check('maximumZoomIsRendered',wait(lambda:abs(viewport('/first')['dpr']-initial_viewport['dpr']*4)<.03))
+        check('maximumZoomIsRendered',wait(lambda:abs(viewport('/first')['dpr']-initial_viewport['dpr']*8)<.03))
         for _ in range(50):native.send(window,0x111,167)
         check('browserZoomClamps25',q(24)==25)
-        check('minimumZoomIsRendered',wait(lambda:abs(viewport('/first')['dpr']-initial_viewport['dpr']*.25)<.03))
+        check('minimumZoomIsRendered',wait(lambda:abs(viewport('/first')['dpr']-initial_viewport['dpr']*.5)<.03))
         cmd(168)
-        check('browserZoomResetRestores100',wait(lambda:q(24)==100 and abs(viewport('/first')['width']-initial_viewport['width'])<=1))
+        check('browserZoomResetRestores50',wait(lambda:q(24)==50 and abs(viewport('/first')['width']-initial_viewport['width'])<=1))
         cmd(169)
         native.set_control_text(address,base+'/second');cmd(165)
         check('navigateSecondPage',wait(lambda:q(13)==1 and '/second' in hits))
-        check('browserZoomPersistsAcrossNavigation',wait(lambda:q(24)==110 and viewport('/second') and
-              abs(viewport('/second')['dpr']-initial_viewport['dpr']*1.1)<.03))
+        check('browserZoomPersistsAcrossNavigation',wait(lambda:q(24)==60 and viewport('/second') and
+              abs(viewport('/second')['dpr']-initial_viewport['dpr']*1.2)<.03))
         cmd(156);check('backRestoresFirstPage',wait(lambda:native.control_text(address)==base+'/first'))
         cmd(157);check('forwardRestoresSecondPage',wait(lambda:native.control_text(address)==base+'/second'))
         count=hits.count('/second');cmd(158);check('reloadHitsLocalPageAgain',wait(lambda:hits.count('/second')>count))
@@ -301,7 +301,7 @@ def main():
         check('F8MasksBrowserAndAddress',q(10)==q(11)==q(12)==q(24)==0 and not USER32.IsWindowVisible(address))
         native.send(window,0x312,2)
         check('F8RestoresVerifiedBrowser',wait(lambda:q(10)==2 and q(12)==1))
-        check('F8PreservesBrowserZoomPreference',q(24)==110)
+        check('F8PreservesBrowserZoomPreference',q(24)==60)
         pid=q(11);cmd(127)
         check('scriptReaderHidesWebButKeepsSession',not USER32.IsWindowVisible(address) and q(11)==pid)
         check('hiddenBrowserActuallySuspends',wait(lambda:q(15)==1))
@@ -312,7 +312,7 @@ def main():
         process_handle=native.KERNEL32.OpenProcess(0x00100000,False,pid)
         check('ownedBrowserProcessCanBeObserved',bool(process_handle))
         cmd(155);check('disableReleasesBrowserObjects',q(10)==0 and q(11)==0 and q(12)==0)
-        check('disableKeepsBrowserZoomSessionPreference',q(24)==110)
+        check('disableKeepsBrowserZoomSessionPreference',q(24)==60)
         try:check('disabledBrowserProcessExits',native.KERNEL32.WaitForSingleObject(process_handle,8000)==0)
         finally:native.KERNEL32.CloseHandle(process_handle)
         for cycle in range(3):
@@ -325,8 +325,8 @@ def main():
         viewport_start=len(viewports);form_start=len(form_states)
         native.set_control_text(address,base+'/first');cmd(155)
         check('reEnableRunsFreshCanary',wait(lambda:q(10)==2 and q(12)==1,25))
-        check('reEnableRestoresZoomAfterFreshCanary',wait(lambda:q(24)==110 and q(13)==1 and
-              any(entry['page']=='/first' and abs(entry['dpr']-initial_viewport['dpr']*1.1)<.03 for entry in viewports[viewport_start:])))
+        check('reEnableRestoresZoomAfterFreshCanary',wait(lambda:q(24)==60 and q(13)==1 and
+              any(entry['page']=='/first' and abs(entry['dpr']-initial_viewport['dpr']*1.2)<.03 for entry in viewports[viewport_start:])))
         check('separateProfilePreservesSyntheticCookie',wait(lambda:any(cookies)))
         # These controls use the same activation/close messages as native tab
         # mouse handlers. Every new controller still passes the real WGC gate.
@@ -364,16 +364,16 @@ def main():
             native.send(window,0x8000+25,tab)
             return wait(lambda:q(35)==tab and q(10)==2)
         tab_b=new_tab('secondTab')
-        check('newTabZoomDefaults100',q(24)==100)
+        check('newTabZoomDefaults50',q(24)==50)
         check('secondTabSharesBrowserProcess',q(11)==session_pid)
         check('secondTabLoadsOwnPage',navigate('/tab-b-one'))
         cmd(169);cmd(169)
-        check('secondTabOwnZoomIsRendered',wait(lambda:q(24)==120 and viewport('/tab-b-one') and
-              abs(viewport('/tab-b-one')['dpr']-initial_viewport['dpr']*1.2)<.03))
+        check('secondTabOwnZoomIsRendered',wait(lambda:q(24)==70 and viewport('/tab-b-one') and
+              abs(viewport('/tab-b-one')['dpr']-initial_viewport['dpr']*1.4)<.03))
         check('secondTabCreatesOwnHistory',navigate('/tab-b-two'))
         form_b=form_state('/tab-b-two').copy()
         tab_c=new_tab('thirdTab',shortcut=True)
-        check('thirdTabDoesNotInheritOtherTabZoom',q(24)==100)
+        check('thirdTabDoesNotInheritOtherTabZoom',q(24)==50)
         check('thirdTabLoadsOwnPage',navigate('/tab-c'))
         check('tabsShareOneBrowserEnvironment',q(38)==3 and q(11)==session_pid)
         check('backgroundTabsActuallySuspend',wait(lambda:q(36)==2,12))
@@ -394,11 +394,11 @@ def main():
         bounds=wintypes.RECT();USER32.GetClientRect(bar,ctypes.byref(bounds));scale=USER32.GetDpiForWindow(window)/96
         native.send(bar,0x202,0,((bounds.bottom//2)<<16)|round(16*scale))
         check('nativeTabClickActivatesFirstTab',wait(lambda:q(35)==tab_a))
-        check('firstTabKeepsAddressAndZoom',wait(lambda:native.control_text(address)==base+'/first' and q(24)==110))
+        check('firstTabKeepsAddressAndZoom',wait(lambda:native.control_text(address)==base+'/first' and q(24)==60))
         check('firstTabKeepsActualDomAndUnsentDraft',wait(lambda:form_state('/first')['visibility']=='visible' and
               form_state('/first')['instance']==form_a['instance'] and form_state('/first')['draft']==form_a['draft']))
         check('activateSecondStableTabId',activate_tab(tab_b))
-        check('secondTabKeepsAddressAndZoom',wait(lambda:native.control_text(address)==base+'/tab-b-two' and q(24)==120))
+        check('secondTabKeepsAddressAndZoom',wait(lambda:native.control_text(address)==base+'/tab-b-two' and q(24)==70))
         check('secondTabKeepsActualDomAndUnsentDraft',wait(lambda:form_state('/tab-b-two')['visibility']=='visible' and
               form_state('/tab-b-two')['instance']==form_b['instance'] and form_state('/tab-b-two')['draft']==form_b['draft']))
         cmd(156);check('tabBackUsesItsOwnHistory',wait(lambda:native.control_text(address)==base+'/tab-b-one'))
@@ -429,10 +429,10 @@ def main():
             metrics['capacityLastClose']={'requested':tab,'index':index,'tabs':q(34),'active':q(35),'pending':q(37),'controllers':q(38)}
             check('capacityTabCloseReleasesController:'+str(index),wait(lambda:q(34)==q(38)==7-index and q(37)==0))
         check('capacityCloseRestoresOriginalThreeTabs',q(34)==q(38)==3 and q(35)==tab_c and USER32.IsWindowEnabled(USER32.GetDlgItem(window,190)))
-        check('originalFirstTabSurvivesCapacityCycle',activate_tab(tab_a) and native.control_text(address)==base+'/first' and q(24)==110)
+        check('originalFirstTabSurvivesCapacityCycle',activate_tab(tab_a) and native.control_text(address)==base+'/first' and q(24)==60)
         check('originalFormSurvivesCapacityCycle',wait(lambda:form_state('/first')['visibility']=='visible' and
               form_state('/first')['instance']==form_a['instance'] and form_state('/first')['draft']==form_a['draft']))
-        check('originalSecondTabSurvivesCapacityCycle',activate_tab(tab_b) and native.control_text(address)==base+'/tab-b-two' and q(24)==120)
+        check('originalSecondTabSurvivesCapacityCycle',activate_tab(tab_b) and native.control_text(address)==base+'/tab-b-two' and q(24)==70)
         routed=modifier_key(ord('W'),lambda:q(34)==2 and q(35)!=tab_b)
         if routed is None:
             not_tested.append('Owned Ctrl+W input attachment unavailable');native.send(window,0x8000+26,tab_b)
@@ -441,7 +441,7 @@ def main():
         check('activateRemainingThirdTab',activate_tab(tab_c))
         native.send(bar,0x208,0,((bounds.bottom//2)<<16)|round(16*scale))
         check('middleClickClosesBackgroundFirstTab',wait(lambda:q(34)==q(38)==1 and q(35)==tab_c))
-        check('backgroundCloseKeepsActivePage',native.control_text(address)==base+'/tab-c' and q(24)==100)
+        check('backgroundCloseKeepsActivePage',native.control_text(address)==base+'/tab-c' and q(24)==50)
         native.send(window,0x8000+26,tab_c)
         check('closingLastTabDisablesEngine',wait(lambda:q(10)==q(11)==q(34)==q(35)==q(37)==q(38)==0))
         native.set_control_text(address,base+'/first');cmd(155)

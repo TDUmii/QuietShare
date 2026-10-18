@@ -136,13 +136,13 @@ int main(){
           !browser.ProcessTabAction(quietshare::BrowserTabNext)&&!browser.ProcessTabAction(quietshare::BrowserTabPrevious)&&
           !browser.ProcessTabAction(quietshare::BrowserTabQueued)&&!browser.ProcessTabAction(999));
     check("tabsOffStateRejectsProbeWithoutController",browser.ProbeToken()==0&&!browser.MountProbe(nullptr,1));
-    check("zoomDefaultsTo100WithoutEngine",browser.ZoomPercent()==100&&!browser.Enabled()&&!browser.Ready()&&browser.BrowserProcessId()==0);
+    check("zoomDefaultsTo50WithoutEngine",browser.ZoomPercent()==50&&!browser.Enabled()&&!browser.Ready()&&browser.BrowserProcessId()==0);
     check("zoomOffStateStoresPreferenceOnly",browser.SetZoomPercent(137)&&browser.ZoomPercent()==137&&!browser.Enabled()&&browser.BrowserProcessId()==0);
     check("zoomClampsLowerBound",browser.SetZoomPercent(-100)&&browser.ZoomPercent()==25);
     check("zoomClampsUpperBound",browser.SetZoomPercent(1000)&&browser.ZoomPercent()==400);
     check("zoomAdjustmentAvoidsPositiveOverflow",browser.AdjustZoomPercent((std::numeric_limits<int>::max)())&&browser.ZoomPercent()==400);
     check("zoomAdjustmentAvoidsNegativeOverflow",browser.AdjustZoomPercent((std::numeric_limits<int>::min)())&&browser.ZoomPercent()==25);
-    check("zoomResetRestores100",browser.ResetZoom()&&browser.ZoomPercent()==100);
+    check("zoomResetRestores50",browser.ResetZoom()&&browser.ZoomPercent()==50);
     browser.SetZoomPercent(150);browser.Disable();
     check("zoomPreferenceSurvivesDisable",browser.ZoomPercent()==150&&!browser.Enabled()&&browser.BrowserProcessId()==0);
     browser.FinishProbe(true,1);browser.ProcessTabAction(quietshare::BrowserTabQueued);

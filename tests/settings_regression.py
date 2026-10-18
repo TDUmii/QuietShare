@@ -612,9 +612,9 @@ def main():
         check("secondNumericClickKeepsNativeHitTesting", selection() == (0, 0))
         native.send(control(163), 0xB1, 0, 1)
         native.send(control(163), 0x102, ord("3"), 1)
-        check("numericSelectionStillAllowsEditing", native.control_text(control(163)) == "34")
+        check("numericSelectionStillAllowsEditing", native.control_text(control(163)) == "32")
         posted_key(163, 0x1B)
-        check("escapeRestoresValueWithCaretAtEnd", native.control_text(control(163)) == "24" and selection() == (2, 2))
+        check("escapeRestoresValueWithCaretAtEnd", native.control_text(control(163)) == "12" and selection() == (2, 2))
         for value in (8, 37, 91, 200):
             set_size(str(value))
             check("manualFontSize:" + str(value), native.control_text(control(163)) == str(value)
@@ -727,7 +727,7 @@ def main():
         set_size("401")
         check("invalidZoomRestoresLastValid", query(4) == 400 and native.control_text(control(163)) == "400" and query(22) == 1)
         command(108)
-        check("zoomResetAvailableInSettings", query(4) == 100 and native.control_text(control(163)) == "100")
+        check("zoomResetAvailableInSettings", query(4) == 50 and native.control_text(control(163)) == "50")
         scroll(7)
         check("resizeToLargerSettingsWindow", USER32.SetWindowPos(window, None, 0, 0,
               round(840 * scale), round(700 * scale), 0x16))

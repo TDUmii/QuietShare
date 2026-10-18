@@ -245,7 +245,7 @@ OpenResult TabManager::Open(const std::wstring &path, std::wstring &error)
     document->loadingState = LoadingState::Unloaded;
     if (!Load(*document, true, error))
         return {};
-    document->state.textPoints = document->type == DocumentType::Code ? 14 : 24;
+    document->state.textPoints = document->type == DocumentType::Code ? DefaultCodePoints : DefaultTextPoints;
     document->state.wrap = document->type != DocumentType::Code;
     ++nextId_;
     active_ = document->id;

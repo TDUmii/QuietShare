@@ -116,7 +116,7 @@ PrivacyResult privacy;
 bool topologyKnown = false, cloned = true, masked = false, reading = false, running = false, loading = false,
      dirty = false, saveFailed = false, f8Registered = false, savedNoteRecovered = false,
      storageBlocked = false, topmost = true, english = false, recallRegistered = false;
-int fontPoints = 24, speed = 1;
+int fontPoints = DefaultTextPoints, speed = 1;
 double scrollRemainder = 0;
 ULONGLONG lastScrollTick = 0;
 std::wstring dataDir;
@@ -124,7 +124,7 @@ enum class Page { Home, Content, Settings, Presentation, Browser };
 Page page = Page::Content;
 LoadedContent &ActiveContent() { return documents.Active().content; }
 bool viewingFile = false, focusMode = false, scriptReading = false;
-int codePoints = 14, imageZoom = 100, panX = 0, panY = 0;
+int codePoints = DefaultCodePoints, imageZoom = DefaultZoomPercent, panX = 0, panY = 0;
 std::wstring scriptDraft, importError;
 RECT dropRect{}, settingsCardRect{};
 RECT fontLabelRect{};
@@ -453,16 +453,16 @@ void ResetFont()
     if (Blocked())
         return;
     sizeError.clear();Pause();
-    if (IsPdf()) {pdfViewer.FitPage();}
+    if (IsPdf()) {pdfViewer.FitPage();pdfViewer.SetZoom(DefaultZoomPercent);}
     else if (IsImage())
     {
-        imageZoom = 100;
+        imageZoom = DefaultZoomPercent;
         panX = panY = 0;
         InvalidateRect(imageViewer, nullptr, FALSE);
     }
     else
-        ActiveTextSize() = IsCode() ? 14 : 24;
-    if(IsCode())codeViewer.SetZoom(100);
+        ActiveTextSize() = IsCode() ? DefaultCodePoints : DefaultTextPoints;
+    if(IsCode())codeViewer.SetZoom(DefaultZoomPercent);
     ApplyTextFormat();
     SyncSizeInput(true);
 }
@@ -2319,7 +2319,7 @@ void QaTick()
         CHARFORMAT2W format{};
         format.cbSize = sizeof(format);
         SendMessageW(editor, EM_GETCHARFORMAT, SCF_DEFAULT, (LPARAM)&format);
-        qaFont = fontPoints == 28 && format.yHeight == 560;
+        qaFont = fontPoints == DefaultTextPoints+4 && format.yHeight == (DefaultTextPoints+4)*20;
         Capture(L"large-text.bmp");
         qaStartY = ScrollPosition().y;
         SendMessageW(window, WM_COMMAND, MAKEWPARAM(PLAY, BN_CLICKED), 0);
@@ -2531,9 +2531,9 @@ void QaTick()
                           IsWindowVisible(imageViewer) && !IsWindowVisible(editor);
             AdjustFont(2);
             SendMessageW(imageViewer,WM_KEYDOWN,VK_LEFT,0);
-            qaImagePan = imageZoom == 110 && panX == S(24);
+            qaImagePan = imageZoom == DefaultZoomPercent+10 && panX == S(24);
             ResetFont();
-            qaImagePan = qaImagePan && imageZoom == 100 && panX == 0 && panY == 0;
+            qaImagePan = qaImagePan && imageZoom == DefaultZoomPercent && panX == 0 && panY == 0;
             ToggleMask();
             qaImageMask = Blocked() && !IsWindowVisible(imageViewer) && !IsWindowVisible(editor) &&
                           !OpenContentPath(codePath) && IsImage();

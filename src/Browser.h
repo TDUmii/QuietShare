@@ -1,4 +1,5 @@
 #pragma once
+#include "Zoom.h"
 #include <windows.h>
 #include <memory>
 #include <string>
@@ -14,7 +15,7 @@ struct BrowserTab {
     unsigned id=0;
     std::wstring title,address;
     bool loading=false,ready=false,active=false;
-    int zoomPercent=100;
+    int zoomPercent=DefaultZoomPercent;
 };
 struct BrowserShortcut { std::wstring name,address; };
 struct BrowserCommandShortcut { UINT key=0,modifiers=0,command=0; };

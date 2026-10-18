@@ -3,13 +3,13 @@
 Updated: 2026-10-18
 Repository: private `TDUmii/QuietShare`
 Original incident baseline: release `v0.9.1` at `f08eede29a354f8302fcd900530368eeea8f6368`
-Current application version: `v0.12.0`. This release carries forward the projection safeguards and updates the compact control and browser settings UI.
+Current application version: `v0.12.1`. This release carries forward the projection safeguards and updates the compact control and browser settings UI.
 
-## Tình trạng mới nhất - v0.12.0
+## Tình trạng mới nhất - v0.12.1
 
 Home có lịch sử thật được DPAPI mã hóa, ghim/xóa/mở lại; không có dữ liệu mẫu trong sản phẩm. Hai tùy chọn nhớ kích thước cửa sổ và cho phép sửa văn bản/code mặc định bật. File lưu chủ động, kiểm tra thay đổi bên ngoài và bảo vệ bản sửa chưa lưu. UI nhàn rỗi dùng nhịp 250 ms; tránh resize viewer trùng.
 
-Người dùng đã xác nhận toàn bộ kiểm thử thực tế hiện không còn lỗi. Ghi nhận theo lời người dùng, không suy ra thời lượng đo, build cụ thể hay nguyên nhân lần mất hình cũ. Lượt phát triển v0.12.0 không lặp lại TV/hardware soak và không xác nhận độc lập phần cứng. Các mục sự cố/protocol bên dưới giữ làm lịch sử tham khảo.
+Người dùng đã xác nhận toàn bộ kiểm thử thực tế hiện không còn lỗi. Ghi nhận theo lời người dùng, không suy ra thời lượng đo, build cụ thể hay nguyên nhân lần mất hình cũ. Lượt phát triển v0.12.1 không lặp lại TV/hardware soak và không xác nhận độc lập phần cứng. Các mục sự cố/protocol bên dưới giữ làm lịch sử tham khảo.
 
 ## Current follow-up
 
@@ -59,6 +59,8 @@ On the company laptop, open this private repository in Codex and ask it to follo
 
 This task currently has no direct connection to the company laptop's Codex host. The repository handoff is the exchange channel; it does not give this task remote control of that computer.
 
-Bộ chọn file/dự án v0.12.0 dùng layout File Explorer với Desktop, Downloads, Documents, Pictures, This PC, thanh địa chỉ và lịch sử điều hướng trong phiên. Giữ cửa sổ bảo vệ capture và chính sách đường dẫn cục bộ. Người dùng nhắc lại: mặc định kiểm thử, đóng gói, commit/push và phát hành sau mỗi lần chỉnh sửa dự án.
+Bộ chọn file/dự án v0.12.1 dùng layout File Explorer với Desktop, Downloads, Documents, Pictures, This PC, thanh địa chỉ và lịch sử điều hướng trong phiên. Giữ cửa sổ bảo vệ capture và chính sách đường dẫn cục bộ. Người dùng nhắc lại: mặc định kiểm thử, đóng gói, commit/push và phát hành sau mỗi lần chỉnh sửa dự án.
 
-Từ v0.12.0: NAV_SCRIPT (120) là Tệp đang mở, chỉ trở lại content hiện tại, không chọn script hay nạp lại native viewer. HOME_SCRIPT (127) là Soạn lời nhắc chủ động. Script id 0 vẫn giữ trong model để tương thích dữ liệu nhưng không có tab; UI Ctrl+Tab bỏ qua id 0. Home có layout thấp riêng và icon xác nhận capture đúng readback.
+Từ v0.12.1: NAV_SCRIPT (120) là Tệp đang mở, chỉ trở lại content hiện tại, không chọn script hay nạp lại native viewer. HOME_SCRIPT (127) là Soạn lời nhắc chủ động. Script id 0 vẫn giữ trong model để tương thích dữ liệu nhưng không có tab; UI Ctrl+Tab bỏ qua id 0. Home có layout thấp riêng và icon xác nhận capture đúng readback.
+
+Zoom mặc định từ v0.12.1: DefaultZoomPercent=50 dùng chung src/Zoom.h; text/script 12 pt, code 7 pt tương ứng các cỡ chuẩn 24/14. Ctrl+0/Reset về 50; PDF FitPage/FitWidth chủ động vẫn 100% của khung. Giữ canary web ở 1.0 trong probe và áp dụng zoom nội dung sau khi xác minh.

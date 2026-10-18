@@ -183,14 +183,14 @@ int wmain(int argc, wchar_t **argv)
     code.SetPrivateVisible(true);
     SendMessageW(code.Window(), WM_MOUSEWHEEL, MAKEWPARAM(MK_CONTROL, 120), 0);
     check("codeCtrlWheelUsesPercentModel",
-          code.GetState().zoom == 110 && SendMessageW(code.Window(), SCI_GETZOOM, 0, 0) == 0);
+          code.GetState().zoom == 60 && SendMessageW(code.Window(), SCI_GETZOOM, 0, 0) == 0);
     const auto wheelState = code.GetState();
     SendMessageW(code.Window(), SCI_SETZOOM, 9, 0);
     code.SetZoom(100);
     check("codeResetClearsNativeZoomOffset",
           code.GetState().zoom == 100 && SendMessageW(code.Window(), SCI_GETZOOM, 0, 0) == 0);
     code.SetState(wheelState);
-    check("codeWheelStateRestores", code.GetState().zoom == 110 && SendMessageW(code.Window(), SCI_GETZOOM, 0, 0) == 0);
+    check("codeWheelStateRestores", code.GetState().zoom == 60 && SendMessageW(code.Window(), SCI_GETZOOM, 0, 0) == 0);
     ViewerState cv;
     cv.scrollY = 80;
     cv.scrollX = 120;

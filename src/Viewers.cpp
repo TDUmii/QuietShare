@@ -542,7 +542,7 @@ bool CodeViewer::Open(const LoadedContent &content, std::wstring &error)
     impl->Send(SCI_COLOURISE, 0, -1);
     impl->language = lexer.label;
     impl->state = {};
-    SetZoom(100);
+    SetZoom(DefaultZoomPercent);
     SetWrap(false);
     error.clear();
     return true;
@@ -1049,7 +1049,7 @@ struct PdfViewer::Impl
                 p->state.panY -= 40;
             else if (wp == VK_HOME)
             {
-                p->state.zoom = 100;
+                p->state.zoom = DefaultZoomPercent;
                 p->state.panX = p->state.panY = 0;
             }
             else

@@ -58,6 +58,7 @@ def main():
         app,window=launch()
         data=profile/'QuietShare'
         check('first launch has no sample history',not (data/'recent.dpapi').exists() and not api.visible(USER32.GetDlgItem(window,400)))
+        check('script initially uses 50 percent',send(window,api.QUERY,4)==50)
         check('fresh workspace has no fabricated script or permanent script tab',api.native.control_text(USER32.GetDlgItem(window,110))=='' and send(window,api.QUERY,64)==0)
         check('Windows capture exclusion acceptance is read back independently',send(window,api.QUERY,65)==1)
         for width,height in ((430,320),(460,360),(800,680)):
@@ -100,7 +101,9 @@ def main():
         command(127)
         check('explicit script can be reopened without losing prepared text',api.native.control_text(editor)=='Prepared script fixture')
         send(window,api.ACTIVATE,file_id)
-        api.multi_drop(window,[second]);api.multi_drop(window,[first])
+        api.multi_drop(window,[second])
+        check('plain text initially uses 50 percent',send(window,api.QUERY,4)==50)
+        api.multi_drop(window,[first])
         check('unsaved code draft survives tab switches',send(code,2006)==len(b'xyvalue = 1\n') and first.read_bytes()==b'xvalue = 1\n')
         command(251)
         check('draft saves only on explicit action',first.read_bytes()==b'xyvalue = 1\n')

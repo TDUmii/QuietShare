@@ -1,4 +1,5 @@
 #pragma once
+#include "Zoom.h"
 
 #include "Content.h"
 
@@ -19,10 +20,10 @@ enum class LoadingState { Unloaded, Ready };
 struct ViewState
 {
     int scrollX = 0, scrollY = 0;
-    int zoom = 100;
+    int zoom = DefaultZoomPercent;
     int page = 0;
     int panX = 0, panY = 0;
-    int textPoints = 24;
+    int textPoints = DefaultTextPoints;
     bool wrap = true;
     bool fitWidth = false;
 };

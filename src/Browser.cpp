@@ -223,7 +223,7 @@ bool NormalizeBrowserShortcut(const std::wstring& name,const std::wstring& addre
 struct Browser::Impl:std::enable_shared_from_this<Browser::Impl> {
     HWND parent=nullptr;RECT bounds{};bool enabled=false,ready=false,verified=false,visible=false,probing=false,locked=false,suspendPending=false;
     unsigned generation=0,pid=0;UINT64 navigationId=0;int error=0;bool loaded=false,navigating=false;std::wstring address,pending,notice,title;
-    int zoomPercent=100;
+    int zoomPercent=DefaultZoomPercent;
     bool english=false,localPage=false,localNavigation=false,hasNewTab=false;
     bool muted=false,allowCamera=false,allowMicrophone=false,mediaReady=false;
     std::wstring cameraOrigin,microphoneOrigin;
@@ -692,7 +692,7 @@ void Browser::Focus(){auto tab=impl->Active();if(Ready()&&tab->visible&&!impl->l
 int Browser::ZoomPercent()const{auto tab=impl->Active();return tab?tab->zoomPercent:impl->zoomPercent;}
 bool Browser::SetZoomPercent(int percent){auto tab=impl->Active();if(tab)return !impl->locked&&tab->SetZoom(percent);return impl->SetZoom(percent);}
 bool Browser::AdjustZoomPercent(int delta){return SetZoomPercent(static_cast<int>(std::clamp(static_cast<long long>(ZoomPercent())+delta,25LL,400LL)));}
-bool Browser::ResetZoom(){return SetZoomPercent(100);}
+bool Browser::ResetZoom(){return SetZoomPercent(DefaultZoomPercent);}
 bool Browser::Enabled()const{return impl->enabled;}
 bool Browser::Ready()const{auto tab=impl->Active();return tab&&tab->ready;}
 bool Browser::Verified()const{auto tab=impl->Active();return tab&&tab->verified;}

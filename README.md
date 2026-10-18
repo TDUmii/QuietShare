@@ -1,4 +1,4 @@
-# QuietShare 0.12.0
+# QuietShare 0.12.1
 
 QuietShare là ứng dụng Windows để đọc lời nhắc, mã nguồn, ảnh, PDF và nội dung web trong cửa sổ riêng khi thuyết trình. Smart Mirror chiếu hình ảnh công khai từ màn hình nguồn sang màn hình Extend khác, trong khi cửa sổ QuietShare được loại khỏi đường capture đã xác minh.
 
@@ -41,7 +41,7 @@ This guide describes `main`; **Unreleased** in the [CHANGELOG](CHANGELOG.md) lis
 
 ### 3. Cài đặt và nâng cấp
 
-1. Tải `QuietShare-Setup.exe` tại [QuietShare v0.12.0](https://github.com/TDUmii/QuietShare/releases/tag/v0.12.0) và chạy bộ cài. Nếu dùng ZIP, giải nén toàn bộ trước khi chạy ứng dụng.
+1. Tải `QuietShare-Setup.exe` tại [QuietShare v0.12.1](https://github.com/TDUmii/QuietShare/releases/tag/v0.12.1) và chạy bộ cài. Nếu dùng ZIP, giải nén toàn bộ trước khi chạy ứng dụng.
 2. Bộ cài áp dụng cho tài khoản Windows hiện tại, không cần quyền quản trị. Nút **EN / VI** đổi ngôn ngữ bộ cài.
 3. Để dùng portable, chạy `QuietShare.exe` trong thư mục đã giải nén. Giữ `Scintilla.dll`, `Lexilla.dll`, `pdfium.dll` và `WebView2Loader.dll` cạnh EXE; không chỉ sao chép EXE.
 4. Đóng QuietShare trước khi nâng cấp bằng bộ cài mới. Nâng cấp và gỡ ứng dụng giữ lại lời nhắc đã lưu.
@@ -50,7 +50,7 @@ Nếu trình duyệt không khởi tạo được, cài/cập nhật WebView2 Ru
 
 ### 4. Sử dụng tài liệu và không gian làm việc
 
-Khi mở ứng dụng, đợi quá trình xác minh capture. Chân trang **Không gian của bạn** hiển thị **v0.12.0** để nhận diện phiên bản đang chạy. Nếu nội dung bị khóa và cần xác minh lại, chọn icon **Kiểm tra WGC** tại thanh bên trái. Nội dung chỉ được hiển thị khi các điều kiện bảo vệ đạt.
+Khi mở ứng dụng, đợi quá trình xác minh capture. Chân trang **Không gian của bạn** hiển thị **v0.12.1** để nhận diện phiên bản đang chạy. Nếu nội dung bị khóa và cần xác minh lại, chọn icon **Kiểm tra WGC** tại thanh bên trái. Nội dung chỉ được hiển thị khi các điều kiện bảo vệ đạt.
 
 - **Home / Gần đây:** mở lại file hoặc dự án đã mở thành công, ghim mục yêu thích hoặc xóa từng mục bằng nút ×. Các nút trước/sau duyệt tối đa 32 mục. **Xóa lịch sử** xóa cả ghim, không xóa file gốc. Lịch sử được Windows DPAPI mã hóa trên máy và tên file được che khi nội dung đang khóa. Lần chạy đầu không có dữ liệu mẫu.
 - **Sửa file:** văn bản và code mặc định cho phép sửa. Nhấn **Lưu** hoặc **Ctrl+S** để ghi file; lời nhắc vẫn tự lưu riêng. Khi đóng tab có thay đổi, chọn lưu, bỏ thay đổi hoặc hủy. QuietShare giữ mã hóa UTF-8/UTF-16 và BOM; nếu file đã đổi bên ngoài, thao tác lưu bị chặn và bản sửa vẫn ở trong tab. Tắt tại **Cài đặt > Nội dung > Cho phép sửa file văn bản / code** để chỉ xem; bản sửa chưa lưu được giữ trong phiên.
@@ -150,7 +150,7 @@ Phím **toàn hệ thống** dùng được khi ứng dụng khác đang nhận 
 | Enter / Shift+Enter | Tìm tiếp/trước | Ô tìm kiếm |
 | Ctrl+C | Sao chép phần được chọn | Nội dung có thể chọn |
 | Ctrl + `+` / `-` | Tăng/giảm cỡ chữ hoặc zoom | Nội dung đang dùng; web có zoom riêng |
-| Ctrl+0 | Về cỡ mặc định; ảnh/PDF vừa khung; web 100% | Nội dung đang dùng |
+| Ctrl+0 | Về zoom mặc định 50%; văn bản/lời nhắc 12 pt | Nội dung đang dùng |
 | Ctrl + lăn chuột | Đổi cỡ chữ/zoom | Vùng nội dung hoặc web dưới con trỏ |
 | Page Up / Page Down | Trang PDF trước/sau | Vùng PDF |
 | Mũi tên / Enter | Điều hướng/mở file hoặc mở/đóng nhánh | Explorer |
@@ -189,7 +189,7 @@ Phím **toàn hệ thống** dùng được khi ứng dụng khác đang nhận 
 
 ### 3. Installation and upgrades
 
-1. Download `QuietShare-Setup.exe` from [QuietShare v0.12.0](https://github.com/TDUmii/QuietShare/releases/tag/v0.12.0) and run it. For ZIP use, extract the complete archive before running the application.
+1. Download `QuietShare-Setup.exe` from [QuietShare v0.12.1](https://github.com/TDUmii/QuietShare/releases/tag/v0.12.1) and run it. For ZIP use, extract the complete archive before running the application.
 2. Installation applies to the current Windows account without administrator privileges. **EN / VI** switches the installer language.
 3. For portable use, run `QuietShare.exe` in the extracted folder. Keep `Scintilla.dll`, `Lexilla.dll`, `pdfium.dll` and `WebView2Loader.dll` beside it; do not copy only the EXE.
 4. Close QuietShare before upgrading. Upgrades and uninstallation retain the saved script.
@@ -198,7 +198,7 @@ If browsing cannot initialize, install/update WebView2 Runtime, then disable and
 
 ### 4. Documents and workspace
 
-Wait for capture verification at startup. The **Your workspace** footer displays **v0.12.0** to identify the running version. If content is locked and verification is requested, select **Verify WGC privacy** on the left activity bar. Readers become available only after the protection conditions pass.
+Wait for capture verification at startup. The **Your workspace** footer displays **v0.12.1** to identify the running version. If content is locked and verification is requested, select **Verify WGC privacy** on the left activity bar. Readers become available only after the protection conditions pass.
 
 - **Home / Recent:** reopen successfully opened files/projects, pin favorites or remove an entry with ×. Previous/next browse up to 32 entries. **Clear history** removes pins as well, without deleting source files. Windows DPAPI encrypts this local history; filenames are concealed while content is locked. No sample history appears at first launch.
 - **File editing:** text and code editing is enabled by default. Use **Save** or **Ctrl+S** to write the file; script autosave remains separate. Closing a modified tab offers save, discard or cancel. QuietShare retains UTF-8/UTF-16 encoding and BOM; an external change blocks saving while your draft remains in the tab. Disable **Settings > Reading > Allow text / code editing** for viewing only; unsaved drafts remain in the session.
@@ -298,7 +298,7 @@ The table lists defaults. Change F8, Ctrl+Alt+Q, F9, F10, F11, Ctrl+O, Ctrl+Shif
 | Enter / Shift+Enter | Find next/previous | Search field |
 | Ctrl+C | Copy selection | Selectable content |
 | Ctrl + `+` / `-` | Increase/decrease text size or zoom | Current content; independent web zoom |
-| Ctrl+0 | Default text size; fit images/PDFs; web 100% | Current content |
+| Ctrl+0 | Reset to 50% zoom; text/script 12 pt | Current content |
 | Ctrl + wheel | Change text size/zoom | Content area or browser under the pointer |
 | Page Up / Page Down | Previous/next PDF page | PDF area |
 | Arrows / Enter | Navigate/open a file or expand/collapse a folder | Explorer |
@@ -316,3 +316,9 @@ The protected file/project picker follows the familiar File Explorer layout, wit
 Nút **Tệp đang mở** trở lại đúng file đang xem sau khi qua Home, trình duyệt hoặc cài đặt, giữ bản sửa chưa lưu và vị trí xem. Thanh tab chỉ chứa các file đã mở; Ctrl+Tab / Ctrl+Shift+Tab chuyển giữa những file này. **Soạn lời nhắc** mở chủ động từ menu dấu ba chấm hoặc menu bố cục. Bản lời nhắc đã lưu vẫn được giữ; hồ sơ mới không có nội dung mẫu.
 
 The Open files activity button resumes the current file without resetting its native buffer or view. File tabs and Ctrl+Tab cycling exclude the optional script. Open Compose script explicitly from the overflow or layout menu. Existing saved scripts are retained; new profiles start empty.
+
+## Zoom mặc định
+
+Web, tab web mới, code, ảnh và PDF mở ở 50%; văn bản/lời nhắc dùng 12 pt, tương ứng 50% của cỡ chuẩn 24 pt. Nút đặt lại zoom và Ctrl+0 trở về mức mặc định này. Zoom tự chọn vẫn được giữ riêng theo tab trong phiên; các lệnh PDF Vừa trang / Vừa ngang vẫn căn theo khung khi chọn chủ động. Kích thước giao diện điều khiển theo DPI Windows như hiện tại.
+
+Web pages, new browser tabs, code, images and PDFs default to 50%; text/scripts default to 12 pt. Reset and Ctrl+0 restore these defaults. Per-tab user zoom remains independent for the session. Explicit PDF Fit Page / Fit Width still fit the viewport.

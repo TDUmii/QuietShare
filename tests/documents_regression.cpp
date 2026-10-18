@@ -242,7 +242,7 @@ void Run()
         if (opened) ids.push_back(opened.id);
     }
     Check("eight_readonly_files_open_alongside_script", ids.size() == 8 && tabs.Count() == 9);
-    Check("code_type_and_language", tabs.Active().type == DocumentType::Code && tabs.Active().language == L"cpp" && tabs.Active().state.textPoints == 14);
+    Check("code_type_and_language", tabs.Active().type == DocumentType::Code && tabs.Active().language == L"cpp" && tabs.Active().state.textPoints == 7);
     tabs.Get(ids[2])->state = {31, 704, 120, 0, 0, 0, 18, false};
     Check("activate_preserves_scroll_zoom_wrap", tabs.Activate(ids[2], error) && tabs.Active().state.scrollY == 704 && tabs.Active().state.scrollX == 31 && tabs.Active().state.textPoints == 18 && !tabs.Active().state.wrap);
     Check("cycle_forward", tabs.Cycle(1, error) && tabs.Active().id == ids[3]);

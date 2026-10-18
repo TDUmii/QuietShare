@@ -208,6 +208,10 @@ def main() -> int:
         time.sleep(0.15)
         sample("afterNavigationKey", editor)
 
+        # Smaller default text can put the preceding page-down at the end.
+        # Start the wheel scenario at the top so it always has room to move.
+        send(editor, 0x0115, 6)  # WM_VSCROLL / SB_TOP
+        time.sleep(0.15)
         before = scroll_position(editor)
         send(editor, 0x020A, (0xFF88 << 16))  # WM_MOUSEWHEEL / -120
         time.sleep(0.15)

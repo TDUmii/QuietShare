@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+## 0.12.1
+
+- Đặt mặc định nội dung web/tab mới, code, ảnh và PDF ở 50%; văn bản và lời nhắc ở 12 pt (50% cỡ chuẩn 24 pt). Nút đặt lại và Ctrl+0 trở về cùng mức mặc định; giữ zoom tự chọn riêng theo tab và thao tác PDF vừa khung chủ động.
+
 ## 0.12.0
 
 - Bỏ logo tệp trang trí và tab lời nhắc cố định. Nút Tệp đang mở trở lại đúng file, giữ bản sửa, vị trí và zoom khi đi qua Home, trình duyệt hay cài đặt. Soạn lời nhắc mở chủ động từ menu; giữ bản đã lưu, không tạo lời nhắc mẫu cho hồ sơ mới.
