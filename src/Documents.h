@@ -108,6 +108,7 @@ public:
     ProjectTree &operator=(const ProjectTree &) = delete;
     bool Create(HWND parent, int controlId);
     void SetDpi(UINT dpi);
+    void RefreshTheme();
     HWND Handle() const { return window_; }
     bool OpenFolder(const std::wstring &path, std::wstring &error);
     bool SetIncludeIgnored(bool include, std::wstring &error);

@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.14.0 - 2026-10-18
+
+- Thêm 10 theme sáng/tối, giấy ấm, xanh và tương phản cao cho điều kiện đọc hoặc phản chiếu khác nhau.
+- Đổi theme trong Cài đặt hoặc thanh công cụ xem tệp, lưu cho lần mở sau.
+- Đồng bộ Home, menu, hộp chọn tệp, Explorer, văn bản và code; giữ vị trí đọc và bản sửa chưa lưu.
+- Giữ màu tài liệu PDF/ảnh/website và các cơ chế bảo vệ hiện tại.
+
 ## v0.13.1
 
 - Sửa lời nhắc/văn bản dài tự cuộn về con trỏ khi tăng giảm cỡ chữ hoặc đổi độ đậm.

@@ -1,4 +1,5 @@
 #pragma once
+#include "Theme.h"
 #include "Icons.h"
 #include <windowsx.h>
 #include <algorithm>
@@ -36,14 +37,14 @@ class ToolMenu {
         if(msg==WM_ERASEBKGND)return 1;
         if(msg==WM_PAINT){PAINTSTRUCT ps{};auto target=BeginPaint(hwnd,&ps);RECT bounds{};GetClientRect(hwnd,&bounds);
             HDC dc=CreateCompatibleDC(target);HBITMAP bitmap=CreateCompatibleBitmap(target,bounds.right,bounds.bottom);auto previous=SelectObject(dc,bitmap);
-            auto brush=CreateSolidBrush(RGB(37,37,38));FillRect(dc,&bounds,brush);DeleteObject(brush);
+            auto brush=CreateSolidBrush(theme.card);FillRect(dc,&bounds,brush);DeleteObject(brush);
             for(size_t i=0;i<self->items.size();++i){const auto &item=self->items[i];RECT r{self->S(5),self->S(5)+int(i)*self->row,bounds.right-self->S(5),self->S(5)+int(i+1)*self->row};
-                if(int(i)==self->current&&item.enabled){brush=CreateSolidBrush(RGB(4,57,94));FillRect(dc,&r,brush);DeleteObject(brush);}
-                auto color=item.enabled?RGB(204,204,204):RGB(115,115,115);
+                if(int(i)==self->current&&item.enabled){brush=CreateSolidBrush(theme.selection);FillRect(dc,&r,brush);DeleteObject(brush);}
+                auto color=item.enabled?theme.text:theme.disabled;
                 RECT icon=r;icon.right=icon.left+self->S(32);DrawCodicon(dc,item.checked?0xeab2:item.icon,icon,color,self->S(16));
                 RECT text=r;text.left+=self->S(36);text.right-=self->S(12);auto old=SelectObject(dc,self->font);SetTextColor(dc,color);SetBkMode(dc,TRANSPARENT);
                 size_t split=item.label.find(L"   ");std::wstring label=item.label.substr(0,split);DrawTextW(dc,label.c_str(),-1,&text,DT_LEFT|DT_VCENTER|DT_SINGLELINE);
-                if(split!=std::wstring::npos){SetTextColor(dc,item.enabled?RGB(160,160,160):RGB(115,115,115));DrawTextW(dc,item.label.c_str()+split+3,-1,&text,DT_RIGHT|DT_VCENTER|DT_SINGLELINE);}
+                if(split!=std::wstring::npos){SetTextColor(dc,item.enabled?theme.muted:theme.disabled);DrawTextW(dc,item.label.c_str()+split+3,-1,&text,DT_RIGHT|DT_VCENTER|DT_SINGLELINE);}
                 SelectObject(dc,old);}
             BitBlt(target,0,0,bounds.right,bounds.bottom,dc,0,0,SRCCOPY);SelectObject(dc,previous);DeleteObject(bitmap);DeleteDC(dc);
             EndPaint(hwnd,&ps);return 0;}

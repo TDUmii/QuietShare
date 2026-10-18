@@ -1,4 +1,5 @@
 #include "../src/Viewers.h"
+#include "../src/Theme.h"
 #include <SciLexer.h>
 #include <Scintilla.h>
 #include <atomic>
@@ -154,6 +155,25 @@ int wmain(int argc, wchar_t **argv)
         check(name + ":unicodeFind",
               code.Find(L"tiếng") || (s.name == std::wstring(L"sample.css") && code.Find(L"hello")));
     }
+    for(size_t id=0;id<Themes.size();++id) {
+        theme=Themes[id];
+        const auto ratio=[](COLORREF a,COLORREF b){const double x=luminance(a),y=luminance(b);return (std::max(x,y)+0.05)/(std::min(x,y)+0.05);};
+        bool readable=true;
+        for(auto bg:{theme.bg,theme.card,theme.elevated,theme.hover,theme.selection,theme.pin,theme.home,theme.homeCard,theme.rail})
+            readable=readable&&ratio(theme.text,bg)>=4.5&&ratio(theme.muted,bg)>=4.5;
+        check("paletteBodyContrast:"+std::to_string(id),readable);
+        check("paletteStatusContrast:"+std::to_string(id),ratio(theme.green,theme.homeCard)>=4.5&&ratio(theme.amber,theme.homeCard)>=4.5);
+        code.SetZoom(125);code.SetEditable(true);SendMessageW(code.Window(),SCI_GOTOPOS,3,0);
+        const auto length=SendMessageW(code.Window(),SCI_GETLENGTH,0,0);
+        code.RefreshTheme();
+        check("themeKeepsCodeState:"+std::to_string(id),SendMessageW(code.Window(),SCI_GETCURRENTPOS,0,0)==3&&
+            SendMessageW(code.Window(),SCI_GETLENGTH,0,0)==length&&SendMessageW(code.Window(),SCI_GETREADONLY,0,0)==0&&code.GetState().zoom==125);
+        check("themeAppliesCodeBackground:"+std::to_string(id),SendMessageW(code.Window(),SCI_STYLEGETBACK,STYLE_DEFAULT,0)==theme.bg);
+        bool syntax=true;
+        for(auto color:{theme.keyword,theme.string,theme.comment,theme.number})syntax=syntax&&ratio(color,theme.bg)>=4.5;
+        check("paletteSyntaxContrast:"+std::to_string(id),syntax);
+    }
+    theme=Themes[0];code.RefreshTheme();code.SetEditable(false);
     const struct Coverage
     {
         const wchar_t *name, *text;

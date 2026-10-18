@@ -1,4 +1,5 @@
 #include "DocumentBar.h"
+#include "Theme.h"
 #include "Icons.h"
 #include "FileIcons.h"
 #include <commctrl.h>
@@ -7,8 +8,12 @@
 
 namespace quietshare {
 namespace {
-constexpr COLORREF Panel=RGB(37,37,38), Raised=RGB(60,60,60), Border=RGB(52,59,66),
-                   Text=RGB(242,245,247), Muted=RGB(170,170,170), Accent=RGB(0,122,204);
+const COLORREF& Panel=theme.card;
+const COLORREF& Raised=theme.elevated;
+const COLORREF& Border=theme.border;
+const COLORREF& Text=theme.text;
+const COLORREF& Muted=theme.muted;
+const COLORREF& Accent=theme.accent;
 void Fill(HDC dc, RECT rect, COLORREF color) {
     HBRUSH brush=CreateSolidBrush(color); FillRect(dc,&rect,brush); DeleteObject(brush);
 }

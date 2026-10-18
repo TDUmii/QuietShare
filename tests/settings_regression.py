@@ -291,6 +291,24 @@ def main():
         command(123)
         check("settingsPageActive", query(21) == 1)
         check("settingsStartsWithAppearance", query(40) == 0)
+        check("themeSelectorAvailableInAppearance", region_visible(control(255)))
+        def theme_popup():
+            found=[]
+            @native.ENUM_PROC
+            def visit(hwnd,_):
+                if native.window_pid(hwnd)==process.pid:
+                    name=ctypes.create_unicode_buffer(80);USER32.GetClassNameW(hwnd,name,len(name))
+                    if name.value=='QuietShareToolMenu':found.append(hwnd)
+                return True
+            USER32.EnumWindows(visit,0)
+            return next(iter(found),None)
+        USER32.PostMessageW(window,0x111,255,0)
+        popup=wait_for(theme_popup)
+        check("themeMenuOpensAsOwnedProtectedPopup",bool(popup))
+        native.send(popup,0x100,0x28);native.send(popup,0x100,0x0D)
+        check("themeMenuKeyboardSelectsLight",wait_for(lambda:native.control_text(control(255))=='Sáng'))
+        command(1000)
+        check("themeReturnsToClassicWithoutRestart",native.control_text(control(255))=='Tối cổ điển')
         check("fontSliderRemoved", not control(130))
         identifiers = (106, 107, 163, 108, 104, 146, 181, 151, 182, 183, 184,
                        185, 152, 155, 160, 161, 143, 187, 189, 200, 201, 202,

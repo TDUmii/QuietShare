@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Icons.h"
+#include "Theme.h"
 
 #include <algorithm>
 #include <cwctype>
@@ -95,7 +96,8 @@ inline void DrawFileTypeIcon(HDC dc, FileIconKind kind, RECT bounds, bool disabl
     case FileIconKind::Shell: glyph = 0xea85; color = RGB(155, 198, 148); break;
     default: break;
     }
-    if (disabled) color = RGB(105, 112, 121);
+    if(!theme.dark)color=RGB(GetRValue(color)/2,GetGValue(color)/2,GetBValue(color)/2);
+    if (disabled) color = theme.disabled;
     const int saved = SaveDC(dc);
     IntersectClipRect(dc, bounds.left, bounds.top, bounds.right, bounds.bottom);
     DrawCodicon(dc, glyph, bounds, color, (std::min)(width, height), false);
@@ -105,7 +107,7 @@ inline void DrawFileTypeIcon(HDC dc, FileIconKind kind, RECT bounds, bool disabl
         // native lettering, never emoji or per-file shell/registry extraction.
         RECT label{bounds.left + MulDiv(3, width, 16), bounds.top + MulDiv(8, height, 16),
                    bounds.right, bounds.bottom};
-        HBRUSH backing = CreateSolidBrush(RGB(37, 37, 38));
+        HBRUSH backing = CreateSolidBrush(theme.card);
         FillRect(dc, &label, backing);
         DeleteObject(backing);
         HFONT font = CreateFontW(-MulDiv(8, height, 16), 0, 0, 0, FW_BOLD, FALSE, FALSE, FALSE,

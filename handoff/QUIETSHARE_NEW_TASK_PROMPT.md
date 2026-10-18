@@ -1,6 +1,6 @@
 # Prompt tiếp tục QuietShare
 
-Tiếp tục private repository `TDUmii/QuietShare` từ bản `v0.13.1`. Đọc `handoff/QUIETSHARE_NEXT_CHAT_HANDOFF.md`, `handoff/QUIETSHARE_CONTEXT.md` và `handoff/EXTEND_LAPTOP_HANDOFF.md`; xác minh live main/origin/main, working tree, tag/Release trước khi thay đổi.
+Tiếp tục private repository `TDUmii/QuietShare` từ bản `v0.14.0`. Đọc `handoff/QUIETSHARE_NEXT_CHAT_HANDOFF.md`, `handoff/QUIETSHARE_CONTEXT.md` và `handoff/EXTEND_LAPTOP_HANDOFF.md`; xác minh live main/origin/main, working tree, tag/Release trước khi thay đổi.
 
 Home dùng lịch sử file/dự án thực, mã hóa DPAPI cục bộ, có mở lại/ghim/xóa. Nhớ kích thước cửa sổ và cho phép sửa văn bản/code mặc định bật; file dùng lưu chủ động và kiểm tra xung đột bên ngoài. Giữ nguyên toàn bộ capture/privacy/topology/source/device guards. Lỗi bảo vệ dừng đầu ra và không tự khởi động lại.
 
@@ -22,3 +22,7 @@ v0.13.0: yêu cầu mới cho phép Ctrl+V ảnh raster vào ô nhập web (trus
 
 
 v0.13.1: sửa tự nhảy vị trí ở lời nhắc/văn bản dài khi đổi cỡ/weight/wrap bằng TextViewport, lưu selection và ký tự đầu dòng nhìn thấy rồi khôi phục theo dòng sau reflow. Giữ con trỏ độc lập với vị trí đọc; không dựa pixel 16-bit.
+
+## v0.14.0
+
+10 selectable persistent themes across native shell and text/code, quick viewer selector. Preferences v4 (128 bytes), reads v1-v3. Theme changes preserve drafts and viewport. PDF/image/web content colors retained. Physical projection requires separate hardware observation.

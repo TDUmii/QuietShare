@@ -1,4 +1,5 @@
 #include "Viewers.h"
+#include "Theme.h"
 #include <ILexer.h>
 #include <Lexilla.h>
 #include <SciLexer.h>
@@ -19,10 +20,14 @@ namespace quietshare
 {
 namespace
 {
-constexpr COLORREF Background = RGB(30, 30, 30), Foreground = RGB(242, 245, 247);
-constexpr COLORREF Muted = RGB(170, 170, 170), Accent = RGB(86, 156, 214);
-constexpr COLORREF Keyword = RGB(197, 153, 255), String = RGB(224, 184, 122);
-constexpr COLORREF Comment = RGB(139, 166, 151), Number = RGB(116, 199, 236);
+const COLORREF& Background=theme.bg;
+const COLORREF& Foreground=theme.text;
+const COLORREF& Muted=theme.muted;
+const COLORREF& Accent=theme.number;
+const COLORREF& Keyword=theme.keyword;
+const COLORREF& String=theme.string;
+const COLORREF& Comment=theme.comment;
+const COLORREF& Number=theme.number;
 std::wstring Error(const wchar_t *vi, const wchar_t *en)
 {
     return std::wstring(vi) + L" / " + en;
@@ -291,6 +296,7 @@ struct CodeViewer::Impl
         Send(SCI_STYLESETFORE, id, color);
         Send(SCI_STYLESETBOLD, id, bold);
     }
+    std::string activeLexer="null";
     void Theme(const char *lexer)
     {
         Send(SCI_STYLESETFORE, STYLE_DEFAULT, Foreground);
@@ -298,7 +304,7 @@ struct CodeViewer::Impl
         Send(SCI_STYLESETFONT, STYLE_DEFAULT, reinterpret_cast<LPARAM>("Consolas"));
         Send(SCI_STYLECLEARALL);
         Send(SCI_SETCARETFORE, Foreground);
-        Send(SCI_SETSELBACK, TRUE, RGB(38, 79, 120));
+        Send(SCI_SETSELBACK, TRUE, theme.selection);
         Send(SCI_SETSELFORE, TRUE, Foreground);
         Send(SCI_SETMARGINTYPEN, 0, SC_MARGIN_NUMBER);
         Send(SCI_SETMARGINWIDTHN, 0, 52);
@@ -311,7 +317,7 @@ struct CodeViewer::Impl
         Send(SCI_SETEXTRAASCENT, 2);
         Send(SCI_SETEXTRADESCENT, 2);
         Send(SCI_SETWHITESPACESIZE, 1);
-        Send(SCI_SETWHITESPACEFORE, TRUE, RGB(69, 78, 86));
+        Send(SCI_SETWHITESPACEFORE, TRUE, theme.border);
         if (!strcmp(lexer, "python"))
         {
             Style(SCE_P_COMMENTLINE, Comment);
@@ -349,7 +355,7 @@ struct CodeViewer::Impl
             Style(SCE_JSON_KEYWORD, Keyword, true);
             Style(SCE_JSON_LINECOMMENT, Comment);
             Style(SCE_JSON_BLOCKCOMMENT, Comment);
-            Style(SCE_JSON_ERROR, RGB(235, 104, 104));
+            Style(SCE_JSON_ERROR, theme.error);
         }
         else if (!strcmp(lexer, "hypertext") || !strcmp(lexer, "xml"))
         {
@@ -486,7 +492,7 @@ bool CodeViewer::Create(HWND parent, int id, std::wstring &error)
                         reinterpret_cast<HMENU>(static_cast<INT_PTR>(id)), GetModuleHandleW(nullptr), nullptr);
     if (!impl->window)
         return false;
-    SetWindowTheme(impl->window, L"DarkMode_Explorer", nullptr);
+    SetWindowTheme(impl->window, theme.dark?L"DarkMode_Explorer":L"Explorer", nullptr);
     SetWindowSubclass(impl->window, Impl::Subclass, 1, reinterpret_cast<DWORD_PTR>(impl.get()));
     impl->Send(SCI_SETTECHNOLOGY, SC_TECHNOLOGY_DIRECTWRITE);
     impl->Send(SCI_SETFONTQUALITY, SC_EFF_QUALITY_LCD_OPTIMIZED);
@@ -535,6 +541,7 @@ bool CodeViewer::Open(const LoadedContent &content, std::wstring &error)
     impl->Send(SCI_SETPROPERTY, reinterpret_cast<WPARAM>("lexer.cpp.track.preprocessor"),
                reinterpret_cast<LPARAM>("0"));
     impl->Send(SCI_SETPROPERTY, reinterpret_cast<WPARAM>("lexer.json.allow.comments"), reinterpret_cast<LPARAM>("1"));
+    impl->activeLexer=lexer.name;
     impl->Theme(lexer.name);
     impl->Send(SCI_SETREADONLY, FALSE);
     impl->Send(SCI_SETTEXT, 0, reinterpret_cast<LPARAM>(text.c_str()));
@@ -548,6 +555,15 @@ bool CodeViewer::Open(const LoadedContent &content, std::wstring &error)
     SetWrap(false);
     error.clear();
     return true;
+}
+void CodeViewer::RefreshTheme()
+{
+    if(!impl->window)return;
+    impl->Theme(impl->activeLexer.c_str());
+    impl->Zoom(impl->state.zoom);
+    SetWindowTheme(impl->window,theme.dark?L"DarkMode_Explorer":L"Explorer",nullptr);
+    impl->Send(SCI_COLOURISE,0,-1);
+    InvalidateRect(impl->window,nullptr,FALSE);
 }
 void CodeViewer::Close()
 {

@@ -2,6 +2,7 @@
 #include <windows.h>
 #include <commctrl.h>
 #include <array>
+#include "Theme.h"
 #include <string>
 
 namespace quietshare {
@@ -14,7 +15,7 @@ inline bool operator==(KeyBinding a,KeyBinding b){return a.key==b.key&&a.modifie
 inline bool operator!=(KeyBinding a,KeyBinding b){return !(a==b);}
 struct Preferences {
     std::array<KeyBinding,PreferenceCommandCount> shortcuts{};
-    int opacityPercent=100,textWeight=400,iconSize=16;
+    int opacityPercent=100,textWeight=400,iconSize=16,themeId=0;
     bool browserMuted=false,browserAllowCamera=false,browserAllowMicrophone=false;
     bool rememberWindowSize=true,allowFileEditing=true;
     KeyBinding& Key(PreferenceCommand command){return shortcuts[static_cast<unsigned>(command)];}
@@ -47,6 +48,7 @@ inline WORD BindingToHotkeyControl(KeyBinding binding)
 inline bool ValidatePreferences(const Preferences& p,std::wstring& error)
 {
     error.clear();
+    if(p.themeId<0||p.themeId>=static_cast<int>(Themes.size())){error=L"theme";return false;}
     if(p.opacityPercent<40||p.opacityPercent>100){error=L"opacity";return false;}
     if(p.textWeight!=400&&p.textWeight!=600&&p.textWeight!=700){error=L"weight";return false;}
     if(p.iconSize<12||p.iconSize>24){error=L"icon-size";return false;}
@@ -93,19 +95,20 @@ inline std::wstring ShortcutLabel(KeyBinding binding)
     return label;
 }
 // Fixed record: magic, version, count, opacity, weight, then ten (key, modifiers) pairs.
-// V1: 100 bytes. V2: icon/browser options, 116 bytes. V3: workspace switches, 124 bytes.
+// V1: 100 bytes. V2: icon/browser options, 116 bytes. V3: workspace switches, 124 bytes. V4: theme, 128 bytes.
 // This file contains no document paths, browser data, account IDs or content.
 inline bool SavePreferences(const std::wstring& dataDirectory,const Preferences& p)
 {
     std::wstring error;
     if(dataDirectory.empty()||!ValidatePreferences(p,error))return false;
-    std::array<DWORD,11+2*PreferenceCommandCount> values{{0x50515351,3,PreferenceCommandCount,
+    std::array<DWORD,12+2*PreferenceCommandCount> values{{0x50515351,4,PreferenceCommandCount,
         static_cast<DWORD>(p.opacityPercent),static_cast<DWORD>(p.textWeight)}};
     for(unsigned i=0;i<PreferenceCommandCount;++i){values[5+i*2]=p.shortcuts[i].key;values[6+i*2]=p.shortcuts[i].modifiers;}
     constexpr unsigned appearance=5+2*PreferenceCommandCount;
     values[appearance]=static_cast<DWORD>(p.iconSize);values[appearance+1]=p.browserMuted;
     values[appearance+2]=p.browserAllowCamera;values[appearance+3]=p.browserAllowMicrophone;
     values[appearance+4]=p.rememberWindowSize;values[appearance+5]=p.allowFileEditing;
+    values[appearance+6]=p.themeId;
     const auto target=dataDirectory+L"\\preferences.dat",temporary=target+L".tmp";
     HANDLE file=CreateFileW(temporary.c_str(),GENERIC_WRITE,0,nullptr,CREATE_ALWAYS,FILE_ATTRIBUTE_NORMAL,nullptr);
     if(file==INVALID_HANDLE_VALUE)return false;
@@ -122,29 +125,31 @@ inline bool LoadPreferences(const std::wstring& dataDirectory,Preferences& p)
     HANDLE file=CreateFileW((dataDirectory+L"\\preferences.dat").c_str(),GENERIC_READ,FILE_SHARE_READ,
         nullptr,OPEN_EXISTING,FILE_ATTRIBUTE_NORMAL,nullptr);
     if(file==INVALID_HANDLE_VALUE)return false;
-    std::array<DWORD,11+2*PreferenceCommandCount> values{};
+    std::array<DWORD,12+2*PreferenceCommandCount> values{};
     LARGE_INTEGER size{};DWORD read=0;
     constexpr DWORD legacyBytes=(5+2*PreferenceCommandCount)*sizeof(DWORD);
     constexpr DWORD version2Bytes=(9+2*PreferenceCommandCount)*sizeof(DWORD);
-    const bool ok=GetFileSizeEx(file,&size)&&(size.QuadPart==legacyBytes||size.QuadPart==version2Bytes||size.QuadPart==sizeof(values))&&
+    const bool ok=GetFileSizeEx(file,&size)&&(size.QuadPart==legacyBytes||size.QuadPart==version2Bytes||size.QuadPart==124||size.QuadPart==sizeof(values))&&
         ReadFile(file,values.data(),static_cast<DWORD>(size.QuadPart),&read,nullptr)&&read==size.QuadPart;
     CloseHandle(file);
     const bool legacy=values[1]==1&&size.QuadPart==legacyBytes;
     const bool version2=values[1]==2&&size.QuadPart==version2Bytes;
-    const bool current=values[1]==3&&size.QuadPart==sizeof(values);
-    if(!ok||values[0]!=0x50515351||(!legacy&&!version2&&!current)||values[2]!=PreferenceCommandCount||
+    const bool version3=values[1]==3&&size.QuadPart==124;
+    const bool current=values[1]==4&&size.QuadPart==sizeof(values);
+    if(!ok||values[0]!=0x50515351||(!legacy&&!version2&&!version3&&!current)||values[2]!=PreferenceCommandCount||
        values[3]>100||values[4]>700)return false;
     Preferences next;next.opacityPercent=static_cast<int>(values[3]);next.textWeight=static_cast<int>(values[4]);
-    if(current||version2) {
+    if(current||version3||version2) {
         constexpr unsigned appearance=5+2*PreferenceCommandCount;
         if(values[appearance]>24||values[appearance+1]>1||values[appearance+2]>1||values[appearance+3]>1)return false;
         next.iconSize=static_cast<int>(values[appearance]);next.browserMuted=values[appearance+1]!=0;
         next.browserAllowCamera=values[appearance+2]!=0;next.browserAllowMicrophone=values[appearance+3]!=0;
-        if(current){
+        if(current||version3){
             if(values[appearance+4]>1||values[appearance+5]>1)return false;
             next.rememberWindowSize=values[appearance+4]!=0;next.allowFileEditing=values[appearance+5]!=0;
         }
     }
+    if(current){if(values[31]>=Themes.size())return false;next.themeId=static_cast<int>(values[31]);}
     for(unsigned i=0;i<PreferenceCommandCount;++i) {
         if(values[5+i*2]>255||values[6+i*2]>255)return false;
         next.shortcuts[i]={static_cast<WORD>(values[5+i*2]),static_cast<WORD>(values[6+i*2])};

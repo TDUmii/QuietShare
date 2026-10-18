@@ -1,4 +1,5 @@
 #pragma once
+#include "Theme.h"
 #include "Content.h"
 #include "Privacy.h"
 #include "Icons.h"
@@ -164,22 +165,22 @@ class LocalPicker {
                 if(index>=0&&index<(int)self->entries.size()){if(self->entries[index].directory)self->Navigate(self->entries[index].path);else self->Finish(true);}}
             return 0;
         }
-        if(msg==WM_CTLCOLORSTATIC||msg==WM_CTLCOLORLISTBOX||msg==WM_CTLCOLOREDIT){auto dc=(HDC)wp;SetBkColor(dc,RGB(30,30,30));SetTextColor(dc,RGB(204,204,204));return (LRESULT)self->background;}
+        if(msg==WM_CTLCOLORSTATIC||msg==WM_CTLCOLORLISTBOX||msg==WM_CTLCOLOREDIT){auto dc=(HDC)wp;SetBkColor(dc,theme.bg);SetTextColor(dc,theme.text);return (LRESULT)self->background;}
         if(msg==WM_ERASEBKGND){RECT r{};GetClientRect(h,&r);FillRect((HDC)wp,&r,self->background);return 1;}
         if(msg==WM_DRAWITEM) {
             auto item=(DRAWITEMSTRUCT*)lp;auto dc=item->hDC;RECT r=item->rcItem;
-            auto brush=CreateSolidBrush((item->itemState&ODS_SELECTED)?RGB(4,57,94):RGB(30,30,30));FillRect(dc,&r,brush);DeleteObject(brush);
+            auto brush=CreateSolidBrush((item->itemState&ODS_SELECTED)?theme.selection:theme.bg);FillRect(dc,&r,brush);DeleteObject(brush);
             if(item->CtlType==ODT_LISTBOX&&item->itemID<self->entries.size()) {
                 auto &entry=self->entries[item->itemID];RECT icon=r;icon.right=icon.left+self->S(32);
-                DrawCodicon(dc,entry.directory?0xeaf7:0xea7b,icon,RGB(170,170,170),self->S(16));r.left+=self->S(36);
-                auto old=SelectObject(dc,self->font);SetTextColor(dc,RGB(204,204,204));SetBkMode(dc,TRANSPARENT);
+                DrawCodicon(dc,entry.directory?0xeaf7:0xea7b,icon,theme.muted,self->S(16));r.left+=self->S(36);
+                auto old=SelectObject(dc,self->font);SetTextColor(dc,theme.text);SetBkMode(dc,TRANSPARENT);
                 RECT name=r;name.right-=self->S(256);
                 DrawTextW(dc,entry.name.c_str(),-1,&name,DT_LEFT|DT_SINGLELINE|DT_VCENTER|DT_END_ELLIPSIS);
                 RECT detail=r;detail.left=r.right-self->S(248);detail.right=r.right-self->S(94);
                 FILETIME local{};SYSTEMTIME time{};wchar_t date[80]{};
                 if(FileTimeToLocalFileTime(&entry.modified,&local)&&FileTimeToSystemTime(&local,&time)&&entry.modified.dwHighDateTime)
                     GetDateFormatEx(LOCALE_NAME_USER_DEFAULT,DATE_SHORTDATE,&time,nullptr,date,80,nullptr);
-                SetTextColor(dc,RGB(160,160,160));DrawTextW(dc,date,-1,&detail,DT_LEFT|DT_SINGLELINE|DT_VCENTER|DT_END_ELLIPSIS);
+                SetTextColor(dc,theme.muted);DrawTextW(dc,date,-1,&detail,DT_LEFT|DT_SINGLELINE|DT_VCENTER|DT_END_ELLIPSIS);
                 if(!entry.directory){wchar_t size[40]{};swprintf_s(size,L"%llu KB",entry.bytes/1024+(entry.bytes%1024!=0));
                     detail.left=r.right-self->S(88);detail.right=r.right-self->S(8);
                     DrawTextW(dc,size,-1,&detail,DT_RIGHT|DT_SINGLELINE|DT_VCENTER|DT_END_ELLIPSIS);}
@@ -187,16 +188,16 @@ class LocalPicker {
             } else if(item->CtlType==ODT_BUTTON) {
                 bool shortcut=item->CtlID>=20&&item->CtlID<25;
                 bool current=shortcut&&IsWindowEnabled(item->hwndItem)&&self->folder==self->shortcuts[item->CtlID-20];
-                brush=CreateSolidBrush(item->CtlID==IDOK&&IsWindowEnabled(item->hwndItem)?RGB(35,81,64):
-                    current?RGB(46,63,55):shortcut?RGB(30,30,30):RGB(48,48,48));FillRect(dc,&r,brush);DeleteObject(brush);
+                brush=CreateSolidBrush(item->CtlID==IDOK&&IsWindowEnabled(item->hwndItem)?theme.pin:
+                    current?theme.pin:shortcut?theme.bg:theme.elevated);FillRect(dc,&r,brush);DeleteObject(brush);
                 wchar_t label[80]{};GetWindowTextW(item->hwndItem,label,80);auto old=SelectObject(dc,self->font);
-                SetTextColor(dc,IsWindowEnabled(item->hwndItem)?RGB(242,245,247):RGB(140,140,140));SetBkMode(dc,TRANSPARENT);
+                SetTextColor(dc,IsWindowEnabled(item->hwndItem)?theme.text:theme.disabled);SetBkMode(dc,TRANSPARENT);
                 if(shortcut){RECT icon=r;icon.left+=self->S(8);icon.right=icon.left+self->S(24);
                     const unsigned codes[]={0xeb06,0xea9a,0xea7b,0xeaea,0xea7a};
-                    DrawCodicon(dc,codes[item->CtlID-20],icon,RGB(159,190,170),self->S(16));r.left+=self->S(40);}
+                    DrawCodicon(dc,codes[item->CtlID-20],icon,theme.green,self->S(16));r.left+=self->S(40);}
                 if(item->CtlID==15||item->CtlID==16||item->CtlID==10||item->CtlID==17) {
                     unsigned code=item->CtlID==15?0xea9b:item->CtlID==10?0xeaa1:0xea9c;
-                    DrawCodicon(dc,code,r,IsWindowEnabled(item->hwndItem)?RGB(225,225,225):RGB(140,140,140),self->S(16));
+                    DrawCodicon(dc,code,r,IsWindowEnabled(item->hwndItem)?theme.text:theme.disabled,self->S(16));
                 } else DrawTextW(dc,label,-1,&r,(shortcut?DT_LEFT:DT_CENTER)|DT_VCENTER|DT_SINGLELINE);
                 SelectObject(dc,old);
             }
@@ -208,14 +209,14 @@ class LocalPicker {
 public:
     std::vector<std::wstring> Show(HWND parent,bool directory,const std::wstring &initial,bool en,HFONT uiFont,HWND &active,std::wstring &failure) {
         owner=parent;english=en;foldersOnly=directory;font=uiFont;dpi=GetDpiForWindow(parent);
-        background=CreateSolidBrush(RGB(30,30,30));WNDCLASSW type{};type.lpfnWndProc=Proc;type.hInstance=GetModuleHandleW(nullptr);type.hCursor=LoadCursorW(nullptr,IDC_ARROW);type.lpszClassName=L"QuietShareLocalPicker";RegisterClassW(&type);
+        background=CreateSolidBrush(theme.bg);WNDCLASSW type{};type.lpfnWndProc=Proc;type.hInstance=GetModuleHandleW(nullptr);type.hCursor=LoadCursorW(nullptr,IDC_ARROW);type.lpszClassName=L"QuietShareLocalPicker";RegisterClassW(&type);
         MONITORINFO monitor{};monitor.cbSize=sizeof(monitor);GetMonitorInfoW(MonitorFromWindow(parent,MONITOR_DEFAULTTONEAREST),&monitor);
         int w=std::min(S(900),int(monitor.rcWork.right-monitor.rcWork.left)),ht=std::min(S(560),int(monitor.rcWork.bottom-monitor.rcWork.top));
         popup=CreateWindowExW(WS_EX_TOOLWINDOW,type.lpszClassName,directory?T(L"Mở dự án",L"Open project"):T(L"Mở file",L"Open files"),WS_OVERLAPPEDWINDOW,
             monitor.rcWork.left+(monitor.rcWork.right-monitor.rcWork.left-w)/2,monitor.rcWork.top+(monitor.rcWork.bottom-monitor.rcWork.top-ht)/2,w,ht,parent,nullptr,type.hInstance,this);
         if(!popup||!ApplyPrivacy(popup).applied){if(popup)Finish(false);DeleteObject(background);failure=T(L"Không bảo vệ được hộp chọn.",L"The picker could not be protected.");return {};}
         active=popup;
-        const BOOL dark=TRUE;DwmSetWindowAttribute(popup,20,&dark,sizeof(dark));
+        const BOOL dark=theme.dark;DwmSetWindowAttribute(popup,20,&dark,sizeof(dark));
         auto control=[&](const wchar_t *kind,const wchar_t *name,int id,DWORD style){
             HWND child=CreateWindowExW(0,kind,name,WS_CHILD|WS_VISIBLE|style,0,0,0,0,popup,(HMENU)(INT_PTR)id,type.hInstance,nullptr);SendMessageW(child,WM_SETFONT,(WPARAM)font,FALSE);return child;};
         control(L"BUTTON",T(L"Quay lại",L"Back"),15,BS_OWNERDRAW|WS_TABSTOP);control(L"BUTTON",T(L"Tiến tới",L"Forward"),16,BS_OWNERDRAW|WS_TABSTOP);
@@ -237,7 +238,7 @@ public:
                 CoTaskMemFree(path);EnableWindow(button,!shortcuts[i].empty());}}
         status=control(L"STATIC",L"",14,SS_LEFT);
         list=control(L"LISTBOX",L"",12,LBS_OWNERDRAWFIXED|LBS_HASSTRINGS|LBS_EXTENDEDSEL|LBS_NOTIFY|LBS_NOINTEGRALHEIGHT|WS_VSCROLL|WS_TABSTOP);
-        SetWindowTheme(list,L"DarkMode_Explorer",nullptr);
+        SetWindowTheme(list,theme.dark?L"DarkMode_Explorer":L"Explorer",nullptr);
         SendMessageW(list,LB_SETITEMHEIGHT,0,S(30));
         control(L"BUTTON",T(L"Hủy",L"Cancel"),IDCANCEL,BS_OWNERDRAW|WS_TABSTOP);
         accept=control(L"BUTTON",directory?T(L"Chọn thư mục",L"Select folder"):T(L"Mở",L"Open"),IDOK,BS_OWNERDRAW|WS_TABSTOP);

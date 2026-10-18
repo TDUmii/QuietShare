@@ -1,9 +1,9 @@
-# QuietShare - bàn giao sau v0.13.1
+# QuietShare - bàn giao sau v0.14.0
 
 - Cập nhật: 2026-10-18
 - Repository: private `TDUmii/QuietShare`
 - Nhánh: `main`
-- Bản sản phẩm: `v0.13.1`; xác minh commit bằng tag và Release trực tiếp trước khi tiếp tục.
+- Bản sản phẩm: `v0.14.0`; xác minh commit bằng tag và Release trực tiếp trước khi tiếp tục.
 
 ## Sản phẩm hiện tại
 
@@ -43,3 +43,7 @@ v0.13.0: yêu cầu mới cho phép Ctrl+V ảnh raster vào ô nhập web (trus
 
 
 v0.13.1: sửa tự nhảy vị trí ở lời nhắc/văn bản dài khi đổi cỡ/weight/wrap bằng TextViewport, lưu selection và ký tự đầu dòng nhìn thấy rồi khôi phục theo dòng sau reflow. Giữ con trỏ độc lập với vị trí đọc; không dựa pixel 16-bit.
+
+## v0.14.0
+
+10 selectable persistent themes across native shell and text/code, quick viewer selector. Preferences v4 (128 bytes), reads v1-v3. Theme changes preserve drafts and viewport. PDF/image/web content colors retained. Physical projection requires separate hardware observation.

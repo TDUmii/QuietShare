@@ -3,9 +3,9 @@
 Updated: 2026-10-18
 Repository: private `TDUmii/QuietShare`
 Original incident baseline: release `v0.9.1` at `f08eede29a354f8302fcd900530368eeea8f6368`
-Current application version: `v0.13.1`. This release carries forward the projection safeguards and updates the compact control and browser settings UI.
+Current application version: `v0.14.0`. This release carries forward the projection safeguards and updates the compact control and browser settings UI.
 
-## Tình trạng mới nhất - v0.13.1
+## Tình trạng mới nhất - v0.14.0
 
 Home có lịch sử thật được DPAPI mã hóa, ghim/xóa/mở lại; không có dữ liệu mẫu trong sản phẩm. Hai tùy chọn nhớ kích thước cửa sổ và cho phép sửa văn bản/code mặc định bật. File lưu chủ động, kiểm tra thay đổi bên ngoài và bảo vệ bản sửa chưa lưu. UI nhàn rỗi dùng nhịp 250 ms; tránh resize viewer trùng.
 
@@ -73,3 +73,7 @@ v0.13.0: yêu cầu mới cho phép Ctrl+V ảnh raster vào ô nhập web (trus
 
 
 v0.13.1: sửa tự nhảy vị trí ở lời nhắc/văn bản dài khi đổi cỡ/weight/wrap bằng TextViewport, lưu selection và ký tự đầu dòng nhìn thấy rồi khôi phục theo dòng sau reflow. Giữ con trỏ độc lập với vị trí đọc; không dựa pixel 16-bit.
+
+## v0.14.0
+
+10 selectable persistent themes across native shell and text/code, quick viewer selector. Preferences v4 (128 bytes), reads v1-v3. Theme changes preserve drafts and viewport. PDF/image/web content colors retained. Physical projection requires separate hardware observation.

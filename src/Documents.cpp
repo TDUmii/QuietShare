@@ -1,4 +1,5 @@
 #include "Documents.h"
+#include "Theme.h"
 #include "FileIcons.h"
 
 #include <uxtheme.h>
@@ -348,15 +349,25 @@ bool ProjectTree::Create(HWND parent, int controlId)
                               GetModuleHandleW(nullptr), nullptr);
     if (!window_)
         return false;
-    TreeView_SetBkColor(window_, RGB(37, 37, 38));
-    TreeView_SetTextColor(window_, RGB(242, 245, 247));
-    TreeView_SetLineColor(window_, RGB(52, 59, 66));
-    SetWindowTheme(window_, L"DarkMode_Explorer", nullptr);
+    TreeView_SetBkColor(window_, theme.card);
+    TreeView_SetTextColor(window_, theme.text);
+    TreeView_SetLineColor(window_, theme.border);
+    SetWindowTheme(window_, theme.dark?L"DarkMode_Explorer":L"Explorer", nullptr);
     SetWindowSubclass(window_, TreeProc, 1, reinterpret_cast<DWORD_PTR>(this));
     SetDpi(GetDpiForWindow(window_));
     return true;
 }
 
+void ProjectTree::RefreshTheme()
+{
+    if(!window_)return;
+    TreeView_SetBkColor(window_,theme.card);
+    TreeView_SetTextColor(window_,theme.text);
+    TreeView_SetLineColor(window_,theme.border);
+    SetWindowTheme(window_,theme.dark?L"DarkMode_Explorer":L"Explorer",nullptr);
+    iconDpi_=0;SetDpi(GetDpiForWindow(window_));
+    InvalidateRect(window_,nullptr,TRUE);
+}
 void ProjectTree::SetDpi(UINT dpi)
 {
     dpi = std::clamp(dpi ? dpi : 96, 48u, 768u);

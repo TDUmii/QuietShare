@@ -32,6 +32,7 @@ class CodeViewer
     void SetZoom(int percent);
     void SetWrap(bool enabled);
     void SetEditable(bool enabled);
+    void RefreshTheme();
     bool ReadText(std::wstring& text) const;
     bool Modified() const;
     void MarkSaved();

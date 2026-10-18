@@ -40,13 +40,23 @@ namespace
 {
 // QuietShare design tokens. Keep these values in one place so the native shell,
 // owner-drawn controls and RichEdit surface stay visually consistent.
-constexpr COLORREF BG = RGB(30, 30, 30), SIDEBAR = RGB(51, 51, 51), CARD = RGB(37, 37, 38),
-                   ELEVATED = RGB(60, 60, 60), HOVER = RGB(70, 70, 70), ACCENT = RGB(0, 122, 204),
-                   ACCENT_DARK = RGB(4, 57, 94), TEXT = RGB(242, 245, 247), MUTED = RGB(170, 170, 170),
-                   DIVIDER = RGB(52, 59, 66), GREEN = RGB(110, 231, 160), AMBER = RGB(245, 184, 82),
-                   DISABLED = RGB(105, 112, 121);
-constexpr COLORREF PIN_BG=RGB(35,81,64);
-constexpr COLORREF HOME_BG=RGB(20,22,23),HOME_CARD=RGB(34,39,40),HOME_RAIL=RGB(35,40,40);
+const COLORREF& BG=theme.bg;
+const COLORREF& SIDEBAR=theme.sidebar;
+const COLORREF& CARD=theme.card;
+const COLORREF& ELEVATED=theme.elevated;
+const COLORREF& HOVER=theme.hover;
+const COLORREF& ACCENT=theme.accent;
+const COLORREF& ACCENT_DARK=theme.selection;
+const COLORREF& TEXT=theme.text;
+const COLORREF& MUTED=theme.muted;
+const COLORREF& DIVIDER=theme.border;
+const COLORREF& GREEN=theme.green;
+const COLORREF& AMBER=theme.amber;
+const COLORREF& DISABLED=theme.disabled;
+const COLORREF& PIN_BG=theme.pin;
+const COLORREF& HOME_BG=theme.home;
+const COLORREF& HOME_CARD=theme.homeCard;
+const COLORREF& HOME_RAIL=theme.rail;
 constexpr int MODE = 100, PLAY = 101, SMALLER = 102, LARGER = 103, SPEED = 104, MASK = 105, TOPMOST = 106,
               LANGUAGE = 107, RESET_ZOOM = 108, EDITOR = 110, NAV_SCRIPT = 120, NAV_READ = 121,
               NAV_HOME = 122, NAV_SETTINGS = 123, OPEN_FILE = 124, FOCUS = 125, OPEN_DROP = 126,
@@ -66,7 +76,7 @@ constexpr int MODE = 100, PLAY = 101, SMALLER = 102, LARGER = 103, SPEED = 104, 
               SETTINGS_WORKSPACE=202,SETTINGS_PROJECTION=203,SETTINGS_KEYS=204,OPACITY_INPUT=205,
               TEXT_WEIGHT=206,RESET_PREFERENCES=207,MIRROR_ACTION=211,WEB_MENU=212,SHORTCUT_FIRST=220,
               SETTINGS_BROWSER=240,ICON_SIZE_INPUT=241,OPACITY_LESS=242,OPACITY_MORE=243,
-              ICON_SMALLER=244,ICON_LARGER=245,BROWSER_MUTED=246,BROWSER_CAMERA=247,BROWSER_MICROPHONE=248,REMEMBER_SIZE=249,ALLOW_EDIT=250,SAVE_FILE=251,RECENT_CLEAR=252,RECENT_NEXT=253,RECENT_PREV=254,RECENT_FIRST=400;
+              ICON_SMALLER=244,ICON_LARGER=245,BROWSER_MUTED=246,BROWSER_CAMERA=247,BROWSER_MICROPHONE=248,REMEMBER_SIZE=249,ALLOW_EDIT=250,SAVE_FILE=251,RECENT_CLEAR=252,RECENT_NEXT=253,RECENT_PREV=254,THEME_SELECT=255,RECENT_FIRST=400;
 constexpr int NORMAL_SIDEBAR = 36, COMPACT_SIDEBAR = 36;
 constexpr UINT_PTR PRIVACY_TIMER = 1, SCROLL_TIMER = 2, SAVE_TIMER = 3, QA_TIMER = 4;
 HINSTANCE instance;
@@ -681,6 +691,7 @@ void UpdateButtons()
     EnableWindow(GetDlgItem(window, LARGER), !Blocked() && (IsPdf()?pdfViewer.GetState().zoom<400:IsCode()?codeViewer.GetState().zoom<400:IsImage() ? imageZoom < 400 : ActiveTextSize() < 200));
     EnableWindow(GetDlgItem(window, PLAY), !Blocked() && !IsImage() && !IsCode()&&!IsPdf());
     EnableWindow(GetDlgItem(window, SPEED), !Blocked() && !IsImage() && !IsCode()&&!IsPdf());
+    SetWindowTextW(GetDlgItem(window,THEME_SELECT),ThemeName(preferences.themeId,english));
     SetWindowTextW(GetDlgItem(window,TEXT_WEIGHT),preferences.textWeight==700?T(L"Đậm",L"Bold"):preferences.textWeight==600?T(L"Vừa",L"Semibold"):T(L"Thường",L"Regular"));
     if(page==Page::Content) {
         SetWindowTextW(GetDlgItem(window,WRAP),T(L"Xuống dòng",L"Word wrap"));
@@ -863,6 +874,7 @@ void Layout()
             else tool(RESET_ZOOM,44);
             tool(LARGER,24);
             if(!IsCode()&&!IsImage()&&!IsPdf())tool(TEXT_WEIGHT,60);
+            tool(THEME_SELECT,160);
             if(!IsImage()&&!IsPdf())tool(WRAP,84);
             if(!IsCode()&&!IsImage()&&!IsPdf())tool(RESET_ZOOM,44);
             tool(OPEN_FILE,24);
@@ -942,6 +954,7 @@ void Layout()
         if(settingsCategory==0) {
         heading(L"Giao diện",L"Appearance");
         row(L"Ngôn ngữ",L"Language",LANGUAGE,128);
+        row(L"Chủ đề màu",L"Color theme",THEME_SELECT,180);
         row(L"Ghim cửa sổ",L"Always on top",TOPMOST);
         row(L"Nhớ kích thước cửa sổ",L"Remember window size",REMEMBER_SIZE);
         numberRow(L"Độ mờ cửa sổ (%)",L"Window opacity (%)",OPACITY_INPUT,OPACITY_LESS,OPACITY_MORE);
@@ -1886,7 +1899,7 @@ void DrawButtonContents(DRAWITEMSTRUCT *item)
         const bool disabled=(item->itemState&ODS_DISABLED)!=0,hover=hoveredButton==item->hwndItem;
         HBRUSH homeSurface=CreateSolidBrush(action?HOME_BG:HOME_CARD);FillRect(item->hDC,&item->rcItem,homeSurface);DeleteObject(homeSurface);
         RECT r=item->rcItem;InflateRect(&r,-1,-1);
-        FillRoundRect(item->hDC,r,hover?HOVER:action?(item->CtlID==OPEN_DROP?RGB(35,81,64):HOME_CARD):HOME_CARD,S(12));
+        FillRoundRect(item->hDC,r,hover?HOVER:action?(item->CtlID==OPEN_DROP?PIN_BG:HOME_CARD):HOME_CARD,S(12));
         const COLORREF color=disabled?DISABLED:TEXT;
         if(action){
             const bool shortCard=r.bottom<S(80);
@@ -1894,11 +1907,11 @@ void DrawButtonContents(DRAWITEMSTRUCT *item)
                 const int mid=(r.top+r.bottom)/2;
                 DrawCodicon(item->hDC,item->CtlID==OPEN_DROP?0xea7f:0xea83,{S(10),mid-S(10),S(32),mid+S(10)},disabled?DISABLED:item->CtlID==OPEN_DROP?GREEN:MUTED,S(18));
                 DrawTextAt(item->hDC,T(item->CtlID==OPEN_DROP?L"Mở file":L"Mở dự án",item->CtlID==OPEN_DROP?L"Open file":L"Open project"),{S(42),S(7),r.right-S(8),S(30)},color,uiFont,DT_LEFT|DT_VCENTER|DT_SINGLELINE|DT_END_ELLIPSIS);
-                DrawTextAt(item->hDC,T(item->CtlID==OPEN_DROP?L"File trên máy":L"Thư mục code",item->CtlID==OPEN_DROP?L"Local files":L"Code folder"),{S(42),S(31),r.right-S(8),S(51)},disabled?DISABLED:item->CtlID==OPEN_DROP?RGB(197,220,209):MUTED,metaFont,DT_LEFT|DT_VCENTER|DT_SINGLELINE|DT_END_ELLIPSIS);
+                DrawTextAt(item->hDC,T(item->CtlID==OPEN_DROP?L"File trên máy":L"Thư mục code",item->CtlID==OPEN_DROP?L"Local files":L"Code folder"),{S(42),S(31),r.right-S(8),S(51)},disabled?DISABLED:item->CtlID==OPEN_DROP?TEXT:MUTED,metaFont,DT_LEFT|DT_VCENTER|DT_SINGLELINE|DT_END_ELLIPSIS);
             }else{
             DrawCodicon(item->hDC,item->CtlID==OPEN_DROP?0xea7f:0xea83,{S(12),S(8),S(34),S(30)},disabled?DISABLED:item->CtlID==OPEN_DROP?GREEN:MUTED,S(18));
             DrawTextAt(item->hDC,T(item->CtlID==OPEN_DROP?L"Mở file":L"Mở dự án",item->CtlID==OPEN_DROP?L"Open file":L"Open project"),{S(12),S(36),r.right-S(10),S(62)},color,brandFont);
-            DrawTextAt(item->hDC,item->CtlID==OPEN_DROP?T(L"Code, PDF, ảnh, văn bản",L"Code, PDF, images, text"):T(L"Mở thư mục code",L"Open a code folder"),{S(12),S(66),r.right-S(10),S(90)},disabled?DISABLED:item->CtlID==OPEN_DROP?RGB(197,220,209):MUTED,metaFont,DT_LEFT|DT_VCENTER|DT_SINGLELINE|DT_END_ELLIPSIS);
+            DrawTextAt(item->hDC,item->CtlID==OPEN_DROP?T(L"Code, PDF, ảnh, văn bản",L"Code, PDF, images, text"):T(L"Mở thư mục code",L"Open a code folder"),{S(12),S(66),r.right-S(10),S(90)},disabled?DISABLED:item->CtlID==OPEN_DROP?TEXT:MUTED,metaFont,DT_LEFT|DT_VCENTER|DT_SINGLELINE|DT_END_ELLIPSIS);
             }
         }else if(!Blocked()){
             const size_t index=recentOffset+(item->CtlID-RECENT_FIRST)/3;const int part=(item->CtlID-RECENT_FIRST)%3;
@@ -1961,12 +1974,12 @@ void DrawButtonContents(DRAWITEMSTRUCT *item)
     COLORREF color = disabled    ? CARD
                      : pressed   ? (primary ? ACCENT_DARK : DIVIDER)
                      : hover     ? HOVER
-                     : activeNav ? (page==Page::Home?RGB(35,81,64):ACCENT_DARK)
+                     : activeNav ? (page==Page::Home?PIN_BG:ACCENT_DARK)
                      : primary   ? ACCENT
                      : nav       ? SIDEBAR
                                  : ELEVATED;
     if (primary && hover && !pressed)
-        color = RGB(17,139,220);
+        color = RGB(0,96,160);
     if(page==Page::Browser&&!nav&&!(item->CtlID==BROWSER_TOGGLE&&!browser.Enabled())&&!hover&&!pressed)
         color=BG;
     const bool settingsRow=page==Page::Settings&&std::find(clippedSettingsControls.begin(),clippedSettingsControls.end(),item->hwndItem)!=clippedSettingsControls.end();
@@ -1998,12 +2011,12 @@ void DrawButtonContents(DRAWITEMSTRUCT *item)
     else if(stepper||item->CtlID==WEB_MENU||item->CtlID==WEB_NEW_TAB||item->CtlID==WEB_GO||item->CtlID==WEB_ZOOM_OUT||item->CtlID==WEB_ZOOM_IN||
         (item->CtlID==BROWSER_TOGGLE&&page==Page::Browser&&browser.Enabled())||
         item->CtlID==PIN_WINDOW||item->CtlID==LAYOUT_MENU||item->CtlID==SHOW_TREE || (strip && (item->CtlID==FOCUS || item->CtlID==MASK || item->CtlID==TOPMOST || item->CtlID==SMALLER || item->CtlID==LARGER || item->CtlID==MODE || item->CtlID==PLAY || item->CtlID==OPEN_FILE || item->CtlID==OVERFLOW || item->CtlID==FIND_CLOSE || item->CtlID==FIND_PREV || item->CtlID==FIND_NEXT)))
-        DrawActionIcon(item->hDC,item->CtlID,button,disabled?DISABLED:(item->CtlID==PIN_WINDOW||item->CtlID==TOPMOST)?(topmost?GREEN:MUTED):TEXT);
+        DrawActionIcon(item->hDC,item->CtlID,button,disabled?DISABLED:(item->CtlID==PIN_WINDOW||item->CtlID==TOPMOST)?(topmost?GREEN:MUTED):primary&&!pressed?RGB(255,255,255):TEXT);
     else
     {
         DrawTextAt(item->hDC, TextOf(item->hwndItem), button,
                    disabled  ? DISABLED
-                   : primary ? TEXT
+                   : primary && !pressed ? RGB(255,255,255)
                              : TEXT,
                    uiFont, DT_CENTER | DT_VCENTER | DT_SINGLELINE | DT_END_ELLIPSIS);
     }
@@ -2381,6 +2394,7 @@ void FinishQa()
     WriteQa();
     DestroyWindow(window);
 }
+bool StorePreferences(const Preferences& candidate);
 void QaTick()
 {
     if (qaStorage)
@@ -2713,6 +2727,16 @@ void QaTick()
             english=false;page=Page::Content;Layout();ToggleMask();Capture(L"tabs-masked.bmp");ToggleMask();
             ShowScript();
         }
+        if(qaVisual) {
+            for(int id=0;id<static_cast<int>(Themes.size());++id) {
+                auto candidate=preferences;candidate.themeId=id;StorePreferences(candidate);
+                page=Page::Home;Layout();Capture((L"theme-"+std::to_wstring(id)+L"-home.bmp").c_str());
+                page=Page::Content;Layout();Capture((L"theme-"+std::to_wstring(id)+L"-reader.bmp").c_str());
+                page=Page::Settings;settingsCategory=0;settingsOffset=0;Layout();
+                Capture((L"theme-"+std::to_wstring(id)+L"-settings.bmp").c_str());
+            }
+            auto candidate=preferences;candidate.themeId=0;StorePreferences(candidate);page=Page::Content;Layout();
+        }
         FinishQa();
         break;
     }
@@ -2785,6 +2809,18 @@ bool StorePreferences(const Preferences& candidate)
     }
     preferences=candidate;f8Registered=globalHotkeys.Registered(PreferenceCommand::Mask);recallRegistered=globalHotkeys.Registered(PreferenceCommand::Recall);
     preferenceError.clear();browser.SetMediaPreferences(preferences.browserMuted,preferences.browserAllowCamera,preferences.browserAllowMicrophone);
+    if(theme.vi!=Themes[preferences.themeId].vi) {
+        theme=Themes[preferences.themeId];
+        DeleteObject(bgBrush);DeleteObject(cardBrush);DeleteObject(numberBrush);
+        bgBrush=CreateSolidBrush(BG);cardBrush=CreateSolidBrush(CARD);numberBrush=CreateSolidBrush(ELEVATED);
+        SendMessageW(editor,EM_SETBKGNDCOLOR,0,BG);
+        BOOL dark=theme.dark;DwmSetWindowAttribute(window,20,&dark,sizeof(dark));
+        COLORREF border=DIVIDER;DwmSetWindowAttribute(window,34,&border,sizeof(border));
+        EnumChildWindows(window,[](HWND child,LPARAM)->BOOL {
+            SetWindowTheme(child,theme.dark?L"DarkMode_Explorer":L"Explorer",nullptr);return TRUE;
+        },0);
+        codeViewer.RefreshTheme();projectTree.RefreshTheme();
+    }
     ApplyWindowAppearance();return true;
 }
 void CommitOpacity()
@@ -2926,7 +2962,7 @@ LRESULT CALLBACK Proc(HWND h, UINT message, WPARAM wp, LPARAM lp)
             {RESET_PREFERENCES,L"Khôi phục mặc định"},{MIRROR_ACTION,L"Bắt đầu trình chiếu"},
             {220,L"F8"},{221,L"Ctrl+Alt+Q"},{222,L"F9"},{223,L"F10"},{224,L"F11"},
             {225,L"Ctrl+O"},{226,L"Ctrl+Shift+O"},{227,L"Ctrl+B"},{228,L"Ctrl+Enter"},{229,L"Space"}};
-        labels.insert(labels.end(),{{REMEMBER_SIZE,L"Nhớ kích thước cửa sổ"},{ALLOW_EDIT,L"Cho phép sửa file"},{SAVE_FILE,L"Lưu file"},
+        labels.insert(labels.end(),{{THEME_SELECT,L"Chủ đề màu"},{REMEMBER_SIZE,L"Nhớ kích thước cửa sổ"},{ALLOW_EDIT,L"Cho phép sửa file"},{SAVE_FILE,L"Lưu file"},
             {RECENT_CLEAR,L"Xóa lịch sử"},{RECENT_NEXT,L"Sau"},{RECENT_PREV,L"Trước"}});
         for(int i=0;i<6;++i){labels.push_back({RECENT_FIRST+i*3,L"Mở lại"});labels.push_back({RECENT_FIRST+i*3+1,L"Ghim / bỏ ghim"});labels.push_back({RECENT_FIRST+i*3+2,L"Xóa khỏi lịch sử"});}
         for (const auto &label : labels)
@@ -2962,23 +2998,23 @@ LRESULT CALLBACK Proc(HWND h, UINT message, WPARAM wp, LPARAM lp)
                             0, 0, 0, 0, h, (HMENU)EDITOR, instance, nullptr);
         if (!editor)
             return -1;
-        SetWindowTheme(editor, L"DarkMode_Explorer", nullptr);
+        SetWindowTheme(editor, theme.dark?L"DarkMode_Explorer":L"Explorer", nullptr);
         imageViewer = CreateWindowExW(0, L"QuietShareImage", L"", WS_CHILD | WS_TABSTOP | WS_CLIPSIBLINGS,
                                        0, 0, 0, 0, h, nullptr, instance, nullptr);
         sizeInput=CreateWindowExW(0,L"EDIT",L"24",WS_CHILD|WS_TABSTOP|WS_CLIPSIBLINGS|ES_CENTER|ES_NUMBER|ES_AUTOHSCROLL|ES_MULTILINE,
             0,0,0,0,h,(HMENU)SIZE_INPUT,instance,nullptr);
-        SendMessageW(sizeInput,EM_SETLIMITTEXT,4,0);SetWindowTheme(sizeInput,L"DarkMode_Explorer",nullptr);
+        SendMessageW(sizeInput,EM_SETLIMITTEXT,4,0);SetWindowTheme(sizeInput,theme.dark?L"DarkMode_Explorer":L"Explorer",nullptr);
         SetWindowSubclass(sizeInput,SizeInputProc,1,0);
         opacityInput=CreateWindowExW(0,L"EDIT",L"100",WS_CHILD|WS_TABSTOP|WS_CLIPSIBLINGS|ES_CENTER|ES_NUMBER|ES_AUTOHSCROLL|ES_MULTILINE,
             0,0,0,0,h,(HMENU)OPACITY_INPUT,instance,nullptr);
-        SendMessageW(opacityInput,EM_SETLIMITTEXT,3,0);SetWindowTheme(opacityInput,L"DarkMode_Explorer",nullptr);
+        SendMessageW(opacityInput,EM_SETLIMITTEXT,3,0);SetWindowTheme(opacityInput,theme.dark?L"DarkMode_Explorer":L"Explorer",nullptr);
         SetWindowSubclass(opacityInput,OpacityInputProc,1,0);
         iconSizeInput=CreateWindowExW(0,L"EDIT",L"16",WS_CHILD|WS_TABSTOP|WS_CLIPSIBLINGS|ES_CENTER|ES_NUMBER|ES_AUTOHSCROLL|ES_MULTILINE,
             0,0,0,0,h,(HMENU)ICON_SIZE_INPUT,instance,nullptr);
-        SendMessageW(iconSizeInput,EM_SETLIMITTEXT,2,0);SetWindowTheme(iconSizeInput,L"DarkMode_Explorer",nullptr);
+        SendMessageW(iconSizeInput,EM_SETLIMITTEXT,2,0);SetWindowTheme(iconSizeInput,theme.dark?L"DarkMode_Explorer":L"Explorer",nullptr);
         SetWindowSubclass(iconSizeInput,OpacityInputProc,1,0);
         settingsScroll=CreateWindowExW(0,L"SCROLLBAR",L"",WS_CHILD|WS_TABSTOP|SBS_VERT,0,0,0,0,h,(HMENU)SETTINGS_SCROLL,instance,nullptr);
-        SetWindowTheme(settingsScroll,L"DarkMode_Explorer",nullptr);SetWindowSubclass(settingsScroll,SettingsScrollProc,1,0);
+        SetWindowTheme(settingsScroll,theme.dark?L"DarkMode_Explorer":L"Explorer",nullptr);SetWindowSubclass(settingsScroll,SettingsScrollProc,1,0);
         if(!documentHost.Create(h,editor,imageViewer,viewerError))return -1;
         if(!documentBar.Create(h,instance) || !browserTabBar.Create(h,instance,true) || !projectTree.Create(h,172))return -1;
         homeVersion=CreateWindowExW(0,L"STATIC",L"v" QUIETSHARE_VERSION_WIDE,WS_CHILD|WS_CLIPSIBLINGS|SS_RIGHT|SS_CENTERIMAGE,
@@ -2988,7 +3024,7 @@ LRESULT CALLBACK Proc(HWND h, UINT message, WPARAM wp, LPARAM lp)
         ApplyPrivacy(tooltips);
         findInput=CreateWindowExW(0,L"EDIT",L"",WS_CHILD|WS_TABSTOP|ES_AUTOHSCROLL,0,0,0,0,h,(HMENU)FIND_INPUT,instance,nullptr);
         webAddress=CreateWindowExW(0,L"EDIT",L"",WS_CHILD|WS_TABSTOP|WS_CLIPSIBLINGS|ES_AUTOHSCROLL|ES_MULTILINE,0,0,0,0,h,(HMENU)WEB_ADDRESS,instance,nullptr);
-        SendMessageW(webAddress,EM_SETLIMITTEXT,4096,0);SetWindowTheme(webAddress,L"DarkMode_Explorer",nullptr);
+        SendMessageW(webAddress,EM_SETLIMITTEXT,4096,0);SetWindowTheme(webAddress,theme.dark?L"DarkMode_Explorer":L"Explorer",nullptr);
         SetWindowSubclass(webAddress,AddressInputProc,1,0);
         sourceMonitor=CreateWindowExW(0,L"COMBOBOX",L"",WS_CHILD|WS_TABSTOP|CBS_DROPDOWNLIST|CBS_OWNERDRAWFIXED|CBS_HASSTRINGS|WS_VSCROLL,0,0,0,0,h,(HMENU)SOURCE_MONITOR,instance,nullptr);
         destinationMonitor=CreateWindowExW(0,L"COMBOBOX",L"",WS_CHILD|WS_TABSTOP|CBS_DROPDOWNLIST|CBS_OWNERDRAWFIXED|CBS_HASSTRINGS|WS_VSCROLL,0,0,0,0,h,(HMENU)DEST_MONITOR,instance,nullptr);
@@ -2999,7 +3035,7 @@ LRESULT CALLBACK Proc(HWND h, UINT message, WPARAM wp, LPARAM lp)
             if(GetComboBoxInfo(combo,&info))publicLists.push_back(info.hwndList);
         }
         mirror->SetPublicPopups(publicLists);
-        for(HWND control:{findInput,sourceMonitor,destinationMonitor})SetWindowTheme(control,L"DarkMode_Explorer",nullptr);
+        for(HWND control:{findInput,sourceMonitor,destinationMonitor})SetWindowTheme(control,theme.dark?L"DarkMode_Explorer":L"Explorer",nullptr);
         UpdateMonitors();
         DragAcceptFiles(h, TRUE);
         SendMessageW(editor, EM_SETTEXTMODE, TM_PLAINTEXT | TM_MULTICODEPAGE, 0);
@@ -3365,6 +3401,9 @@ LRESULT CALLBACK Proc(HWND h, UINT message, WPARAM wp, LPARAM lp)
         }
         if (HIWORD(wp) != BN_CLICKED)
             return 0;
+        if(LOWORD(wp)>=1000&&LOWORD(wp)<1000+Themes.size()) {
+            auto candidate=preferences;candidate.themeId=LOWORD(wp)-1000;StorePreferences(candidate);Layout();return 0;
+        }
         if((LOWORD(wp)>=SETTINGS_APPEARANCE&&LOWORD(wp)<=SETTINGS_KEYS)||LOWORD(wp)==SETTINGS_BROWSER) {
             capturingShortcut=-1;preferenceError.clear();settingsCategory=LOWORD(wp)==SETTINGS_BROWSER?5:LOWORD(wp)-SETTINGS_APPEARANCE;
             if(LOWORD(wp)==SETTINGS_BROWSER){Pause();focusMode=false;page=Page::Settings;}
@@ -3397,8 +3436,19 @@ LRESULT CALLBACK Proc(HWND h, UINT message, WPARAM wp, LPARAM lp)
             SendMessageW(editor,EM_SETREADONLY,viewingFile?!preferences.allowFileEditing:reading,0);
             codeViewer.SetEditable(preferences.allowFileEditing);Layout();break;}
 
+        case THEME_SELECT:{
+            std::vector<ToolMenuItem> entries;
+            for(int i=0;i<static_cast<int>(Themes.size());++i)
+                entries.push_back({1000+i,ThemeName(i,english),true,0,preferences.themeId==i});
+            RECT anchor{};GetWindowRect(GetDlgItem(window,THEME_SELECT),&anchor);
+            ToolMenu menu;int chosen=menu.Show(window,anchor,dpi,uiFont,std::move(entries));
+            if(chosen>=1000&&chosen<1000+static_cast<int>(Themes.size())) {
+                SendMessageW(window,WM_COMMAND,chosen,0);
+            }
+            break;
+        }
         case TEXT_WEIGHT:{auto candidate=preferences;candidate.textWeight=candidate.textWeight==400?600:candidate.textWeight==600?700:400;StorePreferences(candidate);Layout();break;}
-        case RESET_PREFERENCES:{auto candidate=preferences;if(settingsCategory==4)candidate.shortcuts=DefaultPreferences().shortcuts;else{candidate.opacityPercent=100;candidate.textWeight=400;candidate.iconSize=16;}StorePreferences(candidate);Layout();break;}
+        case RESET_PREFERENCES:{auto candidate=preferences;if(settingsCategory==4)candidate.shortcuts=DefaultPreferences().shortcuts;else{candidate.opacityPercent=100;candidate.textWeight=400;candidate.iconSize=16;candidate.themeId=0;}StorePreferences(candidate);Layout();break;}
         case OPACITY_LESS:case OPACITY_MORE:{auto candidate=preferences;candidate.opacityPercent=std::clamp(candidate.opacityPercent+(LOWORD(wp)==OPACITY_MORE?1:-1),40,100);StorePreferences(candidate);Layout();break;}
         case ICON_SMALLER:case ICON_LARGER:{auto candidate=preferences;candidate.iconSize=std::clamp(candidate.iconSize+(LOWORD(wp)==ICON_LARGER?1:-1),12,24);StorePreferences(candidate);Layout();break;}
         case BROWSER_MUTED:case BROWSER_CAMERA:case BROWSER_MICROPHONE:{auto candidate=preferences;
@@ -3710,6 +3760,7 @@ int WINAPI wWinMain(HINSTANCE inst, HINSTANCE, LPWSTR, int show)
         return 5;
     INITCOMMONCONTROLSEX controls{sizeof(controls), ICC_STANDARD_CLASSES | ICC_BAR_CLASSES};
     InitCommonControlsEx(&controls);
+    theme=Themes[preferences.themeId];
     bgBrush = CreateSolidBrush(BG);
     cardBrush = CreateSolidBrush(CARD);
     numberBrush = CreateSolidBrush(ELEVATED);
@@ -3765,7 +3816,7 @@ int WINAPI wWinMain(HINSTANCE inst, HINSTANCE, LPWSTR, int show)
         return 3;
     dpi = GetDpiForWindow(window);
     RefreshFonts();
-    BOOL dark = TRUE;
+    BOOL dark = theme.dark;
     DwmSetWindowAttribute(window, 20, &dark, sizeof(dark));
     BOOL privatePreview=TRUE;
     DwmSetWindowAttribute(window,DWMWA_FORCE_ICONIC_REPRESENTATION,&privatePreview,sizeof(privatePreview));

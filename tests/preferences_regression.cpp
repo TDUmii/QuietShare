@@ -18,7 +18,7 @@ BOOL WINAPI RegisterFixture(HWND,int id,UINT modifiers,UINT key)
 BOOL WINAPI UnregisterFixture(HWND,int id){++unregisterCalls;return registered.erase(id)?TRUE:FALSE;}
 bool Equal(const Preferences& a,const Preferences& b)
 {
-    return a.shortcuts==b.shortcuts&&a.opacityPercent==b.opacityPercent&&a.textWeight==b.textWeight&&
+    return a.themeId==b.themeId&&a.shortcuts==b.shortcuts&&a.opacityPercent==b.opacityPercent&&a.textWeight==b.textWeight&&
         a.iconSize==b.iconSize&&a.browserMuted==b.browserMuted&&a.browserAllowCamera==b.browserAllowCamera&&
         a.browserAllowMicrophone==b.browserAllowMicrophone&&a.rememberWindowSize==b.rememberWindowSize&&a.allowFileEditing==b.allowFileEditing;
 }
@@ -98,7 +98,7 @@ int wmain()
     check("missingFileLeavesCallerUnchanged",!LoadPreferences(directory,loaded)&&Equal(loaded,defaults));
     check("preferencesSavedAtomically",SavePreferences(directory,edited)&&GetFileAttributesW((path+L".tmp").c_str())==INVALID_FILE_ATTRIBUTES);
     WIN32_FILE_ATTRIBUTE_DATA info{};
-    check("recordIsBoundedAndFixed",GetFileAttributesExW(path.c_str(),GetFileExInfoStandard,&info)&&info.nFileSizeLow==124&&info.nFileSizeHigh==0);
+    check("recordIsBoundedAndFixed",GetFileAttributesExW(path.c_str(),GetFileExInfoStandard,&info)&&info.nFileSizeLow==128&&info.nFileSizeHigh==0);
     check("settingsRoundTrip",LoadPreferences(directory,loaded)&&Equal(loaded,edited));
     bool independentBrowserOptions=true;
     for(unsigned options=0;options<8;++options) {
@@ -108,6 +108,16 @@ int wmain()
             Equal(loaded,candidate)&&independentBrowserOptions;
     }
     check("browserOptionsRoundTripIndependentlyAtMinimumIconSize",independentBrowserOptions);
+    for(int id=0;id<static_cast<int>(Themes.size());++id) {
+        auto candidate=edited;candidate.themeId=id;
+        check(("themeRoundTrip"+std::to_string(id)).c_str(),SavePreferences(directory,candidate)&&LoadPreferences(directory,loaded)&&Equal(candidate,loaded));
+    }
+    invalid=edited;invalid.themeId=-1;check("negativeThemeRejected",!ValidatePreferences(invalid,error));
+    invalid.themeId=10;check("unknownThemeRejected",!ValidatePreferences(invalid,error));
+    std::array<DWORD,31> v3{{0x50515351,3,PreferenceCommandCount,100,400}};
+    for(unsigned i=0;i<PreferenceCommandCount;++i){v3[5+i*2]=defaults.shortcuts[i].key;v3[6+i*2]=defaults.shortcuts[i].modifiers;}
+    v3[25]=16;v3[29]=1;v3[30]=1;
+    check("version3MigratesDefaultTheme",Put(path,v3.data(),sizeof(v3))&&LoadPreferences(directory,loaded)&&loaded.themeId==0);
     check("customPreferencesRestored",SavePreferences(directory,edited));
     invalid=edited;invalid.opacityPercent=0;
     check("invalidSaveKeepsExistingPreferences",!SavePreferences(directory,invalid)&&LoadPreferences(directory,loaded)&&Equal(loaded,edited));
@@ -150,7 +160,7 @@ int wmain()
     check("legacySettingsPreserveAppearanceAndShortcutsWithNewDefaults",Put(path,legacyRecord.data(),sizeof(legacyRecord))&&
         LoadPreferences(directory,loaded)&&Equal(loaded,migrated));
     check("legacySettingsUpgradeToCurrentRecordOnSave",SavePreferences(directory,loaded)&&
-        GetFileAttributesExW(path.c_str(),GetFileExInfoStandard,&info)&&info.nFileSizeLow==124&&info.nFileSizeHigh==0&&
+        GetFileAttributesExW(path.c_str(),GetFileExInfoStandard,&info)&&info.nFileSizeLow==128&&info.nFileSizeHigh==0&&
         LoadPreferences(directory,loaded)&&Equal(loaded,migrated));
     legacyRecord[1]=2;loaded=edited;
     check("currentVersionWithLegacyRecordSizeRejected",Put(path,legacyRecord.data(),sizeof(legacyRecord))&&
