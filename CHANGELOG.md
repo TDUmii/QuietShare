@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.10.1
+
 - Căn giữa chữ và con trỏ trong các ô số/URL; thêm cụm giảm, nhập số và tăng cho độ mờ, cỡ chữ/zoom và kích thước icon.
 - Giữ chấm trạng thái trọn vẹn trong thanh bên; vẽ đệm các nút và gộp repaint khi chuyển trang/tab để tránh nền trắng trung gian.
 - Cho chỉnh icon 12-24 px trên thanh điều khiển, tab và Explorer; giữ cây thư mục và file đang chọn khi thay đổi.

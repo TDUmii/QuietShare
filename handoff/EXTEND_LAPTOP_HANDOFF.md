@@ -3,7 +3,7 @@
 Updated: 2026-10-18
 Repository: private `TDUmii/QuietShare`
 Original incident baseline: release `v0.9.1` at `f08eede29a354f8302fcd900530368eeea8f6368`
-Current application version: `v0.10.0`; the current UI follow-up has no version bump or new release.
+Current application version: `v0.10.1`. This release carries forward the projection safeguards and updates the compact control and browser settings UI.
 
 ## Current follow-up
 

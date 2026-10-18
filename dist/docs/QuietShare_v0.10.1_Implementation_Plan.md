@@ -1,4 +1,4 @@
-# QuietShare 0.10.0 - Functional specification
+# QuietShare 0.10.1 - Functional specification
 
 ## Tiếng Việt
 
@@ -6,7 +6,7 @@
 
 Cải thiện truy cập nhanh của trình duyệt, điều khiển trình chiếu và khả năng cá nhân hóa cửa sổ nhỏ. Giữ trình đọc file, Explorer, VI/EN, cơ chế xác minh capture và yêu cầu cài đặt theo tài khoản hiện tại.
 
-Phần hoàn thiện giao diện tiếp theo giữ phiên bản **v0.10.0**, không tạo bản phát hành mới. Phạm vi gồm căn chỉnh ô nhập số, giảm lóe nền khi chuyển mục/tab, cỡ icon tùy chỉnh và điều khiển trình duyệt gọn hơn; không thay đổi quy tắc dừng an toàn của trình chiếu.
+Bản hoàn thiện giao diện này được phát hành dưới phiên bản **v0.10.1**. Phạm vi gồm căn chỉnh ô nhập số, giảm lóe nền khi chuyển mục/tab, cỡ icon tùy chỉnh, quyền âm thanh/camera/micro và điều khiển trình duyệt gọn hơn; không thay đổi quy tắc dừng an toàn của trình chiếu.
 
 ### Trình duyệt
 
@@ -60,7 +60,7 @@ Cho đổi mười tác vụ sau. Bấm tổ hợp hiện tại rồi nhấn t�
 
 ### Phiên bản và phân phối
 
-Tổng quan, EXE, bộ cài và tài liệu dùng **v0.10.0**. Bộ cài theo tài khoản hiện tại không yêu cầu admin; portable cần toàn bộ DLL đi kèm. Chỉ đưa file dự án/sản phẩm vào Git và gói phát hành; loại trừ nội dung riêng, hồ sơ web và chẩn đoán cục bộ. Giữ các GitHub Releases cũ; cây dự án giữ ZIP hiện hành.
+Tổng quan, EXE, bộ cài và tài liệu dùng **v0.10.1**. Bộ cài theo tài khoản hiện tại không yêu cầu admin; portable cần toàn bộ DLL đi kèm. Chỉ đưa file dự án/sản phẩm vào Git và gói phát hành; loại trừ nội dung riêng, hồ sơ web và chẩn đoán cục bộ. Giữ các GitHub Releases cũ; cây dự án giữ ZIP hiện hành.
 
 ## English
 
@@ -68,7 +68,7 @@ Tổng quan, EXE, bộ cài và tài liệu dùng **v0.10.0**. Bộ cài theo t�
 
 Improve browser quick access, projection controls and personalization in a compact window. Preserve file readers, Explorer, VI/EN, capture verification and per-user installation.
 
-The UI follow-up retains **v0.10.0** without creating a new release. Its scope covers numeric input alignment, reducing background flashes during page/tab changes, configurable icon size and compact browser controls. Projection safety-stop rules remain unchanged.
+This interface update is published as **v0.10.1**. It covers numeric input alignment, reducing background flashes during page/tab changes, configurable icon size, browser audio/camera/microphone controls and compact browser navigation. Projection safety-stop rules remain unchanged.
 
 ### Browser
 
@@ -122,4 +122,4 @@ Allow ten commands to be remapped. Click a current binding, then press its repla
 
 ### Version and distribution
 
-Overview, EXE, installer and documentation use **v0.10.0**. The per-user installer needs no administrator privileges; portable use requires all bundled DLLs. Git and release payloads include only project/product files, excluding private content, browser profiles and local diagnostics. Preserve older GitHub Releases and retain the current ZIP in the project tree.
+Overview, EXE, installer and documentation use **v0.10.1**. The per-user installer needs no administrator privileges; portable use requires all bundled DLLs. Git and release payloads include only project/product files, excluding private content, browser profiles and local diagnostics. Preserve older GitHub Releases and retain the current ZIP in the project tree.

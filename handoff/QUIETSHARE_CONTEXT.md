@@ -2,8 +2,8 @@
 
 Updated: 2026-10-18
 Repository: private `TDUmii/QuietShare`
-Current application version: `v0.10.0`
-Current implementation retains the 5-minute session-expiry fix, pre-move source-window containment and compact shell/browser controls. The v0.10.0 follow-up includes a local browser New tab page with user-saved shortcuts, six Settings categories, configurable command shortcuts, window opacity and script weight, and quick projection actions on the activity bar. The current UI follow-up does not bump the version or authorize a new release; historical releases remain available.
+Current application version: `v0.10.1`
+Current implementation retains the 5-minute session-expiry fix, pre-move source-window containment and compact shell/browser controls. The v0.10.0 release includes a local browser New tab page with user-saved shortcuts, six Settings categories, configurable command shortcuts, window opacity and script weight, and quick projection actions on the activity bar. v0.10.1 adds centered numeric/address controls, configurable icon size, browser audio and device permissions, and compact browser zoom controls while preserving the projection safeguards. Historical releases remain available.
 
 ## Product purpose
 
