@@ -192,7 +192,7 @@ def main() -> int:
         native.set_control_text(edit, query_text)
         command(134)
 
-    def modifier_key(vk,expected_active,shift=False,wait_condition=None):
+    def modifier_key(vk,expected_active,shift=False,wait_condition=None,receiver=None):
         # Shared keyboard state belongs only to this test thread and owned app.
         # No SendInput/keybd_event or physical input reaches other applications.
         pending=wintypes.MSG()
@@ -209,7 +209,7 @@ def main() -> int:
             state[0x11]=state[0xA2]=0x80
             if shift:state[0x10]=state[0xA0]=0x80
             if not USER32.SetKeyboardState(state):return None
-            USER32.PostMessageW(code,WM_KEYDOWN,vk,1)
+            USER32.PostMessageW(receiver or code,WM_KEYDOWN,vk,1)
             return bool(wait_for(wait_condition or (lambda:query(2)==expected_active),4))
         finally:
             USER32.SetKeyboardState(original)
@@ -227,11 +227,11 @@ def main() -> int:
         check("productionWindowOwned", bool(window) and native.window_pid(window) == app.pid)
         check("productionControlsInitialized", bool(wait_for(lambda: USER32.GetDlgItem(window,110),8)))
         version_label=wait_for(lambda:USER32.GetDlgItem(window,192),8)
-        check("homeVersionLabelExistsBeforePrivacyGate",bool(version_label) and native.control_text(version_label)=="v0.11.0")
+        check("homeVersionLabelExistsBeforePrivacyGate",bool(version_label) and native.control_text(version_label)=="v0.11.1")
         check("actualProductionPrivacyPreflight", bool(wait_for(lambda: send(window, GATE, timeout=6000), 20)),
               "Real production WGC gate; no QA bypass")
         USER32.ShowWindow(window, 4)
-        check("homeVersionAvailableInNativeControl",native.control_text(version_label)=="v0.11.0" and query(39)==1100)
+        check("homeVersionAvailableInNativeControl",native.control_text(version_label)=="v0.11.1" and query(39)==1101)
         affinity = wintypes.DWORD()
         check("productionAffinityReadback", USER32.GetWindowDisplayAffinity(window, ctypes.byref(affinity)) and affinity.value == 0x11)
         all_children = children(window, app.pid)
@@ -489,6 +489,67 @@ def main() -> int:
         time.sleep(0.4)
         check("batteryAndUnrelatedDeviceDoNotClosePicker", owned_popup(app.pid,"QuietShareLocalPicker")==picker and bool(send(window,GATE,timeout=6000)))
         listing=USER32.GetDlgItem(picker,12)
+        address=USER32.GetDlgItem(picker,13)
+        check("explorerPickerEditableAddress",class_name(address)=="Edit" and native.control_text(address)==str(fixtures))
+        check("explorerPickerCtrlLSelectsAddress",modifier_key(ord('L'),0,
+              wait_condition=lambda:send(address,0xB0)==len(str(fixtures))<<16,receiver=listing) is True)
+        check("explorerPickerQuickAccessAndDetails",all(USER32.GetDlgItem(picker,i) for i in (15,16,17,18,19,20,21,22,23,24,26,27)))
+        check("explorerPickerSidebarBesideList",rect(USER32.GetDlgItem(picker,20),picker)[2]<rect(listing,picker)[0])
+        picker_scale=USER32.GetDpiForWindow(picker)/96
+        USER32.SetWindowPos(picker,None,0,0,round(640*picker_scale),round(420*picker_scale),0x16)
+        time.sleep(0.1)
+        check("explorerPickerCompactLayout",rect(listing,picker)[0]>=170*picker_scale
+              and rect(listing,picker)[2]-rect(listing,picker)[0]>400*picker_scale
+              and rect(USER32.GetDlgItem(picker,24),picker)[3]<rect(USER32.GetDlgItem(picker,2),picker)[1])
+        nested=next(p for p in fixtures.iterdir() if p.is_dir())
+        native.set_control_text(address,str(nested))
+        USER32.PostMessageW(address,WM_KEYDOWN,0x0D,1)
+        check("explorerPickerAddressEnterNavigates",bool(wait_for(lambda:native.control_text(address)==str(nested),2))
+              and bool(wait_for(lambda:send(listing,0x18B)==len(list(nested.iterdir())),2)))
+        send(picker,WM_COMMAND,15)
+        check("explorerPickerBackRestoresFolder",native.control_text(address)==str(fixtures))
+        USER32.PostMessageW(listing,0x104,0x27,1)
+        check("explorerPickerAltRightForward",bool(wait_for(lambda:native.control_text(address)==str(nested),2)))
+        USER32.PostMessageW(listing,0x104,0x26,1)
+        check("explorerPickerAltUpParent",bool(wait_for(lambda:native.control_text(address)==str(fixtures),2)))
+        check("explorerPickerNewBranchClearsForward",not USER32.IsWindowEnabled(USER32.GetDlgItem(picker,16)))
+        for bad,label in ((str(fixtures/'missing-folder'),'Missing'),('https://example.invalid/','Url'),('\\\\server\\share','Network')):
+            native.set_control_text(address,str(fixtures))
+            send(picker,WM_COMMAND,17)
+            normal_status=native.control_text(USER32.GetDlgItem(picker,14))
+            count=send(listing,0x18B)
+            native.set_control_text(address,bad)
+            send(picker,WM_COMMAND,17)
+            error_status=native.control_text(USER32.GetDlgItem(picker,14))
+            check("explorerPickerRejects"+label,send(listing,0x18B)==count and bool(error_status) and error_status!=normal_status)
+        native.set_control_text(address,str(fixtures))
+        send(picker,WM_COMMAND,17)
+        send(picker,WM_COMMAND,24)
+        check("explorerPickerThisPcListsLocalDrives",native.control_text(address)=="" and send(listing,0x18B)>0
+              and not USER32.IsWindowEnabled(USER32.GetDlgItem(picker,1)))
+        # Compare known-folder addresses only; never export personal directory entries.
+        shell=ctypes.WinDLL('shell32',use_last_error=True)
+        ole=ctypes.WinDLL('ole32',use_last_error=True)
+        shell.SHGetKnownFolderPath.argtypes=[ctypes.c_void_p,wintypes.DWORD,wintypes.HANDLE,ctypes.POINTER(ctypes.c_void_p)]
+        shell.SHGetKnownFolderPath.restype=ctypes.c_long
+        ole.CoTaskMemFree.argtypes=[ctypes.c_void_p]
+        for control_id,guid,label in ((20,'B4BFCC3A-DB2C-424C-B029-7FE99A87C641','Desktop'),
+                                     (21,'374DE290-123F-4565-9164-39C4925E467B','Downloads'),
+                                     (22,'FDD39AD0-238F-46AF-ADB4-6C85480369C7','Documents'),
+                                     (23,'33E28130-4E1E-4676-835A-98395C3BC3BB','Pictures')):
+            guid_buffer=ctypes.create_string_buffer(uuid.UUID(guid).bytes_le)
+            known=ctypes.c_void_p()
+            result=shell.SHGetKnownFolderPath(guid_buffer,0x4000,None,ctypes.byref(known))
+            known_path=ctypes.wstring_at(known) if result>=0 and known.value else None
+            ole.CoTaskMemFree(known)
+            check("explorerPicker"+label+"ShortcutAvailable",bool(known_path) and bool(USER32.IsWindowEnabled(USER32.GetDlgItem(picker,control_id))))
+            send(picker,WM_COMMAND,control_id)
+            check("explorerPicker"+label+"UsesWindowsLocation",os.path.normcase(native.control_text(address))==os.path.normcase(known_path))
+        native.set_control_text(address,str(fixtures))
+        send(picker,WM_COMMAND,17)
+        send(address,0x7B,0,-1)
+        check("explorerPickerNoUnprotectedEditContextMenu",not owned_popup(app.pid,'#32768'))
+        check("explorerPickerStillExcludedAfterNavigation",bool(USER32.GetWindowDisplayAffinity(picker,ctypes.byref(picker_affinity))) and picker_affinity.value==0x11)
         expected_entries=sorted([p for p in fixtures.iterdir() if not p.is_symlink()],key=lambda p:(not p.is_dir(),p.name.casefold()))
         check("nativePickerShowsLocalFixtureFiles", send(listing,0x18B)==len(expected_entries))
         for target in ("main.py","util.cpp"):

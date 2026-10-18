@@ -3,13 +3,13 @@
 Updated: 2026-10-18
 Repository: private `TDUmii/QuietShare`
 Original incident baseline: release `v0.9.1` at `f08eede29a354f8302fcd900530368eeea8f6368`
-Current application version: `v0.11.0`. This release carries forward the projection safeguards and updates the compact control and browser settings UI.
+Current application version: `v0.11.1`. This release carries forward the projection safeguards and updates the compact control and browser settings UI.
 
-## Tình trạng mới nhất - v0.11.0
+## Tình trạng mới nhất - v0.11.1
 
 Home có lịch sử thật được DPAPI mã hóa, ghim/xóa/mở lại; không có dữ liệu mẫu trong sản phẩm. Hai tùy chọn nhớ kích thước cửa sổ và cho phép sửa văn bản/code mặc định bật. File lưu chủ động, kiểm tra thay đổi bên ngoài và bảo vệ bản sửa chưa lưu. UI nhàn rỗi dùng nhịp 250 ms; tránh resize viewer trùng.
 
-Người dùng đã xác nhận toàn bộ kiểm thử thực tế hiện không còn lỗi. Ghi nhận theo lời người dùng, không suy ra thời lượng đo, build cụ thể hay nguyên nhân lần mất hình cũ. Lượt phát triển v0.11.0 không lặp lại TV/hardware soak và không xác nhận độc lập phần cứng. Các mục sự cố/protocol bên dưới giữ làm lịch sử tham khảo.
+Người dùng đã xác nhận toàn bộ kiểm thử thực tế hiện không còn lỗi. Ghi nhận theo lời người dùng, không suy ra thời lượng đo, build cụ thể hay nguyên nhân lần mất hình cũ. Lượt phát triển v0.11.1 không lặp lại TV/hardware soak và không xác nhận độc lập phần cứng. Các mục sự cố/protocol bên dưới giữ làm lịch sử tham khảo.
 
 ## Current follow-up
 
@@ -58,3 +58,5 @@ Admin rights are not required. Do not install drivers, runtimes, or services or 
 On the company laptop, open this private repository in Codex and ask it to follow this handoff. Have it fill `handoff/EXTEND_FIELD_TEST_RESULT.md`, check that the report contains no private data, and commit/push only that result file (and any explicitly requested app fix). Back in this Codex task, pull the private repo or attach the result file. I can then inspect the physical test evidence, reproduce the relevant path, and prepare a bounded fix.
 
 This task currently has no direct connection to the company laptop's Codex host. The repository handoff is the exchange channel; it does not give this task remote control of that computer.
+
+Bộ chọn file/dự án v0.11.1 dùng layout File Explorer với Desktop, Downloads, Documents, Pictures, This PC, thanh địa chỉ và lịch sử điều hướng trong phiên. Giữ cửa sổ bảo vệ capture và chính sách đường dẫn cục bộ. Người dùng nhắc lại: mặc định kiểm thử, đóng gói, commit/push và phát hành sau mỗi lần chỉnh sửa dự án.

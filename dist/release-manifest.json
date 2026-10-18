@@ -1,14 +1,14 @@
 {
-  "version": "0.11.0",
+  "version": "0.11.1",
   "platform": "win-x64",
   "files": {
     "QuietShare.exe": {
-      "bytes": 1038336,
-      "sha256": "5c3b8ae7dbc144a2472afb944755854663150ab1c3347263361a017d8a3d051a"
+      "bytes": 1047552,
+      "sha256": "581b1949fd0e96ab51ef6619d9d03a1238697ab638d643c2e6328fdc763c4a7c"
     },
     "QuietShare-Setup.exe": {
-      "bytes": 12663808,
-      "sha256": "d19254f826de8cbf9eac219151e214dd715bbcd3eec4176c3581eeff968442d4"
+      "bytes": 12673024,
+      "sha256": "05107f0cadb263ab4a15f5e4358f45eea76a2218be473ea0215d075845b13e34"
     },
     "Scintilla.dll": {
       "bytes": 1131880,

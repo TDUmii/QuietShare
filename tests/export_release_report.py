@@ -8,7 +8,7 @@ import shutil
 import subprocess
 
 ROOT = Path(__file__).resolve().parents[1]
-VERSION = '0.11.0'
+VERSION = '0.11.1'
 
 def sha256(path):
     return hashlib.sha256((ROOT / path).read_bytes()).hexdigest()
@@ -137,7 +137,7 @@ def main():
               'pdfCooperativeBudgetMs':750,'pdfStressObservedMs':viewer['renderBudgetTestMilliseconds'],
               'browser':{'metrics':browser['metrics'],'notTested':browser['notTested'],'profile':'Separate local profile; never exported'},
               'settingsInteraction':{'metrics':settings.get('metrics',{}),'method':'Owned native-window wheel/focus/click messages; no physical touchpad observation'},
-              'resourceProfiles':{'targetFps':[15,30,60],'pollIntervalMs':[33,16,8],'idleWatchdogMs':33,
+              'resourceProfiles':{'targetFps':[15,30,60],'pollIntervalMs':[33,16,8],'idleWatchdogMs':250,
                   'default':'Performance 60','wgcProducerRate':'Not forced; profiles cap app polling/copy/render work',
                   'userReportedExtendFpsApprox':60,'physicalExtendIndependentlyVerified':False},
               'screenshots':'Native renderer with synthetic data in a separate QA build; not HTML mockups or receiver evidence'}

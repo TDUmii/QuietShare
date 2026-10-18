@@ -45,3 +45,5 @@ QuietShare-v0.1.0-win-x64.zip
 **/WebProfile/
 **/projection-stop.json
 *.dpapi
+
+!dist/docs/QuietShare_v0.11.1_Implementation_Plan.md

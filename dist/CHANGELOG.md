@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+## 0.11.1
+
+- Bộ chọn file/dự án có bố cục quen thuộc của File Explorer: truy cập nhanh Desktop, Downloads, Documents, Pictures và ổ đĩa; thanh địa chỉ, quay lại/tiến tới/lên trên, ngày sửa đổi và kích thước file. Giữ bảo vệ capture và kiểm tra đường dẫn cục bộ hiện có.
+
 ## 0.11.0
 
 - Home gọn với điểm nhấn xanh lá, thao tác Mở file / Mở dự án, lịch sử thật, ghim và xóa từng mục hoặc toàn bộ lịch sử. Dữ liệu lịch sử được Windows DPAPI mã hóa cục bộ.
