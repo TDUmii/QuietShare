@@ -15,7 +15,7 @@ The application also includes a local browser New tab page with saved shortcuts,
 
 The browser address container stays centered, with single-line text and a vertically centered caret; first-click select-all is preserved. Zoom out, zoom level/reset and zoom in sit directly on the navigation row. Settings > Browser includes audio mute, camera and microphone preferences, all defaulting to false and persisted locally. Native camera/microphone grants are restricted to visible capture-verified HTTPS tabs with requests from the same origin as the main page. Grants are not persisted; Windows permissions still apply. Turning off a granted permission may reload that tab to stop active tracks. Existing per-tab capture, popup, file transfer, screen-sharing and other browser restrictions remain in place.
 
-None of these UI changes establishes the cause of the reported physical projection disappearance or authorizes a repeat physical TV/timed run or a new release. Keep the historical hardware protocol below as reference; distinguish code/native checks from physical receiver evidence.
+The v0.10.1 product update is now published. Its UI changes do not establish the cause of the reported physical projection disappearance or authorize a repeat physical TV/timed run. Keep the historical hardware protocol below as reference; distinguish code/native checks from physical receiver evidence.
 
 ## Goal
 
