@@ -126,8 +126,59 @@ std::uint64_t TabManager::MemoryBytes() const
 {
     std::uint64_t bytes = 0;
     for (const auto &document : documents_)
-        bytes += Bytes(document->content);
+        bytes += Bytes(document->content)+document->draft.size()*sizeof(wchar_t);
     return bytes;
+}
+
+bool TabManager::Save(DocumentId id,std::wstring &error)
+{
+    auto* doc=Get(id);
+    if(!doc||!id||(doc->type!=DocumentType::Text&&doc->type!=DocumentType::Code))
+        return Fail(error,L"Chỉ sửa được văn bản và code. / Only text and code can be edited.");
+    if(doc->draftUnavailable)return Fail(error,L"Code vượt giới hạn 5 MiB. Giảm nội dung hoặc bỏ bản sửa; file gốc được giữ nguyên. / Code exceeds 5 MiB. Reduce it or discard edits; the original file is preserved.");
+    if(!doc->dirty){error.clear();return true;}
+    FILETIME write{};std::uint64_t size=0;std::wstring canonical;
+    if(!CanonicalLocalPath(doc->canonicalPath,false,canonical,error)||!SamePath(canonical,doc->canonicalPath)||
+       !Stamp(canonical,write,size)||!SameStamp(doc->lastWrite,doc->fileSize,write,size))
+        return Fail(error,L"File đã thay đổi bên ngoài hoặc không còn truy cập được. Bản sửa vẫn được giữ trong tab. / File changed externally or is unavailable. Your edits remain in the tab.");
+    HANDLE original=CreateFileW(canonical.c_str(),GENERIC_READ,FILE_SHARE_READ,nullptr,OPEN_EXISTING,FILE_ATTRIBUTE_NORMAL,nullptr);
+    if(original==INVALID_HANDLE_VALUE)return Fail(error,L"Không đọc được file gốc. / Cannot read the original file.");
+    if(size>5*1024*1024){CloseHandle(original);return Fail(error,L"File vượt giới hạn 5 MiB. / File exceeds 5 MiB.");}
+    std::vector<unsigned char> bytes(static_cast<size_t>(size));DWORD read=0;
+    bool ok=size<=5*1024*1024&&ReadFile(original,bytes.data(),static_cast<DWORD>(bytes.size()),&read,nullptr)&&read==size;
+    CloseHandle(original);
+    if(!ok)return Fail(error,L"Không đọc được file gốc. / Cannot read the original file.");
+    const bool little=bytes.size()>=2&&bytes[0]==0xff&&bytes[1]==0xfe;
+    const bool big=bytes.size()>=2&&bytes[0]==0xfe&&bytes[1]==0xff;
+    const bool bom=bytes.size()>=3&&bytes[0]==0xef&&bytes[1]==0xbb&&bytes[2]==0xbf;
+    // RichEdit returns CR line endings; keep the original document's convention.
+    const auto& baseline=doc->content.text;
+    const std::wstring newline=baseline.find(L"\r\n")!=std::wstring::npos?L"\r\n":baseline.find(L'\n')!=std::wstring::npos?L"\n":baseline.find(L'\r')!=std::wstring::npos?L"\r":L"\r\n";
+    // The editor's draft is stored separately from the last disk content.
+    std::wstring text=doc->draft,normalized;
+    for(size_t i=0;i<text.size();++i){if(text[i]==L'\r'||text[i]==L'\n'){
+        if(text[i]==L'\r'&&i+1<text.size()&&text[i+1]==L'\n')++i;
+        normalized+=newline;
+    }else normalized+=text[i];}
+    const int length=WideCharToMultiByte(CP_UTF8,WC_ERR_INVALID_CHARS,normalized.data(),static_cast<int>(normalized.size()),nullptr,0,nullptr,nullptr);
+    if(!length&&!normalized.empty())return Fail(error,L"Văn bản không hợp lệ. / Invalid text.");
+    bytes.clear();
+    if(little||big){bytes={static_cast<unsigned char>(little?0xff:0xfe),static_cast<unsigned char>(little?0xfe:0xff)};
+        for(wchar_t c:normalized){bytes.push_back(static_cast<unsigned char>(little?c:c>>8));bytes.push_back(static_cast<unsigned char>(little?c>>8:c));}}
+    else {
+        if(bom)bytes={0xef,0xbb,0xbf};
+        const size_t offset=bytes.size();bytes.resize(offset+length);
+        if(length)WideCharToMultiByte(CP_UTF8,WC_ERR_INVALID_CHARS,normalized.data(),static_cast<int>(normalized.size()),reinterpret_cast<char*>(bytes.data()+offset),length,nullptr,nullptr);
+    }
+    if(bytes.size()>5*1024*1024)return Fail(error,L"File vượt giới hạn 5 MiB. / File exceeds 5 MiB.");
+    const auto temporary=canonical+L".quietshare-"+std::to_wstring(GetCurrentProcessId())+L"-"+std::to_wstring(GetTickCount64())+L".tmp";
+    HANDLE file=CreateFileW(temporary.c_str(),GENERIC_WRITE,0,nullptr,CREATE_NEW,FILE_ATTRIBUTE_NORMAL,nullptr);
+    if(file==INVALID_HANDLE_VALUE)return Fail(error,L"Không tạo được bản lưu tạm. / Cannot create a temporary save.");
+    DWORD written=0;ok=WriteFile(file,bytes.data(),static_cast<DWORD>(bytes.size()),&written,nullptr)&&written==bytes.size()&&FlushFileBuffers(file);CloseHandle(file);
+    if(ok)ok=Stamp(canonical,write,size)&&SameStamp(doc->lastWrite,doc->fileSize,write,size)&&ReplaceFileW(canonical.c_str(),temporary.c_str(),nullptr,0,nullptr,nullptr);
+    if(!ok){DeleteFileW(temporary.c_str());return Fail(error,L"Không lưu được file hoặc file đã thay đổi. Bản sửa vẫn ở trong tab. / Save failed or file changed. Your edits remain in the tab.");}
+    doc->content.text=std::move(normalized);doc->draft.clear();doc->dirty=false;
+    Stamp(canonical,doc->lastWrite,doc->fileSize);error.clear();return true;
 }
 
 bool TabManager::Load(Document &document, bool allowChanged, std::wstring &error)
@@ -153,6 +204,7 @@ bool TabManager::Load(Document &document, bool allowChanged, std::wstring &error
     document.loadingState = LoadingState::Ready;
     document.lastWrite = after;
     document.fileSize = afterSize;
+    document.draft.clear();document.dirty=false;document.draftUnavailable=false;
     error.clear();
     return true;
 }

@@ -1,19 +1,9 @@
-# Prompt for a new QuietShare task
+# Prompt tiếp tục QuietShare
 
-Copy the prompt below into the new Codex task:
+Tiếp tục private repository `TDUmii/QuietShare` từ bản `v0.11.0`. Đọc `handoff/QUIETSHARE_NEXT_CHAT_HANDOFF.md`, `handoff/QUIETSHARE_CONTEXT.md` và `handoff/EXTEND_LAPTOP_HANDOFF.md`; xác minh live main/origin/main, working tree, tag/Release trước khi thay đổi.
 
-```text
-Continue QuietShare from the private repository `TDUmii/QuietShare` on Windows. First read `handoff/QUIETSHARE_NEXT_CHAT_HANDOFF.md`, `handoff/QUIETSHARE_CONTEXT.md` and `handoff/EXTEND_LAPTOP_HANDOFF.md`. Verify the current `main`/`origin/main`, working tree, latest tag and GitHub Release before changing anything.
+Home dùng lịch sử file/dự án thực, mã hóa DPAPI cục bộ, có mở lại/ghim/xóa. Nhớ kích thước cửa sổ và cho phép sửa văn bản/code mặc định bật; file dùng lưu chủ động và kiểm tra xung đột bên ngoài. Giữ nguyên toàn bộ capture/privacy/topology/source/device guards. Lỗi bảo vệ dừng đầu ra và không tự khởi động lại.
 
-The current product release is v0.10.1, created at commit 90685958e950fd80ebd5633a1ffe8484d38e18eb. Handoff documentation may have a later commit; re-check live main. Keep the repository private and preserve historical Releases.
+Người dùng xác nhận kiểm thử thực tế hiện không còn lỗi; không suy ra measured soak hay root cause cũ. Không lặp TV/hardware soak nếu chưa được yêu cầu. Không cài driver/runtime/service, xin admin hoặc đổi hệ thống display/security. Bảo toàn repository private và Releases lịch sử.
 
-The unresolved operational observation is that QuietShare remains open while projection disappears during Extend. The user reports using a physical laptop and TV throughout an afternoon without noticing a spontaneous stop, but the image disappeared when moving the controller toward display 2. There is no timestamp, warning text, per-window state or recorded stop reason; the cause has not been reproduced. Do not describe the observation as a measured 20/30-minute soak or claim a root cause. The v0.9.2 source-window guard is intended to keep the controller on its verified source display while projecting. Automated geometry checks are not proof on the physical TV.
-
-Continue by inspecting the current source-window guard, projection stop/revocation flow and fixed-reason local diagnostics. Preserve privacy, capture, topology, source-location and device checks. A real safety failure must stop projection without automatically restarting it. Do not weaken these guards. Do not rerun the physical TV test or timed hardware soak unless I explicitly ask. Do not install drivers, runtimes or services, request admin rights, or change system-wide display/security settings.
-
-Complete the independent code and evidence review first. If a source-level defect is supported, implement a scoped fix with an appropriate automated regression check, then build and validate the release package. If a required physical repro detail is missing, ask me for only that detail after finishing independent work. Do not claim physical validation unless it was actually performed.
-
-After product code changes, follow my default completion workflow: update version and user-facing docs, run appropriate automated checks, package the Windows deliverables, commit and push scoped project files to main, publish the versioned GitHub Release with its assets, and verify remote branch/tag/release asset hashes. Keep test-case descriptions and QA artifacts out of product specs and release notes; keep diagnostics, browser profiles/cookies, secrets, machine-specific paths, personal/student data and unrelated files out of Git.
-
-Use `rtk` before supported CLI commands through the Codex Desktop PowerShell bridge, per AGENTS.md. Keep all findings and the final handoff in Vietnamese unless a technical name must remain in English.
-```
+Sau thay đổi sản phẩm: cập nhật phiên bản/docs, kiểm thử phù hợp, build/package Windows, commit/push main, tạo versioned GitHub Release và đối chiếu remote branch/tag/asset hashes. Không đưa QA/test case vào specs/release notes; không commit profile, cookies, logs, secrets, đường dẫn máy hay dữ liệu cá nhân. Dùng RTK cho CLI được hỗ trợ và báo cáo bằng tiếng Việt.

@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+## 0.11.0
+
+- Home gọn với điểm nhấn xanh lá, thao tác Mở file / Mở dự án, lịch sử thật, ghim và xóa từng mục hoặc toàn bộ lịch sử. Dữ liệu lịch sử được Windows DPAPI mã hóa cục bộ.
+- Thêm nhớ kích thước cửa sổ và cho phép sửa file, cùng mặc định bật. Văn bản/code lưu bằng Lưu hoặc Ctrl+S, giữ mã hóa và chặn ghi đè khi file đổi bên ngoài. Ảnh/PDF giữ chế độ xem.
+- Giảm công việc kiểm tra khi chưa trình chiếu và tránh resize viewer trùng kích thước. Các điều kiện bảo vệ và nhịp trình chiếu được giữ nguyên.
+- Home separates Windows capture-exclusion acceptance from the unverified physical receiver status. Recent entries stay concealed behind the privacy gate.
+
 ## 0.10.1
 
 - Căn giữa chữ và con trỏ trong các ô số/URL; thêm cụm giảm, nhập số và tăng cho độ mờ, cỡ chữ/zoom và kích thước icon.

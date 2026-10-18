@@ -227,11 +227,11 @@ def main() -> int:
         check("productionWindowOwned", bool(window) and native.window_pid(window) == app.pid)
         check("productionControlsInitialized", bool(wait_for(lambda: USER32.GetDlgItem(window,110),8)))
         version_label=wait_for(lambda:USER32.GetDlgItem(window,192),8)
-        check("homeVersionLabelExistsBeforePrivacyGate",bool(version_label) and native.control_text(version_label)=="v0.10.1")
+        check("homeVersionLabelExistsBeforePrivacyGate",bool(version_label) and native.control_text(version_label)=="v0.11.0")
         check("actualProductionPrivacyPreflight", bool(wait_for(lambda: send(window, GATE, timeout=6000), 20)),
               "Real production WGC gate; no QA bypass")
         USER32.ShowWindow(window, 4)
-        check("homeVersionLabelVisible",visible(version_label) and query(39)==1001)
+        check("homeVersionAvailableInNativeControl",native.control_text(version_label)=="v0.11.0" and query(39)==1100)
         affinity = wintypes.DWORD()
         check("productionAffinityReadback", USER32.GetWindowDisplayAffinity(window, ctypes.byref(affinity)) and affinity.value == 0x11)
         all_children = children(window, app.pid)
@@ -310,7 +310,7 @@ def main() -> int:
             activate(id)
             actual = [send(code, 2010, len(text[:text.index(token)].encode("utf-8"))) for token in tokens]
             check("productionLexer:" + name, actual == list(ids), {"styleIds": actual})
-            check("productionReadOnly:" + name, send(code, 2140) == 1)
+            check("productionEditableByDefault:" + name, send(code, 2140) == 0)
             check("productionLineNumbers:" + name, send(code, 2241, 0) == 1 and send(code, 2243, 0) > 0)
         activate(1)
         ctrl_tab=modifier_key(9,2)
@@ -637,7 +637,7 @@ def main() -> int:
         check("resourceDefaultPerformance60InProduction",query(26)==2 and query(27)==60)
         command(189)
         check("resourceSaver15WithoutStartingProjection",query(26)==0 and query(27)==15 and query(25)==0)
-        check("idleResourceProfileKeeps33msWatchdog",query(28)==33)
+        check("idleResourceProfileUses250msWatchdog",query(28)==250)
         check("resourceProfileDoesNotAutoloadBrowser",query(10)==0 and query(11)==0 and not (notes.parent/"WebProfile").exists())
         check("layoutPreferencesWrittenLocally",(notes.parent/"layout.dat").exists())
         persisted_layout=struct.unpack("<8I",(notes.parent/"layout.dat").read_bytes())
@@ -661,10 +661,10 @@ def main() -> int:
         custom_verify_binding=ord("K")|((2|4)<<8)
         check("shippingLocalShortcutEditApplies",query(47)==custom_verify_binding and query(43)==0 and query(44)==0)
         preference_record=notes.parent/"preferences.dat"
-        check("shippingPreferencesRecordBounded",preference_record.exists() and preference_record.stat().st_size==116)
-        persisted_preferences=struct.unpack("<29I",preference_record.read_bytes())
-        check("shippingPreferencesPersistExplicitNumericValues",persisted_preferences[:5]==(0x50515351,2,10,67,600)
-              and persisted_preferences[9:11]==(ord("K"),2|4) and persisted_preferences[25:]==(20,1,0,0))
+        check("shippingPreferencesRecordBounded",preference_record.exists() and preference_record.stat().st_size==124)
+        persisted_preferences=struct.unpack("<31I",preference_record.read_bytes())
+        check("shippingPreferencesPersistExplicitNumericValues",persisted_preferences[:5]==(0x50515351,3,10,67,600)
+              and persisted_preferences[9:11]==(ord("K"),2|4) and persisted_preferences[25:]==(20,1,0,0,1,1))
         close(app)
         check("productionFirstExitClean", app.returncode == 0)
         app = launch()
@@ -674,7 +674,7 @@ def main() -> int:
         editor = USER32.GetDlgItem(window, 110)
         check("DPAPIRestartRestoresDraftOnly", native.control_text(editor) == expected and query(1) == 1)
         check("restartRestoresLayoutPreferences",query(16)==16 and not visible(USER32.GetDlgItem(window,122)) and visible(USER32.GetDlgItem(window,180)))
-        check("restartRestoresResourceSaver15",query(26)==0 and query(27)==15 and query(28)==33)
+        check("restartRestoresResourceSaver15",query(26)==0 and query(27)==15 and query(28)==250)
         check("restartResourceProfileLeavesBrowserOff",query(10)==0 and query(11)==0)
         check("restartRestoresAppearanceAndShortcutPreferences",query(41)==67 and query(42)==600 and query(47)==custom_verify_binding)
         check("restartRestoresIconAndBrowserPreferences",query(60)==20 and query(61)==1 and query(62)==0 and query(63)==0)
@@ -685,10 +685,10 @@ def main() -> int:
         reset_affinity_ok=bool(USER32.GetWindowDisplayAffinity(window,ctypes.byref(reset_affinity)))
         reset_appearance=(query(41),query(42),query(47),query(40),query(44))
         reset_gate=send(window,GATE,timeout=6000)
-        reset_header=struct.unpack("<29I",preference_record.read_bytes())[:5]
+        reset_header=struct.unpack("<31I",preference_record.read_bytes())[:5]
         check("shippingAppearanceResetPreservesShortcutChoice",reset_appearance[:3]==(100,400,custom_verify_binding)
               and reset_gate==1 and reset_affinity_ok and reset_affinity.value==0x11
-              and reset_header==(0x50515351,2,10,100,400) and query(60)==16 and query(61)==1,
+              and reset_header==(0x50515351,3,10,100,400) and query(60)==16 and query(61)==1,
               {"opacityWeightShortcutCategoryError":reset_appearance,"gate":reset_gate,
                "affinityRead":reset_affinity_ok,"affinity":reset_affinity.value,
                "persistedHeader":reset_header})
@@ -706,7 +706,7 @@ def main() -> int:
         check("legacyLayoutRestartControlsInitialized",bool(window) and bool(wait_for(lambda:USER32.GetDlgItem(window,110),8)))
         check("legacyLayoutRestartGate",bool(wait_for(lambda:send(window,GATE,timeout=6000),20)))
         check("legacyV1LayoutVisibilityAndWidthLoad",query(16)==26 and query(17)==264)
-        check("legacyV1DefaultsResourceToPerformance60",query(26)==2 and query(27)==60 and query(28)==33)
+        check("legacyV1DefaultsResourceToPerformance60",query(26)==2 and query(27)==60 and query(28)==250)
         check("legacyV1DoesNotAutoloadBrowser",query(10)==0 and query(11)==0)
         command(123)
         command(203)

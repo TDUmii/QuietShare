@@ -30,6 +30,10 @@ class CodeViewer
     void SetState(const ViewerState &state);
     void SetZoom(int percent);
     void SetWrap(bool enabled);
+    void SetEditable(bool enabled);
+    bool ReadText(std::wstring& text) const;
+    bool Modified() const;
+    void MarkSaved();
     bool Find(const std::wstring &query, bool forward = true);
     int TokenStyleAt(int byteOffset) const;
     std::wstring Language() const;

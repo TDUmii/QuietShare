@@ -3,7 +3,13 @@
 Updated: 2026-10-18
 Repository: private `TDUmii/QuietShare`
 Original incident baseline: release `v0.9.1` at `f08eede29a354f8302fcd900530368eeea8f6368`
-Current application version: `v0.10.1`. This release carries forward the projection safeguards and updates the compact control and browser settings UI.
+Current application version: `v0.11.0`. This release carries forward the projection safeguards and updates the compact control and browser settings UI.
+
+## Tình trạng mới nhất - v0.11.0
+
+Home có lịch sử thật được DPAPI mã hóa, ghim/xóa/mở lại; không có dữ liệu mẫu trong sản phẩm. Hai tùy chọn nhớ kích thước cửa sổ và cho phép sửa văn bản/code mặc định bật. File lưu chủ động, kiểm tra thay đổi bên ngoài và bảo vệ bản sửa chưa lưu. UI nhàn rỗi dùng nhịp 250 ms; tránh resize viewer trùng.
+
+Người dùng đã xác nhận toàn bộ kiểm thử thực tế hiện không còn lỗi. Ghi nhận theo lời người dùng, không suy ra thời lượng đo, build cụ thể hay nguyên nhân lần mất hình cũ. Lượt phát triển v0.11.0 không lặp lại TV/hardware soak và không xác nhận độc lập phần cứng. Các mục sự cố/protocol bên dưới giữ làm lịch sử tham khảo.
 
 ## Current follow-up
 

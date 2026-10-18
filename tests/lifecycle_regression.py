@@ -319,9 +319,9 @@ def main() -> int:
         preview_path.write_bytes(preview_text.encode("utf-8"))
         saved_before_preview = notes.read_bytes()
         drop_file(reopened_window, preview_path)
-        check("sourceDropShowsExactReadonlyPreview",
+        check("sourceDropShowsExactEditableFile",
               line_endings(control_text(reopened_editor)) == line_endings(preview_text)
-              and bool(USER32.GetWindowLongW(reopened_editor, -16) & 0x0800),
+              and not bool(USER32.GetWindowLongW(reopened_editor, -16) & 0x0800),
               {"fixture": "source-preview.cpp", "readOnlyStyle": bool(USER32.GetWindowLongW(reopened_editor,-16)&0x0800),
                "actualCharacters": len(control_text(reopened_editor)), "expectedCharacters": len(preview_text),
                "codeControlCharacters": send(USER32.GetDlgItem(reopened_window,170),2183),
@@ -331,11 +331,11 @@ def main() -> int:
         check("sourcePreviewDoesNotReplaceSavedDraft",
               decrypt(notes) == expected_text and notes.read_bytes() == saved_before_preview,
               {"storedCharacters": len(expected_text), "encryptedBytesUnchanged": True})
-        send(reopened_window, 0x0111, 100)
+        send(reopened_window, 0x0111, 120)
         check("previewEditReturnsExactDraft",
               control_text(reopened_editor) == expected_text
               and not (USER32.GetWindowLongW(reopened_editor, -16) & 0x0800),
-              "MODE command follows Ctrl+Enter logic and restores editable saved script")
+              "Script navigation restores the separate editable saved script")
         # Close while the file is showing, so restart also proves separation.
         drop_file(reopened_window, preview_path)
         check("sourcePreviewReopenedBeforeClose",
@@ -379,7 +379,7 @@ def main() -> int:
 
     failed = [item["check"] for item in checks if not item["passed"]]
     report = {
-        "applicationVersion": "0.10.1",
+        "applicationVersion": "0.11.0",
         "passed": not failed,
         "method": "Production EXE with isolated LOCALAPPDATA; PID-bound Win32 control messages and DPAPI decrypt",
         "scope": "Unreadable-file recovery, Unicode autosave, native plaintext mode, single instance, readonly source preview separation and restart restoration",

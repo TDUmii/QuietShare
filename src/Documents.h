@@ -36,6 +36,8 @@ struct Document
     LoadedContent content;
     ViewState state;
     bool dirty = false;
+    bool draftUnavailable = false;
+    std::wstring draft;
     FILETIME lastWrite{};
     std::uint64_t fileSize = 0;
 };
@@ -48,7 +50,17 @@ struct OpenResult
     explicit operator bool() const { return status == OpenStatus::Opened || status == OpenStatus::Existing; }
 };
 
-// Script id 0 is permanent. Files are read-only previews; no file paths are persisted.
+// RichEdit uses CR while disk text may use LF or CRLF. This is not an edit.
+inline bool SameDocumentText(const std::wstring& a,const std::wstring& b) {
+    size_t i=0,j=0;
+    auto next=[](const std::wstring& text,size_t& at){wchar_t c=text[at++];
+        if(c==L'\r'){if(at<text.size()&&text[at]==L'\n')++at;c=L'\n';}return c;};
+    while(i<a.size()&&j<b.size())if(next(a,i)!=next(b,j))return false;
+    return i==a.size()&&j==b.size();
+}
+
+// Script id 0 is permanent. Editable file drafts stay in memory for the session.
+// Recent paths are stored separately by the encrypted local workspace profile.
 // Close the active native viewer before closing/reloading/evicting its document.
 class TabManager
 {
@@ -68,6 +80,7 @@ public:
     bool Activate(DocumentId id, std::wstring &error);
     bool Activate(DocumentId id) { std::wstring error; return Activate(id, error); }
     bool Reload(DocumentId id, std::wstring &error);
+    bool Save(DocumentId id, std::wstring &error);
     bool Cycle(int direction, std::wstring &error);
     bool Close(DocumentId id);
     void CloseOthers(DocumentId keep);

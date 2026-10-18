@@ -20,7 +20,7 @@ bool Equal(const Preferences& a,const Preferences& b)
 {
     return a.shortcuts==b.shortcuts&&a.opacityPercent==b.opacityPercent&&a.textWeight==b.textWeight&&
         a.iconSize==b.iconSize&&a.browserMuted==b.browserMuted&&a.browserAllowCamera==b.browserAllowCamera&&
-        a.browserAllowMicrophone==b.browserAllowMicrophone;
+        a.browserAllowMicrophone==b.browserAllowMicrophone&&a.rememberWindowSize==b.rememberWindowSize&&a.allowFileEditing==b.allowFileEditing;
 }
 bool Put(const std::wstring& path,const void* bytes,DWORD length)
 {
@@ -51,6 +51,8 @@ int wmain()
     check("newPreferencesDefaultToStandardIconsAndPrivateBrowser",defaults.iconSize==16&&!defaults.browserMuted&&
         !defaults.browserAllowCamera&&!defaults.browserAllowMicrophone);
     auto edited=defaults;edited.opacityPercent=40;edited.textWeight=600;edited.iconSize=24;
+    check("workspaceDefaultsEnabled",defaults.rememberWindowSize&&defaults.allowFileEditing);
+    edited.rememberWindowSize=false;edited.allowFileEditing=false;
     edited.browserMuted=true;edited.browserAllowCamera=true;edited.browserAllowMicrophone=true;
     edited.Key(PreferenceCommand::VerifyWgc)={L'P',MOD_CONTROL|MOD_SHIFT};
     check("customSettingsValidate",ValidatePreferences(edited,error));
@@ -96,7 +98,7 @@ int wmain()
     check("missingFileLeavesCallerUnchanged",!LoadPreferences(directory,loaded)&&Equal(loaded,defaults));
     check("preferencesSavedAtomically",SavePreferences(directory,edited)&&GetFileAttributesW((path+L".tmp").c_str())==INVALID_FILE_ATTRIBUTES);
     WIN32_FILE_ATTRIBUTE_DATA info{};
-    check("recordIsBoundedAndFixed",GetFileAttributesExW(path.c_str(),GetFileExInfoStandard,&info)&&info.nFileSizeLow==116&&info.nFileSizeHigh==0);
+    check("recordIsBoundedAndFixed",GetFileAttributesExW(path.c_str(),GetFileExInfoStandard,&info)&&info.nFileSizeLow==124&&info.nFileSizeHigh==0);
     check("settingsRoundTrip",LoadPreferences(directory,loaded)&&Equal(loaded,edited));
     bool independentBrowserOptions=true;
     for(unsigned options=0;options<8;++options) {
@@ -119,6 +121,7 @@ int wmain()
     std::array<DWORD,29> record{{0x50515351,2,PreferenceCommandCount,100,400}};
     for(unsigned i=0;i<PreferenceCommandCount;++i){record[5+i*2]=defaults.shortcuts[i].key;record[6+i*2]=defaults.shortcuts[i].modifiers;}
     record[25]=16;
+    check("version2MigratesWorkspaceDefaults",Put(path,record.data(),sizeof(record))&&LoadPreferences(directory,loaded)&&loaded.rememberWindowSize&&loaded.allowFileEditing);
     const auto validRecord=record;
     auto corrupt=[&](const char* name,unsigned index,DWORD value){record=validRecord;record[index]=value;loaded=edited;
         check(name,Put(path,record.data(),sizeof(record))&&!LoadPreferences(directory,loaded)&&Equal(loaded,edited));};
@@ -142,12 +145,12 @@ int wmain()
     std::array<DWORD,25> legacyRecord{{0x50515351,1,PreferenceCommandCount,
         static_cast<DWORD>(edited.opacityPercent),static_cast<DWORD>(edited.textWeight)}};
     for(unsigned i=0;i<PreferenceCommandCount;++i){legacyRecord[5+i*2]=edited.shortcuts[i].key;legacyRecord[6+i*2]=edited.shortcuts[i].modifiers;}
-    auto migrated=edited;migrated.iconSize=16;migrated.browserMuted=false;migrated.browserAllowCamera=false;migrated.browserAllowMicrophone=false;
+    auto migrated=edited;migrated.rememberWindowSize=true;migrated.allowFileEditing=true;migrated.iconSize=16;migrated.browserMuted=false;migrated.browserAllowCamera=false;migrated.browserAllowMicrophone=false;
     loaded=edited;
     check("legacySettingsPreserveAppearanceAndShortcutsWithNewDefaults",Put(path,legacyRecord.data(),sizeof(legacyRecord))&&
         LoadPreferences(directory,loaded)&&Equal(loaded,migrated));
     check("legacySettingsUpgradeToCurrentRecordOnSave",SavePreferences(directory,loaded)&&
-        GetFileAttributesExW(path.c_str(),GetFileExInfoStandard,&info)&&info.nFileSizeLow==116&&info.nFileSizeHigh==0&&
+        GetFileAttributesExW(path.c_str(),GetFileExInfoStandard,&info)&&info.nFileSizeLow==124&&info.nFileSizeHigh==0&&
         LoadPreferences(directory,loaded)&&Equal(loaded,migrated));
     legacyRecord[1]=2;loaded=edited;
     check("currentVersionWithLegacyRecordSizeRejected",Put(path,legacyRecord.data(),sizeof(legacyRecord))&&

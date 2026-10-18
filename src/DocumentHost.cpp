@@ -5,8 +5,10 @@ bool DocumentHost::Create(HWND parent,HWND text,HWND image,std::wstring& error) 
     return code.Create(parent,170,error) && pdf.Create(parent,171,error);
 }
 void DocumentHost::SetBounds(const RECT& r) {
-    for(HWND h:{text_,image_,code.Window(),pdf.Window()})
-        if(h) MoveWindow(h,r.left,r.top,r.right-r.left,r.bottom-r.top,TRUE);
+    for(HWND h:{text_,image_,code.Window(),pdf.Window()})if(h){
+        RECT current{};GetWindowRect(h,&current);MapWindowPoints(nullptr,GetParent(h),reinterpret_cast<POINT*>(&current),2);
+        if(!EqualRect(&current,&r))MoveWindow(h,r.left,r.top,r.right-r.left,r.bottom-r.top,TRUE);
+    }
 }
 void DocumentHost::Show(DocumentType type,bool safe,bool contentPage) {
     bool visible=safe && contentPage;

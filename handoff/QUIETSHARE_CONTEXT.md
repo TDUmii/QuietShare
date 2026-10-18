@@ -2,8 +2,14 @@
 
 Updated: 2026-10-18
 Repository: private `TDUmii/QuietShare`
-Current application version: `v0.10.1`
+Current application version: `v0.11.0`
 Current implementation retains the 5-minute session-expiry fix, pre-move source-window containment and compact shell/browser controls. The v0.10.0 release includes a local browser New tab page with user-saved shortcuts, six Settings categories, configurable command shortcuts, window opacity and script weight, and quick projection actions on the activity bar. v0.10.1 adds centered numeric/address controls, configurable icon size, browser audio and device permissions, and compact browser zoom controls while preserving the projection safeguards. Historical releases remain available.
+
+## Tình trạng mới nhất - v0.11.0
+
+Home có lịch sử thật được DPAPI mã hóa, ghim/xóa/mở lại; không có dữ liệu mẫu trong sản phẩm. Hai tùy chọn nhớ kích thước cửa sổ và cho phép sửa văn bản/code mặc định bật. File lưu chủ động, kiểm tra thay đổi bên ngoài và bảo vệ bản sửa chưa lưu. UI nhàn rỗi dùng nhịp 250 ms; tránh resize viewer trùng.
+
+Người dùng đã xác nhận toàn bộ kiểm thử thực tế hiện không còn lỗi. Ghi nhận theo lời người dùng, không suy ra thời lượng đo, build cụ thể hay nguyên nhân lần mất hình cũ. Lượt phát triển v0.11.0 không lặp lại TV/hardware soak và không xác nhận độc lập phần cứng. Các mục sự cố/protocol bên dưới giữ làm lịch sử tham khảo.
 
 ## Product purpose
 

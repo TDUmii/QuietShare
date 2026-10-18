@@ -444,6 +444,9 @@ struct CodeViewer::Impl
     static LRESULT CALLBACK Subclass(HWND w, UINT m, WPARAM wp, LPARAM lp, UINT_PTR, DWORD_PTR data)
     {
         auto *p = reinterpret_cast<Impl *>(data);
+        if(m==WM_KEYDOWN&&wp==L'S'&&(GetKeyState(VK_CONTROL)&0x8000)){
+            SendMessageW(GetParent(w),WM_APP+33,0,0);return 0;
+        }
         if (m == WM_MOUSEWHEEL && (GET_KEYSTATE_WPARAM(wp) & MK_CONTROL))
         {
             if (p->safe)
@@ -534,6 +537,7 @@ bool CodeViewer::Open(const LoadedContent &content, std::wstring &error)
     impl->Send(SCI_SETREADONLY, FALSE);
     impl->Send(SCI_SETTEXT, 0, reinterpret_cast<LPARAM>(text.c_str()));
     impl->Send(SCI_EMPTYUNDOBUFFER);
+    impl->Send(SCI_SETSAVEPOINT);
     impl->Send(SCI_SETREADONLY, TRUE);
     impl->Send(SCI_COLOURISE, 0, -1);
     impl->language = lexer.label;
@@ -579,6 +583,18 @@ void CodeViewer::SetWrap(bool enabled)
 {
     impl->state.wrap = enabled;
     impl->Send(SCI_SETWRAPMODE, enabled ? SC_WRAP_WORD : SC_WRAP_NONE);
+}
+void CodeViewer::SetEditable(bool enabled){impl->Send(SCI_SETREADONLY,!enabled);}
+bool CodeViewer::Modified()const{return impl->Send(SCI_GETMODIFY)!=0;}
+void CodeViewer::MarkSaved(){impl->Send(SCI_SETSAVEPOINT);}
+bool CodeViewer::ReadText(std::wstring& result)const {
+    const auto length=impl->Send(SCI_GETLENGTH);
+    if(length<0||length>5*1024*1024)return false;
+    std::string bytes(static_cast<size_t>(length)+1,'\0');impl->Send(SCI_GETTEXT,bytes.size(),reinterpret_cast<LPARAM>(bytes.data()));
+    const int count=MultiByteToWideChar(CP_UTF8,MB_ERR_INVALID_CHARS,bytes.data(),static_cast<int>(length),nullptr,0);
+    if(length&&!count)return false;
+    std::wstring text(count,L'\0');if(count)MultiByteToWideChar(CP_UTF8,MB_ERR_INVALID_CHARS,bytes.data(),static_cast<int>(length),text.data(),count);
+    result=std::move(text);return true;
 }
 bool CodeViewer::Find(const std::wstring &query, bool forward)
 {

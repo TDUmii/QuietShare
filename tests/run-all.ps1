@@ -10,6 +10,7 @@ $previousPath = $env:PATH
 $env:PATH = $CompilerRoot + ';' + $env:PATH
 try {
 & (Join-Path $PSScriptRoot 'run-preferences.ps1') -CompilerRoot $CompilerRoot
+& (Join-Path $PSScriptRoot 'run-workspace.ps1') -CompilerRoot $CompilerRoot
 foreach ($scriptName in @('run-content.ps1','run-documents.ps1','run-viewers.ps1')) {
     & (Join-Path $PSScriptRoot $scriptName) -CompilerRoot $CompilerRoot
 }
@@ -18,6 +19,8 @@ foreach ($scriptName in @('run-content.ps1','run-documents.ps1','run-viewers.ps1
 & (Join-Path $PSScriptRoot 'run-projection-notice.ps1') -CompilerRoot $CompilerRoot
 & (Join-Path $PSScriptRoot 'run-local.ps1') -SkipContent
 & (Join-Path $PSScriptRoot 'run-integration.ps1')
+python -B (Join-Path $PSScriptRoot 'workspace_integration.py')
+if ($LASTEXITCODE) { throw 'Workspace integration failed.' }
 python -B (Join-Path $PSScriptRoot 'browser_regression.py')
 if ($LASTEXITCODE) { throw 'Browser integration regression failed.' }
 & (Join-Path $PSScriptRoot 'run-browser-newtab.ps1') -CompilerRoot $CompilerRoot

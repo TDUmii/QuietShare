@@ -202,8 +202,14 @@ int wmain(int argc, wchar_t **argv)
     code.SetPrivateVisible(false);
     check("codeGateHides", !(GetWindowLongPtrW(code.Window(), GWL_STYLE) & WS_VISIBLE));
     check("codeGateFindDenied", !code.Find(L"Unicode"));
+    code.SetWrap(false);code.SetEditable(true);
+    const std::string oversizedDraft(5*1024*1024+1,'x');
+    SendMessageW(code.Window(),SCI_SETTEXT,0,reinterpret_cast<LPARAM>(oversizedDraft.c_str()));
+    std::wstring boundedDraft=L"unchanged";
+    check("oversizedDraftReadFailsWithoutReturningEmpty",!code.ReadText(boundedDraft)&&boundedDraft==L"unchanged");
     code.Close();
     check("codeCloseClears", SendMessageW(code.Window(), SCI_GETLENGTH, 0, 0) == 0);
+    check("emptyDraftIsDistinctFromFailedRead",code.ReadText(boundedDraft)&&boundedDraft.empty());
     LoadedContent one;
     check("validatedPdfLoad", LoadLocalContent(dir + L"\\one.pdf", one, error) && one.kind == ContentKind::Pdf);
     check("onePdfOpen", pdf.Open(one, error) && pdf.PageCount() == 1);

@@ -1,4 +1,4 @@
-"""Verify QuietShare 0.10.1 Windows EXE metadata/resources without running apps."""
+"""Verify QuietShare 0.11.0 Windows EXE metadata/resources without running apps."""
 
 from pathlib import Path
 import ctypes
@@ -13,7 +13,7 @@ import os
 
 
 ROOT = Path(__file__).resolve().parents[1]
-EXPECTED_VERSION = (0, 10, 1, 0)
+EXPECTED_VERSION = (0, 11, 0, 0)
 KERNEL = ctypes.WinDLL("kernel32", use_last_error=True)
 VERSION = ctypes.WinDLL("version", use_last_error=True)
 KERNEL.LoadLibraryExW.argtypes = [wintypes.LPCWSTR, wintypes.HANDLE, wintypes.DWORD]
@@ -133,8 +133,8 @@ def main() -> int:
             files[name] = {"bytes": len(data), "sha256": hashlib.sha256(data).hexdigest(),
                            **metadata, **versions}
             checks[name + ".x64PE"] = metadata["x64PE"]
-            checks[name + ".fileVersion0.10.1"] = versions["fileVersion"] == EXPECTED_VERSION
-            checks[name + ".productVersion0.10.1"] = versions["productVersion"] == EXPECTED_VERSION
+            checks[name + ".fileVersion0.11.0"] = versions["fileVersion"] == EXPECTED_VERSION
+            checks[name + ".productVersion0.11.0"] = versions["productVersion"] == EXPECTED_VERSION
             if path == app_path:
                 app = data
         except (OSError, ValueError, struct.error) as error:
@@ -184,7 +184,7 @@ def main() -> int:
         cwd=ROOT,env=signing_env,check=True,capture_output=True,text=True)
     authenticode = {item["file"]:item["status"] for item in json.loads(signing.stdout)}
     report = {
-        "version": "0.10.1",
+        "version": "0.11.0",
         "platform": "win-x64",
         "passed": bool(checks) and all(checks.values()),
         "checks": checks,
