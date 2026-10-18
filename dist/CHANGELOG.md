@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.13.1
+
+- Sửa lời nhắc/văn bản dài tự cuộn về con trỏ khi tăng giảm cỡ chữ hoặc đổi độ đậm.
+- Giữ vùng đang đọc theo ký tự đầu dòng nhìn thấy sau khi đổi cỡ chữ, reset, độ đậm hoặc xuống dòng; giữ nguyên vùng chọn và nội dung.
+
 ## v0.13.0
 
 - Cho phép Ctrl+V dán ảnh raster vào ô nhập web; giữ chặn clipboard tự đọc, hộp chọn file native và file drop.

@@ -1112,15 +1112,37 @@ void EnsureSettingsVisible(HWND control)
     if(bounds.top<settingsViewport.top+S(8))ScrollSettings(settingsOffset+MulDiv(bounds.top-settingsViewport.top,96,dpi)-8);
     else if(bounds.bottom>settingsViewport.bottom-S(8))ScrollSettings(settingsOffset+MulDiv(bounds.bottom-settingsViewport.bottom,96,dpi)+8);
 }
+struct TextViewport
+{
+    CHARRANGE selection{};
+    LONG firstCharacter=0;
+    TextViewport() {
+        SendMessageW(editor,EM_EXGETSEL,0,(LPARAM)&selection);
+        const auto firstLine=SendMessageW(editor,EM_GETFIRSTVISIBLELINE,0,0);
+        firstCharacter=(LONG)SendMessageW(editor,EM_LINEINDEX,firstLine,0);
+    }
+    void Restore() const {
+        SendMessageW(editor,EM_EXSETSEL,0,(LPARAM)&selection);
+        // Reflow changes pixel offsets and line counts. Restore the line that
+        // contains the original visible character, independently of the caret.
+        // EM_LINESCROLL also avoids the 16-bit EM_GETSCROLLPOS coordinate limit.
+        const auto target=SendMessageW(editor,EM_EXLINEFROMCHAR,0,std::max(0L,firstCharacter));
+        const auto current=SendMessageW(editor,EM_GETFIRSTVISIBLELINE,0,0);
+        SendMessageW(editor,EM_LINESCROLL,0,target-current);
+    }
+};
 void ApplyTextWrap()
 {
     if(IsCode()||IsImage()||IsPdf())return;
+    const TextViewport viewport;
     const bool wrap=documents.Active().state.wrap;
     SendMessageW(editor,EM_SETTARGETDEVICE,0,wrap?0:1);
     SendMessageW(editor,EM_SHOWSCROLLBAR,SB_HORZ,!wrap);
+    viewport.Restore();
 }
 void ApplyTextFormat()
 {
+    const TextViewport viewport;
     loading = true;
     CHARFORMAT2W cf{};
     cf.cbSize = sizeof(cf);
@@ -1131,8 +1153,6 @@ void ApplyTextFormat()
     cf.crTextColor = TEXT;
     wcscpy_s(cf.szFaceName, IsCode() ? L"Consolas" : L"Segoe UI");
     SendMessageW(editor, EM_SETCHARFORMAT, SCF_ALL, (LPARAM)&cf);
-    CHARRANGE selection{};
-    SendMessageW(editor, EM_EXGETSEL, 0, (LPARAM)&selection);
     SendMessageW(editor, EM_SETSEL, 0, -1);
     PARAFORMAT2 pf{};
     pf.cbSize = sizeof(pf);
@@ -1141,7 +1161,7 @@ void ApplyTextFormat()
     pf.dyLineSpacing = IsCode() ? 22 : 26;
     pf.dySpaceAfter = IsCode() ? 0 : 100;
     SendMessageW(editor, EM_SETPARAFORMAT, 0, (LPARAM)&pf);
-    SendMessageW(editor, EM_EXSETSEL, 0, (LPARAM)&selection);
+    viewport.Restore();
     loading = false;
     UpdateButtons();
 }
@@ -1189,9 +1209,10 @@ void SetContentSize(int value,bool refresh=true)
     else if(IsPdf())pdfViewer.SetZoom(value);
     else if(IsImage()){imageZoom=value;panX=panY=0;InvalidateRect(imageViewer,nullptr,FALSE);}
     else {
+        const TextViewport viewport;
         ActiveTextSize()=value;
         CHARFORMAT2W format{};format.cbSize=sizeof(format);format.dwMask=CFM_SIZE;format.yHeight=value*20;
-        loading=true;SendMessageW(editor,EM_SETCHARFORMAT,SCF_ALL,(LPARAM)&format);loading=false;
+        loading=true;SendMessageW(editor,EM_SETCHARFORMAT,SCF_ALL,(LPARAM)&format);viewport.Restore();loading=false;
     }
     if(refresh)UpdateButtons();
     SyncSizeInput(true);InvalidateRect(window,&fontLabelRect,FALSE);

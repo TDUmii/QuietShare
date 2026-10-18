@@ -1,9 +1,9 @@
-# QuietShare - bàn giao sau v0.13.0
+# QuietShare - bàn giao sau v0.13.1
 
 - Cập nhật: 2026-10-18
 - Repository: private `TDUmii/QuietShare`
 - Nhánh: `main`
-- Bản sản phẩm: `v0.13.0`; xác minh commit bằng tag và Release trực tiếp trước khi tiếp tục.
+- Bản sản phẩm: `v0.13.1`; xác minh commit bằng tag và Release trực tiếp trước khi tiếp tục.
 
 ## Sản phẩm hiện tại
 
@@ -40,3 +40,6 @@ v0.12.2: sửa cặp màn nguồn/đích trùng sau Duplicate → Extend, cập 
 
 
 v0.13.0: yêu cầu mới cho phép Ctrl+V ảnh raster vào ô nhập web (trusted paste), không nới clipboard-read tự động hay native picker/drop. Thanh xem có ô cỡ chữ, weight thường/vừa/đậm, wrap; code có wrap. Điều khiển dùng chung với Settings, reflow khi hẹp. Bỏ nhãn tự lưu lặp. Không kiểm tra clipboard cá nhân hay gửi ảnh/chat thật trong kiểm thử tự động.
+
+
+v0.13.1: sửa tự nhảy vị trí ở lời nhắc/văn bản dài khi đổi cỡ/weight/wrap bằng TextViewport, lưu selection và ký tự đầu dòng nhìn thấy rồi khôi phục theo dòng sau reflow. Giữ con trỏ độc lập với vị trí đọc; không dựa pixel 16-bit.

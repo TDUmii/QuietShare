@@ -2,10 +2,10 @@
 
 Updated: 2026-10-18
 Repository: private `TDUmii/QuietShare`
-Current application version: `v0.13.0`
+Current application version: `v0.13.1`
 Current implementation retains the 5-minute session-expiry fix, pre-move source-window containment and compact shell/browser controls. The v0.10.0 release includes a local browser New tab page with user-saved shortcuts, six Settings categories, configurable command shortcuts, window opacity and script weight, and quick projection actions on the activity bar. v0.10.1 adds centered numeric/address controls, configurable icon size, browser audio and device permissions, and compact browser zoom controls while preserving the projection safeguards. Historical releases remain available.
 
-## Tình trạng mới nhất - v0.13.0
+## Tình trạng mới nhất - v0.13.1
 
 Home có lịch sử thật được DPAPI mã hóa, ghim/xóa/mở lại; không có dữ liệu mẫu trong sản phẩm. Hai tùy chọn nhớ kích thước cửa sổ và cho phép sửa văn bản/code mặc định bật. File lưu chủ động, kiểm tra thay đổi bên ngoài và bảo vệ bản sửa chưa lưu. UI nhàn rỗi dùng nhịp 250 ms; tránh resize viewer trùng.
 
@@ -74,3 +74,6 @@ Theo báo lỗi mới: Duplicate khóa đúng nhưng trở lại Extend không k
 
 
 v0.13.0: yêu cầu mới cho phép Ctrl+V ảnh raster vào ô nhập web (trusted paste), không nới clipboard-read tự động hay native picker/drop. Thanh xem có ô cỡ chữ, weight thường/vừa/đậm, wrap; code có wrap. Điều khiển dùng chung với Settings, reflow khi hẹp. Bỏ nhãn tự lưu lặp. Không kiểm tra clipboard cá nhân hay gửi ảnh/chat thật trong kiểm thử tự động.
+
+
+v0.13.1: sửa tự nhảy vị trí ở lời nhắc/văn bản dài khi đổi cỡ/weight/wrap bằng TextViewport, lưu selection và ký tự đầu dòng nhìn thấy rồi khôi phục theo dòng sau reflow. Giữ con trỏ độc lập với vị trí đọc; không dựa pixel 16-bit.

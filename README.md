@@ -41,7 +41,7 @@ This guide describes `main`; **Unreleased** in the [CHANGELOG](CHANGELOG.md) lis
 
 ### 3. Cài đặt và nâng cấp
 
-1. Tải `QuietShare-Setup.exe` tại [QuietShare v0.13.0](https://github.com/TDUmii/QuietShare/releases/tag/v0.13.0) và chạy bộ cài. Nếu dùng ZIP, giải nén toàn bộ trước khi chạy ứng dụng.
+1. Tải `QuietShare-Setup.exe` tại [QuietShare v0.13.1](https://github.com/TDUmii/QuietShare/releases/tag/v0.13.1) và chạy bộ cài. Nếu dùng ZIP, giải nén toàn bộ trước khi chạy ứng dụng.
 2. Bộ cài áp dụng cho tài khoản Windows hiện tại, không cần quyền quản trị. Nút **EN / VI** đổi ngôn ngữ bộ cài.
 3. Để dùng portable, chạy `QuietShare.exe` trong thư mục đã giải nén. Giữ `Scintilla.dll`, `Lexilla.dll`, `pdfium.dll` và `WebView2Loader.dll` cạnh EXE; không chỉ sao chép EXE.
 4. Đóng QuietShare trước khi nâng cấp bằng bộ cài mới. Nâng cấp và gỡ ứng dụng giữ lại lời nhắc đã lưu.
@@ -50,7 +50,7 @@ Nếu trình duyệt không khởi tạo được, cài/cập nhật WebView2 Ru
 
 ### 4. Sử dụng tài liệu và không gian làm việc
 
-Khi mở ứng dụng, đợi quá trình xác minh capture. Chân trang **Trang chủ** hiển thị **v0.13.0** để nhận diện phiên bản đang chạy. Nếu nội dung bị khóa và cần xác minh lại, chọn icon **Kiểm tra WGC** tại thanh bên trái. Nội dung chỉ được hiển thị khi các điều kiện bảo vệ đạt.
+Khi mở ứng dụng, đợi quá trình xác minh capture. Chân trang **Trang chủ** hiển thị **v0.13.1** để nhận diện phiên bản đang chạy. Nếu nội dung bị khóa và cần xác minh lại, chọn icon **Kiểm tra WGC** tại thanh bên trái. Nội dung chỉ được hiển thị khi các điều kiện bảo vệ đạt.
 
 - **Home / Gần đây:** mở lại file hoặc dự án đã mở thành công, ghim mục yêu thích hoặc xóa từng mục bằng nút ×. Các nút trước/sau duyệt tối đa 32 mục. **Xóa lịch sử** xóa cả ghim, không xóa file gốc. Lịch sử được Windows DPAPI mã hóa trên máy và tên file được che khi nội dung đang khóa. Lần chạy đầu không có dữ liệu mẫu.
 - **Sửa file:** văn bản và code mặc định cho phép sửa. Nhấn **Lưu** hoặc **Ctrl+S** để ghi file; lời nhắc vẫn tự lưu riêng. Khi đóng tab có thay đổi, chọn lưu, bỏ thay đổi hoặc hủy. QuietShare giữ mã hóa UTF-8/UTF-16 và BOM; nếu file đã đổi bên ngoài, thao tác lưu bị chặn và bản sửa vẫn ở trong tab. Tắt tại **Cài đặt > Nội dung > Cho phép sửa file văn bản / code** để chỉ xem; bản sửa chưa lưu được giữ trong phiên.
@@ -189,7 +189,7 @@ Phím **toàn hệ thống** dùng được khi ứng dụng khác đang nhận 
 
 ### 3. Installation and upgrades
 
-1. Download `QuietShare-Setup.exe` from [QuietShare v0.13.0](https://github.com/TDUmii/QuietShare/releases/tag/v0.13.0) and run it. For ZIP use, extract the complete archive before running the application.
+1. Download `QuietShare-Setup.exe` from [QuietShare v0.13.1](https://github.com/TDUmii/QuietShare/releases/tag/v0.13.1) and run it. For ZIP use, extract the complete archive before running the application.
 2. Installation applies to the current Windows account without administrator privileges. **EN / VI** switches the installer language.
 3. For portable use, run `QuietShare.exe` in the extracted folder. Keep `Scintilla.dll`, `Lexilla.dll`, `pdfium.dll` and `WebView2Loader.dll` beside it; do not copy only the EXE.
 4. Close QuietShare before upgrading. Upgrades and uninstallation retain the saved script.
@@ -198,7 +198,7 @@ If browsing cannot initialize, install/update WebView2 Runtime, then disable and
 
 ### 4. Documents and workspace
 
-Wait for capture verification at startup. The **Home** footer displays **v0.13.0** to identify the running version. If content is locked and verification is requested, select **Verify WGC privacy** on the left activity bar. Readers become available only after the protection conditions pass.
+Wait for capture verification at startup. The **Home** footer displays **v0.13.1** to identify the running version. If content is locked and verification is requested, select **Verify WGC privacy** on the left activity bar. Readers become available only after the protection conditions pass.
 
 - **Home / Recent:** reopen successfully opened files/projects, pin favorites or remove an entry with ×. Previous/next browse up to 32 entries. **Clear history** removes pins as well, without deleting source files. Windows DPAPI encrypts this local history; filenames are concealed while content is locked. No sample history appears at first launch.
 - **File editing:** text and code editing is enabled by default. Use **Save** or **Ctrl+S** to write the file; script autosave remains separate. Closing a modified tab offers save, discard or cancel. QuietShare retains UTF-8/UTF-16 encoding and BOM; an external change blocks saving while your draft remains in the tab. Disable **Settings > Reading > Allow text / code editing** for viewing only; unsaved drafts remain in the session.
@@ -342,3 +342,8 @@ Màn xem văn bản/lời nhắc có ô nhập cỡ chữ 8-200 pt, nút chọn 
 ### Image paste and reading controls
 
 Ctrl+V can paste clipboard raster images into web editors that support images. QuietShare retains denial of automatic clipboard reads, native web file pickers and file drops. Text/script viewers expose an 8-200 pt size field, regular/semibold/bold weight and word wrap; code has a word-wrap control. The toolbar reflows in narrow windows. Viewing preferences do not write formatting into plain-text files.
+
+
+Khi đổi cỡ, độ đậm hoặc xuống dòng, trình xem văn bản/lời nhắc giữ đoạn đang nhìn thấy và vùng chọn hiện tại, kể cả tài liệu dài.
+
+Text/script formatting preserves the visible reading anchor and selection when changing size, weight or wrapping, including long documents.
