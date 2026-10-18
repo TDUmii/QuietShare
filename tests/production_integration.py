@@ -648,16 +648,23 @@ def main() -> int:
         send(opacity_input,WM_KEYDOWN,0x0D)
         command(206)
         check("shippingAppearanceEditsApply",query(41)==67 and query(42)==600 and query(44)==0)
+        icon_input=USER32.GetDlgItem(window,241)
+        native.set_control_text(icon_input,"20")
+        send(icon_input,WM_KEYDOWN,0x0D)
+        command(240)
+        command(246)
+        check("shippingIconAndBrowserPreferencesApply",query(60)==20 and query(61)==1
+              and query(62)==0 and query(63)==0 and query(10)==0 and query(11)==0)
         command(204)
         command(222)
         send(window,0x312,0,(ord("K")<<16)|(2|4))
         custom_verify_binding=ord("K")|((2|4)<<8)
         check("shippingLocalShortcutEditApplies",query(47)==custom_verify_binding and query(43)==0 and query(44)==0)
         preference_record=notes.parent/"preferences.dat"
-        check("shippingPreferencesRecordBounded",preference_record.exists() and preference_record.stat().st_size==100)
-        persisted_preferences=struct.unpack("<25I",preference_record.read_bytes())
-        check("shippingPreferencesPersistExplicitNumericValues",persisted_preferences[:5]==(0x50515351,1,10,67,600)
-              and persisted_preferences[9:11]==(ord("K"),2|4))
+        check("shippingPreferencesRecordBounded",preference_record.exists() and preference_record.stat().st_size==116)
+        persisted_preferences=struct.unpack("<29I",preference_record.read_bytes())
+        check("shippingPreferencesPersistExplicitNumericValues",persisted_preferences[:5]==(0x50515351,2,10,67,600)
+              and persisted_preferences[9:11]==(ord("K"),2|4) and persisted_preferences[25:]==(20,1,0,0))
         close(app)
         check("productionFirstExitClean", app.returncode == 0)
         app = launch()
@@ -670,6 +677,7 @@ def main() -> int:
         check("restartRestoresResourceSaver15",query(26)==0 and query(27)==15 and query(28)==33)
         check("restartResourceProfileLeavesBrowserOff",query(10)==0 and query(11)==0)
         check("restartRestoresAppearanceAndShortcutPreferences",query(41)==67 and query(42)==600 and query(47)==custom_verify_binding)
+        check("restartRestoresIconAndBrowserPreferences",query(60)==20 and query(61)==1 and query(62)==0 and query(63)==0)
         command(123)
         command(200)
         command(207)
@@ -677,10 +685,10 @@ def main() -> int:
         reset_affinity_ok=bool(USER32.GetWindowDisplayAffinity(window,ctypes.byref(reset_affinity)))
         reset_appearance=(query(41),query(42),query(47),query(40),query(44))
         reset_gate=send(window,GATE,timeout=6000)
-        reset_header=struct.unpack("<25I",preference_record.read_bytes())[:5]
+        reset_header=struct.unpack("<29I",preference_record.read_bytes())[:5]
         check("shippingAppearanceResetPreservesShortcutChoice",reset_appearance[:3]==(100,400,custom_verify_binding)
               and reset_gate==1 and reset_affinity_ok and reset_affinity.value==0x11
-              and reset_header==(0x50515351,1,10,100,400),
+              and reset_header==(0x50515351,2,10,100,400) and query(60)==16 and query(61)==1,
               {"opacityWeightShortcutCategoryError":reset_appearance,"gate":reset_gate,
                "affinityRead":reset_affinity_ok,"affinity":reset_affinity.value,
                "persistedHeader":reset_header})

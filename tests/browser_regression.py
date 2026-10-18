@@ -180,6 +180,12 @@ def main():
         check('localWebActuallyLoads',wait(lambda:q(13)==1 and '/first' in hits,12))
         check('dedicatedBrowserProcess',q(11)!=0 and q(11)!=app.pid)
         check('dedicatedProfileCreatedOnlyOnEnable',(profile/'QuietShare'/'WebProfile').exists())
+        policy_pid=q(11)
+        check('browserCameraAndMicrophonePrivateByDefault',q(62)==0 and q(63)==0)
+        cmd(246)
+        check('browserMuteSettingKeepsVerifiedController',q(61)==1 and q(10)==2 and q(12)==1 and q(11)==policy_pid)
+        cmd(246)
+        check('browserUnmuteSettingKeepsVerifiedController',q(61)==0 and q(10)==2 and q(12)==1 and q(11)==policy_pid)
         check('addressReflectsPage',native.control_text(address)==base+'/first')
         check('zoomFixtureReportsActualViewport',wait(lambda:viewport('/first')))
         check('initialBrowserViewportSettlesAfterMountAndPageSwitch',viewport_settles('/first'))
@@ -189,8 +195,8 @@ def main():
         original_bounds=wintypes.RECT();USER32.GetWindowRect(window,ctypes.byref(original_bounds))
         scale=USER32.GetDpiForWindow(window)/96
         compact_metrics=[]
-        controls=(122,120,139,154,123,105,188,180,156,157,158,164,212,155,190,191)
-        essential=(156,157,158,164,212,190,191,105,188,180)
+        controls=(122,120,139,154,123,105,188,180,156,157,158,164,167,168,169,212,155,190,191)
+        essential=(156,157,158,164,167,168,169,212,190,191,105,188,180)
         def chrome_fits():
             client=wintypes.RECT();USER32.GetClientRect(window,ctypes.byref(client));bounds=[]
             for control_id in controls:

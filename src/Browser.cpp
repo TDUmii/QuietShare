@@ -30,7 +30,35 @@ public:
     HRESULT STDMETHODCALLTYPE Invoke(A a,B b)override{return fn(a,b);}
 };
 template<class I,class A,class B,class F> I* Callback(F&& fn){return new Handler<I,A,B>(std::forward<F>(fn));}
+class PermissionCompletion final:public ICoreWebView2SetPermissionStateCompletedHandler {
+    LONG refs=1;std::function<void(HRESULT)> fn;
+public:
+    explicit PermissionCompletion(std::function<void(HRESULT)> f):fn(std::move(f)){}
+    HRESULT STDMETHODCALLTYPE QueryInterface(REFIID id,void** out)override{if(!out)return E_POINTER;*out=nullptr;
+        if(id==IID_IUnknown||id==WebGuid<ICoreWebView2SetPermissionStateCompletedHandler>()){*out=this;AddRef();return S_OK;}return E_NOINTERFACE;}
+    ULONG STDMETHODCALLTYPE AddRef()override{return InterlockedIncrement(&refs);}
+    ULONG STDMETHODCALLTYPE Release()override{auto count=InterlockedDecrement(&refs);if(!count)delete this;return count;}
+    HRESULT STDMETHODCALLTYPE Invoke(HRESULT hr)override{fn(hr);return S_OK;}
+};
 std::wstring TakeString(LPWSTR p){std::wstring result=p?p:L"";CoTaskMemFree(p);return result;}
+// WebView2 supplies canonical URLs. Accept a deliberately narrow HTTPS origin
+// here; malformed authorities, credentials and cross-origin frames fail closed.
+std::wstring SecureMediaOrigin(const std::wstring& uri){
+    std::wstring value=uri;std::transform(value.begin(),value.end(),value.begin(),::towlower);
+    if(value.rfind(L"https://",0)!=0)return L"";
+    auto authority=value.substr(8,value.find_first_of(L"/?#",8)-8);if(authority.empty())return L"";
+    std::wstring host,port;size_t separator=std::wstring::npos;
+    if(authority[0]==L'['){const auto end=authority.find(L']');if(end==std::wstring::npos||end<3)return L"";
+        host=authority.substr(0,end+1);for(size_t i=1;i<end;++i)if(!((host[i]>=L'0'&&host[i]<=L'9')||(host[i]>=L'a'&&host[i]<=L'f')||host[i]==L':'||host[i]==L'.'))return L"";
+        if(end+1<authority.size()){if(authority[end+1]!=L':')return L"";separator=end+1;}}
+    else{separator=authority.find(L':');host=authority.substr(0,separator);for(wchar_t c:host)
+        if(!((c>=L'a'&&c<=L'z')||(c>=L'0'&&c<=L'9')||c==L'-'||c==L'.'))return L"";}
+    if(host.empty())return L"";
+    if(separator!=std::wstring::npos){const auto digits=authority.substr(separator+1);unsigned number=0;if(digits.empty()||digits.size()>5)return L"";
+        for(wchar_t c:digits){if(c<L'0'||c>L'9')return L"";number=number*10+c-L'0';}if(!number||number>65535)return L"";
+        if(number!=443)port=L":"+std::to_wstring(number);}
+    return L"https://"+host+port;
+}
 std::wstring CanaryHtml(){
     std::wstring html=L"<!doctype html><html><body style='margin:0;overflow:hidden'><svg xmlns='http://www.w3.org/2000/svg' width='100%' height='100%' viewBox='0 0 128 96' preserveAspectRatio='none' style='position:fixed;inset:0'>";
     for(int y=0;y<96;y+=8)for(int x=0;x<128;x+=8)
@@ -197,6 +225,8 @@ struct Browser::Impl:std::enable_shared_from_this<Browser::Impl> {
     unsigned generation=0,pid=0;UINT64 navigationId=0;int error=0;bool loaded=false,navigating=false;std::wstring address,pending,notice,title;
     int zoomPercent=100;
     bool english=false,localPage=false,localNavigation=false,hasNewTab=false;
+    bool muted=false,allowCamera=false,allowMicrophone=false,mediaReady=false;
+    std::wstring cameraOrigin,microphoneOrigin;
     std::wstring profile,localNonce,localDocumentUri,newTabError;
     std::vector<BrowserShortcut> shortcuts;
     std::vector<BrowserCommandShortcut> commandShortcuts;
@@ -226,7 +256,7 @@ struct Browser::Impl:std::enable_shared_from_this<Browser::Impl> {
         localDocumentUri=HostHtmlUri(html);if(localDocumentUri.empty()){Fail(332);return;}
         if(FAILED(web->NavigateToString(html.c_str()))){localPage=localNavigation=false;navigating=false;notice=L"navigation";}Notify();
     }
-    void Close(){++generation;enabled=ready=verified=visible=probing=locked=suspendPending=false;pid=0;error=0;loaded=navigating=localPage=localNavigation=false;localNonce.clear();localDocumentUri.clear();newTabError.clear();address.clear();pending.clear();notice.clear();title.clear();
+    void Close(){++generation;enabled=ready=verified=visible=probing=locked=suspendPending=mediaReady=false;pid=0;error=0;loaded=navigating=localPage=localNavigation=false;cameraOrigin.clear();microphoneOrigin.clear();localNonce.clear();localDocumentUri.clear();newTabError.clear();address.clear();pending.clear();notice.clear();title.clear();
         auto closingTabs=std::move(tabs);tabs.clear();actions.clear();activeId=pendingId=0;
         Com<ICoreWebView2Controller> closingController;closingController.reset(controller.detach());
         Com<ICoreWebView2> closingWeb;closingWeb.reset(web.detach());
@@ -240,6 +270,70 @@ struct Browser::Impl:std::enable_shared_from_this<Browser::Impl> {
         Com<ICoreWebView2> closingWeb;closingWeb.reset(web.detach());
         if(closingController){closingController->put_IsVisible(FALSE);closingController->Close();}Notify();}
     template<class I> bool Query(Com<I>& out){Com<ICoreWebView2> source;source.hold(web.p);return source&&SUCCEEDED(source->QueryInterface(WebGuid<I>(),reinterpret_cast<void**>(out.put())));}
+    bool ApplyMute(){
+        auto manager=owner.lock();if(!manager||!web)return false;
+        Com<ICoreWebView2_8> audio;
+        // An unavailable mute API must never leave requested audio suppression ineffective.
+        return Query(audio)?SUCCEEDED(audio->put_IsMuted(manager->muted)):!manager->muted;
+    }
+    std::shared_ptr<Com<ICoreWebView2Profile4>> MediaProfile(){
+        Com<ICoreWebView2_13> view;Com<ICoreWebView2Profile> profile;
+        auto result=std::make_shared<Com<ICoreWebView2Profile4>>();
+        if(!Query(view)||FAILED(view->get_Profile(profile.put()))||!profile||
+           FAILED(profile->QueryInterface(WebGuid<ICoreWebView2Profile4>(),reinterpret_cast<void**>(result->put()))))return {};
+        return result;
+    }
+    void ResetMediaPermissions(std::function<void(bool)> done){
+        auto profile=MediaProfile();if(!profile){done(false);return;}
+        auto listed=Callback<ICoreWebView2GetNonDefaultPermissionSettingsCompletedHandler,HRESULT,ICoreWebView2PermissionSettingCollectionView*>(
+            [profile,done](HRESULT hr,auto settings){
+                UINT count=0;if(FAILED(hr)||!settings||FAILED(settings->get_Count(&count))){done(false);return S_OK;}
+                std::vector<std::pair<COREWEBVIEW2_PERMISSION_KIND,std::wstring>> media;
+                for(UINT i=0;i<count;++i){Com<ICoreWebView2PermissionSetting> setting;COREWEBVIEW2_PERMISSION_KIND kind{};
+                    if(FAILED(settings->GetValueAtIndex(i,setting.put()))||!setting||FAILED(setting->get_PermissionKind(&kind))){done(false);return S_OK;}
+                    if(kind!=COREWEBVIEW2_PERMISSION_KIND_CAMERA&&kind!=COREWEBVIEW2_PERMISSION_KIND_MICROPHONE)continue;
+                    LPWSTR raw=nullptr;if(FAILED(setting->get_PermissionOrigin(&raw))){done(false);return S_OK;}
+                    media.push_back({kind,TakeString(raw)});
+                }
+                if(media.empty()){done(true);return S_OK;}
+                auto pending=std::make_shared<size_t>(media.size());auto success=std::make_shared<bool>(true);
+                for(const auto& item:media){auto complete=new PermissionCompletion([profile,pending,success,done](HRESULT result){
+                    if(FAILED(result))*success=false;if(!--*pending)done(*success);});
+                    const HRESULT result=profile->p->SetPermissionState(item.first,item.second.c_str(),COREWEBVIEW2_PERMISSION_STATE_DEFAULT,complete);
+                    if(FAILED(result))complete->Invoke(result);complete->Release();}
+                return S_OK;
+            });
+        const HRESULT result=profile->p->GetNonDefaultPermissionSettings(listed);if(FAILED(result))done(false);listed->Release();
+    }
+    void RevokeMedia(bool camera,bool microphone){
+        std::vector<std::pair<COREWEBVIEW2_PERMISSION_KIND,std::wstring>> revoked;
+        if(camera&&!cameraOrigin.empty())revoked.push_back({COREWEBVIEW2_PERMISSION_KIND_CAMERA,cameraOrigin});
+        if(microphone&&!microphoneOrigin.empty())revoked.push_back({COREWEBVIEW2_PERMISSION_KIND_MICROPHONE,microphoneOrigin});
+        if(revoked.empty())return;
+        if(camera)cameraOrigin.clear();if(microphone)microphoneOrigin.clear();
+        auto profile=MediaProfile();if(!profile){Fail(341);return;}
+        std::weak_ptr<Impl> weak=shared_from_this();const unsigned epoch=generation;
+        auto pending=std::make_shared<size_t>(revoked.size());
+        for(const auto& item:revoked){auto denied=new PermissionCompletion([profile,weak,epoch,pending,item](HRESULT hr){
+            auto s=weak.lock();if(!s||!s->enabled||s->generation!=epoch)return;
+            if(FAILED(hr)){s->Fail(342);return;}
+            // DENY revokes the native permission. Restore DEFAULT afterwards:
+            // only the host's nonpersistent permission handler may grant access.
+            auto reset=new PermissionCompletion([profile,weak,epoch,pending](HRESULT result){
+                auto current=weak.lock();if(!current||!current->enabled||current->generation!=epoch)return;
+                if(FAILED(result)){current->Fail(343);return;}
+                if(!--*pending&&current->web){Com<ICoreWebView2> web;web.hold(current->web.p);
+                    Com<ICoreWebView2_3> control;if(current->Query(control))control->Resume();
+                    if(!current->enabled||current->generation!=epoch||current->web.p!=web.p)return;
+                    const HRESULT reloaded=web->Reload();if(current->enabled&&current->generation==epoch&&FAILED(reloaded))current->Fail(344);}
+            });
+            const HRESULT result=profile->p->SetPermissionState(item.first,item.second.c_str(),COREWEBVIEW2_PERMISSION_STATE_DEFAULT,reset);
+            if(FAILED(result))reset->Invoke(result);reset->Release();
+        });
+            const HRESULT result=profile->p->SetPermissionState(item.first,item.second.c_str(),COREWEBVIEW2_PERMISSION_STATE_DENY,denied);
+            if(FAILED(result))denied->Invoke(result);denied->Release();
+        }
+    }
     bool SetZoom(int percent){
         const int next=std::clamp(percent,25,400);
         if(enabled&&controller&&!probing){
@@ -297,6 +391,7 @@ struct Browser::Impl:std::enable_shared_from_this<Browser::Impl> {
     }
     bool Configure(){
         Com<ICoreWebView2> web;web.hold(this->web.p);Com<ICoreWebView2Controller> controller;controller.hold(this->controller.p);if(!web||!controller)return false;
+        error=340;if(!ApplyMute())return false;
         error=10;Com<ICoreWebView2Settings> settings;if(FAILED(web->get_Settings(settings.put())))return false;
         if(FAILED(settings->put_AreDefaultContextMenusEnabled(FALSE))||FAILED(settings->put_AreDefaultScriptDialogsEnabled(FALSE))||
            FAILED(settings->put_AreDevToolsEnabled(FALSE))||FAILED(settings->put_AreHostObjectsAllowed(FALSE))||
@@ -406,7 +501,26 @@ struct Browser::Impl:std::enable_shared_from_this<Browser::Impl> {
             args->put_Handled(TRUE);auto s=valid();BOOL initiated=FALSE;args->get_IsUserInitiated(&initiated);
             if(s&&s->verified&&!s->locked&&s->visible&&initiated){LPWSTR p=nullptr;args->get_Uri(&p);auto uri=TakeString(p);std::wstring normalized;if(NormalizeWebAddress(uri,normalized))s->Queue(6,0,std::move(normalized));}return S_OK;
         },[&](auto h,auto t){return web->add_NewWindowRequested(h,t);})&&ok;
-        ok=Event<ICoreWebView2PermissionRequestedEventHandler,ICoreWebView2*,ICoreWebView2PermissionRequestedEventArgs*>([](auto,auto args){args->put_State(COREWEBVIEW2_PERMISSION_STATE_DENY);return S_OK;},[&](auto h,auto t){return web->add_PermissionRequested(h,t);})&&ok;
+        ok=Event<ICoreWebView2PermissionRequestedEventHandler,ICoreWebView2*,ICoreWebView2PermissionRequestedEventArgs*>([valid](auto sender,auto args){
+            args->put_State(COREWEBVIEW2_PERMISSION_STATE_DENY);
+            Com<ICoreWebView2PermissionRequestedEventArgs3> policy;
+            if(FAILED(args->QueryInterface(WebGuid<ICoreWebView2PermissionRequestedEventArgs3>(),reinterpret_cast<void**>(policy.put())))||
+               FAILED(policy->put_SavesInProfile(FALSE)))return S_OK;
+            // Handle all permissions here; no native permission prompts may
+            // escape the app's protected surface. Unsupported kinds stay denied.
+            if(FAILED(policy->put_Handled(TRUE)))return S_OK;
+            auto s=valid();auto manager=s?s->owner.lock():nullptr;
+            if(!s||!manager||!s->mediaReady||!s->ready||!s->verified||s->probing||s->locked||!s->visible||s->localPage)return S_OK;
+            COREWEBVIEW2_PERMISSION_KIND kind{};if(FAILED(args->get_PermissionKind(&kind)))return S_OK;
+            if(!((kind==COREWEBVIEW2_PERMISSION_KIND_CAMERA&&manager->allowCamera)||
+                 (kind==COREWEBVIEW2_PERMISSION_KIND_MICROPHONE&&manager->allowMicrophone)))return S_OK;
+            LPWSTR raw=nullptr;if(FAILED(args->get_Uri(&raw)))return S_OK;const auto origin=SecureMediaOrigin(TakeString(raw));
+            raw=nullptr;if(FAILED(sender->get_Source(&raw)))return S_OK;const auto top=SecureMediaOrigin(TakeString(raw));
+            if(origin.empty()||origin!=top)return S_OK;
+            if(SUCCEEDED(args->put_State(COREWEBVIEW2_PERMISSION_STATE_ALLOW))){
+                if(kind==COREWEBVIEW2_PERMISSION_KIND_CAMERA)s->cameraOrigin=origin;else s->microphoneOrigin=origin;
+            }return S_OK;
+        },[&](auto h,auto t){return web->add_PermissionRequested(h,t);})&&ok;
         ok=Event<ICoreWebView2ScriptDialogOpeningEventHandler,ICoreWebView2*,ICoreWebView2ScriptDialogOpeningEventArgs*>([](auto,auto args){
             COREWEBVIEW2_SCRIPT_DIALOG_KIND kind{};args->get_Kind(&kind);if(kind==COREWEBVIEW2_SCRIPT_DIALOG_KIND_ALERT)args->Accept();return S_OK;
         },[&](auto h,auto t){return web->add_ScriptDialogOpening(h,t);})&&ok;
@@ -417,13 +531,26 @@ struct Browser::Impl:std::enable_shared_from_this<Browser::Impl> {
         ok=Event<ICoreWebView2ScreenCaptureStartingEventHandler,ICoreWebView2*,ICoreWebView2ScreenCaptureStartingEventArgs*>([](auto,auto args){args->put_Cancel(TRUE);args->put_Handled(TRUE);return S_OK;},[&](auto h,auto t){return capture->add_ScreenCaptureStarting(h,t);})&&ok;
         ok=Event<ICoreWebView2ProcessFailedEventHandler,ICoreWebView2*,ICoreWebView2ProcessFailedEventArgs*>([valid](auto,auto args){if(auto s=valid()){COREWEBVIEW2_PROCESS_FAILED_KIND kind{};args->get_ProcessFailedKind(&kind);s->Fail(200+int(kind));}return S_OK;},[&](auto h,auto t){return web->add_ProcessFailed(h,t);})&&ok;
         auto installed=Callback<ICoreWebView2AddScriptToExecuteOnDocumentCreatedCompletedHandler,HRESULT,LPCWSTR>([valid](HRESULT result,LPCWSTR){
-            if(auto s=valid()){if(FAILED(result))s->Fail(300);else if(FAILED(s->web->NavigateToString(CanaryHtml().c_str())))s->Fail(301);}return S_OK;});
+            if(auto s=valid()){if(FAILED(result))s->Fail(300);else s->ResetMediaPermissions([valid](bool cleared){
+                if(auto current=valid()){if(!cleared)current->Fail(345);else{current->mediaReady=true;
+                    if(FAILED(current->web->NavigateToString(CanaryHtml().c_str())))current->Fail(301);}}
+            });}return S_OK;});
         auto hr=web->AddScriptToExecuteOnDocumentCreated(kDomPolicy,installed);installed->Release();if(ok&&SUCCEEDED(hr)){error=0;return true;}return false;
     }
 };
 Browser::Browser():impl(std::make_shared<Impl>()){}Browser::~Browser(){Disable();}
 void Browser::SetEnglish(bool english){auto s=impl;if(s->english==english)return;s->english=english;auto tab=s->Active();if(tab&&tab->localPage)tab->LoadNewTab();}
 void Browser::SetCommandShortcuts(const std::vector<BrowserCommandShortcut>& shortcuts){impl->commandShortcuts=shortcuts;}
+void Browser::SetMediaPreferences(bool muted,bool allowCamera,bool allowMicrophone){
+    if(impl->muted==muted&&impl->allowCamera==allowCamera&&impl->allowMicrophone==allowMicrophone)return;
+    auto s=impl;const bool revokeCamera=s->allowCamera&&!allowCamera,revokeMicrophone=s->allowMicrophone&&!allowMicrophone;
+    s->muted=muted;s->allowCamera=allowCamera;s->allowMicrophone=allowMicrophone;
+    const auto snapshot=s->tabs;const unsigned epoch=s->generation;
+    for(const auto& tab:snapshot){if(!s->enabled||s->generation!=epoch)return;if(!s->Current(tab,epoch)||!tab->web)continue;
+        if(!tab->ApplyMute()){tab->Fail(340);continue;}
+        if(s->Current(tab,epoch))tab->RevokeMedia(revokeCamera,revokeMicrophone);
+    }
+}
 bool Browser::Enable(HWND parent,const std::wstring& profile,const std::wstring& initial){
     auto s=impl;if(s->enabled)return true;
     std::wstring address;if(!initial.empty())ResolveWebInput(initial,address);

@@ -5,6 +5,8 @@
 // Microsoft Codicons 0.0.39, CC BY 4.0; embedded for portable use.
 namespace quietshare {
 inline HANDLE codiconResource=nullptr;
+inline int interfaceIconSize=16;
+inline void SetInterfaceIconSize(int size){interfaceIconSize=std::clamp(size,12,24);}
 inline bool LoadCodicons(HINSTANCE module) {
     HRSRC resource=FindResourceW(module,MAKEINTRESOURCEW(401),RT_RCDATA);
     if(!resource)return false;
@@ -12,7 +14,8 @@ inline bool LoadCodicons(HINSTANCE module) {
     codiconResource=AddFontMemResourceEx(LockResource(LoadResource(module,resource)),SizeofResource(module,resource),nullptr,&count);
     return codiconResource&&count;
 }
-inline void DrawCodicon(HDC dc,wchar_t glyph,RECT bounds,COLORREF color,int size) {
+inline void DrawCodicon(HDC dc,wchar_t glyph,RECT bounds,COLORREF color,int size,bool scale=true) {
+    size=std::min(scale?MulDiv(size,interfaceIconSize,16):size,int(std::min(bounds.right-bounds.left,bounds.bottom-bounds.top)));
     if(size<=0||bounds.right<=bounds.left||bounds.bottom<=bounds.top)return;
     // Cache coverage, not coloured pixels: the same smooth glyph works on every
     // surface and hover state. Three-times sampling preserves small curves at
@@ -51,7 +54,12 @@ inline void DrawCodicon(HDC dc,wchar_t glyph,RECT bounds,COLORREF color,int size
             const unsigned a=found->alpha[i];target[i]=(a<<24)|((GetRValue(color)*a/255)<<16)|((GetGValue(color)*a/255)<<8)|(GetBValue(color)*a/255);
         }
         auto old=SelectObject(memory,bitmap);BLENDFUNCTION blend{AC_SRC_OVER,0,255,AC_SRC_ALPHA};
-        AlphaBlend(dc,(bounds.left+bounds.right-edge)/2,(bounds.top+bounds.bottom-edge)/2,edge,edge,memory,0,0,edge,edge,blend);
+        // The extra coverage pixels are a raster halo, not part of the glyph's
+        // requested size. Crop that halo to the caller's slot without shrinking.
+        const int x=(bounds.left+bounds.right-edge)/2,y=(bounds.top+bounds.bottom-edge)/2;
+        const int left=std::max(int(bounds.left),x),top=std::max(int(bounds.top),y);
+        const int width=std::min(int(bounds.right),x+edge)-left,height=std::min(int(bounds.bottom),y+edge)-top;
+        AlphaBlend(dc,left,top,width,height,memory,left-x,top-y,width,height,blend);
         SelectObject(memory,old);DeleteObject(bitmap);
     }
     DeleteDC(memory);

@@ -148,6 +148,12 @@ def main():
     def control(identifier):
         return USER32.GetDlgItem(window, identifier)
 
+    def step(identifier):
+        # WM_COMMAND alone skips the focus change made by a real button click.
+        if USER32.IsWindowEnabled(control(identifier)):
+            real_focus(identifier)
+        command(identifier)
+
     def focus(identifier):
         # Native focus triggers EnsureSettingsVisible just as keyboard Tab does.
         # Keep the EDIT's internal focus flag consistent with GetFocus().
@@ -228,9 +234,33 @@ def main():
         posted_key(163, 0x0D)
 
     def category(index):
-        command(200 + index)
+        command(240 if index == 5 else 200 + index)
         if query(40) != index:
             raise AssertionError("Requested Settings category did not activate")
+
+    def edit_alignment(identifier, label, caret=False):
+        target = control(identifier)
+        bounds, formatting = wintypes.RECT(), wintypes.RECT()
+        if not USER32.GetClientRect(target, ctypes.byref(bounds)):
+            raise ctypes.WinError(ctypes.get_last_error())
+        native.send(target, 0xB2, 0, ctypes.addressof(formatting))  # EM_GETRECT
+        top, bottom = formatting.top, bounds.bottom - formatting.bottom
+        check(label + "FormattingVerticallyCentered", top > 0 and abs(top - bottom) <= 2
+              and formatting.bottom > formatting.top)
+        if caret:
+            real_focus(identifier)
+            info = GuiThreadInfo()
+            info.cbSize = ctypes.sizeof(info)
+            thread = USER32.GetWindowThreadProcessId(target, None)
+            if not USER32.GetGUIThreadInfo(thread, ctypes.byref(info)):
+                raise ctypes.WinError(ctypes.get_last_error())
+            check(label + "NativeCaretVerticallyCentered", info.hwndCaret == target
+                  and abs(info.rcCaret.top + info.rcCaret.bottom - bounds.bottom) <= 3
+                  and info.rcCaret.top > 0 and info.rcCaret.bottom <= bounds.bottom)
+        metrics[label + "EditGeometry"] = {
+            "clientHeight": bounds.bottom, "formatTop": formatting.top,
+            "formatBottom": formatting.bottom,
+        }
 
     def set_opacity(value):
         real_focus(205)
@@ -264,7 +294,7 @@ def main():
         check("fontSliderRemoved", not control(130))
         identifiers = (106, 107, 163, 108, 104, 146, 181, 151, 182, 183, 184,
                        185, 152, 155, 160, 161, 143, 187, 189, 200, 201, 202,
-                       203, 204, 205, 206, 207, *range(220, 230))
+                       203, 204, 205, 206, 207, *range(220, 230), *range(240, 249))
         check("consolidatedControlsKeepStableMainParent", all(control(identifier) and
               USER32.GetParent(control(identifier)) == window for identifier in identifiers))
         scrollbar_class = ctypes.create_unicode_buffer(64)
@@ -273,6 +303,14 @@ def main():
         check("appearanceHidesOtherCategoryControls", not region_visible(control(163)) and not region_visible(control(160))
               and not region_visible(control(220)))
         check("opacityStartsOpaque", query(41) == 100 and native.control_text(control(205)) == "100")
+        edit_alignment(205, "opacity", caret=True)
+        check("ownerDrawButtonSuppressesSystemErase", native.send(control(200), 0x14) == 1)
+        step(242)
+        check("opacityMinusStepsOnePercent", query(41) == 99 and native.control_text(control(205)) == "99")
+        step(243)
+        check("opacityPlusStepsOnePercent", query(41) == 100 and native.control_text(control(205)) == "100")
+        step(243)
+        check("opacityPlusClampsAtMaximum", query(41) == 100)
         for value in (40, 67, 100):
             set_opacity(str(value))
             check("windowOpacityManualValue:" + str(value), query(41) == value
@@ -283,12 +321,44 @@ def main():
                   and native.control_text(control(205)) == "100")
         set_opacity("100")
         check("validOpacityClearsError", query(44) == 0)
+        set_opacity("40")
+        step(242)
+        check("opacityMinusClampsAtMinimum", query(41) == 40)
+        set_opacity("100")
+        check("iconsStartAtDefaultSize", query(60) == 16 and native.control_text(control(241)) == "16")
+        edit_alignment(241, "iconSize", caret=True)
+        step(244)
+        check("iconMinusStepsOnePixel", query(60) == 15 and native.control_text(control(241)) == "15")
+        step(245)
+        check("iconPlusStepsOnePixel", query(60) == 16 and native.control_text(control(241)) == "16")
+        for value in (12, 19, 24):
+            real_focus(241)
+            native.set_control_text(control(241), str(value))
+            posted_key(241, 0x0D)
+            check("manualIconSize:" + str(value), query(60) == value and native.control_text(control(241)) == str(value))
+        step(245)
+        check("iconPlusClampsAtMaximum", query(60) == 24)
+        for value in (11, 25):
+            real_focus(241)
+            native.set_control_text(control(241), str(value))
+            posted_key(241, 0x0D)
+            check("invalidIconSizeRetainsPrevious:" + str(value), query(60) == 24 and native.control_text(control(241)) == "24")
+        real_focus(241)
+        native.set_control_text(control(241), "12")
+        posted_key(241, 0x0D)
+        step(244)
+        check("iconMinusClampsAtMinimum", query(60) == 12)
+        real_focus(241)
+        native.set_control_text(control(241), "16")
+        posted_key(241, 0x0D)
         check("scriptWeightStartsRegular", query(42) == 400)
         for weight in (600, 700, 400):
             command(206)
             check("scriptWeightCycles:" + str(weight), query(42) == weight and bool(native.control_text(control(206))))
         category(1)
         check("readingHidesAppearanceControls", not region_visible(control(205)) and not region_visible(control(206)))
+        edit_alignment(163, "contentSize", caret=True)
+        real_focus(108)
         reading_window, reading_client = wintypes.RECT(), wintypes.RECT()
         USER32.GetWindowRect(window, ctypes.byref(reading_window))
         USER32.GetClientRect(window, ctypes.byref(reading_client))
@@ -458,6 +528,7 @@ def main():
         category(4)
         check("returningCategoryResetsScrollOrigin", query(19) == 0)
         check("allShortcutButtonsHaveNativeLabels", all(native.control_text(control(identifier)) for identifier in range(220, 230)))
+        check("allExistingShortcutQueriesRemainAvailable", all(query(key) for key in range(45, 55)))
         check("verifyShortcutStartsF9", query(47) == 0x78)
         custom_verify_binding = ord("K") | ((2 | 4) << 8)
         record_shortcut(2, ord("K"), 2 | 4)
@@ -486,6 +557,43 @@ def main():
         category(0)
         command(207)
         check("restoreAppearanceDefaultsPreservesShortcutDefaults",query(41) == 100 and query(42) == 400 and query(47) == 0x78 and query(44) == 0)
+
+        category(5)
+        check("browserSettingsCategoryAvailable", query(40) == 5 and region_visible(control(246))
+              and not region_visible(control(205)) and not region_visible(control(163)))
+        check("browserPolicyDefaultsPrivate", query(61) == 0 and query(62) == 0 and query(63) == 0)
+        for identifier, key, label in ((246, 61, "mute"), (247, 62, "camera"), (248, 63, "microphone")):
+            focus(identifier)
+            before = native.control_text(control(identifier))
+            command(identifier)
+            check("browserPolicyCanBeSetBeforeStarting:" + label, query(key) == 1
+                  and native.control_text(control(identifier)) != before and query(10) == 0 and query(11) == 0)
+            command(identifier)
+            check("browserPolicyRestoresPrivateDefault:" + label, query(key) == 0
+                  and native.control_text(control(identifier)) == before)
+        # The synthetic QA app keeps the browser engine disabled. Exercise the
+        # real hidden address EDIT without revealing content or navigating.
+        address = control(164)
+        address_bounds = wintypes.RECT()
+        USER32.GetWindowRect(address, ctypes.byref(address_bounds))
+        address_text = native.control_text(address)
+        check("hiddenAddressSizingForNativeFormatting", USER32.SetWindowPos(address, None, 0, 0,
+              round(240 * scale), round(30 * scale), 0x16))
+        native.set_control_text(address, "")
+        edit_alignment(164, "emptyAddress")
+        native.set_control_text(address, "https://example.test/")
+        edit_alignment(164, "populatedAddress")
+        first = native.send(address, 0xD6, 0)  # EM_POSFROMCHAR
+        check("addressFirstCharacterUsesLeftInset", first & 0xFFFFFFFF != 0xFFFFFFFF
+              and 0 < (first & 0xFFFF) <= round(16 * scale))
+        native.send(address, 0x102, 13, 1)  # WM_CHAR / carriage return
+        check("addressRejectsNewline", native.send(address, 0xBA) == 1
+              and "\r" not in native.control_text(address) and "\n" not in native.control_text(address))
+        check("addressRemainsHiddenWithoutEngine", not USER32.IsWindowVisible(address)
+              and query(10) == 0 and query(11) == 0)
+        native.set_control_text(address, address_text)
+        USER32.SetWindowPos(address, None, 0, 0, address_bounds.right - address_bounds.left,
+                            address_bounds.bottom - address_bounds.top, 0x16)
 
         command(120)
         command(123)
@@ -524,6 +632,10 @@ def main():
         check("sizeErrorSurvivesHiddenStatusBar", query(22) == 1 and query(4) == 200 * 100 // 24)
         set_size("24")
         check("validSizeClearsInlineError", query(22) == 0 and native.control_text(control(163)) == "24")
+        step(102)
+        check("contentMinusChangesSizeFromVisibleStepper", native.control_text(control(163)) == "22")
+        step(103)
+        check("contentPlusChangesSizeFromVisibleStepper", native.control_text(control(163)) == "24")
         category(2)
         command(184)
         category(1)

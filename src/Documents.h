@@ -113,6 +113,7 @@ private:
     HWND window_ = nullptr;
     HIMAGELIST icons_ = nullptr;
     UINT iconDpi_ = 0;
+    int iconSize_ = 0;
     std::wstring root_;
     bool includeIgnored_ = false;
     std::unordered_map<HTREEITEM, std::unique_ptr<Node>> nodes_;

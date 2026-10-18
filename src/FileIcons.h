@@ -58,9 +58,14 @@ inline FileIconKind FileIconForName(const std::wstring &path, bool directory = f
     return FileIconKind::Generic;
 }
 
-inline void DrawFileTypeIcon(HDC dc, FileIconKind kind, RECT bounds, bool disabled = false)
+inline void DrawFileTypeIcon(HDC dc, FileIconKind kind, RECT bounds, bool disabled = false, bool scale = true)
 {
-    const int width = bounds.right - bounds.left, height = bounds.bottom - bounds.top;
+    const int slot = (std::min)(bounds.right - bounds.left, bounds.bottom - bounds.top);
+    const int size = scale ? (std::min)(slot, MulDiv(slot, interfaceIconSize, 16)) : slot;
+    bounds.left += (bounds.right - bounds.left - size) / 2;
+    bounds.top += (bounds.bottom - bounds.top - size) / 2;
+    bounds.right = bounds.left + size; bounds.bottom = bounds.top + size;
+    const int width = size, height = size;
     if (!dc || width <= 0 || height <= 0) return;
     wchar_t glyph = 0xea7b; // Pinned Codicons 0.0.39 file-text.
     COLORREF color = RGB(170, 170, 170);
@@ -93,7 +98,7 @@ inline void DrawFileTypeIcon(HDC dc, FileIconKind kind, RECT bounds, bool disabl
     if (disabled) color = RGB(105, 112, 121);
     const int saved = SaveDC(dc);
     IntersectClipRect(dc, bounds.left, bounds.top, bounds.right, bounds.bottom);
-    DrawCodicon(dc, glyph, bounds, color, (std::min)(width, height));
+    DrawCodicon(dc, glyph, bounds, color, (std::min)(width, height), false);
     if (badge)
     {
         // Tiny language badges reuse the same Codicon file silhouette. They are
@@ -104,7 +109,7 @@ inline void DrawFileTypeIcon(HDC dc, FileIconKind kind, RECT bounds, bool disabl
         FillRect(dc, &label, backing);
         DeleteObject(backing);
         HFONT font = CreateFontW(-MulDiv(8, height, 16), 0, 0, 0, FW_BOLD, FALSE, FALSE, FALSE,
-                                 DEFAULT_CHARSET, 0, 0, NONANTIALIASED_QUALITY, DEFAULT_PITCH, L"Consolas");
+                                 DEFAULT_CHARSET, 0, 0, ANTIALIASED_QUALITY, DEFAULT_PITCH, L"Consolas");
         const auto old = SelectObject(dc, font);
         SetTextColor(dc, color);
         SetBkMode(dc, TRANSPARENT);

@@ -4,6 +4,10 @@ QuietShare là ứng dụng Windows để đọc lời nhắc, mã nguồn, ản
 
 QuietShare is a Windows application for scripts, source code, images, PDFs and optional web content during presentations. Smart Mirror projects the public source display onto a separate Extend display while excluding the QuietShare window from the verified capture path.
 
+Tài liệu mô tả nhánh `main`; mục **Unreleased** trong [CHANGELOG](CHANGELOG.md) liệt kê các thay đổi chưa có trong bản phát hành gắn tag.
+
+This guide describes `main`; **Unreleased** in the [CHANGELOG](CHANGELOG.md) lists changes that are not yet in a tagged release.
+
 ![Cài đặt QuietShare / QuietShare Settings](docs/quietshare-settings.png)
 
 ## Tiếng Việt
@@ -17,8 +21,8 @@ QuietShare is a Windows application for scripts, source code, images, PDFs and o
 | Mã nguồn | Màu cú pháp, số dòng, thụt dòng, tìm kiếm, chọn/sao chép và xuống dòng tùy chọn. Không thực thi mã nguồn. |
 | Explorer | Cây thư mục cục bộ, icon theo loại file, giữ nhánh mở và lựa chọn khi đổi tab; kéo đường phân cách để chỉnh độ rộng. |
 | Ảnh và PDF | Zoom, di chuyển ảnh/trang, PDF từng trang; tìm và sao chép khi PDF có lớp văn bản. |
-| Trình duyệt | Bật theo nhu cầu, tối đa 8 tab web và 10 lối tắt trên trang Tab mới; HTTP/HTTPS, tên miền, localhost, tìm Google, lịch sử và zoom 25-400% riêng từng tab. |
-| Bố cục | Ẩn/hiện riêng từng thanh, chế độ tập trung, ghim trên cùng, VI/EN và hỗ trợ DPI. |
+| Trình duyệt | Bật theo nhu cầu, tối đa 8 tab web và 10 lối tắt trên trang Tab mới; HTTP/HTTPS, tên miền, localhost, tìm Google, lịch sử, zoom 25-400% riêng từng tab và tùy chọn âm thanh/camera/micro. |
+| Bố cục | Ẩn/hiện riêng từng thanh, chế độ tập trung, ghim trên cùng, VI/EN, hỗ trợ DPI và cỡ icon 12-24 px. |
 | Smart Mirror | Chọn màn hình nguồn/đích, con trỏ và chế độ tài nguyên; đầu chiếu chỉ khởi động sau khi xác minh capture đạt. |
 
 ### 2. Yêu cầu hệ thống và định dạng
@@ -62,29 +66,30 @@ Nút **Ghim** ở góc trên điều khiển trạng thái luôn trên cùng; c�
 
 ### 5. Cài đặt
 
-Mở bằng icon bánh răng hoặc **⋯ > Cài đặt**, sau đó chọn một trong năm tab. Dùng con lăn, touchpad, thanh cuộn hoặc Tab/Shift+Tab; hàng nhận focus tự đi vào vùng nhìn thấy.
+Mở bằng icon bánh răng hoặc **⋯ > Cài đặt**, sau đó chọn một trong sáu tab. Dùng con lăn, touchpad, thanh cuộn hoặc Tab/Shift+Tab; hàng nhận focus tự đi vào vùng nhìn thấy. Độ mờ, cỡ chữ/zoom và cỡ icon có nút **-**, ô nhập và nút **+**; giá trị được căn giữa theo cả hai chiều.
 
 | Nhóm | Thiết lập |
 |---|---|
-| Giao diện | Ngôn ngữ VI/EN, ghim, độ mờ cửa sổ 40-100%, độ đậm chữ lời nhắc Thường/Vừa/Đậm (400/600/700). |
+| Giao diện | Ngôn ngữ VI/EN, ghim, độ mờ cửa sổ 40-100%, cỡ icon 12-24 px (mặc định 16 px), độ đậm chữ lời nhắc Thường/Vừa/Đậm (400/600/700). |
 | Nội dung | Cỡ chữ lời nhắc/văn bản 8-200 pt; zoom code/ảnh/PDF 25-400%; đặt lại, tốc độ cuộn lời nhắc, xuống dòng code. |
-| Bố cục | Bật/tắt năm thanh, khôi phục bố cục, thư mục nặng/ẩn và bật/tắt trình duyệt. |
+| Bố cục | Bật/tắt năm thanh, khôi phục bố cục và thư mục nặng/ẩn. |
 | Trình chiếu | Nguồn, đích, con trỏ, tài nguyên Tiết kiệm 15 FPS / Cân bằng 30 FPS / Hiệu năng 60 FPS mặc định và trạng thái WGC/chiếu. |
 | Phím tắt | Đổi mười tác vụ, kiểm tra tổ hợp trùng/dành riêng và khôi phục phím mặc định. |
+| Trình duyệt | Bật/tắt trình duyệt, tắt âm thanh, cho phép camera và cho phép micro. Ba tùy chọn âm thanh/camera/micro mặc định tắt và được lưu cục bộ. |
 
 **Độ mờ áp dụng đồng đều cho toàn bộ cửa sổ điều khiển, gồm nền và chữ.** 100% là rõ hoàn toàn; giá trị thấp hơn giúp nhìn phía sau. Chưa có độ trong suốt chỉ riêng nền. Độ đậm chữ lời nhắc được điều chỉnh riêng, không thay đổi font của website, code hay PDF. Hình chiếu công khai vẫn hoàn toàn đục.
 
-Trong **Phím tắt**, bấm tổ hợp hiện tại rồi nhấn tổ hợp mới; Esc hủy. Hai tác vụ **Che/mở nội dung** và **Gọi cửa sổ** đăng ký toàn hệ thống; các tác vụ còn lại áp dụng trong QuietShare. Nếu trùng, dành riêng hoặc đăng ký toàn hệ thống thất bại, ứng dụng giữ thiết lập trước. Lựa chọn được lưu cục bộ. **Khôi phục mặc định** tại Giao diện chỉ đặt lại độ mờ/độ đậm; tại Phím tắt chỉ đặt lại các phím.
+Trong **Phím tắt**, bấm tổ hợp hiện tại rồi nhấn tổ hợp mới; Esc hủy. Hai tác vụ **Che/mở nội dung** và **Gọi cửa sổ** đăng ký toàn hệ thống; các tác vụ còn lại áp dụng trong QuietShare. Nếu trùng, dành riêng hoặc đăng ký toàn hệ thống thất bại, ứng dụng giữ thiết lập trước. Lựa chọn được lưu cục bộ. **Khôi phục mặc định** tại Giao diện đặt lại độ mờ/độ đậm/cỡ icon; tại Phím tắt chỉ đặt lại các phím. Cỡ icon được giới hạn theo vùng nút ở những điều khiển nhỏ để không tràn hoặc bị cắt.
 
 Chế độ tài nguyên giới hạn tốc độ xử lý chiếu của ứng dụng; FPS thực tế phụ thuộc màn hình, GPU và nội dung. Không có mức giảm RAM cố định. Trình duyệt ẩn vẫn nhận yêu cầu tạm ngưng; tắt trình duyệt đóng engine và giữ hồ sơ đăng nhập riêng trên máy.
 
 ### 6. Trình duyệt
 
-Bật tại **Cài đặt > Bố cục > Trình duyệt web**, đợi xác minh vùng web rồi chọn icon quả địa cầu. Có thể bật/tắt trực tiếp trên trang trình duyệt. Trình duyệt luôn tắt ở mỗi lần khởi động ứng dụng.
+Bật tại **Cài đặt > Trình duyệt > Bật trình duyệt**, đợi xác minh vùng web rồi chọn icon quả địa cầu. Có thể bật/tắt trực tiếp trên trang trình duyệt. Trình duyệt luôn tắt ở mỗi lần khởi động ứng dụng.
 
 Tab đầu tiên và các tab mới mở trang **Tab mới** cục bộ với ô tìm kiếm/nhập địa chỉ. Chọn **Thêm lối tắt**, nhập tên và URL HTTP/HTTPS rồi **Lưu**; nút **⋯** trên ô cho sửa hoặc xóa. Tối đa 10 lối tắt được dùng chung giữa các tab và lưu cùng hồ sơ web trên máy. Không có nút Google/ChatGPT cố định; người dùng có thể tự lưu trang cần dùng. Trang Tab mới không tải website bên ngoài cho tới khi người dùng mở địa chỉ hoặc tìm kiếm.
 
-Nhập URL, tên miền, địa chỉ như `localhost:3000` hoặc từ khóa rồi Enter/nút mũi tên; từ khóa được tìm bằng Google Search. Ô địa chỉ nằm giữa hàng điều hướng và tự chọn toàn bộ URL khi bấm để nhập thay thế. Quay lại, tiến tới và tải lại áp dụng cho tab đang chọn. Nút **⋯** của trình duyệt gom các thao tác phụ, bao gồm zoom 25-400% và tắt trình duyệt. **Ctrl + `+` / `-` / `0`** điều chỉnh zoom web, độc lập với tab file.
+Nhập URL, tên miền, địa chỉ như `localhost:3000` hoặc từ khóa rồi Enter/nút mũi tên; từ khóa được tìm bằng Google Search. Ô địa chỉ nằm giữa hàng điều hướng; nội dung và dấu nháy được căn giữa theo chiều dọc trên một dòng. Bấm lần đầu vào ô vẫn chọn toàn bộ URL để nhập thay thế. Quay lại, tiến tới và tải lại áp dụng cho tab đang chọn. Các nút **-**, mức zoom và **+** nằm trực tiếp trên hàng điều hướng; phạm vi zoom là 25-400%. Nút **⋯** gom các thao tác phụ và mở thiết lập trình duyệt. **Ctrl + `+` / `-` / `0`** điều chỉnh zoom web, độc lập với tab file.
 
 Dùng **+** hoặc **Ctrl+T** để mở trang **Tab mới** cục bộ; chọn tiêu đề tab để chuyển trang. Dấu **×** hoặc **Ctrl+W** đóng tab đang chọn. Đóng tab web cuối cùng sẽ tắt trình duyệt, giữ QuietShare và các tab tài liệu đang mở. **Ctrl+Tab / Ctrl+Shift+Tab** chuyển tab web tiếp/trước khi ở trang trình duyệt, kể cả lúc đang nhập trong trang web.
 
@@ -94,7 +99,9 @@ Mỗi tab mới phải hoàn tất xác minh capture của vùng web trước kh
 
 Khi bật web trong phiên Smart Mirror, đầu chiếu giữ khung hình công khai gần nhất trong lúc xác minh, tối đa khoảng 5 giây. Xác minh đạt thì tiếp tục cùng phiên; thất bại hoặc hủy thì dừng chiếu và khóa nội dung.
 
-Trình duyệt dành cho đọc và chat bằng chữ. Tải lên/tải xuống file, camera, microphone, chia sẻ màn hình, thông báo, DevTools và menu native bị tắt. Popup tự phát bị chặn; link mở cửa sổ mới do người dùng bấm được mở thành tab trong QuietShare nếu còn chỗ. Đăng nhập OAuth cần popup riêng có thể không tương thích. Dropdown HTML native có thể chọn bằng phím mũi tên. Thay đổi màn hình thực sự tắt trình duyệt và yêu cầu xác minh lại.
+Trong **Cài đặt > Trình duyệt**, **Tắt âm thanh** áp dụng cho các tab web. **Cho phép camera** và **Cho phép micro** mặc định tắt. Khi bật từng quyền, chỉ tab đang hiển thị, đã xác minh capture và mở trang HTTPS mới có thể được cấp quyền native; nguồn yêu cầu phải cùng origin với trang chính (giao thức, tên miền và cổng). Quyền từng website không được lưu vào hồ sơ web; quyền thiết bị của Windows vẫn áp dụng. Tắt một quyền đã được cấp sẽ thu hồi quyền và có thể tải lại tab để dừng các luồng thiết bị đang dùng.
+
+Tải lên/tải xuống file, chia sẻ màn hình, thông báo, DevTools và menu native vẫn bị tắt. Popup tự phát bị chặn; link mở cửa sổ mới do người dùng bấm được mở thành tab trong QuietShare nếu còn chỗ. Đăng nhập OAuth cần popup riêng có thể không tương thích. Dropdown HTML native có thể chọn bằng phím mũi tên. Thay đổi màn hình thực sự tắt trình duyệt và yêu cầu xác minh lại.
 
 ### 7. Smart Mirror và giới hạn bảo vệ
 
@@ -159,8 +166,8 @@ Phím **toàn hệ thống** dùng được khi ứng dụng khác đang nhận 
 | Source code | Syntax coloring, line numbers, indentation, find, selection/copy and optional wrapping. Source code is never executed. |
 | Explorer | Local folder tree with file-type icons; expanded branches and selection survive tab changes. Drag the divider to resize. |
 | Images and PDFs | Zoom and pan, single-page PDF navigation, search/copy when a text layer exists. |
-| Browser | Up to 8 on-demand tabs and 10 saved New tab shortcuts; HTTP/HTTPS, domains, localhost, Google search and independent history/25-400% zoom per tab. |
-| Workspace | Independent bar visibility, focus mode, always-on-top pinning, VI/EN and DPI support. |
+| Browser | Up to 8 on-demand tabs and 10 saved New tab shortcuts; HTTP/HTTPS, domains, localhost, Google search, independent history/25-400% zoom per tab and audio/camera/microphone options. |
+| Workspace | Independent bar visibility, focus mode, always-on-top pinning, VI/EN, DPI support and 12-24 px icons. |
 | Smart Mirror | Source/destination display selection, pointer option and resource modes; projection starts only after capture verification succeeds. |
 
 ### 2. System requirements and formats
@@ -204,29 +211,30 @@ The **Pin** button in the upper corner toggles always-on-top; the same setting i
 
 ### 5. Settings
 
-Open the gear icon or **⋯ > Settings**, then select one of five tabs. Navigate with the wheel, touchpad, scrollbar or Tab/Shift+Tab; focused rows automatically scroll into view.
+Open the gear icon or **⋯ > Settings**, then select one of six tabs. Navigate with the wheel, touchpad, scrollbar or Tab/Shift+Tab; focused rows automatically scroll into view. Opacity, text size/zoom and icon size use **-**, an editable value and **+**, with values centered horizontally and vertically.
 
 | Group | Controls |
 |---|---|
-| Appearance | VI/EN, pinning, 40-100% window opacity and Regular/Semibold/Bold script text (400/600/700). |
+| Appearance | VI/EN, pinning, 40-100% window opacity, 12-24 px icons (default 16 px) and Regular/Semibold/Bold script text (400/600/700). |
 | Reading | Script/text 8-200 pt; code/image/PDF zoom 25-400%; reset, script scrolling speed and code wrapping. |
-| Workspace | Five bar visibility controls, layout reset, heavy/hidden folders and enabling/disabling browsing. |
+| Workspace | Five bar visibility controls, layout reset and heavy/hidden folders. |
 | Projection | Source, destination, pointer, resource modes Saver 15 FPS / Balanced 30 FPS / default Performance 60 FPS and WGC/projection status. |
 | Shortcuts | Ten configurable commands, duplicate/reserved-binding validation and restoring shortcut defaults. |
+| Browser | Enable/disable browsing, mute audio, allow camera and allow microphone. Audio mute, camera and microphone options default to off and persist locally. |
 
 **Opacity applies uniformly to the entire control window, including its background and text.** 100% is fully opaque; lower values reveal what is behind it. Background-only transparency is not provided. Script text weight is separate and does not change website, code or PDF fonts. Public projection remains opaque.
 
-In **Shortcuts**, click the current binding and press a new combination; Esc cancels. **Mask/reveal** and **Recall window** register globally; other commands apply within QuietShare. Duplicate/reserved combinations and failed global registrations retain the previous setting. Choices are stored locally. **Restore defaults** in Appearance resets opacity/weight only; in Shortcuts it resets bindings only.
+In **Shortcuts**, click the current binding and press a new combination; Esc cancels. **Mask/reveal** and **Recall window** register globally; other commands apply within QuietShare. Duplicate/reserved combinations and failed global registrations retain the previous setting. Choices are stored locally. **Restore defaults** in Appearance resets opacity/weight/icon size; in Shortcuts it resets bindings only. Small controls cap the icon glyph to fit their available space without clipping.
 
 Resource modes cap application projection processing. Achieved FPS depends on displays, GPU and source activity; no fixed RAM reduction is promised. Hidden browsing still requests suspension. Disabling browsing closes the engine while retaining its separate local login profile.
 
 ### 6. Browser
 
-Enable **Settings > Workspace > Web browser**, wait for web capture verification and select the globe icon. Browsing can also be enabled/disabled on its own page. Every application launch starts with browsing disabled.
+Enable **Settings > Browser > Enable browser**, wait for web capture verification and select the globe icon. Browsing can also be enabled/disabled on its own page. Every application launch starts with browsing disabled.
 
 The first tab and new tabs open a local **New tab** page with a search/address input. Select **Add shortcut**, enter a name and HTTP/HTTPS URL, then **Save**. A tile's **⋯** edits or removes it. Up to 10 shortcuts are shared across tabs and saved with the local web profile. Fixed Google/ChatGPT buttons are removed; users can save their own destinations. This local page makes no external website request until the user opens an address or searches.
 
-Enter a URL, domain, address such as `localhost:3000`, or search terms, then press Enter/the arrow button; search terms use Google Search. The address field is centered in the navigation row, and clicking it selects the complete URL for replacement. Back, Forward and Reload apply to the selected tab. The browser **⋯** menu groups secondary actions, including 25-400% zoom and disabling browsing. **Ctrl + `+` / `-` / `0`** controls web zoom independently of file tabs.
+Enter a URL, domain, address such as `localhost:3000`, or search terms, then press Enter/the arrow button; search terms use Google Search. The address container is centered in the navigation row; text and the caret remain vertically centered on one line. The first click still selects the complete URL for replacement. Back, Forward and Reload apply to the selected tab. **-**, the zoom level and **+** are directly available in the navigation row, with a 25-400% range. The browser **⋯** menu groups secondary actions and opens browser settings. **Ctrl + `+` / `-` / `0`** controls web zoom independently of file tabs.
 
 Use **+** or **Ctrl+T** to open the local **New tab** page; select a tab title to switch pages. **×** or **Ctrl+W** closes the selected tab. Closing the last web tab disables browsing while keeping QuietShare and its document tabs open. **Ctrl+Tab / Ctrl+Shift+Tab** selects the next/previous web tab on the browser page, including while typing in web content.
 
@@ -236,7 +244,9 @@ Each new tab must complete web capture verification before opening a user page; 
 
 Enabling web during Smart Mirror holds the most recent public frame while verification runs, for up to about five seconds. Success resumes the same projection; failure or cancellation stops projection and locks content.
 
-The browser supports reading and text chat. File uploads/downloads, camera, microphone, screen sharing, notifications, DevTools and native context menus are disabled. Unsolicited popups are blocked; user-initiated new-window links open in a QuietShare tab if capacity is available. OAuth flows requiring separate popups may be incompatible. Native HTML selects support arrow-key selection. Actual display changes disable browsing until fresh verification.
+In **Settings > Browser**, **Mute audio** applies to web tabs. **Allow camera** and **Allow microphone** are off by default. When individually enabled, native access is eligible only in a visible, capture-verified tab displaying an HTTPS page; the requesting origin must match the main page's origin (scheme, host and port). Website grants are not saved to the web profile, and Windows device permissions still apply. Disabling a previously granted permission revokes it and may reload the affected tab to stop active device streams.
+
+File uploads/downloads, screen sharing, notifications, DevTools and native context menus remain disabled. Unsolicited popups are blocked; user-initiated new-window links open in a QuietShare tab if capacity is available. OAuth flows requiring separate popups may be incompatible. Native HTML selects support arrow-key selection. Actual display changes disable browsing until fresh verification.
 
 ### 7. Smart Mirror and protection limits
 

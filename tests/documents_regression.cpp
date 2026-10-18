@@ -387,6 +387,27 @@ void Run()
     Check("project_collapse_restores_folder_icon", ItemIcon(tree.Handle(), src) == static_cast<int>(FileIconKind::Folder));
     TreeView_Expand(tree.Handle(), src, TVE_EXPAND);
     TreeView_SelectItem(tree.Handle(), FindChild(tree.Handle(), src, L"main.py"));
+    const auto retainedSelection = TreeView_GetSelection(tree.Handle());
+    const auto retainedNodes = tree.NodeCount();
+    for (const int size : {12, 24, 16})
+    {
+        const auto previousIcons = TreeView_GetImageList(tree.Handle(), TVSIL_NORMAL);
+        SetInterfaceIconSize(size);
+        tree.SetDpi(96);
+        const auto resizedIcons = TreeView_GetImageList(tree.Handle(), TVSIL_NORMAL);
+        const auto prefix = "project_icon_size_" + std::to_string(size);
+        Check((prefix + "_rebuilds_at_same_dpi").c_str(), resizedIcons && resizedIcons != previousIcons &&
+              ImageList_GetIconSize(resizedIcons, &iconWidth, &iconHeight) && iconWidth == size && iconHeight == size &&
+              ImageList_GetImageCount(resizedIcons) == static_cast<int>(FileIconKind::Count));
+        Check((prefix + "_preserves_branches_and_selection").c_str(), tree.NodeCount() == retainedNodes &&
+              TreeView_GetRoot(tree.Handle()) == top && TreeView_GetSelection(tree.Handle()) == retainedSelection &&
+              TreeView_GetItemState(tree.Handle(), top, TVIS_EXPANDED) && TreeView_GetItemState(tree.Handle(), src, TVIS_EXPANDED) &&
+              tree.SelectedFile() == project + L"\\src\\main.py" &&
+              ItemIcon(tree.Handle(), src) == static_cast<int>(FileIconKind::FolderOpen) &&
+              ItemIcon(tree.Handle(), retainedSelection) == static_cast<int>(FileIconKind::Python));
+        tree.SetDpi(96);
+        Check((prefix + "_reuses_unchanged_image_list").c_str(), TreeView_GetImageList(tree.Handle(), TVSIL_NORMAL) == resizedIcons);
+    }
     NMTVKEYDOWN key{};
     key.hdr.hwndFrom = tree.Handle();
     key.hdr.code = TVN_KEYDOWN;

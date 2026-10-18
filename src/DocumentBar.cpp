@@ -40,23 +40,26 @@ void DocumentBar::Update(std::vector<TabVisual> tabs,std::uint64_t active,bool s
         const auto& before=tabs_[i];const auto& after=tabs[i];
         if(before.id!=after.id||before.name!=after.name||before.path!=after.path||before.kind!=after.kind||before.script!=after.script){changed=true;break;}
     }
-    if(!changed&&safe_==safe&&english_==english&&dpi_==dpi&&font_==font)return;
+    const bool iconChanged=iconSize_!=interfaceIconSize;
+    if(!changed&&!iconChanged&&safe_==safe&&english_==english&&dpi_==dpi&&font_==font)return;
     for(size_t i=0;i<tabs_.size();++i) {
         TOOLINFOW tip{}; tip.cbSize=sizeof(tip); tip.hwnd=window_; tip.uId=i+1;
         SendMessageW(tooltip_,TTM_DELTOOLW,0,(LPARAM)&tip);
     }
     tabs_=safe?std::move(tabs):std::vector<TabVisual>{}; active_=active;
-    safe_=safe; english_=english; dpi_=dpi; font_=font;
+    safe_=safe; english_=english; dpi_=dpi; font_=font; iconSize_=interfaceIconSize;
     if(!safe) { SendMessageW(tooltip_,TTM_POP,0,0); hovered_=-1; }
     SendMessageW(tooltip_,TTM_ACTIVATE,safe && tooltipSafe_,0);
-    Reflow(changed); InvalidateRect(window_,nullptr,FALSE);
+    Reflow(changed||iconChanged); InvalidateRect(window_,nullptr,FALSE);
 }
 void DocumentBar::Reflow(bool ensureActive) {
     RECT client{}; GetClientRect(window_,&client); rects_.clear(); total_=0;
+    iconSlot_=std::min(MulDiv(iconSize_-2,dpi_,96),std::max(0,(int)client.bottom-MulDiv(4,dpi_,96)));
+    const int iconPadding=iconSlot_-MulDiv(14,dpi_,96);
     HDC dc=GetDC(window_); auto old=SelectObject(dc,font_);
     for(const auto &tab:tabs_) {
         SIZE size{}; GetTextExtentPoint32W(dc,tab.name.c_str(),(int)tab.name.size(),&size);
-        int width=std::clamp((int)size.cx+MulDiv(tab.script?40:60,dpi_,96),MulDiv(88,dpi_,96),MulDiv(168,dpi_,96));
+        int width=std::clamp((int)size.cx+MulDiv(tab.script?40:60,dpi_,96)+iconPadding,MulDiv(88,dpi_,96),MulDiv(168,dpi_,96));
         rects_.push_back({total_,MulDiv(2,dpi_,96),total_+width,client.bottom-MulDiv(2,dpi_,96)});
         total_+=width+MulDiv(2,dpi_,96);
     }
@@ -113,10 +116,11 @@ void DocumentBar::Paint(HDC dc) {
         bool active=tabs_[i].id==active_;
         Fill(dc,r,active || (int)i==hovered_?Raised:Panel);
         int iconX=r.left+MulDiv(8,dpi_,96), center=(r.top+r.bottom)/2;
-        RECT icon{iconX,center-MulDiv(7,dpi_,96),iconX+MulDiv(14,dpi_,96),center+MulDiv(7,dpi_,96)};
-        if(browser_)DrawCodicon(dc,0xeb01,icon,active?Text:Muted,MulDiv(14,dpi_,96));
-        else DrawFileTypeIcon(dc,tabs_[i].script?FileIconKind::Text:FileIconForName(tabs_[i].path.empty()?tabs_[i].name:tabs_[i].path),icon);
-        RECT label=r; label.left+=MulDiv(26,dpi_,96); label.right-=MulDiv(tabs_[i].script?8:24,dpi_,96);
+        const int iconTop=center-iconSlot_/2;
+        RECT icon{iconX,iconTop,iconX+iconSlot_,iconTop+iconSlot_};
+        if(browser_)DrawCodicon(dc,0xeb01,icon,active?Text:Muted,iconSlot_,false);
+        else DrawFileTypeIcon(dc,tabs_[i].script?FileIconKind::Text:FileIconForName(tabs_[i].path.empty()?tabs_[i].name:tabs_[i].path),icon,false,false);
+        RECT label=r; label.left+=MulDiv(26,dpi_,96)+iconSlot_-MulDiv(14,dpi_,96); label.right-=MulDiv(tabs_[i].script?8:24,dpi_,96);
         SetTextColor(dc,active?Text:Muted); DrawTextW(dc,tabs_[i].name.c_str(),-1,&label,DT_LEFT|DT_VCENTER|DT_SINGLELINE|DT_END_ELLIPSIS);
         if(!tabs_[i].script) {
             int x=r.right-MulDiv(13,dpi_,96), k=MulDiv(3,dpi_,96);

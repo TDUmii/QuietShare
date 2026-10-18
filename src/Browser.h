@@ -26,6 +26,9 @@ public:
     bool Enable(HWND parent,const std::wstring& profile,const std::wstring& address=L"");
     void SetEnglish(bool english);
     void SetCommandShortcuts(const std::vector<BrowserCommandShortcut>& shortcuts);
+    // Session preferences apply to current and future tabs, including before Enable.
+    // Camera/microphone remain subject to secure-origin, runtime and OS checks.
+    void SetMediaPreferences(bool muted,bool allowCamera,bool allowMicrophone);
     void Disable();
     void SetBounds(RECT bounds);
     void ParentMoved();

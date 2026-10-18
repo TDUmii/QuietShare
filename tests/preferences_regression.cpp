@@ -18,7 +18,9 @@ BOOL WINAPI RegisterFixture(HWND,int id,UINT modifiers,UINT key)
 BOOL WINAPI UnregisterFixture(HWND,int id){++unregisterCalls;return registered.erase(id)?TRUE:FALSE;}
 bool Equal(const Preferences& a,const Preferences& b)
 {
-    return a.shortcuts==b.shortcuts&&a.opacityPercent==b.opacityPercent&&a.textWeight==b.textWeight;
+    return a.shortcuts==b.shortcuts&&a.opacityPercent==b.opacityPercent&&a.textWeight==b.textWeight&&
+        a.iconSize==b.iconSize&&a.browserMuted==b.browserMuted&&a.browserAllowCamera==b.browserAllowCamera&&
+        a.browserAllowMicrophone==b.browserAllowMicrophone;
 }
 bool Put(const std::wstring& path,const void* bytes,DWORD length)
 {
@@ -46,7 +48,10 @@ int wmain()
         defaults.Key(PreferenceCommand::Reading)==KeyBinding{VK_RETURN,MOD_CONTROL}&&
         defaults.Key(PreferenceCommand::AutoScroll)==KeyBinding{VK_SPACE,0});
     check("defaultsValidate",ValidatePreferences(defaults,error)&&error.empty());
-    auto edited=defaults;edited.opacityPercent=40;edited.textWeight=600;
+    check("newPreferencesDefaultToStandardIconsAndPrivateBrowser",defaults.iconSize==16&&!defaults.browserMuted&&
+        !defaults.browserAllowCamera&&!defaults.browserAllowMicrophone);
+    auto edited=defaults;edited.opacityPercent=40;edited.textWeight=600;edited.iconSize=24;
+    edited.browserMuted=true;edited.browserAllowCamera=true;edited.browserAllowMicrophone=true;
     edited.Key(PreferenceCommand::VerifyWgc)={L'P',MOD_CONTROL|MOD_SHIFT};
     check("customSettingsValidate",ValidatePreferences(edited,error));
     check("bindingMatchesExactModifiers",MatchShortcut(edited.Key(PreferenceCommand::VerifyWgc),L'P',MOD_CONTROL|MOD_SHIFT)&&
@@ -79,6 +84,10 @@ int wmain()
     invalid=defaults;invalid.opacityPercent=101;check("opacityUpperBound",!ValidatePreferences(invalid,error));
     invalid=defaults;invalid.textWeight=500;check("unknownTextWeightRejected",!ValidatePreferences(invalid,error));
     invalid=defaults;invalid.textWeight=700;check("boldWeightAccepted",ValidatePreferences(invalid,error));
+    invalid=defaults;invalid.iconSize=11;check("iconSizeLowerBound",!ValidatePreferences(invalid,error)&&error==L"icon-size");
+    invalid=defaults;invalid.iconSize=25;check("iconSizeUpperBound",!ValidatePreferences(invalid,error)&&error==L"icon-size");
+    invalid=defaults;invalid.iconSize=12;check("minimumIconSizeAccepted",ValidatePreferences(invalid,error));
+    invalid.iconSize=24;check("maximumIconSizeAccepted",ValidatePreferences(invalid,error));
     wchar_t temp[MAX_PATH]{};GetTempPathW(MAX_PATH,temp);
     const std::wstring directory=std::wstring(temp)+L"QuietShare-Preferences-"+std::to_wstring(GetCurrentProcessId());
     const std::wstring path=directory+L"\\preferences.dat";
@@ -87,17 +96,29 @@ int wmain()
     check("missingFileLeavesCallerUnchanged",!LoadPreferences(directory,loaded)&&Equal(loaded,defaults));
     check("preferencesSavedAtomically",SavePreferences(directory,edited)&&GetFileAttributesW((path+L".tmp").c_str())==INVALID_FILE_ATTRIBUTES);
     WIN32_FILE_ATTRIBUTE_DATA info{};
-    check("recordIsBoundedAndFixed",GetFileAttributesExW(path.c_str(),GetFileExInfoStandard,&info)&&info.nFileSizeLow==100&&info.nFileSizeHigh==0);
+    check("recordIsBoundedAndFixed",GetFileAttributesExW(path.c_str(),GetFileExInfoStandard,&info)&&info.nFileSizeLow==116&&info.nFileSizeHigh==0);
     check("settingsRoundTrip",LoadPreferences(directory,loaded)&&Equal(loaded,edited));
+    bool independentBrowserOptions=true;
+    for(unsigned options=0;options<8;++options) {
+        auto candidate=edited;candidate.iconSize=12;candidate.browserMuted=(options&1)!=0;
+        candidate.browserAllowCamera=(options&2)!=0;candidate.browserAllowMicrophone=(options&4)!=0;
+        independentBrowserOptions=SavePreferences(directory,candidate)&&LoadPreferences(directory,loaded)&&
+            Equal(loaded,candidate)&&independentBrowserOptions;
+    }
+    check("browserOptionsRoundTripIndependentlyAtMinimumIconSize",independentBrowserOptions);
+    check("customPreferencesRestored",SavePreferences(directory,edited));
     invalid=edited;invalid.opacityPercent=0;
     check("invalidSaveKeepsExistingPreferences",!SavePreferences(directory,invalid)&&LoadPreferences(directory,loaded)&&Equal(loaded,edited));
+    invalid=edited;invalid.iconSize=25;
+    check("invalidIconSaveKeepsExistingPreferences",!SavePreferences(directory,invalid)&&LoadPreferences(directory,loaded)&&Equal(loaded,edited));
     HANDLE lock=CreateFileW(path.c_str(),GENERIC_READ,FILE_SHARE_READ,nullptr,OPEN_EXISTING,FILE_ATTRIBUTE_NORMAL,nullptr);
     check("replaceFailureReportedWithoutTemporaryFile",lock!=INVALID_HANDLE_VALUE&&!SavePreferences(directory,defaults)&&
           GetFileAttributesW((path+L".tmp").c_str())==INVALID_FILE_ATTRIBUTES);
     if(lock!=INVALID_HANDLE_VALUE)CloseHandle(lock);
     check("replaceFailurePreservesPreviousFile",LoadPreferences(directory,loaded)&&Equal(loaded,edited));
-    std::array<DWORD,25> record{{0x50515351,1,PreferenceCommandCount,100,400}};
+    std::array<DWORD,29> record{{0x50515351,2,PreferenceCommandCount,100,400}};
     for(unsigned i=0;i<PreferenceCommandCount;++i){record[5+i*2]=defaults.shortcuts[i].key;record[6+i*2]=defaults.shortcuts[i].modifiers;}
+    record[25]=16;
     const auto validRecord=record;
     auto corrupt=[&](const char* name,unsigned index,DWORD value){record=validRecord;record[index]=value;loaded=edited;
         check(name,Put(path,record.data(),sizeof(record))&&!LoadPreferences(directory,loaded)&&Equal(loaded,edited));};
@@ -108,8 +129,32 @@ int wmain()
     corrupt("storedInvalidWeightRejected",4,500);
     corrupt("storedKeyOverflowRejectedBeforeNarrowing",5,0x10077);
     corrupt("storedModifierOverflowRejectedBeforeNarrowing",6,0x10000);
+    corrupt("storedIconSizeBelowMinimumRejected",25,11);
+    corrupt("storedIconSizeAboveMaximumRejected",25,25);
+    corrupt("storedIconSizeOverflowRejectedBeforeNarrowing",25,0xFFFFFFFF);
+    corrupt("storedInvalidBrowserMutedRejected",26,2);
+    corrupt("storedInvalidCameraPermissionRejected",27,2);
+    corrupt("storedInvalidMicrophonePermissionRejected",28,2);
+    corrupt("storedBooleanOverflowRejected",28,0xFFFFFFFF);
+    corrupt("legacyVersionWithCurrentRecordSizeRejected",1,1);
     record=validRecord;check("truncatedRecordRejected",Put(path,record.data(),sizeof(record)-1)&&!LoadPreferences(directory,loaded));
-    std::array<DWORD,26> oversized{};check("oversizedRecordRejected",Put(path,oversized.data(),sizeof(oversized))&&!LoadPreferences(directory,loaded));
+    std::array<DWORD,30> oversized{};check("oversizedRecordRejected",Put(path,oversized.data(),sizeof(oversized))&&!LoadPreferences(directory,loaded));
+    std::array<DWORD,25> legacyRecord{{0x50515351,1,PreferenceCommandCount,
+        static_cast<DWORD>(edited.opacityPercent),static_cast<DWORD>(edited.textWeight)}};
+    for(unsigned i=0;i<PreferenceCommandCount;++i){legacyRecord[5+i*2]=edited.shortcuts[i].key;legacyRecord[6+i*2]=edited.shortcuts[i].modifiers;}
+    auto migrated=edited;migrated.iconSize=16;migrated.browserMuted=false;migrated.browserAllowCamera=false;migrated.browserAllowMicrophone=false;
+    loaded=edited;
+    check("legacySettingsPreserveAppearanceAndShortcutsWithNewDefaults",Put(path,legacyRecord.data(),sizeof(legacyRecord))&&
+        LoadPreferences(directory,loaded)&&Equal(loaded,migrated));
+    check("legacySettingsUpgradeToCurrentRecordOnSave",SavePreferences(directory,loaded)&&
+        GetFileAttributesExW(path.c_str(),GetFileExInfoStandard,&info)&&info.nFileSizeLow==116&&info.nFileSizeHigh==0&&
+        LoadPreferences(directory,loaded)&&Equal(loaded,migrated));
+    legacyRecord[1]=2;loaded=edited;
+    check("currentVersionWithLegacyRecordSizeRejected",Put(path,legacyRecord.data(),sizeof(legacyRecord))&&
+        !LoadPreferences(directory,loaded)&&Equal(loaded,edited));
+    legacyRecord[1]=1;legacyRecord[5]=0x10077;
+    check("legacyMalformedKeyStillRejected",Put(path,legacyRecord.data(),sizeof(legacyRecord))&&
+        !LoadPreferences(directory,loaded)&&Equal(loaded,edited));
     check("missingStorageDirectoryNotCreatedImplicitly",!SavePreferences(directory+L"\\missing",defaults));
     DeleteFileW(path.c_str());RemoveDirectoryW(directory.c_str());
 

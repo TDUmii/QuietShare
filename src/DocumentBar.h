@@ -33,7 +33,7 @@ private:
     std::vector<TabVisual> tabs_;
     std::vector<RECT> rects_;
     std::uint64_t active_ = 0;
-    int offset_ = 0, total_ = 0, hovered_ = -1;
+    int offset_ = 0, total_ = 0, hovered_ = -1, iconSize_ = 16, iconSlot_ = 14;
     int verticalWheelRemainder_ = 0, horizontalWheelRemainder_ = 0;
     bool safe_ = false, english_ = false, tooltipSafe_ = false, browser_ = false;
 };

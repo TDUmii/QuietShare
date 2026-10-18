@@ -1,9 +1,9 @@
 # QuietShare Extend laptop handoff
 
-Updated: 2026-10-17
+Updated: 2026-10-18
 Repository: private `TDUmii/QuietShare`
 Original incident baseline: release `v0.9.1` at `f08eede29a354f8302fcd900530368eeea8f6368`
-Current application version and release target: `v0.10.0`
+Current application version: `v0.10.0`; the current UI follow-up has no version bump or new release.
 
 ## Current follow-up
 
@@ -11,7 +11,11 @@ The latest user clarification is that the application remains open while project
 
 Projection controls now live on the activity bar, with source/destination/pointer/resources and status in Settings > Projection. A local `projection-stop.json` retains one overwritten unexpected-stop record with fixed reason codes, UTC/session timing, HRESULT and resource mode. It contains no pixels, content, URL, path or monitor identifier. Use its reason code to guide any later incident investigation; do not commit raw personal logs or browser profiles.
 
-The application also adds a local browser New tab page with saved shortcuts, centered/select-all address input, smoother icons, five Settings categories, ten remappable commands, uniform window opacity 40-100% including text, and script weights 400/600/700. None of these changes authorizes a repeat physical TV/timed run. Keep the historical hardware protocol below as reference; distinguish code/native checks from physical receiver evidence.
+The application also includes a local browser New tab page with saved shortcuts, six Settings categories (Appearance, Reading, Workspace, Projection, Shortcuts and Browser), ten remappable commands, uniform window opacity 40-100% including text, and script weights 400/600/700. Browser enablement now belongs in Settings > Browser rather than Workspace. Numeric opacity, text size/zoom and icon size use minus/edit/plus controls with centered values. Icons are configurable from 12 to 24 px, default 16 px; small controls cap glyph size to fit. The status dot is kept fully visible, and page/tab changes avoid white control-background flashes.
+
+The browser address container stays centered, with single-line text and a vertically centered caret; first-click select-all is preserved. Zoom out, zoom level/reset and zoom in sit directly on the navigation row. Settings > Browser includes audio mute, camera and microphone preferences, all defaulting to false and persisted locally. Native camera/microphone grants are restricted to visible capture-verified HTTPS tabs with requests from the same origin as the main page. Grants are not persisted; Windows permissions still apply. Turning off a granted permission may reload that tab to stop active tracks. Existing per-tab capture, popup, file transfer, screen-sharing and other browser restrictions remain in place.
+
+None of these UI changes establishes the cause of the reported physical projection disappearance or authorizes a repeat physical TV/timed run or a new release. Keep the historical hardware protocol below as reference; distinguish code/native checks from physical receiver evidence.
 
 ## Goal
 

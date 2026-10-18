@@ -1,6 +1,7 @@
-// Rendering / DOM fixture only. This deliberately simulates a successful
+// Native media-policy / rendering fixture only. This simulates a successful
 // canary; it is NOT evidence of capture exclusion or monitor privacy. The
 // shipping integration suite performs the actual per-controller WGC proof.
+// Permission settings are synthetic; camera/microphone devices are never opened.
 #include <windows.h>
 #include <memory>
 #include <string>
@@ -87,7 +88,7 @@ bool Preview(quietshare::Browser& browser,const std::wstring& path){
 
 int wmain(int argc,wchar_t** argv){
     if(argc!=2)return 2;
-    std::puts("{\"method\":\"Rendering / DOM only; simulated canary gate; isolated synthetic profile; WebView CapturePreview; no desktop capture or network navigation\",\"checks\":[");
+    std::puts("{\"method\":\"Native media-policy / rendering; simulated canary gate; isolated synthetic profile; WebView CapturePreview; no device access, desktop capture or network navigation\",\"checks\":[");
     const std::wstring output=argv[1];CreateDirectoryW(output.c_str(),nullptr);
     const std::wstring profile=output+L"\\Profile-"+std::to_wstring(GetCurrentProcessId())+L"-"+std::to_wstring(GetTickCount64());
     if(FAILED(CoInitializeEx(nullptr,COINIT_APARTMENTTHREADED)))return 2;
@@ -96,6 +97,9 @@ int wmain(int argc,wchar_t** argv){
     HWND window=CreateWindowExW(WS_EX_TOOLWINDOW,cls.lpszClassName,L"QuietShare synthetic New Tab rendering fixture",WS_POPUP,30,30,358,197,nullptr,nullptr,cls.hInstance,nullptr);
     Check("renderFixtureWindowCreated",window!=nullptr);
     quietshare::Browser browser;currentBrowser=&browser;
+    Check("browserMediaDefaultsToSoundOnAndDevicesOff",!browser.impl->muted&&!browser.impl->allowCamera&&!browser.impl->allowMicrophone);
+    browser.SetMediaPreferences(true,true,true);
+    Check("browserMediaPreferencesDoNotStartEngine",browser.impl->muted&&browser.impl->allowCamera&&browser.impl->allowMicrophone&&!browser.Enabled()&&browser.ControllerCount()==0);
     if(window){
         browser.SetBounds({0,0,358,197});browser.Enable(window,profile);browser.Show(true);
         // The launcher hides the console with STARTUPINFO; Windows applies
@@ -105,6 +109,21 @@ int wmain(int argc,wchar_t** argv){
         Check("localNewTabRendersWithSyntheticGate",loaded&&browser.Address().empty());
         if(!loaded)std::fprintf(stderr,"Browser fixture state=%d error=%d ready=%d loaded=%d\n",browser.State(),browser.ErrorCode(),browser.Ready(),browser.Loaded());
         if(loaded){
+            auto allMuted=[&](bool expected){for(const auto& tab:browser.impl->tabs){quietshare::Com<ICoreWebView2_8> audio;BOOL muted=FALSE;
+                if(!tab->Query(audio)||FAILED(audio->get_IsMuted(&muted))||bool(muted)!=expected)return false;}return !browser.impl->tabs.empty();};
+            Check("nativeFirstTabInheritsMutedBeforeEnable",allMuted(true)&&browser.impl->Active()->mediaReady);
+            const auto originalTab=browser.ActiveTabId();const bool added=browser.NewTab();
+            Check("nativeNewTabInheritsMuteAndPrivacyGate",added&&Pump([&](){return browser.Ready()&&browser.Loaded();},25000)&&allMuted(true)&&browser.Verified());
+            browser.SetMediaPreferences(false,true,true);
+            Check("nativeUnmuteUpdatesEveryExistingTab",allMuted(false));
+            browser.SetMediaPreferences(true,true,true);
+            Check("nativeMuteUpdatesEveryExistingTab",allMuted(true));
+            if(browser.ActiveTabId()!=originalTab){browser.CloseTab(browser.ActiveTabId());Pump([&](){return browser.ActiveTabId()==originalTab&&browser.Loaded();});}
+            auto tab=browser.impl->Active();auto profile4=tab->MediaProfile();auto permissionComplete=std::make_shared<bool>(false);
+            auto remembered=new quietshare::PermissionCompletion([permissionComplete](HRESULT hr){*permissionComplete=SUCCEEDED(hr);});
+            const HRESULT rememberedHr=profile4?profile4->p->SetPermissionState(COREWEBVIEW2_PERMISSION_KIND_CAMERA,L"https://example.com",COREWEBVIEW2_PERMISSION_STATE_ALLOW,remembered):E_NOINTERFACE;
+            remembered->Release();
+            Check("nativeSyntheticRememberedGrantCreatedWithoutDeviceAccess",SUCCEEDED(rememberedHr)&&Pump([&](){return *permissionComplete;}));
             auto nonce=[&](){auto tab=browser.impl->Active();return tab?tab->localNonce:L"";};
             auto mutate=[&](const std::wstring& script){const auto old=nonce();Script(browser,script);return Pump([&](){return browser.Loaded()&&nonce()!=old;});};
             auto count=[&](size_t expected){std::vector<quietshare::BrowserShortcut> values;return quietshare::ReadShortcuts(profile+L"\\quietshare-shortcuts.txt",values)&&values.size()==expected;};
@@ -128,8 +147,23 @@ int wmain(int argc,wchar_t** argv){
             Check("newTabLanguageChangeUpdatesActualDom",Pump([&](){return browser.Loaded()&&nonce()!=beforeLanguage;})&&Script(browser,L"document.title==='New tab'&&document.querySelector('.add .caption').textContent==='Add shortcut'")==L"true");
             Check("compactEnglishNewTabHasNoHorizontalOverflow",Script(browser,L"innerWidth>250&&innerHeight>130&&document.documentElement.scrollWidth<=innerWidth")==L"true");
             Check("compactEnglishNewTabPreviewSaved",Preview(browser,output+L"\\newtab-en-358x197.png"));
-            browser.Disable();browser.Enable(window,profile);browser.Show(true);
+            browser.Disable();
+            Check("browserMediaPreferencesSurviveDisable",browser.impl->muted&&browser.impl->allowCamera&&browser.impl->allowMicrophone&&!browser.Enabled());
+            browser.Enable(window,profile);browser.Show(true);
             Check("newTabShortcutsSurviveEnvironmentRestart",Pump([&](){return browser.Ready()&&browser.Loaded();},25000)&&count(2)&&Script(browser,L"document.querySelectorAll('.tile>a').length===2&&document.querySelector('.caption').textContent==='Documentation'")==L"true");
+            Check("nativeMutePreferenceSurvivesEnvironmentRestart",allMuted(true));
+            auto restarted=browser.impl->Active();auto resetProfile=restarted->MediaProfile();auto permissionCount=std::make_shared<int>(-1);
+            auto listed=quietshare::Callback<ICoreWebView2GetNonDefaultPermissionSettingsCompletedHandler,HRESULT,ICoreWebView2PermissionSettingCollectionView*>([permissionCount](HRESULT hr,auto settings){
+                UINT count=0;if(FAILED(hr)||!settings||FAILED(settings->get_Count(&count)))return S_OK;*permissionCount=0;
+                for(UINT i=0;i<count;++i){quietshare::Com<ICoreWebView2PermissionSetting> item;COREWEBVIEW2_PERMISSION_KIND kind{};
+                    if(SUCCEEDED(settings->GetValueAtIndex(i,item.put()))&&SUCCEEDED(item->get_PermissionKind(&kind))&&
+                       (kind==COREWEBVIEW2_PERMISSION_KIND_CAMERA||kind==COREWEBVIEW2_PERMISSION_KIND_MICROPHONE))++*permissionCount;}return S_OK;
+            });
+            const HRESULT listedHr=resetProfile?resetProfile->p->GetNonDefaultPermissionSettings(listed):E_NOINTERFACE;listed->Release();
+            Check("nativeStartupClearsRememberedMediaGrants",SUCCEEDED(listedHr)&&Pump([&](){return *permissionCount>=0;})&&*permissionCount==0);
+            const auto beforeRevoke=nonce();restarted->cameraOrigin=L"https://example.com";
+            browser.SetMediaPreferences(true,false,true);
+            Check("nativeRevocationClearsGrantAndReloadsDocument",restarted->cameraOrigin.empty()&&Pump([&](){return browser.Loaded()&&nonce()!=beforeRevoke;})&&browser.Verified()&&!browser.impl->allowCamera&&browser.impl->allowMicrophone);
             Check("actualDomRemoveAfterRestartPersists",mutate(L"document.querySelectorAll('.edit')[1].click();document.getElementById('remove').click()")&&count(1));
             Check("actualDomRemoveLastReturnsToEmptyState",mutate(L"document.querySelector('.edit').click();document.getElementById('remove').click()")&&count(0)&&Script(browser,L"document.querySelectorAll('.tile>a').length===0&&!!document.getElementById('add')")==L"true");
         }

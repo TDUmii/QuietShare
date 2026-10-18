@@ -309,12 +309,12 @@ void ProjectTree::SetDpi(UINT dpi)
 {
     dpi = std::clamp(dpi ? dpi : 96, 48u, 768u);
     if (!window_) return;
-    if (icons_ && dpi == iconDpi_)
+    if (icons_ && dpi == iconDpi_ && iconSize_ == interfaceIconSize)
     {
         TreeView_SetImageList(window_, icons_, TVSIL_NORMAL);
         return;
     }
-    const int size = MulDiv(16, dpi, 96);
+    const int size = MulDiv(interfaceIconSize, dpi, 96);
     const int count = static_cast<int>(FileIconKind::Count);
     // Explicit RGB + color-key mask also works with the classic common-control
     // image list; its 32-bit path does not reliably retain GDI-authored alpha.
@@ -341,7 +341,7 @@ void ProjectTree::SetDpi(UINT dpi)
     {
         GdiFlush();
         std::fill_n(static_cast<DWORD *>(pixels), size * size, 0x00252526);
-        DrawFileTypeIcon(dc, static_cast<FileIconKind>(index), RECT{0, 0, size, size});
+        DrawFileTypeIcon(dc, static_cast<FileIconKind>(index), RECT{0, 0, size, size}, false, false);
         GdiFlush();
         // Image-list import may read bitmap bits; do not leave it selected in a DC.
         SelectObject(dc, old);
@@ -362,6 +362,7 @@ void ProjectTree::SetDpi(UINT dpi)
     if (icons_) ImageList_Destroy(icons_);
     icons_ = icons;
     iconDpi_ = dpi;
+    iconSize_ = interfaceIconSize;
 }
 
 LRESULT CALLBACK ProjectTree::TreeProc(HWND window, UINT message, WPARAM wp, LPARAM lp, UINT_PTR,

@@ -17,6 +17,14 @@ int main(){
         first=false;ok?++passed:++failed;
     };
     std::wstring result;
+    check("mediaOriginNormalizesHttpsCaseAndDefaultPort",quietshare::SecureMediaOrigin(L"HTTPS://Example.com:0443/path?q=1#part")==L"https://example.com");
+    check("mediaOriginRetainsNondefaultPort",quietshare::SecureMediaOrigin(L"https://example.com:8443/path")==L"https://example.com:8443");
+    check("mediaOriginAcceptsCanonicalIpv6",quietshare::SecureMediaOrigin(L"https://[2001:db8::1]:443/path")==L"https://[2001:db8::1]");
+    check("mediaOriginRejectsHttpAndLocalhost",quietshare::SecureMediaOrigin(L"http://localhost/path").empty()&&quietshare::SecureMediaOrigin(L"http://127.0.0.1/").empty());
+    check("mediaOriginRejectsHostlessAndLocalDocuments",quietshare::SecureMediaOrigin(L"https:///path").empty()&&quietshare::SecureMediaOrigin(L"about:blank").empty()&&quietshare::SecureMediaOrigin(L"data:text/html,fixture").empty());
+    check("mediaOriginRejectsCredentials",quietshare::SecureMediaOrigin(L"https://trusted.example@other.example/").empty());
+    check("mediaOriginRejectsMalformedPorts",quietshare::SecureMediaOrigin(L"https://example.com:").empty()&&quietshare::SecureMediaOrigin(L"https://example.com:0").empty()&&quietshare::SecureMediaOrigin(L"https://example.com:65536").empty());
+    check("mediaOriginRejectsAuthorityEscapes",quietshare::SecureMediaOrigin(L"https://example.com%2f.other.example").empty()&&quietshare::SecureMediaOrigin(L"https://example.com\\other.example").empty()&&quietshare::SecureMediaOrigin(L"https://example.com other.example").empty());
     auto resolve=[&](const wchar_t* value,const wchar_t* expected){return quietshare::ResolveWebInput(value,result)&&result==expected;};
     auto reject=[&](const std::wstring& value){result=L"stale";return !quietshare::ResolveWebInput(value,result)&&result.empty();};
     check("inputExplicitHttps",resolve(L"https://example.com/page?q=1#part",L"https://example.com/page?q=1#part"));
@@ -118,6 +126,7 @@ int main(){
     }
     quietshare::Browser browser;
     browser.SetEnglish(true);browser.SetCommandShortcuts({{VK_F9,0,101},{VK_F10,MOD_CONTROL,102}});
+    browser.SetMediaPreferences(true,true,true);browser.SetMediaPreferences(false,false,false);
     check("browserPreferencesDoNotLaunchEngine",!browser.Enabled()&&browser.ControllerCount()==0&&browser.BrowserProcessId()==0);
     check("tabsOffStateHasNoSession",browser.Tabs().empty()&&browser.ActiveTabId()==0&&browser.ActiveTab()<0&&
           browser.PendingTabCount()==0&&browser.ControllerCount()==0&&browser.BackgroundSuspendedCount()==0);

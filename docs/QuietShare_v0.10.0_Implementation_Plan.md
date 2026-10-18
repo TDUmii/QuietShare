@@ -6,23 +6,30 @@
 
 Cải thiện truy cập nhanh của trình duyệt, điều khiển trình chiếu và khả năng cá nhân hóa cửa sổ nhỏ. Giữ trình đọc file, Explorer, VI/EN, cơ chế xác minh capture và yêu cầu cài đặt theo tài khoản hiện tại.
 
+Phần hoàn thiện giao diện tiếp theo giữ phiên bản **v0.10.0**, không tạo bản phát hành mới. Phạm vi gồm căn chỉnh ô nhập số, giảm lóe nền khi chuyển mục/tab, cỡ icon tùy chỉnh và điều khiển trình duyệt gọn hơn; không thay đổi quy tắc dừng an toàn của trình chiếu.
+
 ### Trình duyệt
 
 - Bỏ các nút Google/ChatGPT cố định. Tab đầu tiên và tab mới mở trang cục bộ có ô tìm kiếm/nhập địa chỉ và tối đa 10 lối tắt do người dùng quản lý.
 - Cho thêm tên và URL HTTP/HTTPS, sửa hoặc xóa lối tắt. Lưu lối tắt cùng hồ sơ web cục bộ, dùng chung giữa các tab và giữ khi tắt/bật trình duyệt hoặc khởi động lại ứng dụng.
 - Trang Tab mới không yêu cầu tải website ngoài. Chỉ điều hướng hoặc tìm kiếm khi người dùng thực hiện; từ khóa dùng Google Search.
-- Căn giữa ô địa chỉ trên hàng điều hướng; bấm vào ô chọn toàn bộ URL để nhập thay thế. Giữ quay lại, tiến tới, tải lại, mở/đóng/chuyển tab và zoom 25-400%.
+- Căn giữa vùng chứa ô địa chỉ trên hàng điều hướng; nội dung và dấu nháy nằm giữa theo chiều dọc trên một dòng, kể cả khi ô trống. Bấm lần đầu vẫn chọn toàn bộ URL để nhập thay thế. Giữ quay lại, tiến tới, tải lại và mở/đóng/chuyển tab.
+- Đặt nút giảm zoom, mức zoom/đặt lại và nút tăng zoom ngay trên hàng điều hướng, với phạm vi 25-400% riêng từng tab.
 - Gom thao tác phụ vào menu để dành diện tích cho nội dung trong cửa sổ nhỏ.
 - Giữ tối đa 8 tab web với lịch sử và zoom riêng. Không khôi phục danh sách tab sau khi khởi động lại; trình duyệt bắt đầu tắt.
 - Giữ xác minh capture từng tab, giới hạn quyền web, chặn popup tự phát và tạm ngưng tab nền. Bật web trong phiên chiếu chỉ tiếp tục cùng phiên sau khi vùng web xác minh đạt; thất bại/hủy dừng an toàn.
+- Tab **Trình duyệt** trong Cài đặt quản lý bật/tắt engine, tắt âm thanh, cho phép camera và cho phép micro. Ba tùy chọn âm thanh/camera/micro mặc định tắt và được lưu cục bộ; engine vẫn tắt ở mỗi lần mở ứng dụng.
+- Chỉ cấp quyền camera/micro khi người dùng đã bật từng tùy chọn, tab đang hiển thị và đã xác minh capture, trang là HTTPS và nguồn yêu cầu cùng origin với trang chính. Không lưu quyền website vào hồ sơ; quyền thiết bị Windows vẫn áp dụng. Thu hồi quyền đã cấp có thể tải lại tab để dừng luồng thiết bị đang dùng.
+- Giữ chặn tải lên/tải xuống file, chia sẻ màn hình, thông báo, DevTools và menu native. Link mở cửa sổ mới do người dùng bấm chỉ mở thành tab trong giới hạn sẵn có; đăng nhập OAuth cần popup riêng vẫn có thể không tương thích.
 
 ### Giao diện và cá nhân hóa
 
-- Dùng icon Microsoft Codicons hiện có với dựng hình mịn theo DPI; giữ kích thước thanh bên gọn và tooltip VI/EN.
-- Chia Cài đặt thành năm tab: **Giao diện**, **Nội dung**, **Bố cục**, **Trình chiếu**, **Phím tắt**. Nội dung mỗi tab cuộn độc lập với thanh chọn nhóm.
-- Giao diện gồm ngôn ngữ, ghim, độ mờ cửa sổ 40-100% và độ đậm chữ lời nhắc Thường/Vừa/Đậm tương ứng 400/600/700.
+- Dùng icon Microsoft Codicons hiện có với dựng hình mịn theo DPI; giữ kích thước thanh bên gọn và tooltip VI/EN. Cỡ icon chỉnh được 12-24 px, mặc định 16 px; vùng nút nhỏ giới hạn cỡ glyph để vừa khung. Chỉ báo trạng thái trên thanh bên phải hiển thị trọn vẹn.
+- Chia Cài đặt thành sáu tab: **Giao diện**, **Nội dung**, **Bố cục**, **Trình chiếu**, **Phím tắt**, **Trình duyệt**. Chuyển bật/tắt trình duyệt từ Bố cục sang Trình duyệt; nội dung mỗi tab cuộn độc lập với thanh chọn nhóm.
+- Giao diện gồm ngôn ngữ, ghim, độ mờ cửa sổ 40-100%, cỡ icon và độ đậm chữ lời nhắc Thường/Vừa/Đậm tương ứng 400/600/700.
+- Độ mờ, cỡ chữ/zoom và cỡ icon dùng cụm nút giảm, ô nhập và nút tăng; căn giữa giá trị theo cả hai chiều. Giữ dấu nháy ở cuối khi ô số nhận focus/bấm lần đầu và khả năng chọn chữ thông thường ở các thao tác sau.
 - Độ mờ áp dụng bằng alpha đồng đều cho toàn bộ cửa sổ điều khiển, kể cả chữ; không cung cấp nền trong suốt riêng. Đầu ra công khai vẫn đục. Độ đậm lời nhắc không thay đổi font website, code hoặc PDF.
-- Lưu thiết lập cục bộ. Khôi phục mặc định tại Giao diện chỉ đặt lại độ mờ/độ đậm; tại Phím tắt chỉ đặt lại các tổ hợp.
+- Lưu thiết lập cục bộ. Khôi phục mặc định tại Giao diện đặt lại độ mờ/độ đậm/cỡ icon; tại Phím tắt chỉ đặt lại các tổ hợp.
 - Giữ cỡ chữ/zoom, tốc độ lời nhắc, xuống dòng code, điều khiển bố cục, lọc Explorer và trình duyệt tại tab tương ứng.
 
 ### Phím tắt
@@ -61,23 +68,30 @@ Tổng quan, EXE, bộ cài và tài liệu dùng **v0.10.0**. Bộ cài theo t�
 
 Improve browser quick access, projection controls and personalization in a compact window. Preserve file readers, Explorer, VI/EN, capture verification and per-user installation.
 
+The UI follow-up retains **v0.10.0** without creating a new release. Its scope covers numeric input alignment, reducing background flashes during page/tab changes, configurable icon size and compact browser controls. Projection safety-stop rules remain unchanged.
+
 ### Browser
 
 - Remove fixed Google/ChatGPT buttons. Initial and new tabs open a local page with a search/address input and up to 10 user-managed shortcuts.
 - Add a name and HTTP/HTTPS URL, edit or remove shortcuts. Persist them with the local browser profile, share across tabs and retain across browser/application restarts.
 - New tab does not require an external website request. Navigate or search only after user action; search terms use Google Search.
-- Center the address field in the navigation row; clicking selects the complete URL for replacement. Preserve Back, Forward, Reload, tab controls and 25-400% zoom.
+- Center the address container in the navigation row; keep text and the caret vertically centered on one line, including when empty. The first click still selects the complete URL for replacement. Preserve Back, Forward, Reload and tab controls.
+- Expose zoom out, zoom level/reset and zoom in directly in the navigation row, retaining independent 25-400% zoom per tab.
 - Group secondary actions in a menu to leave more room for content in small windows.
 - Retain up to 8 web tabs with independent history and zoom. Do not restore the session tab list after application restart; browsing starts disabled.
 - Preserve per-tab capture verification, web permission limits, unsolicited-popup blocking and background suspension. Enabling web during projection continues the same session only after successful web verification; failure/cancellation stops safely.
+- A **Browser** Settings tab manages engine enablement, audio mute, camera and microphone options. The three audio/camera/microphone preferences default to off and persist locally; the engine still starts disabled on every application launch.
+- Native camera/microphone grants require each corresponding preference to be enabled, a visible capture-verified tab, an HTTPS page and a requesting origin matching the main page. Do not persist website grants; Windows device permissions still apply. Revoking a granted permission may reload the affected tab to stop active device streams.
+- Continue blocking file uploads/downloads, screen sharing, notifications, DevTools and native context menus. User-initiated new-window links open as tabs within the existing limit; OAuth flows requiring separate popups may remain incompatible.
 
 ### Interface and personalization
 
-- Render existing Microsoft Codicons smoothly at the current DPI; retain the compact rail and VI/EN tooltips.
-- Organize Settings into **Appearance**, **Reading**, **Workspace**, **Projection** and **Shortcuts**. Scroll category content independently of the category selector.
-- Appearance includes language, pinning, 40-100% window opacity and Regular/Semibold/Bold script weight, corresponding to 400/600/700.
+- Render existing Microsoft Codicons smoothly at the current DPI; retain the compact rail and VI/EN tooltips. Allow 12-24 px icons, defaulting to 16 px; cap glyph size in small controls to fit their available space. Keep the activity-bar status indicator fully visible.
+- Organize Settings into six tabs: **Appearance**, **Reading**, **Workspace**, **Projection**, **Shortcuts** and **Browser**. Move browser enablement from Workspace to Browser; scroll category content independently of the category selector.
+- Appearance includes language, pinning, 40-100% window opacity, icon size and Regular/Semibold/Bold script weight, corresponding to 400/600/700.
+- Use a decrement button, editable value and increment button for opacity, text size/zoom and icon size. Center values horizontally and vertically. Preserve the end caret on first focus/click in numeric fields and normal text selection afterwards.
 - Opacity uses uniform alpha for the entire control window, including text; background-only transparency is not provided. Public output remains opaque. Script weight does not change website, code or PDF fonts.
-- Persist choices locally. Appearance defaults reset opacity/weight only; Shortcut defaults reset bindings only.
+- Persist choices locally. Appearance defaults reset opacity/weight/icon size; Shortcut defaults reset bindings only.
 - Retain size/zoom, script scrolling, code wrapping, workspace controls, Explorer filtering and browser enablement in their corresponding tabs.
 
 ### Keyboard shortcuts

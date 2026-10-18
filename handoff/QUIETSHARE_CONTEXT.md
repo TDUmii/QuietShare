@@ -1,9 +1,9 @@
 # QuietShare project context for Codex handoff
 
-Updated: 2026-10-17
+Updated: 2026-10-18
 Repository: private `TDUmii/QuietShare`
-Current application version and release target: `v0.10.0`
-Current implementation retains the 5-minute session-expiry fix, pre-move source-window containment and compact shell/browser controls. The v0.10.0 follow-up adds a local browser New tab page with user-saved shortcuts, five Settings categories, configurable command shortcuts, window opacity and script weight, and quick projection actions on the activity bar. Keep application, installer, portable package and release metadata aligned; historical releases remain available.
+Current application version: `v0.10.0`
+Current implementation retains the 5-minute session-expiry fix, pre-move source-window containment and compact shell/browser controls. The v0.10.0 follow-up includes a local browser New tab page with user-saved shortcuts, six Settings categories, configurable command shortcuts, window opacity and script weight, and quick projection actions on the activity bar. The current UI follow-up does not bump the version or authorize a new release; historical releases remain available.
 
 ## Product purpose
 
@@ -17,7 +17,8 @@ QuietShare is a Windows 10/11 desktop app for showing selected code, images, doc
 - The optional browser should be lightweight, support general web search and multiple tabs, and must not stop an active projection when opened or used.
 - Make panels/layout customizable where already implemented; keep pin/move/hide controls easy to reach. Hiding the control layer must not stop projection or expose it through ordinary task switching. Preserve the existing privacy hotkey behavior.
 - Text size can be entered manually. First focus/click places a caret at the end; zoom should remain responsive. Long settings/menu areas should scroll consistently, including small two-finger touchpad wheel packets.
-- Maintain smooth hover behavior, consistent icon sizing and rounded UI details, useful empty states, and responsive layouts.
+- Opacity, text size/zoom and icon size use decrement/edit/increment controls with horizontally and vertically centered values. Retain the first-focus end caret in numeric inputs and normal selection afterwards.
+- Maintain smooth hover behavior, rounded UI details, useful empty states and responsive layouts. Icon size is configurable from 12 to 24 px, default 16 px; small controls cap the glyph to fit. Keep the activity-bar status dot fully visible and avoid white control-background flashes during page/tab changes.
 - Keep presentation rendering near the expected smooth 60 FPS on a suitable Extend setup, and control resource use without destabilizing an active projection.
 - When multiple displays have similar resolutions, identify the Windows display numbers and physical displays clearly before the user starts projecting.
 - No new business features during a visual polish task; bug fixes must preserve current projection/privacy behavior and be regression checked.
@@ -42,9 +43,11 @@ The user subsequently reports that QuietShare remains open while only projection
 
 The v0.10.0 follow-up keeps healthy sessions during an active-session WGC check and display notifications that do not change actual privacy/topology/device conditions. Actual safety failures still revoke output with no automatic restart. A single local `projection-stop.json` is overwritten on unexpected stops and contains fixed reason codes, UTC/session timing, HRESULT and resource mode only. It excludes content, images, URLs, paths and display identifiers; do not commit personal diagnostics or browser profiles.
 
-The control window uses uniform 40-100% alpha, including text; it does not provide background-only transparency. Script weight supports 400/600/700. Settings has Appearance, Reading, Workspace, Projection and Shortcuts. Projection configuration/status replaces the separate Presentation page; WGC verification and start/stop live on the activity bar. Ten command bindings are configurable, with global mask/recall registration preserved on rejected changes.
+The control window uses uniform 40-100% alpha, including text; it does not provide background-only transparency. Script weight supports 400/600/700. Settings has Appearance, Reading, Workspace, Projection, Shortcuts and Browser. Browser enablement moves from Workspace to Browser. Appearance defaults reset opacity, weight and icon size; Shortcut defaults reset bindings only. Projection configuration/status replaces the separate Presentation page; WGC verification and start/stop live on the activity bar. Ten command bindings are configurable, with global mask/recall registration preserved on rejected changes.
 
-The browser opens a local New tab page instead of fixed Google/ChatGPT destinations, with up to ten saved shortcut tiles and up to eight simultaneous web tabs. Saved URLs belong to the local browser profile and never to Git or release payloads. The centered address selects all on click; existing per-tab capture checks and permission limits remain.
+The browser opens a local New tab page instead of fixed Google/ChatGPT destinations, with up to ten saved shortcut tiles and up to eight simultaneous web tabs. Saved URLs belong to the local browser profile and never to Git or release payloads. The address container remains centered in the navigation row, with single-line text and a vertically centered caret; first-click select-all is retained. Zoom out, zoom level/reset and zoom in are directly available beside navigation, with 25-400% zoom per tab.
+
+Browser Settings contains engine enablement, audio mute, camera and microphone options. The three audio/camera/microphone preferences default to false and persist locally; engine enablement remains off on each application launch. Native camera/microphone grants require the corresponding option, a visible capture-verified HTTPS tab and a requesting origin matching the main page's origin. Website grants are not persisted, and Windows device permissions still apply. Turning off a previously granted permission revokes it and can reload the affected tab to unload active tracks. Keep capture verification, unsolicited-popup blocking, background suspension and the existing restrictions on file upload/download, screen sharing, notifications, DevTools, native context menus, external protocols and native authentication dialogs.
 
 No repeat physical TV or timed hardware run is requested in this follow-up. The consumed field report remains removed from the current Git tree; retain this context and `handoff/EXTEND_LAPTOP_HANDOFF.md`. Keep product documentation and release notes focused on features, installation, use and actual limitations; keep local validation evidence out of the payload.
 

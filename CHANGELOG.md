@@ -1,5 +1,18 @@
 # Changelog
 
+## Unreleased
+
+- Căn giữa chữ và con trỏ trong các ô số/URL; thêm cụm giảm, nhập số và tăng cho độ mờ, cỡ chữ/zoom và kích thước icon.
+- Giữ chấm trạng thái trọn vẹn trong thanh bên; vẽ đệm các nút và gộp repaint khi chuyển trang/tab để tránh nền trắng trung gian.
+- Cho chỉnh icon 12-24 px trên thanh điều khiển, tab và Explorer; giữ cây thư mục và file đang chọn khi thay đổi.
+- Thêm tab Cài đặt > Trình duyệt với tắt âm thanh và quyền camera/micro mặc định tắt. Quyền chỉ được cấp cho tab HTTPS đang hiển thị, đã xác minh capture và cùng origin; không lưu quyền vào hồ sơ web. Thu hồi quyền có thể tải lại tab liên quan để dừng luồng thiết bị.
+- Đưa các nút zoom web ra thanh điều hướng; giữ chọn toàn bộ URL khi bấm vào ô địa chỉ.
+- Center text and carets in numeric/address inputs; add decrement, editable value and increment controls for opacity, content size/zoom and icon size.
+- Keep the sidebar status dot fully visible; buffer button drawing and consolidate page/tab repainting to avoid intermediate white backgrounds.
+- Make toolbar, tab and Explorer icons configurable from 12-24 px while retaining project branches and the selected file.
+- Add Settings > Browser with audio mute and camera/microphone access off by default. Grants require a visible, capture-verified, same-origin HTTPS tab and are not saved to the web profile. Revoking access may reload the affected tab to stop device streams.
+- Expose web zoom directly on the navigation row while preserving click-to-select-all in the address field.
+
 ## 0.10.0
 
 - Thay Google/ChatGPT cố định bằng trang Tab mới cục bộ có ô tìm kiếm/địa chỉ và tối đa 10 lối tắt tự thêm, sửa, xóa; lưu cùng hồ sơ web trên máy.
