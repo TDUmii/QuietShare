@@ -3,26 +3,23 @@ $root = $PSScriptRoot
 python -B (Join-Path $root 'tests\export_release_report.py')
 if ($LASTEXITCODE) { throw 'Release evidence is incomplete or does not match the shipping EXE.' }
 $dist = Join-Path $root 'dist'
-foreach ($name in @('README.md','CHANGELOG.md','THIRD-PARTY.md')) {
+foreach ($name in @('README.md','THIRD-PARTY.md')) {
     Copy-Item -LiteralPath (Join-Path $root $name) -Destination (Join-Path $dist $name) -Force
 }
-$inventory = Get-Content -LiteralPath (Join-Path $root 'artifacts\release-inventory.json') -Raw | ConvertFrom-Json
-$manifest = [ordered]@{ version=$inventory.version; platform=$inventory.platform; files=[ordered]@{} }
-foreach ($file in $inventory.files.PSObject.Properties) {
-    $manifest.files[$file.Name]=[ordered]@{ bytes=$file.Value.bytes; sha256=$file.Value.sha256 }
-}
-[IO.File]::WriteAllText((Join-Path $dist 'release-manifest.json'),($manifest | ConvertTo-Json -Depth 6)+"`n",[Text.UTF8Encoding]::new($false))
 $docsFolder = Join-Path $dist 'docs'
 New-Item -ItemType Directory -Path $docsFolder -Force | Out-Null
 $docNames = @('README.md','USER_GUIDE.md','PRIVACY.md','TROUBLESHOOTING.md','BUILDING.md','DEPENDENCIES.md','quietshare-home.png')
 foreach ($name in $docNames) {
     Copy-Item -LiteralPath (Join-Path (Join-Path $root 'docs') $name) -Destination $docsFolder -Force
 }
-Copy-Item -LiteralPath (Join-Path $root 'dependencies') -Destination $dist -Recurse -Force
-# Match Git's LF text checkout while preserving the byte-pinned installer notice/spec.
+$license = 'dependencies/licenses/PDFium-third-party/freetype.txt'
+$licenseTarget = Join-Path $dist $license
+New-Item -ItemType Directory -Path (Split-Path -Parent $licenseTarget) -Force | Out-Null
+Copy-Item -LiteralPath (Join-Path $root $license) -Destination $licenseTarget -Force
+# Match Git's LF text checkout while preserving the byte-pinned installer notice.
 $textPayloads = Get-ChildItem -LiteralPath $dist -File -Recurse | Where-Object {
     $_.Extension -in @('.md','.json','.txt','.ijg') -and
-    $_.Name -ne 'THIRD-PARTY.md' -and $_.Name -ne 'QuietShare_v0.4.0_Codex_Implementation_Plan.md' -and
+    $_.Name -ne 'THIRD-PARTY.md' -and
     $_.Name -notlike 'WebView2-*'
 }
 foreach ($payload in $textPayloads) {
@@ -39,16 +36,22 @@ foreach ($payload in $textPayloads) {
 python -B (Join-Path $root 'tests\docs_regression.py') --dist
 if ($LASTEXITCODE) { throw 'Bilingual documentation or distribution links are invalid.' }
 # Only release files and documentation/license folders enter the ZIP.
-$allowed = @('QuietShare.exe','QuietShare-Setup.exe','Scintilla.dll','Lexilla.dll','pdfium.dll','WebView2Loader.dll',
-             'README.md','CHANGELOG.md','THIRD-PARTY.md','release-manifest.json','dependencies')
+$allowed = @('QuietShare.exe','Scintilla.dll','Lexilla.dll','pdfium.dll','WebView2Loader.dll',
+             'README.md','THIRD-PARTY.md',$license)
 $entries = $allowed | ForEach-Object { Join-Path $dist $_ }
 $entries += $docNames | ForEach-Object { Join-Path $docsFolder $_ }
 foreach ($entry in $entries) { if (!(Test-Path -LiteralPath $entry)) { throw "Missing payload: $entry" } }
-$zip = Join-Path $root 'QuietShare-v0.14.1-win-x64.zip'
-# Preserve the docs/ hierarchy, but never scoop up stale QA files from dist.
-$shippingDocs = Get-ChildItem -LiteralPath $docsFolder -File | Where-Object { $_.Name -notin $docNames }
-if ($shippingDocs) { throw 'Unexpected files remain in dist/docs; review release contents before packaging.' }
-$entries = $allowed | ForEach-Object { Join-Path $dist $_ }
-$entries += $docsFolder
-Compress-Archive -LiteralPath $entries -DestinationPath $zip -CompressionLevel Optimal -Force
+$zip = Join-Path $root 'QuietShare-v0.14.2-win-x64.zip'
+# Enumerate every archive entry explicitly; stale build files cannot enter it.
+Add-Type -AssemblyName System.IO.Compression.FileSystem
+$payload = @($allowed) + @($docNames | ForEach-Object { 'docs/' + $_ })
+$unexpectedDocs = Get-ChildItem -LiteralPath $docsFolder -File | Where-Object { $_.Name -notin $docNames }
+if ($unexpectedDocs) { throw 'Unexpected files remain in dist/docs.' }
+$stream = [IO.File]::Open($zip,[IO.FileMode]::Create)
+$archive = [IO.Compression.ZipArchive]::new($stream,[IO.Compression.ZipArchiveMode]::Create)
+try {
+    foreach ($relative in $payload) {
+        [IO.Compression.ZipFileExtensions]::CreateEntryFromFile($archive,(Join-Path $dist $relative),$relative,[IO.Compression.CompressionLevel]::Optimal) | Out-Null
+    }
+} finally { $archive.Dispose(); $stream.Dispose() }
 Write-Output "Packaged: $zip"

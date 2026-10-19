@@ -15,6 +15,7 @@ Dùng bản Git checkout có các tag phát hành. Tại thư mục gốc dự �
 .\tests\run-all.ps1 -CompilerRoot 'C:\path\to\mingw64\bin'
 python -B tests\docs_regression.py
 .\package.ps1
+python -B tests\portable_regression.py
 ```
 
 The build produces the application, installer and a separate QA executable. GUI checks run sequentially against owned processes and isolated profiles. Packaging requires current validation evidence and creates the portable ZIP. Test reports and profiles remain in ignored local build/artifact folders, outside release payloads.
@@ -27,6 +28,6 @@ Automated WGC and renderer checks do not establish what a physical receiver or m
 
 Kiểm tra WGC và renderer tự động không xác lập hình ảnh ở đầu nhận vật lý hoặc phần mềm họp. Cần kiểm tra riêng đầu ra thực tế trước buổi trình bày. Không coi kiểm tra màn hình mô phỏng là xác minh Duplicate/Extend vật lý.
 
-Keep privacy guards, data-loss protection and dependency/license checks intact. Versioned implementation plans are historical source-repository context; use the [current user guide](USER_GUIDE.md) for supported behavior.
+Use concise English commit messages when contributing. Keep runtime files and current guides in the portable archive; installer, development records and validation data do not belong in it.
 
-Giữ nguyên các điều kiện bảo vệ, chống mất dữ liệu và kiểm tra thư viện/giấy phép. Kế hoạch theo phiên bản là tư liệu lịch sử trong kho mã nguồn; dùng [hướng dẫn hiện tại](USER_GUIDE.md) để tra tính năng đang hỗ trợ.
+Dùng commit message ngắn gọn bằng tiếng Anh khi đóng góp. Gói portable chỉ giữ thành phần chạy và hướng dẫn hiện tại; bộ cài, tư liệu phát triển và dữ liệu kiểm thử không nằm trong gói này.

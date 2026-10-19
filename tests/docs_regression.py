@@ -8,7 +8,7 @@ import sys
 from urllib.parse import unquote, urlsplit
 
 ROOT = Path(__file__).resolve().parents[1]
-DOCS = ["README.md", "CHANGELOG.md", "docs/README.md", "docs/USER_GUIDE.md",
+DOCS = ["README.md", "docs/README.md", "docs/USER_GUIDE.md",
         "docs/PRIVACY.md", "docs/TROUBLESHOOTING.md", "docs/BUILDING.md", "docs/DEPENDENCIES.md"]
 
 
@@ -34,7 +34,7 @@ def main():
                 continue
             resolved = (path.parent / unquote(parts.path)).resolve()
             check(name + ": link " + target, resolved.is_relative_to(ROOT) and resolved.is_file())
-        if name not in ("README.md", "CHANGELOG.md"):
+        if name != "README.md":
             check(name + ": bilingual sections", all(" / " in h for h in re.findall(r"^## (.+)$", text, re.M)))
 
     overview = (ROOT / "README.md").read_text(encoding="utf-8-sig")
@@ -43,11 +43,11 @@ def main():
     check("README Vietnamese immediately below introduction", overview.splitlines()[4].startswith("Ứng dụng"))
     check("README points to latest release", "releases/latest" in overview and not re.search(r"# QuietShare \d", overview))
     check("protection distinction retained", "does not verify what the audience sees" in overview and "Duplicate" in overview)
-    original = subprocess.run(["git", "show", "v0.14.0:CHANGELOG.md"],
-                              check=True, capture_output=True).stdout.decode("utf-8-sig")
-    previous = set(re.findall(r"^## v?(\d+\.\d+\.\d+)", original, re.M))
-    current = set(re.findall(r"^## v?(\d+\.\d+\.\d+)", (ROOT / "CHANGELOG.md").read_text(encoding="utf-8-sig"), re.M))
-    check("all historical release versions retained", previous < current and "0.14.1" in current)
+    obsolete = list((ROOT / "docs").glob("*Implementation_Plan.md")) + list((ROOT / "handoff").glob("*"))
+    check("obsolete planning and handoff files removed", not obsolete)
+    guides = {Path(name).name for name in DOCS if name.startswith("docs/")} | {"quietshare-home.png"}
+    check("source docs contain only current guides", {p.name for p in (ROOT / "docs").iterdir()} == guides)
+    check("English commit guidance retained", "English commit messages" in (ROOT / "docs/BUILDING.md").read_text(encoding="utf-8"))
     notice = subprocess.run(["git", "show", "v0.14.0:THIRD-PARTY.md"], check=True, capture_output=True).stdout
     check("original legal text preserved", notice.replace(b"\r\n", b"\n") == (ROOT / "THIRD-PARTY.md").read_bytes().replace(b"\r\n", b"\n"))
     if "--dist" in sys.argv:

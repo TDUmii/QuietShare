@@ -11,8 +11,3 @@ Bắt đầu từ [giới thiệu dự án](../README.md), rồi mở hướng d
 | [Troubleshooting](TROUBLESHOOTING.md) | Khắc phục sự cố thường gặp |
 | [Building](BUILDING.md) | Biên dịch và kiểm tra mã nguồn |
 | [Dependencies](DEPENDENCIES.md) | Thư viện và thông báo giấy phép |
-| [Changelog](../CHANGELOG.md) | Những thay đổi theo phiên bản |
-
-Historical plans and browser research are retained in the source repository's docs folder as development records. They describe earlier designs, are not current user instructions and are excluded from the portable documentation.
-
-Các kế hoạch cũ và nghiên cứu trình duyệt được giữ trong thư mục docs của kho mã nguồn làm tư liệu phát triển. Chúng mô tả thiết kế trước đây, không phải hướng dẫn sử dụng hiện tại và không đi kèm tài liệu portable.
