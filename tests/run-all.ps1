@@ -27,5 +27,7 @@ if ($LASTEXITCODE) { throw 'Browser integration regression failed.' }
 python -B (Join-Path $PSScriptRoot 'settings_regression.py')
 if ($LASTEXITCODE) { throw 'Consolidated Settings regression failed.' }
 & (Join-Path $PSScriptRoot 'run-installer-smoke.ps1')
+python -B (Join-Path $PSScriptRoot 'docs_regression.py')
+if ($LASTEXITCODE) { throw 'Documentation regression failed.' }
 }
 finally { $env:PATH = $previousPath }

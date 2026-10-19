@@ -59,3 +59,7 @@ QuietShare-v0.1.0-win-x64.zip
 !dist/docs/QuietShare_v0.13.1_Implementation_Plan.md
 
 !dist/docs/QuietShare_v0.14.0_Implementation_Plan.md
+
+# Current bilingual user documentation
+!dist/docs/*.md
+!dist/docs/quietshare-home.png

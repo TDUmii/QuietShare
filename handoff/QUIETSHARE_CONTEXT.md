@@ -2,10 +2,10 @@
 
 Updated: 2026-10-18
 Repository: private `TDUmii/QuietShare`
-Current application version: `v0.14.0`
+Current application version: `v0.14.1`
 Current implementation retains the 5-minute session-expiry fix, pre-move source-window containment and compact shell/browser controls. The v0.10.0 release includes a local browser New tab page with user-saved shortcuts, six Settings categories, configurable command shortcuts, window opacity and script weight, and quick projection actions on the activity bar. v0.10.1 adds centered numeric/address controls, configurable icon size, browser audio and device permissions, and compact browser zoom controls while preserving the projection safeguards. Historical releases remain available.
 
-## Tình trạng mới nhất - v0.14.0
+## Tình trạng mới nhất - v0.14.1
 
 Home có lịch sử thật được DPAPI mã hóa, ghim/xóa/mở lại; không có dữ liệu mẫu trong sản phẩm. Hai tùy chọn nhớ kích thước cửa sổ và cho phép sửa văn bản/code mặc định bật. File lưu chủ động, kiểm tra thay đổi bên ngoài và bảo vệ bản sửa chưa lưu. UI nhàn rỗi dùng nhịp 250 ms; tránh resize viewer trùng.
 
@@ -81,3 +81,7 @@ v0.13.1: sửa tự nhảy vị trí ở lời nhắc/văn bản dài khi đổi
 ## v0.14.0
 
 10 selectable persistent themes across native shell and text/code, quick viewer selector. Preferences v4 (128 bytes), reads v1-v3. Theme changes preserve drafts and viewport. PDF/image/web content colors retained. Physical projection requires separate hardware observation.
+
+## v0.14.1 documentation
+
+User-facing docs are English first with Vietnamese below. README is concise; docs/ contains current usage, privacy, troubleshooting, building and dependencies. Historical plans stay in source, outside portable docs. Third-party license text remains byte-preserved.

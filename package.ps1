@@ -14,7 +14,7 @@ foreach ($file in $inventory.files.PSObject.Properties) {
 [IO.File]::WriteAllText((Join-Path $dist 'release-manifest.json'),($manifest | ConvertTo-Json -Depth 6)+"`n",[Text.UTF8Encoding]::new($false))
 $docsFolder = Join-Path $dist 'docs'
 New-Item -ItemType Directory -Path $docsFolder -Force | Out-Null
-$docNames = @('quietshare-settings.png','Browser_Integration_Study.md','QuietShare_v0.6.0_Implementation_Plan.md','QuietShare_v0.7.0_Settings_Spec.md','QuietShare_v0.8.0_Implementation_Plan.md','QuietShare_v0.8.1_Implementation_Plan.md','QuietShare_v0.9.0_Implementation_Plan.md','QuietShare_v0.9.1_Implementation_Plan.md','QuietShare_v0.9.2_Implementation_Plan.md','QuietShare_v0.10.1_Implementation_Plan.md','QuietShare_v0.11.0_Implementation_Plan.md','QuietShare_v0.11.1_Implementation_Plan.md','QuietShare_v0.12.0_Implementation_Plan.md','QuietShare_v0.12.1_Implementation_Plan.md','QuietShare_v0.12.2_Implementation_Plan.md','QuietShare_v0.13.0_Implementation_Plan.md','QuietShare_v0.13.1_Implementation_Plan.md','QuietShare_v0.14.0_Implementation_Plan.md','QuietShare_v0.4.0_Codex_Implementation_Plan.md')
+$docNames = @('README.md','USER_GUIDE.md','PRIVACY.md','TROUBLESHOOTING.md','BUILDING.md','DEPENDENCIES.md','quietshare-home.png')
 foreach ($name in $docNames) {
     Copy-Item -LiteralPath (Join-Path (Join-Path $root 'docs') $name) -Destination $docsFolder -Force
 }
@@ -36,13 +36,15 @@ foreach ($payload in $textPayloads) {
     $text = [IO.File]::ReadAllText($payload.FullName).Replace("`r`n","`n")
     [IO.File]::WriteAllText($payload.FullName,$text,[Text.UTF8Encoding]::new($false))
 }
+python -B (Join-Path $root 'tests\docs_regression.py') --dist
+if ($LASTEXITCODE) { throw 'Bilingual documentation or distribution links are invalid.' }
 # Only release files and documentation/license folders enter the ZIP.
 $allowed = @('QuietShare.exe','QuietShare-Setup.exe','Scintilla.dll','Lexilla.dll','pdfium.dll','WebView2Loader.dll',
              'README.md','CHANGELOG.md','THIRD-PARTY.md','release-manifest.json','dependencies')
 $entries = $allowed | ForEach-Object { Join-Path $dist $_ }
 $entries += $docNames | ForEach-Object { Join-Path $docsFolder $_ }
 foreach ($entry in $entries) { if (!(Test-Path -LiteralPath $entry)) { throw "Missing payload: $entry" } }
-$zip = Join-Path $root 'QuietShare-v0.14.0-win-x64.zip'
+$zip = Join-Path $root 'QuietShare-v0.14.1-win-x64.zip'
 # Preserve the docs/ hierarchy, but never scoop up stale QA files from dist.
 $shippingDocs = Get-ChildItem -LiteralPath $docsFolder -File | Where-Object { $_.Name -notin $docNames }
 if ($shippingDocs) { throw 'Unexpected files remain in dist/docs; review release contents before packaging.' }

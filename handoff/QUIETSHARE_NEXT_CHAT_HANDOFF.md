@@ -1,9 +1,9 @@
-# QuietShare - bàn giao sau v0.14.0
+# QuietShare - bàn giao sau v0.14.1
 
 - Cập nhật: 2026-10-18
 - Repository: private `TDUmii/QuietShare`
 - Nhánh: `main`
-- Bản sản phẩm: `v0.14.0`; xác minh commit bằng tag và Release trực tiếp trước khi tiếp tục.
+- Bản sản phẩm: `v0.14.1`; xác minh commit bằng tag và Release trực tiếp trước khi tiếp tục.
 
 ## Sản phẩm hiện tại
 
@@ -47,3 +47,7 @@ v0.13.1: sửa tự nhảy vị trí ở lời nhắc/văn bản dài khi đổi
 ## v0.14.0
 
 10 selectable persistent themes across native shell and text/code, quick viewer selector. Preferences v4 (128 bytes), reads v1-v3. Theme changes preserve drafts and viewport. PDF/image/web content colors retained. Physical projection requires separate hardware observation.
+
+## v0.14.1 documentation
+
+User-facing docs are English first with Vietnamese below. README is concise; docs/ contains current usage, privacy, troubleshooting, building and dependencies. Historical plans stay in source, outside portable docs. Third-party license text remains byte-preserved.
