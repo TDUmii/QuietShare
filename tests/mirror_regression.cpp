@@ -97,6 +97,11 @@ LRESULT CALLBACK WindowProc(HWND hwnd,UINT message,WPARAM wp,LPARAM lp)
 }
 int wmain(int argc,wchar_t **argv)
 {
+    Check(std::string(ProjectionErrorCode(nullptr))=="QS-P000","missing failure reason has a stable neutral code");
+    Check(std::string(ProjectionErrorCode("different-adapters"))=="QS-P004","different GPU reason has its handbook code");
+    Check(std::string(ProjectionErrorCode("adapter-unknown"))=="QS-P003","unknown GPU is distinct from different GPUs");
+    Check(std::string(ProjectionErrorCode("future-reason"))=="QS-P099","unknown reasons have an explicit fallback code");
+
     Check(LocalParentFolder(L"C:\\code")==L"C:\\","picker Up preserves a drive root");
     Check(LocalParentFolder(L"C:\\note.py")==L"C:\\","file at drive root reopens the correct picker folder");
     Check(LocalParentFolder(L"C:\\code\\project\\")==L"C:\\code","picker Up handles nested trailing separators");

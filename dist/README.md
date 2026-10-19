@@ -64,10 +64,11 @@ A Windows presentation companion for scripts, documents and optional web browsin
 |---|---|
 | [User guide](docs/USER_GUIDE.md) | [Hướng dẫn sử dụng](docs/USER_GUIDE.md) |
 | [Privacy and projection](docs/PRIVACY.md) | [Quyền riêng tư và trình chiếu](docs/PRIVACY.md) |
+| [Sharing book](docs/BOOK.md) | [Book: chia sẻ, mã lỗi](docs/BOOK.md) |
 | [Troubleshooting](docs/TROUBLESHOOTING.md) | [Xử lý sự cố](docs/TROUBLESHOOTING.md) |
 | [Build from source](docs/BUILDING.md) | [Biên dịch từ mã nguồn](docs/BUILDING.md) |
 | [Dependencies and licenses](docs/DEPENDENCIES.md) | [Thư viện và giấy phép](docs/DEPENDENCIES.md) |
 
-Each guide places English first, followed by Vietnamese. Close QuietShare before upgrading; use the installer or the complete portable ZIP.
+English first, Vietnamese below. Close QuietShare before upgrading; use the installer or complete portable ZIP.
 
 Mỗi hướng dẫn có tiếng Anh trước, tiếng Việt ngay bên dưới. Đóng QuietShare trước khi nâng cấp; dùng bộ cài hoặc toàn bộ gói ZIP portable.

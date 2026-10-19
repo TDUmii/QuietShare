@@ -17,6 +17,36 @@
 
 namespace quietshare
 {
+const char *ProjectionErrorCode(const char *reason)
+{
+    if(!reason)return "QS-P000";
+    if(std::strcmp(reason,"need-two-monitors")==0)return "QS-P001";
+    if(std::strcmp(reason,"same-monitor")==0)return "QS-P002";
+    if(std::strcmp(reason,"adapter-unknown")==0)return "QS-P003";
+    if(std::strcmp(reason,"different-adapters")==0)return "QS-P004";
+    if(std::strcmp(reason,"control-location")==0)return "QS-P005";
+    if(std::strcmp(reason,"windows-unsupported")==0)return "QS-P006";
+    if(std::strcmp(reason,"dwm-unavailable")==0)return "QS-P007";
+    if(std::strcmp(reason,"control-affinity")==0)return "QS-P008";
+    if(std::strcmp(reason,"private-popup-affinity")==0)return "QS-P009";
+    if(std::strcmp(reason,"topology-unavailable")==0)return "QS-P010";
+    if(std::strcmp(reason,"display-cloned")==0)return "QS-P011";
+    if(std::strcmp(reason,"capture-frame")==0)return "QS-P012";
+    if(std::strcmp(reason,"canary-failed")==0)return "QS-P013";
+    if(std::strcmp(reason,"render-frame")==0)return "QS-P014";
+    if(std::strcmp(reason,"display-topology")==0)return "QS-P015";
+    if(std::strcmp(reason,"device-removed")==0)return "QS-P016";
+    if(std::strcmp(reason,"projector-affinity")==0)return "QS-P017";
+    if(std::strcmp(reason,"projector-closed")==0)return "QS-P018";
+    if(std::strcmp(reason,"projector-escape")==0)return "QS-P019";
+    if(std::strcmp(reason,"system-suspend")==0)return "QS-P020";
+    if(std::strcmp(reason,"winrt-unavailable")==0)return "QS-P021";
+    if(std::strcmp(reason,"privacy-unsafe")==0)return "QS-P022";
+    if(std::strcmp(reason,"environment-invalidated")==0)return "QS-P023";
+    if(std::strcmp(reason,"source-monitor-changed")==0)return "QS-P024";
+    return "QS-P099";
+}
+
 // Minimal published WinRT ABI, independently declared for the MinGW build.
 // GUIDs/method order: Microsoft windows-rs metadata at commit
 // 373c03a820eb5a9d48c14d532f80ae49a5c90408, Windows/Graphics/Capture/mod.rs.
@@ -742,16 +772,16 @@ struct MirrorController::Impl : std::enable_shared_from_this<MirrorController::I
         if(!SourceMovementInfo(info)||!IntersectRect(&sourceMovementBounds,&source.bounds,&info.rcWork))return false;
         sourceDeviceName=info.szDevice;return true;
     }
-    void WriteStopDiagnostic(const char *code,HRESULT error,ULONGLONG duration)
+    void WriteStopDiagnostic(const char *code,HRESULT error,ULONGLONG duration,const char *phase="running")
     {
         if(diagnosticPath.empty())return;
         SYSTEMTIME utc{};GetSystemTime(&utc);
         char record[512]{};
         const int bytes=std::snprintf(record,sizeof(record),
             "{\"schema\":1,\"version\":\"" QUIETSHARE_VERSION_TEXT "\",\"utc\":\"%04u-%02u-%02uT%02u:%02u:%02uZ\","
-            "\"reason\":\"%s\",\"hresult\":\"0x%08lx\",\"sessionMs\":%llu,\"resourceMode\":%d}\n",
+            "\"code\":\"%s\",\"phase\":\"%s\",\"reason\":\"%s\",\"hresult\":\"0x%08lx\",\"sessionMs\":%llu,\"resourceMode\":%d}\n",
             unsigned(utc.wYear),unsigned(utc.wMonth),unsigned(utc.wDay),unsigned(utc.wHour),
-            unsigned(utc.wMinute),unsigned(utc.wSecond),code,static_cast<unsigned long>(error),
+            unsigned(utc.wMinute),unsigned(utc.wSecond),ProjectionErrorCode(code),phase,code,static_cast<unsigned long>(error),
             static_cast<unsigned long long>(duration),resourceMode);
         if(bytes<=0||static_cast<size_t>(bytes)>=sizeof(record))return;
         // One small overwritten record, never a growing event history. Failure
@@ -763,7 +793,7 @@ struct MirrorController::Impl : std::enable_shared_from_this<MirrorController::I
     }
     void Fail(State reason,const char *code=nullptr,HRESULT error=S_OK)
     {
-        const bool wasRunning=running;
+        const bool wasRunning=running,wasVerifying=busy;
         const ULONGLONG duration=sessionStarted?Now()-sessionStarted:0;
         const unsigned expectedEpoch=epoch+1,noticeAttempt=stoppedSerial;
         Clear();
@@ -773,6 +803,11 @@ struct MirrorController::Impl : std::enable_shared_from_this<MirrorController::I
         state=reason;
         if(!code) {
             switch(reason) {
+            case State::NeedTwoMonitors:code="need-two-monitors";break;
+            case State::SameMonitor:code="same-monitor";break;
+            case State::DifferentAdapters:code="different-adapters";break;
+            case State::Unsupported:code="winrt-unavailable";break;
+            case State::Changed:code="display-topology";break;
             case State::Unsafe:code="privacy-unsafe";break;
             case State::WrongLocation:code="control-location";break;
             case State::CaptureFailed:code="capture-frame";break;
@@ -782,7 +817,7 @@ struct MirrorController::Impl : std::enable_shared_from_this<MirrorController::I
             }
         }
         failureCode=code;
-        if(wasRunning)WriteStopDiagnostic(code,error,duration);
+        if(wasRunning||wasVerifying)WriteStopDiagnostic(code,error,wasRunning?duration:0,wasRunning?"running":"verification");
         if(wasRunning&&IsWindow(privateWindow))
         {
             ++stoppedSerial;stoppedNoticePending=true;
@@ -868,7 +903,8 @@ bool MirrorController::Verify(HWND privateWindow,const std::wstring &sourceId,co
     const unsigned attempt=s.epoch;
     auto finish=[&](State reason)->bool {if(reason!=State::Verified)s.Fail(reason);return reason==State::Verified;};
     if(!s.roInitialized)return finish(State::Unsupported);
-    if(!ApplyPrivacy(privateWindow).applied||!BasicSafe(privateWindow,&s.publicPopups))return finish(State::Unsafe);
+    if(!ApplyPrivacy(privateWindow).applied){s.Fail(State::Unsafe,"control-affinity");return false;}
+    if(const char *unsafe=BasicFailure(privateWindow,&s.publicPopups)){s.Fail(State::Unsafe,unsafe);return false;}
     if(s.epoch!=attempt)return false;
     if(preserveProjection&&!s.SameTopology())return finish(State::Changed);
     if(!preserveProjection)s.topology=EnumerateMonitors();
@@ -1001,28 +1037,35 @@ bool MirrorController::Start(const std::wstring &sourceId,const std::wstring &de
     auto &s=*lifetime;
     if(s.busy||s.clearing||s.operations)return false;
     s.CancelStoppedNotice();
+    auto fail=[&](State reason,const char *code=nullptr)->bool {
+        s.Fail(reason,code);
+        if(s.failureCode)s.WriteStopDiagnostic(s.failureCode,S_OK,0,"start");
+        return false;
+    };
     const auto monitors=EnumerateMonitors();
-    if(monitors.size()<2){s.Fail(State::NeedTwoMonitors);return false;}
-    if(sourceId==destinationId){s.Fail(State::SameMonitor);return false;}
+    if(monitors.size()<2){return fail(State::NeedTwoMonitors);}
+    if(sourceId==destinationId){return fail(State::SameMonitor);}
     const auto *source=Find(monitors,sourceId),*destination=Find(monitors,destinationId);
-    if(!source||!destination){s.Fail(State::Changed);return false;}
-    if(!source->adapterKnown||!destination->adapterKnown||!SameLuid(source->adapter,destination->adapter))
-    {s.Fail(State::DifferentAdapters);return false;}
+    if(!source||!destination){return fail(State::Changed);}
+    if(!source->adapterKnown||!destination->adapterKnown)
+    {return fail(State::DifferentAdapters,"adapter-unknown");}
+    if(!SameLuid(source->adapter,destination->adapter))
+    {return fail(State::DifferentAdapters);}
     const HWND owner=s.privateWindow;
-    if(!owner||!WithinMonitor(owner,*source)){s.Fail(State::WrongLocation);return false;}
+    if(!owner||!WithinMonitor(owner,*source)){return fail(State::WrongLocation);}
     if(!Verify(owner,sourceId))return false;
     Impl::Operation operation(s);
     const unsigned attempt=s.epoch;
     // Keep the exact verified capture session rather than replacing its path.
     Com<CaptureSession2> cursor;
     if(FAILED(s.capture.session->QueryInterface(kSession2,reinterpret_cast<void **>(cursor.put())))||
-       FAILED(cursor->SetCursorEnabled(pointer))) {s.Fail(State::CaptureFailed);return false;}
+       FAILED(cursor->SetCursorEnabled(pointer))) {return fail(State::CaptureFailed);}
     if(s.epoch!=attempt)return false;
     s.destination=*destination;s.destinationId=destinationId;
-    if(!s.SameTopology()||!s.PinSourceMovement()){s.Fail(State::Changed);return false;}
-    if(!s.CreateProjector()){s.Fail(State::RenderFailed);return false;}
+    if(!s.SameTopology()||!s.PinSourceMovement()){return fail(State::Changed);}
+    if(!s.CreateProjector()){return fail(State::RenderFailed);}
     if(s.epoch!=attempt)return false;
-    if(!s.execution.Acquire()){s.Fail(State::CaptureFailed);return false;}
+    if(!s.execution.Acquire()){return fail(State::CaptureFailed);}
     if(s.epoch!=attempt){s.execution.Release();return false;}
     s.running=true;s.state=State::Running;s.sessionStarted=s.Now();s.framesTick=s.sessionStarted;s.frameCount=0;s.fps=0;return true;
 }
@@ -1144,9 +1187,15 @@ std::wstring MirrorController::Status(bool english) const
     case State::WrongLocation:vi=L"Đã khóa: đặt toàn bộ cửa sổ riêng trên màn hình nguồn rồi xác minh lại.";en=L"Locked: place the entire private window on the source display, then verify again.";break;
     default:break;
     }
+    if(impl->failureCode&&std::strcmp(impl->failureCode,"adapter-unknown")==0){
+        vi=L"Không xác định được GPU của màn hình. Đã khóa; kiểm tra driver và kết nối.";
+        en=L"The display GPU could not be identified. Locked; check drivers and connection.";
+    }
     std::wstring status=english?en:vi;
     if(impl->failureCode) {
         status+=L" [";
+        for(const char *code=ProjectionErrorCode(impl->failureCode);*code;++code)status+=static_cast<wchar_t>(*code);
+        status+=L"] [";
         for(const char *code=impl->failureCode;*code;++code)status+=static_cast<wchar_t>(*code);
         status+=L"]";
     }

@@ -26,6 +26,8 @@ struct MonitorInfo
     bool primary = false;
     int displayNumber = 0; // Native \\.\DISPLAYn number, separate from the stable device ID.
 };
+// Stable handbook code for a fixed internal projection reason. No private data.
+const char *ProjectionErrorCode(const char *reason);
 std::vector<MonitorInfo> EnumerateMonitors();
 std::pair<int,int> SelectMonitorPair(const std::vector<MonitorInfo>& monitors,
                                    const std::wstring& source,const std::wstring& destination);

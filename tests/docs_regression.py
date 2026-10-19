@@ -12,7 +12,7 @@ from urllib.parse import unquote, urlsplit
 
 ROOT = Path(__file__).resolve().parents[1]
 DOCS = ["README.md", "docs/README.md", "docs/USER_GUIDE.md",
-        "docs/PRIVACY.md", "docs/TROUBLESHOOTING.md", "docs/BUILDING.md", "docs/DEPENDENCIES.md"]
+        "docs/PRIVACY.md", "docs/TROUBLESHOOTING.md", "docs/BUILDING.md", "docs/DEPENDENCIES.md", "docs/BOOK.md"]
 
 
 def main():
@@ -39,6 +39,16 @@ def main():
             check(name + ": link " + target, resolved.is_relative_to(ROOT) and resolved.is_file())
         if name != "README.md":
             check(name + ": bilingual sections", all(" / " in h for h in re.findall(r"^## (.+)$", text, re.M)))
+
+    mirror = (ROOT / "src/Mirror.cpp").read_text(encoding="utf-8-sig")
+    book = (ROOT / "docs/BOOK.md").read_text(encoding="utf-8-sig")
+    mapping = re.findall(r'if\(std::strcmp\(reason,"([a-z-]+)"\)==0\)return "(QS-P\d{3})";', mirror)
+    check("projection error codes are unique", len(mapping) >= 24 and len({code for _, code in mapping}) == len(mapping))
+    for reason, code in mapping:
+        check("book documents " + code + " " + reason, "`" + code + "` `" + reason + "`" in book)
+    emitted = set(re.findall(r'(?:code=|Fail\(State::\w+,|fail\(State::\w+,|return )"([a-z]+(?:-[a-z]+)+)"', mirror))
+    check("every emitted projection reason has a handbook code", emitted <= {reason for reason, _ in mapping})
+    check("book covers diagnostic phases", all("`" + phase + "`" in book for phase in ["start", "verification", "running"]))
 
     overview = (ROOT / "README.md").read_text(encoding="utf-8-sig")
     check("README stays compact", len(overview.splitlines()) <= 100 and len(overview.split()) <= 850)

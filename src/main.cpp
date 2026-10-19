@@ -1566,9 +1566,7 @@ void VerifyPrivacy()
     }
     UpdateMonitors();
     verifying=true;documentHost.Hide();Layout();privacy=ApplyPrivacy(window);topologyKnown=TryGetDisplayCloned(cloned);
-    bool basic=privacy.applied && topologyKnown && !cloned;
-    if(basic)mirror->Verify(window,SelectedMonitor(sourceMonitor));
-    else mirror->Invalidate();
+    mirror->Verify(window,SelectedMonitor(sourceMonitor));
     verifying=false;Layout();
 }
 void RunFind(bool forward)
@@ -3511,6 +3509,7 @@ LRESULT CALLBACK Proc(HWND h, UINT message, WPARAM wp, LPARAM lp)
             if(!mirror || masked)break;
             documentHost.Hide();verifying=true;Layout();
             if(mirror->Start(SelectedMonitor(sourceMonitor),SelectedMonitor(destinationMonitor),mirrorPointer))ClearProjectionStoppedNotice();
+            else {page=Page::Settings;settingsCategory=3;settingsOffset=0;}
             verifying=false;Layout();break;
         case MIRROR_STOP:ClearProjectionStoppedNotice();documentHost.Hide();if(mirror)mirror->Stop();Layout();break;
         case POINTER:mirrorPointer=!mirrorPointer;UpdateButtons();break;

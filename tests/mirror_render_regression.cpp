@@ -236,6 +236,21 @@ struct MirrorRegressionAccess
             if(!prepare())return;
             controller.Stop();
             Check(readDiagnostic()==record,"explicit Stop preserves the most recent unexpected-stop evidence");
+            Check(!controller.Start(source.stableId,source.stableId)&&!controller.IsVerified()&&!controller.Running(),
+                  "failed projection start remains locked without requiring a running session");
+            const auto startRecord=readDiagnostic();
+            Check(startRecord.find("\"phase\":\"start\"")!=std::string::npos&&
+                  startRecord.find("\"code\":\"QS-P00")!=std::string::npos&&
+                  startRecord.find("\"sessionMs\":0")!=std::string::npos,
+                  "failed start writes its handbook code and start phase before any projection runs");
+            s.busy=true;s.Fail(State::CanaryFailed);s.busy=false;
+            const auto verifyRecord=readDiagnostic();
+            Check(verifyRecord.find("\"phase\":\"verification\"")!=std::string::npos&&
+                  verifyRecord.find("\"code\":\"QS-P013\"")!=std::string::npos&&
+                  controller.Status(true).find(L"[QS-P013] [canary-failed]")!=std::wstring::npos,
+                  "verification failure persists a stable public code and retains the internal reason");
+            Check(!s.stoppedNoticePending,"preflight failures never raise a running-session stop alarm");
+
         }
         controller.Stop();
     }

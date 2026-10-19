@@ -56,9 +56,9 @@ The optional browser uses a separate local WebView2 profile containing site data
 
 Trình duyệt tùy chọn dùng hồ sơ WebView2 riêng trên máy, chứa dữ liệu website như cookie/đăng nhập và lối tắt. Những dữ liệu này không mặc nhiên dùng định dạng DPAPI của lời nhắc. Trình duyệt kết nối website bạn mở và Google khi gửi từ khóa tìm kiếm. Trình đọc file không cần engine trình duyệt hoặc kết nối mạng.
 
-One local diagnostic record retains the latest projection stop reason, time and technical state. It excludes screenshots, file contents, URLs and display names. Review diagnostic files before sharing.
+One local diagnostic record retains the latest failed projection start, verification failure or unexpected stop, with its handbook code, phase, time and technical state. See the [sharing handbook](BOOK.md). It excludes screenshots, file contents, URLs and display names. Review diagnostic files before sharing.
 
-Một bản ghi chẩn đoán cục bộ giữ lý do dừng chiếu gần nhất, thời gian và trạng thái kỹ thuật. Bản ghi không chứa ảnh màn hình, nội dung file, URL hoặc tên màn hình. Xem lại tệp chẩn đoán trước khi chia sẻ.
+Một bản ghi chẩn đoán cục bộ giữ lần khởi động chiếu thất bại, xác minh thất bại hoặc dừng ngoài dự kiến gần nhất, kèm mã trong book, giai đoạn, thời gian và trạng thái kỹ thuật. Xem [cuốn book](BOOK.md). Bản ghi không chứa ảnh màn hình, nội dung file, URL hoặc tên màn hình. Xem lại tệp chẩn đoán trước khi chia sẻ.
 
 ## Browser permissions / Quyền trình duyệt
 

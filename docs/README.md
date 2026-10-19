@@ -8,6 +8,7 @@ Bắt đầu từ [giới thiệu dự án](../README.md), rồi mở hướng d
 |---|---|
 | [User guide](USER_GUIDE.md) | Cài đặt, đọc/sửa file, theme, trình duyệt và phím tắt |
 | [Privacy and projection](PRIVACY.md) | Thiết lập chiếu, trạng thái bảo vệ và dữ liệu cục bộ |
+| [Sharing handbook and error codes](BOOK.md) | Book: các bước chia sẻ theo từng trường hợp và cách sửa theo mã |
 | [Troubleshooting](TROUBLESHOOTING.md) | Khắc phục sự cố thường gặp |
 | [Building](BUILDING.md) | Biên dịch và kiểm tra mã nguồn |
 | [Dependencies](DEPENDENCIES.md) | Thư viện và thông báo giấy phép |

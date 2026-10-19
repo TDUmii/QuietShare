@@ -298,15 +298,27 @@ def main():
             def visit(hwnd,_):
                 if native.window_pid(hwnd)==process.pid:
                     name=ctypes.create_unicode_buffer(80);USER32.GetClassNameW(hwnd,name,len(name))
-                    if name.value=='QuietShareToolMenu':found.append(hwnd)
+                    if name.value=='QuietShareToolMenu' and USER32.IsWindowVisible(hwnd):
+                        info=GuiThreadInfo();info.cbSize=ctypes.sizeof(info)
+                        thread=USER32.GetWindowThreadProcessId(hwnd,None)
+                        if USER32.GetGUIThreadInfo(thread,ctypes.byref(info)) and info.hwndFocus==hwnd:
+                            found.append(hwnd)
                 return True
             USER32.EnumWindows(visit,0)
             return next(iter(found),None)
         USER32.PostMessageW(window,0x111,255,0)
         popup=wait_for(theme_popup)
         check("themeMenuOpensAsOwnedProtectedPopup",bool(popup))
-        native.send(popup,0x100,0x28);native.send(popup,0x100,0x0D)
-        check("themeMenuKeyboardSelectsLight",wait_for(lambda:native.control_text(control(255))=='Sáng'))
+        # Establish the first-row hover in this owned popup, then queue Down
+        # and Enter. Native popup hover can otherwise select the row under the
+        # user's stationary pointer, making a fixed expected theme unreliable.
+        check("themeMenuKeysQueued", USER32.PostMessageW(popup,0x200,0,(16 << 16) | 16)
+              and USER32.PostMessageW(popup,0x100,0x28,0)
+              and USER32.PostMessageW(popup,0x100,0x0D,0))
+        selected_light=wait_for(lambda:native.control_text(control(255))=='Sáng')
+        metrics['themeMenuResult']={'label':native.control_text(control(255)),
+                                    'popupStillExists':bool(USER32.IsWindow(popup))}
+        check("themeMenuKeyboardSelectsLight",selected_light)
         command(1000)
         check("themeReturnsToClassicWithoutRestart",native.control_text(control(255))=='Tối cổ điển')
         check("fontSliderRemoved", not control(130))

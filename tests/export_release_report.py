@@ -8,7 +8,7 @@ import shutil
 import subprocess
 
 ROOT = Path(__file__).resolve().parents[1]
-VERSION = '0.14.3'
+VERSION = '0.14.4'
 
 def sha256(path):
     return hashlib.sha256((ROOT / path).read_bytes()).hexdigest()
@@ -222,7 +222,7 @@ Detailed sanitized check names and payload metadata: [test-evidence-v{VERSION}.j
 |---|---:|---|
 {hashes}
 
-Installer RCDATA 301-306 matches the portable EXE, four DLLs and full redistribution notices byte for byte. Only the 195 KB WebView2 loader is bundled; the shared Evergreen Runtime is separate and optional for offline readers. The portable ZIP is checked against every staged release file before publication. The implementation specification is copied unchanged; old Git releases/history are retained.
+Installer RCDATA 301-306 matches the portable EXE, four DLLs and full redistribution notices byte for byte. Only the 195 KB WebView2 loader is bundled; the shared Evergreen Runtime is separate and optional for offline readers. The portable ZIP is checked against every staged release file before publication. The current bilingual guides and sharing handbook are bundled; old Git releases/history are retained.
 '''
     (internal/f'TEST_REPORT_v{VERSION}.md').write_text(report,encoding='utf-8')
     print(f'Internal validation exported: {total} PASS, 0 FAIL; shipping EXE {actual_hash}')

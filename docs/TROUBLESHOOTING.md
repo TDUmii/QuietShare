@@ -1,5 +1,9 @@
 # Troubleshooting / Xử lý sự cố
 
+For projection codes and separate HDMI, wireless TV, meeting and OBS workflows, use the [sharing handbook](BOOK.md).
+
+Tra mã lỗi trình chiếu và quy trình riêng cho HDMI, TV không dây, cuộc họp và OBS trong [cuốn book](BOOK.md).
+
 [Overview](../README.md) · [Projection setup](PRIVACY.md)
 
 [Giới thiệu](../README.md) · [Thiết lập trình chiếu](PRIVACY.md)
