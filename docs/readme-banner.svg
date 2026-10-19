@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="210" viewBox="0 0 960 210" role="img" aria-labelledby="title desc">
+  <title id="title">QuietShare - a colorful presentation companion</title>
+  <desc id="desc">Scripts, files, web and Smart Mirror. Lời nhắc, tài liệu, web và Smart Mirror. Windows x64, 10 themes, offline file readers.</desc>
+  <rect width="960" height="210" rx="22" fill="#111827"/>
+  <path d="M715 0H938Q960 0 960 22V210H812Z" fill="#253855"/>
+  <circle cx="910" cy="22" r="52" fill="#b794ff"/>
+  <circle cx="787" cy="190" r="38" fill="#ff75b7"/>
+  <g font-family="Segoe UI,Arial,sans-serif">
+    <rect x="30" y="30" width="48" height="48" rx="14" fill="#82f0b1"/>
+    <rect x="42" y="42" width="24" height="24" rx="3" fill="none" stroke="#113d31" stroke-width="2.5"/>
+    <path d="M50 42V66" stroke="#113d31" stroke-width="2.5"/>
+    <text x="94" y="69" fill="#f6f8ff" font-size="42" font-weight="750">QuietShare</text>
+    <text x="30" y="112" fill="#d3def0" font-size="21">Read. Present. Keep your flow.</text>
+    <text x="30" y="139" fill="#a9b7ce" font-size="17">Đọc. Trình bày. Giữ mạch ý.</text>
+    <rect x="30" y="162" width="124" height="28" rx="8" fill="#82f0b1"/>
+    <text x="44" y="181" fill="#12382e" font-size="13" font-weight="700">WINDOWS x64</text>
+    <rect x="164" y="162" width="112" height="28" rx="8" fill="#c5b0ff"/>
+    <text x="180" y="181" fill="#30214f" font-size="13" font-weight="700">10 THEMES</text>
+    <rect x="286" y="162" width="166" height="28" rx="8" fill="#ffc977"/>
+    <text x="302" y="181" fill="#49321b" font-size="13" font-weight="700">OFFLINE READERS</text>
+    <g transform="translate(646 40) rotate(-5 105 60)">
+      <rect width="210" height="126" rx="14" fill="#182334" stroke="#80c6ff" stroke-width="2"/>
+      <circle cx="17" cy="16" r="4" fill="#ff75b7"/><circle cx="31" cy="16" r="4" fill="#ffc977"/><circle cx="45" cy="16" r="4" fill="#82f0b1"/>
+      <path d="M18 45H126M18 62H166M18 79H145" stroke="#b9d3ef" stroke-width="5" stroke-linecap="round"/>
+      <rect x="16" y="98" width="56" height="12" rx="6" fill="#82f0b1"/>
+      <rect x="82" y="98" width="38" height="12" rx="6" fill="#b794ff"/>
+    </g>
+    <path d="M888 120V148M874 134H902" stroke="#ffc977" stroke-width="5" stroke-linecap="round"/>
+    <path d="M604 53V73M594 63H614" stroke="#ff75b7" stroke-width="4" stroke-linecap="round"/>
+  </g>
+</svg>

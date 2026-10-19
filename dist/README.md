@@ -4,13 +4,15 @@ A Windows presentation companion for scripts, documents and optional web browsin
 
 Ứng dụng Windows hỗ trợ đọc lời nhắc, tài liệu và nội dung web khi thuyết trình. Smart Mirror chiếu màn hình nguồn công khai sang màn hình Extend thứ hai, đồng thời loại QuietShare khỏi đường capture đã xác minh.
 
+![QuietShare colorful banner / Banner QuietShare nhiều màu](docs/readme-banner.svg)
+
 **[Download the latest release](https://github.com/TDUmii/QuietShare/releases/latest) · [User guide](docs/USER_GUIDE.md)**
 
 **[Tải bản mới nhất](https://github.com/TDUmii/QuietShare/releases/latest) · [Hướng dẫn sử dụng](docs/USER_GUIDE.md)**
 
 ![QuietShare Home / Trang chủ QuietShare](docs/quietshare-home.png)
 
-## Get started / Bắt đầu
+## 🚀 Get started / Bắt đầu
 
 1. Download and run **QuietShare-Setup.exe**. Installation is per user and needs no administrator access. For portable use, extract the entire ZIP and run **QuietShare.exe** with its bundled DLLs.
 
@@ -24,7 +26,7 @@ A Windows presentation companion for scripts, documents and optional web browsin
 
    Để trình chiếu, đặt Windows ở **Extend**, chọn nguồn/đích khác nhau tại **Cài đặt > Trình chiếu**, rồi chọn **Kiểm tra WGC** và **Bắt đầu trình chiếu**. Kiểm tra hình ảnh thực tế phía người xem trước khi trình bày.
 
-## What you can do / Chức năng chính
+## 🎨 What you can do / Chức năng chính
 
 - **Read and prepare:** scripts with auto-scroll, editable text/code, image/PDF viewers, local folders and real recent-file history.
 
@@ -38,7 +40,15 @@ A Windows presentation companion for scripts, documents and optional web browsin
 
   **Duyệt web khi cần:** trình duyệt WebView2 tùy chọn, tối đa 8 tab và lối tắt lưu trên máy. Trình đọc file dùng offline; trình duyệt luôn tắt khi mới mở ứng dụng.
 
-## Requirements and protection / Yêu cầu và bảo vệ
+## 📊 Project Status / Tình trạng dự án
+
+![QuietShare Project Status: 38 main commits, 0 PRs and 0 issues opened in 30 days / Thống kê 30 ngày](docs/project-status.svg)
+
+30 days: **38 commits · 0 PRs · 0 issues opened**. Updated **19 Oct 2026**; this is a snapshot, not a live dashboard.
+
+30 ngày: **38 commit · 0 PR · 0 issue được mở**. Cập nhật **19/10/2026**; đây là bản thống kê tại một thời điểm, không phải dữ liệu trực tiếp.
+
+## 🛡️ Requirements and protection / Yêu cầu và bảo vệ
 
 **Windows 10 version 2004 (build 19041) or later, or Windows 11, x64.** Smart Mirror needs two distinct Extend displays on the same GPU, working DWM and Windows Graphics Capture. Browsing additionally requires [Microsoft Edge WebView2 Runtime](https://developer.microsoft.com/en-us/microsoft-edge/webview2/).
 
@@ -48,7 +58,7 @@ A Windows presentation companion for scripts, documents and optional web browsin
 
 **Windows nhận loại trừ capture không có nghĩa hình ảnh phía người xem đã được xác minh.** Duplicate khóa nội dung riêng. Kiểm tra bảo vệ thất bại sẽ dừng chiếu; ứng dụng không tự chiếu lại. Cơ chế này không ngăn máy ảnh bên ngoài. Xem [quyền riêng tư và trình chiếu](docs/PRIVACY.md).
 
-## Learn more / Tài liệu
+## 📚 Learn more / Tài liệu
 
 | English | Tiếng Việt |
 |---|---|

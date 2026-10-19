@@ -18,6 +18,8 @@ dist/*
 !dist/docs/
 !dist/docs/*.md
 !dist/docs/quietshare-home.png
+!dist/docs/readme-banner.svg
+!dist/docs/project-status.svg
 !dist/dependencies/
 dist/dependencies/*
 !dist/dependencies/licenses/

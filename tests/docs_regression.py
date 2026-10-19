@@ -1,10 +1,13 @@
 """Validate the current bilingual documentation and optional shipping copy."""
 from pathlib import Path
+from collections import Counter
+from datetime import datetime, timedelta
 import hashlib
 import json
 import re
 import subprocess
 import sys
+import xml.etree.ElementTree as ET
 from urllib.parse import unquote, urlsplit
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -45,18 +48,42 @@ def main():
     check("protection distinction retained", "does not verify what the audience sees" in overview and "Duplicate" in overview)
     obsolete = list((ROOT / "docs").glob("*Implementation_Plan.md")) + list((ROOT / "handoff").glob("*"))
     check("obsolete planning and handoff files removed", not obsolete)
-    guides = {Path(name).name for name in DOCS if name.startswith("docs/")} | {"quietshare-home.png"}
+    guides = {Path(name).name for name in DOCS if name.startswith("docs/")} | {"quietshare-home.png", "readme-banner.svg", "project-status.svg"}
     check("source docs contain only current guides", {p.name for p in (ROOT / "docs").iterdir()} == guides)
     check("English commit guidance retained", "English commit messages" in (ROOT / "docs/BUILDING.md").read_text(encoding="utf-8"))
+    for filename in ["readme-banner.svg", "project-status.svg"]:
+        graphic = ET.parse(ROOT / "docs" / filename).getroot()
+        check(filename + ": standalone accessible SVG", graphic.find("{http://www.w3.org/2000/svg}title") is not None
+              and graphic.find("{http://www.w3.org/2000/svg}desc") is not None)
+        check(filename + ": no scripts or external resources", all(
+            node.tag.rsplit("}", 1)[-1] not in {"script", "foreignObject", "image"}
+            and not any(key.rsplit("}", 1)[-1] == "href" for key in node.attrib) for node in graphic.iter()))
+    status = ET.parse(ROOT / "docs/project-status.svg").getroot()
+    snapshot = json.loads(status.find("{http://www.w3.org/2000/svg}metadata").text)
+    check("status has 30 daily points per metric", all(len(snapshot[key]) == 30 and all(type(n) is int and n >= 0 for n in snapshot[key])
+          for key in ["commits", "pullRequestsOpened", "issuesOpened"]))
+    total = sum(snapshot["commits"])
+    check("README status matches SVG snapshot", f"{total} main commits" in overview
+          and f'{sum(snapshot["pullRequestsOpened"])} PRs' in overview
+          and f'{sum(snapshot["issuesOpened"])} issues' in overview)
+    check("status date and source are explicit", snapshot["repository"] == "TDUmii/QuietShare"
+          and snapshot["branch"] == "main" and snapshot["timezone"] == "UTC+07:00" and snapshot["revision"])
+    updated = datetime.fromisoformat(snapshot["updated"])
+    start = datetime.fromisoformat(snapshot["start"]).date()
+    days = [start + timedelta(days=i) for i in range(30)]
+    dates = subprocess.run(["git", "log", snapshot["revision"], "--since=" + snapshot["start"] + "T00:00:00+07:00",
+                            "--until=" + snapshot["updated"], "--format=%cI"], check=True, capture_output=True, text=True).stdout.splitlines()
+    actual = Counter(datetime.fromisoformat(date).astimezone(updated.tzinfo).date() for date in dates)
+    check("commit chart matches its recorded Git revision", [actual[day] for day in days] == snapshot["commits"])
     notice = subprocess.run(["git", "show", "v0.14.0:THIRD-PARTY.md"], check=True, capture_output=True).stdout
     check("original legal text preserved", notice.replace(b"\r\n", b"\n") == (ROOT / "THIRD-PARTY.md").read_bytes().replace(b"\r\n", b"\n"))
     if "--dist" in sys.argv:
-        for name in DOCS + ["docs/quietshare-home.png"]:
+        for name in DOCS + ["docs/quietshare-home.png", "docs/readme-banner.svg", "docs/project-status.svg"]:
             source = (ROOT / name).read_bytes()
-            if name.endswith(".md"):
+            if name.endswith((".md", ".svg")):
                 source = source.replace(b"\r\n", b"\n")
             check("dist parity: " + name, (ROOT / "dist" / name).read_bytes() == source)
-        expected = {Path(name).name for name in DOCS if name.startswith("docs/")} | {"quietshare-home.png"}
+        expected = {Path(name).name for name in DOCS if name.startswith("docs/")} | {"quietshare-home.png", "readme-banner.svg", "project-status.svg"}
         check("portable docs contain only current guides", {p.name for p in (ROOT / "dist/docs").iterdir()} == expected)
     report = {"checks": checks, "passed": sum(c["passed"] for c in checks),
               "failed": sum(not c["passed"] for c in checks),

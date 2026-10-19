@@ -31,3 +31,9 @@ Kiểm tra WGC và renderer tự động không xác lập hình ảnh ở đầ
 Use concise English commit messages when contributing. Keep runtime files and current guides in the portable archive; installer, development records and validation data do not belong in it.
 
 Dùng commit message ngắn gọn bằng tiếng Anh khi đóng góp. Gói portable chỉ giữ thành phần chạy và hướng dẫn hiện tại; bộ cài, tư liệu phát triển và dữ liệu kiểm thử không nằm trong gói này.
+
+## Refresh Project Status / Cập nhật thống kê
+
+Run `python tools/update_readme_status.py` from the repository root with Git and the GitHub CLI installed and authenticated for this repository. It updates the local SVG from 30 days of main-branch commits and GitHub issues/PRs opened, using Vietnam time (UTC+07). The image records its source commit and update time. Commit the refreshed SVG with the README; it does not auto-refresh when viewed.
+
+Chạy `python tools/update_readme_status.py` tại thư mục gốc với Git và GitHub CLI đã cài, đăng nhập và có quyền đọc repo. Script cập nhật SVG cục bộ từ commit nhánh main và issue/PR được mở trong 30 ngày, theo giờ Việt Nam (UTC+07). Hình ghi commit nguồn và thời điểm cập nhật. Commit SVG đã cập nhật cùng README; hình không tự đổi khi người đọc mở trang.

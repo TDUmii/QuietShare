@@ -8,7 +8,7 @@ foreach ($name in @('README.md','THIRD-PARTY.md')) {
 }
 $docsFolder = Join-Path $dist 'docs'
 New-Item -ItemType Directory -Path $docsFolder -Force | Out-Null
-$docNames = @('README.md','USER_GUIDE.md','PRIVACY.md','TROUBLESHOOTING.md','BUILDING.md','DEPENDENCIES.md','quietshare-home.png')
+$docNames = @('README.md','USER_GUIDE.md','PRIVACY.md','TROUBLESHOOTING.md','BUILDING.md','DEPENDENCIES.md','quietshare-home.png','readme-banner.svg','project-status.svg')
 foreach ($name in $docNames) {
     Copy-Item -LiteralPath (Join-Path (Join-Path $root 'docs') $name) -Destination $docsFolder -Force
 }
@@ -18,7 +18,7 @@ New-Item -ItemType Directory -Path (Split-Path -Parent $licenseTarget) -Force | 
 Copy-Item -LiteralPath (Join-Path $root $license) -Destination $licenseTarget -Force
 # Match Git's LF text checkout while preserving the byte-pinned installer notice.
 $textPayloads = Get-ChildItem -LiteralPath $dist -File -Recurse | Where-Object {
-    $_.Extension -in @('.md','.json','.txt','.ijg') -and
+    $_.Extension -in @('.md','.json','.txt','.ijg','.svg') -and
     $_.Name -ne 'THIRD-PARTY.md' -and
     $_.Name -notlike 'WebView2-*'
 }
@@ -41,7 +41,7 @@ $allowed = @('QuietShare.exe','Scintilla.dll','Lexilla.dll','pdfium.dll','WebVie
 $entries = $allowed | ForEach-Object { Join-Path $dist $_ }
 $entries += $docNames | ForEach-Object { Join-Path $docsFolder $_ }
 foreach ($entry in $entries) { if (!(Test-Path -LiteralPath $entry)) { throw "Missing payload: $entry" } }
-$zip = Join-Path $root 'QuietShare-v0.14.2-win-x64.zip'
+$zip = Join-Path $root 'QuietShare-v0.14.3-win-x64.zip'
 # Enumerate every archive entry explicitly; stale build files cannot enter it.
 Add-Type -AssemblyName System.IO.Compression.FileSystem
 $payload = @($allowed) + @($docNames | ForEach-Object { 'docs/' + $_ })

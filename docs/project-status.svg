@@ -1,0 +1,152 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="400" viewBox="0 0 960 400" role="img" aria-labelledby="title desc">
+<title id="title">QuietShare project status / Tình trạng dự án</title>
+<desc id="desc">30-day main-branch commit activity and GitHub pull requests/issues opened. Static snapshot, not live statistics. Thống kê 30 ngày, bản chụp tại thời điểm cập nhật.</desc>
+<metadata>{&quot;repository&quot;: &quot;TDUmii/QuietShare&quot;, &quot;branch&quot;: &quot;main&quot;, &quot;revision&quot;: &quot;e9adcd1&quot;, &quot;updated&quot;: &quot;2026-10-19T08:59:02.464211+07:00&quot;, &quot;timezone&quot;: &quot;UTC+07:00&quot;, &quot;start&quot;: &quot;2026-09-20&quot;, &quot;end&quot;: &quot;2026-10-19&quot;, &quot;commits&quot;: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 8, 4, 2, 2, 9, 11, 2], &quot;pullRequestsOpened&quot;: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], &quot;issuesOpened&quot;: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]}</metadata>
+<rect width="960" height="400" rx="20" fill="#10151f"/>
+<g font-family="Segoe UI,Arial,sans-serif">
+<text x="28" y="38" fill="#f4f7ff" font-size="23" font-weight="700">Project Status</text>
+<text x="28" y="61" fill="#a9b7ce" font-size="14">Tình trạng dự án · 30 days / 30 ngày</text>
+<rect x="748" y="24" width="184" height="30" rx="15" fill="#243a35"/>
+<circle cx="767" cy="39" r="4" fill="#82f0b1"/>
+<text x="781" y="44" fill="#b6f7d0" font-size="13">Git + GitHub snapshot</text>
+<rect x="28" y="80" width="904" height="58" rx="10" fill="#1a2030" stroke="#343d51"/>
+<text x="45" y="105" fill="#ff75b7" font-size="17" font-weight="700">38 commits in the last 30 days</text>
+<text x="45" y="125" fill="#a9b7ce" font-size="13">Commit trên nhánh main trong 30 ngày</text>
+<rect x="470" y="101" width="10" height="16" rx="3" fill="#ff5eac" opacity="0.10"><title>2026-09-20: 0 commits</title></rect>
+<rect x="484" y="101" width="10" height="16" rx="3" fill="#ff5eac" opacity="0.10"><title>2026-09-21: 0 commits</title></rect>
+<rect x="498" y="101" width="10" height="16" rx="3" fill="#ff5eac" opacity="0.10"><title>2026-09-22: 0 commits</title></rect>
+<rect x="512" y="101" width="10" height="16" rx="3" fill="#ff5eac" opacity="0.10"><title>2026-09-23: 0 commits</title></rect>
+<rect x="526" y="101" width="10" height="16" rx="3" fill="#ff5eac" opacity="0.10"><title>2026-09-24: 0 commits</title></rect>
+<rect x="540" y="101" width="10" height="16" rx="3" fill="#ff5eac" opacity="0.10"><title>2026-09-25: 0 commits</title></rect>
+<rect x="554" y="101" width="10" height="16" rx="3" fill="#ff5eac" opacity="0.10"><title>2026-09-26: 0 commits</title></rect>
+<rect x="568" y="101" width="10" height="16" rx="3" fill="#ff5eac" opacity="0.10"><title>2026-09-27: 0 commits</title></rect>
+<rect x="582" y="101" width="10" height="16" rx="3" fill="#ff5eac" opacity="0.10"><title>2026-09-28: 0 commits</title></rect>
+<rect x="596" y="101" width="10" height="16" rx="3" fill="#ff5eac" opacity="0.10"><title>2026-09-29: 0 commits</title></rect>
+<rect x="610" y="101" width="10" height="16" rx="3" fill="#ff5eac" opacity="0.10"><title>2026-09-30: 0 commits</title></rect>
+<rect x="624" y="101" width="10" height="16" rx="3" fill="#ff5eac" opacity="0.10"><title>2026-10-01: 0 commits</title></rect>
+<rect x="638" y="101" width="10" height="16" rx="3" fill="#ff5eac" opacity="0.10"><title>2026-10-02: 0 commits</title></rect>
+<rect x="652" y="101" width="10" height="16" rx="3" fill="#ff5eac" opacity="0.10"><title>2026-10-03: 0 commits</title></rect>
+<rect x="666" y="101" width="10" height="16" rx="3" fill="#ff5eac" opacity="0.10"><title>2026-10-04: 0 commits</title></rect>
+<rect x="680" y="101" width="10" height="16" rx="3" fill="#ff5eac" opacity="0.10"><title>2026-10-05: 0 commits</title></rect>
+<rect x="694" y="101" width="10" height="16" rx="3" fill="#ff5eac" opacity="0.10"><title>2026-10-06: 0 commits</title></rect>
+<rect x="708" y="101" width="10" height="16" rx="3" fill="#ff5eac" opacity="0.10"><title>2026-10-07: 0 commits</title></rect>
+<rect x="722" y="101" width="10" height="16" rx="3" fill="#ff5eac" opacity="0.10"><title>2026-10-08: 0 commits</title></rect>
+<rect x="736" y="101" width="10" height="16" rx="3" fill="#ff5eac" opacity="0.10"><title>2026-10-09: 0 commits</title></rect>
+<rect x="750" y="101" width="10" height="16" rx="3" fill="#ff5eac" opacity="0.10"><title>2026-10-10: 0 commits</title></rect>
+<rect x="764" y="101" width="10" height="16" rx="3" fill="#ff5eac" opacity="0.10"><title>2026-10-11: 0 commits</title></rect>
+<rect x="778" y="101" width="10" height="16" rx="3" fill="#ff5eac" opacity="0.10"><title>2026-10-12: 0 commits</title></rect>
+<rect x="792" y="101" width="10" height="16" rx="3" fill="#ff5eac" opacity="0.78"><title>2026-10-13: 8 commits</title></rect>
+<rect x="806" y="101" width="10" height="16" rx="3" fill="#ff5eac" opacity="0.48"><title>2026-10-14: 4 commits</title></rect>
+<rect x="820" y="101" width="10" height="16" rx="3" fill="#ff5eac" opacity="0.33"><title>2026-10-15: 2 commits</title></rect>
+<rect x="834" y="101" width="10" height="16" rx="3" fill="#ff5eac" opacity="0.33"><title>2026-10-16: 2 commits</title></rect>
+<rect x="848" y="101" width="10" height="16" rx="3" fill="#ff5eac" opacity="0.85"><title>2026-10-17: 9 commits</title></rect>
+<rect x="862" y="101" width="10" height="16" rx="3" fill="#ff5eac" opacity="1.00"><title>2026-10-18: 11 commits</title></rect>
+<rect x="876" y="101" width="10" height="16" rx="3" fill="#ff5eac" opacity="0.33"><title>2026-10-19: 2 commits</title></rect>
+<rect x="28" y="152" width="288" height="192" rx="12" fill="#171e2b" stroke="#343d51"/>
+<text x="45" y="179" fill="#ff5eac" font-size="16" font-weight="600">Commits</text>
+<text x="45" y="199" fill="#a9b7ce" font-size="13">Lượt commit</text>
+<text x="45" y="243" fill="#f4f7ff" font-size="32" font-weight="700">38</text>
+<rect x="45.0" y="305" width="6" height="2" rx="1" fill="#ff5eac" opacity="0.22"><title>2026-09-20: 0</title></rect>
+<rect x="53.4" y="305" width="6" height="2" rx="1" fill="#ff5eac" opacity="0.22"><title>2026-09-21: 0</title></rect>
+<rect x="61.8" y="305" width="6" height="2" rx="1" fill="#ff5eac" opacity="0.22"><title>2026-09-22: 0</title></rect>
+<rect x="70.2" y="305" width="6" height="2" rx="1" fill="#ff5eac" opacity="0.22"><title>2026-09-23: 0</title></rect>
+<rect x="78.6" y="305" width="6" height="2" rx="1" fill="#ff5eac" opacity="0.22"><title>2026-09-24: 0</title></rect>
+<rect x="87.0" y="305" width="6" height="2" rx="1" fill="#ff5eac" opacity="0.22"><title>2026-09-25: 0</title></rect>
+<rect x="95.4" y="305" width="6" height="2" rx="1" fill="#ff5eac" opacity="0.22"><title>2026-09-26: 0</title></rect>
+<rect x="103.8" y="305" width="6" height="2" rx="1" fill="#ff5eac" opacity="0.22"><title>2026-09-27: 0</title></rect>
+<rect x="112.2" y="305" width="6" height="2" rx="1" fill="#ff5eac" opacity="0.22"><title>2026-09-28: 0</title></rect>
+<rect x="120.6" y="305" width="6" height="2" rx="1" fill="#ff5eac" opacity="0.22"><title>2026-09-29: 0</title></rect>
+<rect x="129.0" y="305" width="6" height="2" rx="1" fill="#ff5eac" opacity="0.22"><title>2026-09-30: 0</title></rect>
+<rect x="137.4" y="305" width="6" height="2" rx="1" fill="#ff5eac" opacity="0.22"><title>2026-10-01: 0</title></rect>
+<rect x="145.8" y="305" width="6" height="2" rx="1" fill="#ff5eac" opacity="0.22"><title>2026-10-02: 0</title></rect>
+<rect x="154.2" y="305" width="6" height="2" rx="1" fill="#ff5eac" opacity="0.22"><title>2026-10-03: 0</title></rect>
+<rect x="162.6" y="305" width="6" height="2" rx="1" fill="#ff5eac" opacity="0.22"><title>2026-10-04: 0</title></rect>
+<rect x="171.0" y="305" width="6" height="2" rx="1" fill="#ff5eac" opacity="0.22"><title>2026-10-05: 0</title></rect>
+<rect x="179.4" y="305" width="6" height="2" rx="1" fill="#ff5eac" opacity="0.22"><title>2026-10-06: 0</title></rect>
+<rect x="187.8" y="305" width="6" height="2" rx="1" fill="#ff5eac" opacity="0.22"><title>2026-10-07: 0</title></rect>
+<rect x="196.2" y="305" width="6" height="2" rx="1" fill="#ff5eac" opacity="0.22"><title>2026-10-08: 0</title></rect>
+<rect x="204.6" y="305" width="6" height="2" rx="1" fill="#ff5eac" opacity="0.22"><title>2026-10-09: 0</title></rect>
+<rect x="213.0" y="305" width="6" height="2" rx="1" fill="#ff5eac" opacity="0.22"><title>2026-10-10: 0</title></rect>
+<rect x="221.4" y="305" width="6" height="2" rx="1" fill="#ff5eac" opacity="0.22"><title>2026-10-11: 0</title></rect>
+<rect x="229.8" y="305" width="6" height="2" rx="1" fill="#ff5eac" opacity="0.22"><title>2026-10-12: 0</title></rect>
+<rect x="238.2" y="274" width="6" height="33" rx="1" fill="#ff5eac" opacity="1"><title>2026-10-13: 8</title></rect>
+<rect x="246.6" y="290" width="6" height="17" rx="1" fill="#ff5eac" opacity="1"><title>2026-10-14: 4</title></rect>
+<rect x="255.0" y="299" width="6" height="8" rx="1" fill="#ff5eac" opacity="1"><title>2026-10-15: 2</title></rect>
+<rect x="263.4" y="299" width="6" height="8" rx="1" fill="#ff5eac" opacity="1"><title>2026-10-16: 2</title></rect>
+<rect x="271.8" y="269" width="6" height="38" rx="1" fill="#ff5eac" opacity="1"><title>2026-10-17: 9</title></rect>
+<rect x="280.2" y="261" width="6" height="46" rx="1" fill="#ff5eac" opacity="1"><title>2026-10-18: 11</title></rect>
+<rect x="288.6" y="299" width="6" height="8" rx="1" fill="#ff5eac" opacity="1"><title>2026-10-19: 2</title></rect>
+<text x="45" y="329" fill="#a9b7ce" font-size="12">Daily activity / Hoạt động mỗi ngày</text>
+<rect x="336" y="152" width="288" height="192" rx="12" fill="#171e2b" stroke="#343d51"/>
+<text x="353" y="179" fill="#b794ff" font-size="16" font-weight="600">Pull requests opened</text>
+<text x="353" y="199" fill="#a9b7ce" font-size="13">PR được mở</text>
+<text x="353" y="243" fill="#f4f7ff" font-size="32" font-weight="700">0</text>
+<rect x="353.0" y="305" width="6" height="2" rx="1" fill="#b794ff" opacity="0.22"><title>2026-09-20: 0</title></rect>
+<rect x="361.4" y="305" width="6" height="2" rx="1" fill="#b794ff" opacity="0.22"><title>2026-09-21: 0</title></rect>
+<rect x="369.8" y="305" width="6" height="2" rx="1" fill="#b794ff" opacity="0.22"><title>2026-09-22: 0</title></rect>
+<rect x="378.2" y="305" width="6" height="2" rx="1" fill="#b794ff" opacity="0.22"><title>2026-09-23: 0</title></rect>
+<rect x="386.6" y="305" width="6" height="2" rx="1" fill="#b794ff" opacity="0.22"><title>2026-09-24: 0</title></rect>
+<rect x="395.0" y="305" width="6" height="2" rx="1" fill="#b794ff" opacity="0.22"><title>2026-09-25: 0</title></rect>
+<rect x="403.4" y="305" width="6" height="2" rx="1" fill="#b794ff" opacity="0.22"><title>2026-09-26: 0</title></rect>
+<rect x="411.8" y="305" width="6" height="2" rx="1" fill="#b794ff" opacity="0.22"><title>2026-09-27: 0</title></rect>
+<rect x="420.2" y="305" width="6" height="2" rx="1" fill="#b794ff" opacity="0.22"><title>2026-09-28: 0</title></rect>
+<rect x="428.6" y="305" width="6" height="2" rx="1" fill="#b794ff" opacity="0.22"><title>2026-09-29: 0</title></rect>
+<rect x="437.0" y="305" width="6" height="2" rx="1" fill="#b794ff" opacity="0.22"><title>2026-09-30: 0</title></rect>
+<rect x="445.4" y="305" width="6" height="2" rx="1" fill="#b794ff" opacity="0.22"><title>2026-10-01: 0</title></rect>
+<rect x="453.8" y="305" width="6" height="2" rx="1" fill="#b794ff" opacity="0.22"><title>2026-10-02: 0</title></rect>
+<rect x="462.2" y="305" width="6" height="2" rx="1" fill="#b794ff" opacity="0.22"><title>2026-10-03: 0</title></rect>
+<rect x="470.6" y="305" width="6" height="2" rx="1" fill="#b794ff" opacity="0.22"><title>2026-10-04: 0</title></rect>
+<rect x="479.0" y="305" width="6" height="2" rx="1" fill="#b794ff" opacity="0.22"><title>2026-10-05: 0</title></rect>
+<rect x="487.4" y="305" width="6" height="2" rx="1" fill="#b794ff" opacity="0.22"><title>2026-10-06: 0</title></rect>
+<rect x="495.8" y="305" width="6" height="2" rx="1" fill="#b794ff" opacity="0.22"><title>2026-10-07: 0</title></rect>
+<rect x="504.2" y="305" width="6" height="2" rx="1" fill="#b794ff" opacity="0.22"><title>2026-10-08: 0</title></rect>
+<rect x="512.6" y="305" width="6" height="2" rx="1" fill="#b794ff" opacity="0.22"><title>2026-10-09: 0</title></rect>
+<rect x="521.0" y="305" width="6" height="2" rx="1" fill="#b794ff" opacity="0.22"><title>2026-10-10: 0</title></rect>
+<rect x="529.4" y="305" width="6" height="2" rx="1" fill="#b794ff" opacity="0.22"><title>2026-10-11: 0</title></rect>
+<rect x="537.8" y="305" width="6" height="2" rx="1" fill="#b794ff" opacity="0.22"><title>2026-10-12: 0</title></rect>
+<rect x="546.2" y="305" width="6" height="2" rx="1" fill="#b794ff" opacity="0.22"><title>2026-10-13: 0</title></rect>
+<rect x="554.6" y="305" width="6" height="2" rx="1" fill="#b794ff" opacity="0.22"><title>2026-10-14: 0</title></rect>
+<rect x="563.0" y="305" width="6" height="2" rx="1" fill="#b794ff" opacity="0.22"><title>2026-10-15: 0</title></rect>
+<rect x="571.4" y="305" width="6" height="2" rx="1" fill="#b794ff" opacity="0.22"><title>2026-10-16: 0</title></rect>
+<rect x="579.8" y="305" width="6" height="2" rx="1" fill="#b794ff" opacity="0.22"><title>2026-10-17: 0</title></rect>
+<rect x="588.2" y="305" width="6" height="2" rx="1" fill="#b794ff" opacity="0.22"><title>2026-10-18: 0</title></rect>
+<rect x="596.6" y="305" width="6" height="2" rx="1" fill="#b794ff" opacity="0.22"><title>2026-10-19: 0</title></rect>
+<text x="353" y="329" fill="#a9b7ce" font-size="12">No events / Chưa có hoạt động</text>
+<rect x="644" y="152" width="288" height="192" rx="12" fill="#171e2b" stroke="#343d51"/>
+<text x="661" y="179" fill="#62bbff" font-size="16" font-weight="600">Issues opened</text>
+<text x="661" y="199" fill="#a9b7ce" font-size="13">Issue được mở</text>
+<text x="661" y="243" fill="#f4f7ff" font-size="32" font-weight="700">0</text>
+<rect x="661.0" y="305" width="6" height="2" rx="1" fill="#62bbff" opacity="0.22"><title>2026-09-20: 0</title></rect>
+<rect x="669.4" y="305" width="6" height="2" rx="1" fill="#62bbff" opacity="0.22"><title>2026-09-21: 0</title></rect>
+<rect x="677.8" y="305" width="6" height="2" rx="1" fill="#62bbff" opacity="0.22"><title>2026-09-22: 0</title></rect>
+<rect x="686.2" y="305" width="6" height="2" rx="1" fill="#62bbff" opacity="0.22"><title>2026-09-23: 0</title></rect>
+<rect x="694.6" y="305" width="6" height="2" rx="1" fill="#62bbff" opacity="0.22"><title>2026-09-24: 0</title></rect>
+<rect x="703.0" y="305" width="6" height="2" rx="1" fill="#62bbff" opacity="0.22"><title>2026-09-25: 0</title></rect>
+<rect x="711.4" y="305" width="6" height="2" rx="1" fill="#62bbff" opacity="0.22"><title>2026-09-26: 0</title></rect>
+<rect x="719.8" y="305" width="6" height="2" rx="1" fill="#62bbff" opacity="0.22"><title>2026-09-27: 0</title></rect>
+<rect x="728.2" y="305" width="6" height="2" rx="1" fill="#62bbff" opacity="0.22"><title>2026-09-28: 0</title></rect>
+<rect x="736.6" y="305" width="6" height="2" rx="1" fill="#62bbff" opacity="0.22"><title>2026-09-29: 0</title></rect>
+<rect x="745.0" y="305" width="6" height="2" rx="1" fill="#62bbff" opacity="0.22"><title>2026-09-30: 0</title></rect>
+<rect x="753.4" y="305" width="6" height="2" rx="1" fill="#62bbff" opacity="0.22"><title>2026-10-01: 0</title></rect>
+<rect x="761.8" y="305" width="6" height="2" rx="1" fill="#62bbff" opacity="0.22"><title>2026-10-02: 0</title></rect>
+<rect x="770.2" y="305" width="6" height="2" rx="1" fill="#62bbff" opacity="0.22"><title>2026-10-03: 0</title></rect>
+<rect x="778.6" y="305" width="6" height="2" rx="1" fill="#62bbff" opacity="0.22"><title>2026-10-04: 0</title></rect>
+<rect x="787.0" y="305" width="6" height="2" rx="1" fill="#62bbff" opacity="0.22"><title>2026-10-05: 0</title></rect>
+<rect x="795.4" y="305" width="6" height="2" rx="1" fill="#62bbff" opacity="0.22"><title>2026-10-06: 0</title></rect>
+<rect x="803.8" y="305" width="6" height="2" rx="1" fill="#62bbff" opacity="0.22"><title>2026-10-07: 0</title></rect>
+<rect x="812.2" y="305" width="6" height="2" rx="1" fill="#62bbff" opacity="0.22"><title>2026-10-08: 0</title></rect>
+<rect x="820.6" y="305" width="6" height="2" rx="1" fill="#62bbff" opacity="0.22"><title>2026-10-09: 0</title></rect>
+<rect x="829.0" y="305" width="6" height="2" rx="1" fill="#62bbff" opacity="0.22"><title>2026-10-10: 0</title></rect>
+<rect x="837.4" y="305" width="6" height="2" rx="1" fill="#62bbff" opacity="0.22"><title>2026-10-11: 0</title></rect>
+<rect x="845.8" y="305" width="6" height="2" rx="1" fill="#62bbff" opacity="0.22"><title>2026-10-12: 0</title></rect>
+<rect x="854.2" y="305" width="6" height="2" rx="1" fill="#62bbff" opacity="0.22"><title>2026-10-13: 0</title></rect>
+<rect x="862.6" y="305" width="6" height="2" rx="1" fill="#62bbff" opacity="0.22"><title>2026-10-14: 0</title></rect>
+<rect x="871.0" y="305" width="6" height="2" rx="1" fill="#62bbff" opacity="0.22"><title>2026-10-15: 0</title></rect>
+<rect x="879.4" y="305" width="6" height="2" rx="1" fill="#62bbff" opacity="0.22"><title>2026-10-16: 0</title></rect>
+<rect x="887.8" y="305" width="6" height="2" rx="1" fill="#62bbff" opacity="0.22"><title>2026-10-17: 0</title></rect>
+<rect x="896.2" y="305" width="6" height="2" rx="1" fill="#62bbff" opacity="0.22"><title>2026-10-18: 0</title></rect>
+<rect x="904.6" y="305" width="6" height="2" rx="1" fill="#62bbff" opacity="0.22"><title>2026-10-19: 0</title></rect>
+<text x="661" y="329" fill="#a9b7ce" font-size="12">No events / Chưa có hoạt động</text>
+<text x="28" y="371" fill="#a9b7ce" font-size="12">20 Sep - 19 Oct 2026 · UTC+07 · main@e9adcd1</text>
+<text x="28" y="389" fill="#a9b7ce" font-size="12">Updated / Cập nhật 19 Oct 2026, 08:59 · Snapshot, not live / Không phải dữ liệu trực tiếp</text>
+</g></svg>
