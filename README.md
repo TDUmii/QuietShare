@@ -36,17 +36,19 @@ A Windows presentation companion for scripts, documents and optional web browsin
 
   **Dễ đọc hơn:** 10 theme sáng/tối/tương phản cao, xuống dòng, cỡ và độ đậm chữ, chế độ tập trung và bố cục tùy chỉnh. Đổi theme trong **Cài đặt > Giao diện** hoặc thanh công cụ xem tệp.
 
-- **Browse when needed:** optional WebView2 browser with up to 8 tabs and locally saved shortcuts. File readers work offline; browsing starts disabled each launch.
+- **Browse when needed:** optional WebView2 browser with up to 8 tabs and locally saved shortcuts. File readers work offline. Browsing starts disabled each launch.
 
-  **Duyệt web khi cần:** trình duyệt WebView2 tùy chọn, tối đa 8 tab và lối tắt lưu trên máy. Trình đọc file dùng offline; trình duyệt luôn tắt khi mới mở ứng dụng.
+  **Duyệt web khi cần:** trình duyệt WebView2 tùy chọn, tối đa 8 tab và lối tắt lưu trên máy. Trình đọc file dùng offline. Trình duyệt luôn tắt khi mới mở ứng dụng.
 
 ## 📊 Project Status / Tình trạng dự án
 
 ![QuietShare Project Status: 38 main commits, 0 PRs and 0 issues opened in 30 days / Thống kê 30 ngày](docs/project-status.svg)
 
-30 days: **38 commits · 0 PRs · 0 issues opened**. Updated **19 Oct 2026**; this is a snapshot, not a live dashboard.
+30 days: **38 commits · 0 PRs · 0 issues opened**. Updated **19 Oct 2026**.
 
-30 ngày: **38 commit · 0 PR · 0 issue được mở**. Cập nhật **19/10/2026**; đây là bản thống kê tại một thời điểm, không phải dữ liệu trực tiếp.
+30 ngày: **38 commit · 0 PR · 0 issue được mở**. Cập nhật **19/10/2026**.
+
+This is a recorded snapshot. / Đây là thống kê tại thời điểm ghi nhận.
 
 ## 🛡️ Requirements and protection / Yêu cầu và bảo vệ
 
@@ -54,14 +56,19 @@ A Windows presentation companion for scripts, documents and optional web browsin
 
 **Windows 10 phiên bản 2004 (build 19041) trở lên hoặc Windows 11, x64.** Smart Mirror cần hai màn hình Extend khác nhau trên cùng GPU, DWM và Windows Graphics Capture hoạt động. Duyệt web cần thêm [Microsoft Edge WebView2 Runtime](https://developer.microsoft.com/en-us/microsoft-edge/webview2/).
 
-**Windows accepting capture exclusion does not verify what the audience sees.** Duplicate mode locks private content. Failed protection checks stop projection; output does not resume automatically. External cameras are outside this protection. See [privacy and projection](docs/PRIVACY.md).
+**Windows accepting capture exclusion does not verify what the audience sees.**
 
-**Windows nhận loại trừ capture không có nghĩa hình ảnh phía người xem đã được xác minh.** Duplicate khóa nội dung riêng. Kiểm tra bảo vệ thất bại sẽ dừng chiếu; ứng dụng không tự chiếu lại. Cơ chế này không ngăn máy ảnh bên ngoài. Xem [quyền riêng tư và trình chiếu](docs/PRIVACY.md).
+**Windows nhận loại trừ capture không có nghĩa hình ảnh phía người xem đã được xác minh.**
+
+- Duplicate mode locks private content. / Duplicate khóa nội dung riêng.
+- Failed protection checks stop projection. Start it again explicitly after recovery. / Kiểm tra bảo vệ thất bại sẽ dừng chiếu. Cần chủ động bắt đầu lại sau khi khôi phục.
+- External cameras are outside this protection. / Cơ chế này không ngăn máy ảnh bên ngoài.
 
 ## 📚 Learn more / Tài liệu
 
 | English | Tiếng Việt |
 |---|---|
+| [Complete manual](docs/USER_MANUAL_EN.md) · [PDF](docs/QuietShare-User-Manual-EN.pdf) | [Hướng dẫn đầy đủ](docs/USER_MANUAL_VI.md) · [PDF](docs/QuietShare-Huong-Dan-Su-Dung-VI.pdf) |
 | [User guide](docs/USER_GUIDE.md) | [Hướng dẫn sử dụng](docs/USER_GUIDE.md) |
 | [Privacy and projection](docs/PRIVACY.md) | [Quyền riêng tư và trình chiếu](docs/PRIVACY.md) |
 | [Sharing book](docs/BOOK.md) | [Book: chia sẻ, mã lỗi](docs/BOOK.md) |
@@ -69,6 +76,6 @@ A Windows presentation companion for scripts, documents and optional web browsin
 | [Build from source](docs/BUILDING.md) | [Biên dịch từ mã nguồn](docs/BUILDING.md) |
 | [Dependencies and licenses](docs/DEPENDENCIES.md) | [Thư viện và giấy phép](docs/DEPENDENCIES.md) |
 
-English first, Vietnamese below. Close QuietShare before upgrading; use the installer or complete portable ZIP.
+Close QuietShare before upgrading. Use the installer or complete portable ZIP.
 
-Mỗi hướng dẫn có tiếng Anh trước, tiếng Việt ngay bên dưới. Đóng QuietShare trước khi nâng cấp; dùng bộ cài hoặc toàn bộ gói ZIP portable.
+Đóng QuietShare trước khi nâng cấp. Dùng bộ cài hoặc toàn bộ gói ZIP portable.

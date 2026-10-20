@@ -15,9 +15,13 @@ The shared [WebView2 Evergreen Runtime](https://developer.microsoft.com/en-us/mi
 
 [WebView2 Evergreen Runtime](https://developer.microsoft.com/en-us/microsoft-edge/webview2/) dùng chung được cài riêng cho trình duyệt. Trình đọc file offline không cần thành phần này.
 
-See [THIRD-PARTY.md](../THIRD-PARTY.md) and the bundled dependency notices for the original license texts. Legal notices retain their original language and wording; this bilingual guide does not replace or modify them.
+- Read [THIRD-PARTY.md](../THIRD-PARTY.md) and the bundled dependency notices for the original license texts.
+- Legal notices retain their original language and wording.
+- This bilingual guide does not replace or modify those notices.
 
-Xem [THIRD-PARTY.md](../THIRD-PARTY.md) và các thông báo thư viện đi kèm để đọc giấy phép gốc. Thông báo pháp lý giữ nguyên ngôn ngữ và nội dung gốc; hướng dẫn song ngữ này không thay thế hay sửa đổi chúng.
+- Đọc [THIRD-PARTY.md](../THIRD-PARTY.md) và các thông báo thư viện đi kèm để xem giấy phép gốc.
+- Thông báo pháp lý giữ nguyên ngôn ngữ và nội dung gốc.
+- Hướng dẫn song ngữ này không thay thế hay sửa đổi những thông báo đó.
 
 The original [FreeType notice](../dependencies/licenses/PDFium-third-party/freetype.txt) accompanies the aggregate notice to preserve its original copyright text and encoding.
 

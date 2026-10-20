@@ -17,6 +17,7 @@ dist/*
 !dist/THIRD-PARTY.md
 !dist/docs/
 !dist/docs/*.md
+!dist/docs/*.pdf
 !dist/docs/quietshare-home.png
 !dist/docs/readme-banner.svg
 !dist/docs/project-status.svg

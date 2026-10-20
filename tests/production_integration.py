@@ -227,11 +227,11 @@ def main() -> int:
         check("productionWindowOwned", bool(window) and native.window_pid(window) == app.pid)
         check("productionControlsInitialized", bool(wait_for(lambda: USER32.GetDlgItem(window,110),8)))
         version_label=wait_for(lambda:USER32.GetDlgItem(window,192),8)
-        check("homeVersionLabelExistsBeforePrivacyGate",bool(version_label) and native.control_text(version_label)=="v0.14.4")
+        check("homeVersionLabelExistsBeforePrivacyGate",bool(version_label) and native.control_text(version_label)=="v0.14.5")
         check("actualProductionPrivacyPreflight", bool(wait_for(lambda: send(window, GATE, timeout=6000), 20)),
               "Real production WGC gate; no QA bypass")
         USER32.ShowWindow(window, 4)
-        check("homeVersionAvailableInNativeControl",native.control_text(version_label)=="v0.14.4" and query(39)==1404)
+        check("homeVersionAvailableInNativeControl",native.control_text(version_label)=="v0.14.5" and query(39)==1405)
         affinity = wintypes.DWORD()
         check("productionAffinityReadback", USER32.GetWindowDisplayAffinity(window, ctypes.byref(affinity)) and affinity.value == 0x11)
         all_children = children(window, app.pid)

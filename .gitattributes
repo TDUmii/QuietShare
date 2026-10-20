@@ -11,3 +11,4 @@ dist/THIRD-PARTY.md -text whitespace=cr-at-eol,-blank-at-eol,-blank-at-eof
 dependencies/licenses/** whitespace=-blank-at-eol,-blank-at-eof
 dist/dependencies/licenses/** whitespace=-blank-at-eol,-blank-at-eof
 dependencies/WebView2-LICENSE.txt whitespace=-blank-at-eol,-blank-at-eof
+*.pdf -text
