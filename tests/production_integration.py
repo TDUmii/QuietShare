@@ -227,11 +227,11 @@ def main() -> int:
         check("productionWindowOwned", bool(window) and native.window_pid(window) == app.pid)
         check("productionControlsInitialized", bool(wait_for(lambda: USER32.GetDlgItem(window,110),8)))
         version_label=wait_for(lambda:USER32.GetDlgItem(window,192),8)
-        check("homeVersionLabelExistsBeforePrivacyGate",bool(version_label) and native.control_text(version_label)=="v0.15.0")
+        check("homeVersionLabelExistsBeforePrivacyGate",bool(version_label) and native.control_text(version_label)=="v0.16.0")
         check("actualProductionPrivacyPreflight", bool(wait_for(lambda: send(window, GATE, timeout=6000), 20)),
               "Real production WGC gate; no QA bypass")
         USER32.ShowWindow(window, 4)
-        check("homeVersionAvailableInNativeControl",native.control_text(version_label)=="v0.15.0" and query(39)==1500)
+        check("homeVersionAvailableInNativeControl",native.control_text(version_label)=="v0.16.0" and query(39)==1600)
         affinity = wintypes.DWORD()
         check("productionAffinityReadback", USER32.GetWindowDisplayAffinity(window, ctypes.byref(affinity)) and affinity.value == 0x11)
         all_children = children(window, app.pid)
@@ -739,10 +739,10 @@ def main() -> int:
         custom_verify_binding=ord("K")|((2|4)<<8)
         check("shippingLocalShortcutEditApplies",query(47)==custom_verify_binding and query(43)==0 and query(44)==0)
         preference_record=notes.parent/"preferences.dat"
-        check("shippingPreferencesRecordBounded",preference_record.exists() and preference_record.stat().st_size==128)
-        persisted_preferences=struct.unpack("<32I",preference_record.read_bytes())
-        check("shippingPreferencesPersistExplicitNumericValues",persisted_preferences[:5]==(0x50515351,4,10,67,600)
-              and persisted_preferences[9:11]==(ord("K"),2|4) and persisted_preferences[25:]==(20,1,0,0,1,1,0))
+        check("shippingPreferencesRecordBounded",preference_record.exists() and preference_record.stat().st_size==140)
+        persisted_preferences=struct.unpack("<35I",preference_record.read_bytes())
+        check("shippingPreferencesPersistExplicitNumericValues",persisted_preferences[:5]==(0x50515351,5,10,67,600)
+              and persisted_preferences[9:11]==(ord("K"),2|4) and persisted_preferences[25:]==(20,1,0,0,1,1,0,0,0,0))
         close(app)
         check("productionFirstExitClean", app.returncode == 0)
         app = launch()
@@ -763,10 +763,10 @@ def main() -> int:
         reset_affinity_ok=bool(USER32.GetWindowDisplayAffinity(window,ctypes.byref(reset_affinity)))
         reset_appearance=(query(41),query(42),query(47),query(40),query(44))
         reset_gate=send(window,GATE,timeout=6000)
-        reset_header=struct.unpack("<32I",preference_record.read_bytes())[:5]
+        reset_header=struct.unpack("<35I",preference_record.read_bytes())[:5]
         check("shippingAppearanceResetPreservesShortcutChoice",reset_appearance[:3]==(100,400,custom_verify_binding)
               and reset_gate==1 and reset_affinity_ok and reset_affinity.value==0x11
-              and reset_header==(0x50515351,4,10,100,400) and query(60)==16 and query(61)==1,
+              and reset_header==(0x50515351,5,10,100,400) and query(60)==16 and query(61)==1,
               {"opacityWeightShortcutCategoryError":reset_appearance,"gate":reset_gate,
                "affinityRead":reset_affinity_ok,"affinity":reset_affinity.value,
                "persistedHeader":reset_header})

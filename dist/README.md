@@ -36,13 +36,17 @@ A Windows presentation companion for scripts, documents and optional web browsin
 
   **Dễ đọc hơn:** 10 theme sáng/tối/tương phản cao, xuống dòng, cỡ và độ đậm chữ, chế độ tập trung và bố cục tùy chỉnh. Đổi theme trong **Cài đặt > Giao diện** hoặc thanh công cụ xem tệp.
 
-- **Browse when needed:** optional WebView2 browser with up to 8 tabs and local shortcuts. File readers work offline. Browsing starts disabled.
+- **Browse when needed:** optional WebView2 browser with up to 8 tabs. File readers work offline. Browsing starts disabled.
 
-  **Duyệt web khi cần:** trình duyệt WebView2 tùy chọn, tối đa 8 tab và lối tắt lưu trên máy. Trình đọc file dùng offline. Trình duyệt luôn tắt khi mới mở ứng dụng.
+  **Duyệt web khi cần:** trình duyệt WebView2 tùy chọn, tối đa 8 tab. Trình đọc file dùng offline. Trình duyệt luôn tắt khi mới mở ứng dụng.
 
-- **Record a meeting locally:** use the sidebar control to save the Windows playback mix as WAV while enabled. No microphone or auto-start.
+- **Record and transcribe:** save Windows playback to WAV, then run local Vietnamese or English Windows Speech API. No microphone or auto-start.
 
-  **Ghi âm cuộc họp cục bộ:** dùng nút ở thanh bên để lưu âm thanh Windows thành WAV khi bật. Không mở micro và không tự ghi.
+  **Ghi âm và chép lời:** lưu âm thanh Windows thành WAV, rồi chạy Speech API cục bộ bằng tiếng Việt hoặc tiếng Anh. Không micro, không tự ghi.
+
+- **Shorten tab labels:** choose numbered labels independently for Lời nhắc/file tabs and Browser tabs. Tooltips keep the full path or address.
+
+  **Rút gọn nhãn tab:** chọn riêng nhãn Tab 1, Tab 2 cho tab Lời nhắc/file và Browser. Tooltip vẫn giữ đường dẫn hoặc địa chỉ.
 
 ## 📊 Project Status / Tình trạng dự án
 
@@ -50,7 +54,7 @@ A Windows presentation companion for scripts, documents and optional web browsin
 
 30 days: **38 commits · 0 PRs · 0 issues**. Updated **19 Oct 2026**.
 
-30 ngày: **38 commit · 0 PR · 0 issue**. Cập nhật **19/10/2026**. Đây là ảnh chụp thống kê.
+30 ngày: **38 commit · 0 PR · 0 issue**. Cập nhật **19/10/2026**.
 
 ## 🛡️ Requirements and protection / Yêu cầu và bảo vệ
 

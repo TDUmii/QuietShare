@@ -15,12 +15,12 @@ Push-Location $projectRoot
 try {
     & $compiler '-std=c++17' '-O2' '-static' '-municode' '-DUNICODE' '-D_UNICODE' '-D_WIN32_WINNT=0x0A00' `
         'tests/projection_notice_regression.cpp' 'src/Browser.cpp' 'src/Privacy.cpp' 'src/Content.cpp' `
-        'src/Documents.cpp' 'src/DocumentBar.cpp' 'src/DocumentHost.cpp' 'src/Viewers.cpp' 'src/Mirror.cpp' 'src/MeetingRecorder.cpp' `
+        'src/Documents.cpp' 'src/DocumentBar.cpp' 'src/DocumentHost.cpp' 'src/Viewers.cpp' 'src/Mirror.cpp' 'src/MeetingRecorder.cpp' 'src/MeetingTranscriber.cpp' `
         '-Ivendor/webview2/build/native/include' '-Ivendor/viewers/scintilla/include' `
         '-Ivendor/viewers/lexilla/include' '-Ivendor/viewers/pdfium/include' `
         '-o' (Join-Path $output 'projection-notice-regression.exe') `
         '-lcomctl32' '-ldwmapi' '-lcrypt32' '-lshell32' '-luser32' '-lgdi32' '-luxtheme' '-lcomdlg32' `
-        '-lwindowscodecs' '-lole32' '-luuid' '-lmsimg32' '-lgdiplus' '-ld3d11' '-ldxgi' '-lruntimeobject'
+        '-lwindowscodecs' '-lole32' '-luuid' '-lmsimg32' '-lgdiplus' '-ld3d11' '-ldxgi' '-lruntimeobject' '-lsapi'
     if ($LASTEXITCODE) { throw 'Projection notice regression compilation failed.' }
     & (Join-Path $output 'projection-notice-regression.exe') | Out-File -LiteralPath (Join-Path $output 'projection-notice-regression.json') -Encoding ascii
     if ($LASTEXITCODE) { throw 'Projection notice regression failed.' }

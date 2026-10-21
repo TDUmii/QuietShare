@@ -155,7 +155,7 @@ def main():
             command(1000+theme_id)
             line=send(editor,0xCE);first_char=send(editor,0xBB,line);next_char=send(editor,0xBB,line+1)
             check(f'theme {theme_id} preserves long script and reading anchor',api.native.control_text(editor)==original_script and first_char<=anchor and (next_char<0 or anchor<next_char))
-            check(f'theme {theme_id} persists bounded preference',struct.unpack('<32I',(data/'preferences.dat').read_bytes())[31]==theme_id)
+            check(f'theme {theme_id} persists bounded preference',struct.unpack('<35I',(data/'preferences.dat').read_bytes())[31]==theme_id)
         command(1000)
         command(108)
         check('long script formatting preserves all text',api.native.control_text(editor)==original_script)

@@ -121,11 +121,13 @@ Lời nhắc tự lưu trên máy, tách biệt với file đã mở.
 - **Enable:** use **Settings > Browser** or the browser page. Browsing requires WebView2 Runtime and starts disabled at each app launch.
 - **Navigate:** the local New tab page accepts HTTP/HTTPS URLs, domains, localhost or search terms.
 - **Tabs:** up to 8 share the local sign-in profile, with independent history/zoom during the session.
+- **Tab labels:** Settings > Workspace can replace document or Browser titles with **Tab 1**, **Tab 2** and so on independently. Hovering still shows the full path or address.
 - **Shortcuts:** up to 10 saved shortcuts persist. Open tabs are not restored next launch.
 
 - **Bật:** dùng **Cài đặt > Trình duyệt** hoặc trang trình duyệt. Tính năng cần WebView2 Runtime và luôn tắt khi mới mở ứng dụng.
 - **Điều hướng:** trang Tab mới cục bộ nhận URL HTTP/HTTPS, tên miền, localhost hoặc từ khóa.
 - **Tab:** tối đa 8 tab dùng chung hồ sơ đăng nhập cục bộ, có lịch sử/zoom riêng trong phiên.
+- **Nhãn tab:** trong Cài đặt > Bố cục có thể đổi riêng tên tab tài liệu hoặc Browser thành **Tab 1**, **Tab 2** và tiếp tục như vậy. Di chuột vẫn hiện đường dẫn hoặc địa chỉ đầy đủ.
 - **Lối tắt:** tối đa 10 lối tắt được lưu. Danh sách tab mở không khôi phục ở lần chạy sau.
 
 - **Ctrl+T** opens a tab. **Ctrl+W** closes it. Closing the last web tab disables browsing.
@@ -145,13 +147,17 @@ Lời nhắc tự lưu trên máy, tách biệt với file đã mở.
 
 ## Local meeting recording / Ghi âm cuộc họp cục bộ
 
-- **English:** Select **Record meeting audio** on the sidebar when you want to capture the Windows playback mix. The red record icon and footer show the active state. Select it again to stop. QuietShare saves a WAV file under `%LOCALAPPDATA%\QuietShare\Meetings`.
-- The recorder captures system playback only. It does not open the microphone, does not begin at launch and does not continue after QuietShare closes.
-- Use the script editor beside the recording control for manual notes. This release stores audio and notes separately. It does not claim automatic speech-to-text.
+- **English:** Select **Record and transcribe meeting** on the sidebar. QuietShare captures the Windows playback mix only. It does not open the microphone, start automatically or continue after the app closes.
+- Select the same control to stop. The WAV is saved under `%LOCALAPPDATA%\QuietShare\Meetings`.
+- After stopping, QuietShare runs Windows Speech API locally over that WAV. Choose **Settings > Reading > Transcription language** before recording.
+- Choose **Vietnamese** or **English**. The matching Windows speech recognition component must be installed. If it is missing, the footer reports that exact language requirement instead of creating a fake transcript.
+- A UTF-8 `.txt` file is written beside the WAV. The recognized text is also appended to the local Lời nhắc. QuietShare never sends the audio to a remote service.
 
-- **Tiếng Việt:** Chọn **Ghi âm cuộc họp** ở thanh bên khi muốn lưu âm thanh phát ra từ Windows. Icon ghi màu đỏ và thanh trạng thái cho biết đang ghi. Chọn lại nút đó để dừng. QuietShare lưu file WAV tại `%LOCALAPPDATA%\QuietShare\Meetings`.
-- Bộ ghi chỉ lấy âm thanh phát ra từ máy. Nó không mở micro, không tự ghi khi khởi động và dừng khi QuietShare đóng.
-- Có thể dùng vùng soạn lời nhắc cạnh nút ghi để ghi chú thủ công. Phiên bản này lưu âm thanh và lời nhắc riêng, chưa tự nhận dạng lời nói.
+- **Tiếng Việt:** Chọn **Ghi âm và chép lời cuộc họp** ở thanh bên. QuietShare chỉ lấy âm thanh phát ra từ Windows. Ứng dụng không mở micro, không tự bắt đầu và không tiếp tục sau khi đóng.
+- Chọn lại nút đó để dừng. File WAV được lưu tại `%LOCALAPPDATA%\QuietShare\Meetings`.
+- Sau khi dừng, QuietShare chạy Windows Speech API cục bộ trên file WAV. Chọn **Cài đặt > Nội dung > Ngôn ngữ chép lời** trước khi ghi.
+- Chọn **Tiếng Việt** hoặc **Tiếng Anh**. Máy phải cài thành phần nhận dạng giọng nói tương ứng. Nếu thiếu, thanh trạng thái báo đúng ngôn ngữ cần cài và không tạo transcript giả.
+- File `.txt` UTF-8 được lưu cạnh WAV. Phần chữ nhận dạng cũng được nối vào Lời nhắc cục bộ. QuietShare không gửi âm thanh tới dịch vụ từ xa.
 
 - Người dùng có thể chủ động **Ctrl+V** ảnh raster vào ô nhập web tương thích.
 - Hộp chọn file web, thả file, tải xuống, chia sẻ màn hình, thông báo, DevTools và menu native bị chặn.

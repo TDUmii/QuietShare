@@ -72,6 +72,20 @@ Tra mã lỗi trình chiếu và quy trình riêng cho HDMI, TV không dây, cu�
 - Ctrl+V ảnh chủ động còn tùy ô nhập của website.
 - Camera/micro cần bật cài đặt, tab HTTPS đang hiện đã xác minh, cùng origin và quyền Windows.
 
+## Meeting recording or transcription issues / Sự cố ghi âm hoặc chép lời cuộc họp
+
+- Select the language before recording in **Settings > Reading > Transcription language**.
+- The recording control captures Windows playback only. Confirm the meeting audio is audible on the intended playback device.
+- After stopping, wait for the footer to finish transcription. The WAV and UTF-8 TXT stay under `%LOCALAPPDATA%\QuietShare\Meetings`.
+- If the footer shows `QS-R004`, install the matching English or Vietnamese Windows speech recognition component.
+- Use the exact `QS-R001` through `QS-R007` code in the [sharing handbook](BOOK.md) when reporting a failure.
+
+- Chọn ngôn ngữ trước khi ghi tại **Cài đặt > Nội dung > Ngôn ngữ chép lời**.
+- Nút ghi chỉ lấy âm thanh phát ra từ Windows. Xác nhận âm thanh cuộc họp đang phát đúng thiết bị cần dùng.
+- Sau khi dừng, đợi thanh trạng thái chép lời xong. WAV và TXT UTF-8 nằm tại `%LOCALAPPDATA%\QuietShare\Meetings`.
+- Nếu thanh trạng thái hiện `QS-R004`, cài thành phần nhận dạng giọng nói Windows tương ứng với tiếng Anh hoặc tiếng Việt.
+- Khi báo lỗi, ghi đúng mã `QS-R001` đến `QS-R007` trong [cuốn book](BOOK.md).
+
 ## A file will not open or save / Không mở hoặc lưu được file
 
 - Check the local file's size/format against the [user guide](USER_GUIDE.md).

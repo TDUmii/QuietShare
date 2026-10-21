@@ -387,6 +387,7 @@ def main():
             check("scriptWeightCycles:" + str(weight), query(42) == weight and bool(native.control_text(control(206))))
         category(1)
         check("readingHidesAppearanceControls", not region_visible(control(205)) and not region_visible(control(206)))
+        check("transcriptionLanguageControlAvailable", bool(control(256)) and native.control_text(control(256)) in ("Tiếng Việt", "Tiếng Anh", "Vietnamese", "English"))
         edit_alignment(163, "contentSize", caret=True)
         real_focus(108)
         reading_window, reading_client = wintypes.RECT(), wintypes.RECT()
@@ -655,6 +656,13 @@ def main():
             check("invalidFontRestoresLastValid:" + label, native.control_text(control(163)) == "200"
                   and query(4) == 200 * 100 // 24 and query(22) == 1)
         category(2)
+        for identifier, label in ((257, "numberedScriptTabs"), (258, "numberedBrowserTabs")):
+            before = native.control_text(control(identifier))
+            command(identifier)
+            after = native.control_text(control(identifier))
+            check(label + "ToggleUpdatesState", before != after and ("Bật" in after or "On" in after))
+            command(identifier)
+            check(label + "ToggleRestoresState", native.control_text(control(identifier)) == before)
         command(184)
         check("statusBarHiddenIndependently", not query(16) & 8)
         category(1)

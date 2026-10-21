@@ -20,7 +20,8 @@ bool Equal(const Preferences& a,const Preferences& b)
 {
     return a.themeId==b.themeId&&a.shortcuts==b.shortcuts&&a.opacityPercent==b.opacityPercent&&a.textWeight==b.textWeight&&
         a.iconSize==b.iconSize&&a.browserMuted==b.browserMuted&&a.browserAllowCamera==b.browserAllowCamera&&
-        a.browserAllowMicrophone==b.browserAllowMicrophone&&a.rememberWindowSize==b.rememberWindowSize&&a.allowFileEditing==b.allowFileEditing;
+        a.browserAllowMicrophone==b.browserAllowMicrophone&&a.rememberWindowSize==b.rememberWindowSize&&a.allowFileEditing==b.allowFileEditing&&
+        a.transcriptionLanguage==b.transcriptionLanguage&&a.numberedDocumentTabs==b.numberedDocumentTabs&&a.numberedBrowserTabs==b.numberedBrowserTabs;
 }
 bool Put(const std::wstring& path,const void* bytes,DWORD length)
 {
@@ -49,11 +50,13 @@ int wmain()
         defaults.Key(PreferenceCommand::AutoScroll)==KeyBinding{VK_SPACE,0});
     check("defaultsValidate",ValidatePreferences(defaults,error)&&error.empty());
     check("newPreferencesDefaultToStandardIconsAndPrivateBrowser",defaults.iconSize==16&&!defaults.browserMuted&&
-        !defaults.browserAllowCamera&&!defaults.browserAllowMicrophone);
+        !defaults.browserAllowCamera&&!defaults.browserAllowMicrophone&&defaults.transcriptionLanguage==0&&
+        !defaults.numberedDocumentTabs&&!defaults.numberedBrowserTabs);
     auto edited=defaults;edited.opacityPercent=40;edited.textWeight=600;edited.iconSize=24;
     check("workspaceDefaultsEnabled",defaults.rememberWindowSize&&defaults.allowFileEditing);
     edited.rememberWindowSize=false;edited.allowFileEditing=false;
     edited.browserMuted=true;edited.browserAllowCamera=true;edited.browserAllowMicrophone=true;
+    edited.transcriptionLanguage=1;edited.numberedDocumentTabs=true;edited.numberedBrowserTabs=true;
     edited.Key(PreferenceCommand::VerifyWgc)={L'P',MOD_CONTROL|MOD_SHIFT};
     check("customSettingsValidate",ValidatePreferences(edited,error));
     check("bindingMatchesExactModifiers",MatchShortcut(edited.Key(PreferenceCommand::VerifyWgc),L'P',MOD_CONTROL|MOD_SHIFT)&&
@@ -98,7 +101,7 @@ int wmain()
     check("missingFileLeavesCallerUnchanged",!LoadPreferences(directory,loaded)&&Equal(loaded,defaults));
     check("preferencesSavedAtomically",SavePreferences(directory,edited)&&GetFileAttributesW((path+L".tmp").c_str())==INVALID_FILE_ATTRIBUTES);
     WIN32_FILE_ATTRIBUTE_DATA info{};
-    check("recordIsBoundedAndFixed",GetFileAttributesExW(path.c_str(),GetFileExInfoStandard,&info)&&info.nFileSizeLow==128&&info.nFileSizeHigh==0);
+    check("recordIsBoundedAndFixed",GetFileAttributesExW(path.c_str(),GetFileExInfoStandard,&info)&&info.nFileSizeLow==140&&info.nFileSizeHigh==0);
     check("settingsRoundTrip",LoadPreferences(directory,loaded)&&Equal(loaded,edited));
     bool independentBrowserOptions=true;
     for(unsigned options=0;options<8;++options) {
@@ -117,12 +120,26 @@ int wmain()
     std::array<DWORD,31> v3{{0x50515351,3,PreferenceCommandCount,100,400}};
     for(unsigned i=0;i<PreferenceCommandCount;++i){v3[5+i*2]=defaults.shortcuts[i].key;v3[6+i*2]=defaults.shortcuts[i].modifiers;}
     v3[25]=16;v3[29]=1;v3[30]=1;
-    check("version3MigratesDefaultTheme",Put(path,v3.data(),sizeof(v3))&&LoadPreferences(directory,loaded)&&loaded.themeId==0);
+    check("version3MigratesDefaultThemeAndNewDefaults",Put(path,v3.data(),sizeof(v3))&&LoadPreferences(directory,loaded)&&loaded.themeId==0&&
+        loaded.transcriptionLanguage==0&&!loaded.numberedDocumentTabs&&!loaded.numberedBrowserTabs);
     check("customPreferencesRestored",SavePreferences(directory,edited));
+    std::array<DWORD,35> currentRecord{{0x50515351,5,PreferenceCommandCount,100,400}};
+    for(unsigned i=0;i<PreferenceCommandCount;++i){currentRecord[5+i*2]=defaults.shortcuts[i].key;currentRecord[6+i*2]=defaults.shortcuts[i].modifiers;}
+    currentRecord[25]=16;currentRecord[26]=1;currentRecord[27]=1;currentRecord[28]=1;currentRecord[29]=1;currentRecord[30]=1;
+    currentRecord[31]=0;currentRecord[32]=0;currentRecord[33]=1;currentRecord[34]=1;
+    auto corruptCurrent=[&](const char* name,unsigned index,DWORD value){currentRecord[index]=value;loaded=edited;
+        check(name,Put(path,currentRecord.data(),sizeof(currentRecord))&&!LoadPreferences(directory,loaded)&&Equal(loaded,edited));
+        currentRecord[index]=(index==32?0:(index==33||index==34?1:currentRecord[index]));};
+    corruptCurrent("storedInvalidTranscriptionLanguageRejected",32,2);
+    corruptCurrent("storedInvalidDocumentTabLabelRejected",33,2);
+    corruptCurrent("storedInvalidBrowserTabLabelRejected",34,2);
+    check("customPreferencesRestoredAfterCurrentRecordChecks",SavePreferences(directory,edited));
     invalid=edited;invalid.opacityPercent=0;
     check("invalidSaveKeepsExistingPreferences",!SavePreferences(directory,invalid)&&LoadPreferences(directory,loaded)&&Equal(loaded,edited));
     invalid=edited;invalid.iconSize=25;
     check("invalidIconSaveKeepsExistingPreferences",!SavePreferences(directory,invalid)&&LoadPreferences(directory,loaded)&&Equal(loaded,edited));
+    invalid=edited;invalid.transcriptionLanguage=2;
+    check("invalidTranscriptionLanguageSaveKeepsExistingPreferences",!SavePreferences(directory,invalid)&&LoadPreferences(directory,loaded)&&Equal(loaded,edited));
     HANDLE lock=CreateFileW(path.c_str(),GENERIC_READ,FILE_SHARE_READ,nullptr,OPEN_EXISTING,FILE_ATTRIBUTE_NORMAL,nullptr);
     check("replaceFailureReportedWithoutTemporaryFile",lock!=INVALID_HANDLE_VALUE&&!SavePreferences(directory,defaults)&&
           GetFileAttributesW((path+L".tmp").c_str())==INVALID_FILE_ATTRIBUTES);
@@ -132,6 +149,12 @@ int wmain()
     for(unsigned i=0;i<PreferenceCommandCount;++i){record[5+i*2]=defaults.shortcuts[i].key;record[6+i*2]=defaults.shortcuts[i].modifiers;}
     record[25]=16;
     check("version2MigratesWorkspaceDefaults",Put(path,record.data(),sizeof(record))&&LoadPreferences(directory,loaded)&&loaded.rememberWindowSize&&loaded.allowFileEditing);
+    std::array<DWORD,32> v4{{0x50515351,4,PreferenceCommandCount,100,400}};
+    for(unsigned i=0;i<PreferenceCommandCount;++i){v4[5+i*2]=defaults.shortcuts[i].key;v4[6+i*2]=defaults.shortcuts[i].modifiers;}
+    v4[25]=16;v4[29]=1;v4[30]=1;v4[31]=static_cast<DWORD>(Themes.size()-1);
+    check("version4MigratesTranscriptionAndTabLabelDefaults",Put(path,v4.data(),sizeof(v4))&&LoadPreferences(directory,loaded)&&
+        loaded.themeId==static_cast<int>(Themes.size()-1)&&loaded.transcriptionLanguage==0&&
+        !loaded.numberedDocumentTabs&&!loaded.numberedBrowserTabs);
     const auto validRecord=record;
     auto corrupt=[&](const char* name,unsigned index,DWORD value){record=validRecord;record[index]=value;loaded=edited;
         check(name,Put(path,record.data(),sizeof(record))&&!LoadPreferences(directory,loaded)&&Equal(loaded,edited));};
@@ -156,11 +179,12 @@ int wmain()
         static_cast<DWORD>(edited.opacityPercent),static_cast<DWORD>(edited.textWeight)}};
     for(unsigned i=0;i<PreferenceCommandCount;++i){legacyRecord[5+i*2]=edited.shortcuts[i].key;legacyRecord[6+i*2]=edited.shortcuts[i].modifiers;}
     auto migrated=edited;migrated.rememberWindowSize=true;migrated.allowFileEditing=true;migrated.iconSize=16;migrated.browserMuted=false;migrated.browserAllowCamera=false;migrated.browserAllowMicrophone=false;
+    migrated.transcriptionLanguage=0;migrated.numberedDocumentTabs=false;migrated.numberedBrowserTabs=false;
     loaded=edited;
     check("legacySettingsPreserveAppearanceAndShortcutsWithNewDefaults",Put(path,legacyRecord.data(),sizeof(legacyRecord))&&
         LoadPreferences(directory,loaded)&&Equal(loaded,migrated));
     check("legacySettingsUpgradeToCurrentRecordOnSave",SavePreferences(directory,loaded)&&
-        GetFileAttributesExW(path.c_str(),GetFileExInfoStandard,&info)&&info.nFileSizeLow==128&&info.nFileSizeHigh==0&&
+        GetFileAttributesExW(path.c_str(),GetFileExInfoStandard,&info)&&info.nFileSizeLow==140&&info.nFileSizeHigh==0&&
         LoadPreferences(directory,loaded)&&Equal(loaded,migrated));
     legacyRecord[1]=2;loaded=edited;
     check("currentVersionWithLegacyRecordSizeRejected",Put(path,legacyRecord.data(),sizeof(legacyRecord))&&

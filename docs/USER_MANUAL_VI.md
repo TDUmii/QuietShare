@@ -1,6 +1,6 @@
 # Hướng dẫn sử dụng QuietShare
 
-Ấn bản tiếng Việt - QuietShare v0.15.0
+Ấn bản tiếng Việt - QuietShare v0.16.0
 
 Đọc, chuẩn bị và thuyết trình với lời nhắc riêng trên Windows.
 
@@ -203,6 +203,18 @@ Lời nhắc tự lưu trên máy. Vùng soạn lời nhắc nhận tối đa 50
 
 Văn bản và code nhập từ file dùng thao tác Lưu chủ động. Chuyển tài liệu không thay lời nhắc đã lưu bằng file vừa mở.
 
+### Ghi âm và chép lời cuộc họp
+
+1. Mở **Cài đặt > Nội dung > Ngôn ngữ chép lời**.
+2. Chọn **Tiếng Việt** hoặc **Tiếng Anh**. Máy phải cài thành phần nhận dạng giọng nói tương ứng.
+3. Chọn **Ghi âm và chép lời cuộc họp** ở thanh bên.
+4. QuietShare chỉ ghi âm âm thanh phát ra từ Windows. Ứng dụng không mở micro và không tự bắt đầu.
+5. Chọn lại nút đó để dừng. File WAV được lưu tại `%LOCALAPPDATA%\QuietShare\Meetings`.
+6. Đợi thanh trạng thái báo kết quả chép lời. Windows Speech API xử lý WAV cục bộ.
+7. Tìm file transcript `.txt` UTF-8 cạnh WAV. Phần chữ nhận dạng cũng được nối vào Lời nhắc cục bộ.
+
+Nếu thiếu thành phần của ngôn ngữ đã chọn, thanh trạng thái báo đúng ngôn ngữ còn thiếu. Ứng dụng không tự bịa transcript và không tải âm thanh lên mạng.
+
 ### Cuộn khi trình bày
 
 1. Chuyển lời nhắc sang chế độ đọc.
@@ -302,6 +314,7 @@ Cài đặt chia thành **Giao diện**, **Nội dung**, **Bố cục**, **Trìn
 - Ghim cửa sổ điều khiển trên cùng khi cần nhìn lời nhắc liên tục.
 - Chỉnh độ mờ 40-100%. Thao tác tác động cả chữ của cửa sổ điều khiển. Hình chiếu công khai vẫn đục.
 - Chỉnh icon 12-24 px.
+- Trong **Bố cục**, chọn riêng nhãn dạng số cho tab tài liệu và tab Browser khi tiêu đề chiếm nhiều chỗ. Tooltip của tab vẫn hiện đường dẫn hoặc địa chỉ đầy đủ.
 - Dùng Bố cục để ẩn hoặc hiện thanh hoạt động, tab, công cụ, trạng thái và Explorer.
 - Kéo đường chia Explorer để đổi chiều rộng.
 - Dùng F11 để vào hoặc thoát chế độ tập trung.
@@ -528,14 +541,28 @@ Dùng điều khiển của ứng dụng thực sự chia sẻ hoặc ghi hình.
 
 QuietShare có thể ghi âm luồng phát mặc định của Windows khi bạn chủ động bật nút ghi. Tính năng phù hợp khi âm thanh cuộc họp, video thuyết trình hoặc người tham dự từ xa đang phát qua chính máy này.
 
-1. Chọn **Ghi âm cuộc họp** trên thanh bên.
-2. Xác nhận icon ghi màu đỏ và thanh trạng thái cho biết đang ghi.
-3. Giữ âm thanh cuộc họp trên đúng thiết bị phát Windows cần dùng.
-4. Dùng vùng soạn lời nhắc để ghi chú thủ công trong lúc bản ghi đang chạy.
-5. Chọn **Dừng ghi âm** khi kết thúc hoặc đóng QuietShare để dừng và hoàn tất file.
-6. Tìm file WAV tại `%LOCALAPPDATA%\QuietShare\Meetings`.
+1. Mở **Cài đặt > Nội dung > Ngôn ngữ chép lời** và chọn **Tiếng Việt** hoặc **Tiếng Anh**.
+2. Chọn **Ghi âm và chép lời cuộc họp** trên thanh bên.
+3. Xác nhận icon ghi màu đỏ và thanh trạng thái cho biết đang ghi.
+4. Giữ âm thanh cuộc họp trên đúng thiết bị phát Windows cần dùng.
+5. Dùng vùng soạn lời nhắc để ghi chú thủ công trong lúc bản ghi đang chạy.
+6. Chọn **Dừng ghi âm** khi kết thúc hoặc đóng QuietShare để dừng và hoàn tất file.
+7. Tìm file WAV tại `%LOCALAPPDATA%\QuietShare\Meetings`.
+8. Đợi Windows Speech API hoàn tất. Transcript UTF-8 được lưu cạnh WAV và nối vào Lời nhắc cục bộ.
 
-Bộ ghi chỉ lấy âm thanh phát ra từ máy. Nó không mở micro, không tự ghi khi khởi động và không đưa âm thanh vào đường trình chiếu của QuietShare. Nếu thiết bị phát thay đổi, bản ghi có thể dừng và để lại file WAV một phần nhưng đã hoàn tất. Phiên bản hiện tại lưu âm thanh và ghi chú thủ công riêng, chưa tự nhận dạng lời nói.
+Bộ ghi chỉ lấy âm thanh phát ra từ máy. Nó không mở micro, không tự ghi khi khởi động và không đưa âm thanh vào đường trình chiếu của QuietShare. Nếu thiết bị phát thay đổi, bản ghi có thể dừng và để lại file WAV một phần nhưng đã hoàn tất. Nhận dạng giọng nói chạy cục bộ. Nếu thiếu thành phần ngôn ngữ Windows đã chọn, thanh trạng thái báo ngôn ngữ còn thiếu và không tạo transcript giả.
+
+### Mã trạng thái chép lời cuộc họp
+
+| Mã | Ý nghĩa | Cách xử lý |
+|---|---|---|
+| `QS-R001` | Không tìm thấy WAV | Ghi một phiên mới. |
+| `QS-R002` | Windows Speech API không khởi động được | Mở lại QuietShare và kiểm tra dịch vụ giọng nói Windows. |
+| `QS-R003` | Định dạng WAV không được hỗ trợ | Ghi lại từ thiết bị phát mặc định. |
+| `QS-R004` | Thiếu bộ nhận dạng ngôn ngữ đã chọn | Cài gói ngôn ngữ giọng nói Windows tương ứng. |
+| `QS-R005` | Windows không nhận dạng được âm thanh | Kiểm tra âm thanh đang phát và ngôn ngữ đã chọn. |
+| `QS-R006` | Đã dừng chép lời | Ghi phiên mới nếu vẫn cần. |
+| `QS-R007` | Không lưu được transcript | Kiểm tra quyền ghi và dung lượng cục bộ. |
 
 ### Zoom, Meet hoặc Teams với một màn
 
