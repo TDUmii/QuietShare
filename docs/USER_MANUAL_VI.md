@@ -1,6 +1,6 @@
 # Hướng dẫn sử dụng QuietShare
 
-Ấn bản tiếng Việt - QuietShare v0.16.0
+Ấn bản tiếng Việt - QuietShare v0.17.0
 
 Đọc, chuẩn bị và thuyết trình với lời nhắc riêng trên Windows.
 
@@ -207,11 +207,15 @@ Văn bản và code nhập từ file dùng thao tác Lưu chủ động. Chuyể
 
 1. Mở **Cài đặt > Nội dung > Ngôn ngữ chép lời**.
 2. Chọn **Tiếng Việt** hoặc **Tiếng Anh**. Máy phải cài thành phần nhận dạng giọng nói tương ứng.
-3. Chọn **Ghi âm và chép lời cuộc họp** ở thanh bên.
-4. QuietShare chỉ ghi âm âm thanh phát ra từ Windows. Ứng dụng không mở micro và không tự bắt đầu.
-5. Chọn lại nút đó để dừng. File WAV được lưu tại `%LOCALAPPDATA%\QuietShare\Meetings`.
-6. Đợi thanh trạng thái báo kết quả chép lời. Windows Speech API xử lý WAV cục bộ.
-7. Tìm file transcript `.txt` UTF-8 cạnh WAV. Phần chữ nhận dạng cũng được nối vào Lời nhắc cục bộ.
+3. Dùng **Tự chép lời sau khi ghi âm** để chọn có chạy bước chép lời cục bộ hay không.
+4. Chọn nhãn **Nền tảng cuộc họp** cho transcript nhập từ Teams, Zoom hoặc Google Meet.
+5. Chọn kiểu **WAV + nội dung** hoặc **Chỉ nội dung**. Chỉ nội dung dùng WAV tạm rồi xóa sau khi lưu transcript thành công.
+6. Chọn **Ghi âm và chép lời cuộc họp** ở thanh bên.
+7. QuietShare chỉ ghi âm âm thanh phát ra từ Windows. Ứng dụng không mở micro và không tự bắt đầu.
+8. Chọn lại nút đó để dừng. Thư mục đã chọn nhận WAV và file `.txt` UTF-8 nếu giữ bản ghi.
+9. Đợi thanh trạng thái báo kết quả. Windows Speech API xử lý WAV cục bộ rồi nối chữ vào Lời nhắc.
+
+Dùng **Nhập transcript Teams / Zoom / Meet** cho file `.vtt` hoặc `.txt` đã xuất. Dòng chỉ người nói như `<v Alice>` được đổi thành `Alice: ...`. Âm thanh Windows trộn không tự xác định người nói và QuietShare không tự kết nối API nhà cung cấp. Khi thiết kế tích hợp có cấp quyền riêng, xem [tổng quan transcript Teams](https://learn.microsoft.com/en-us/microsoftteams/platform/graph-api/meeting-transcripts/overview-transcripts), [API Google Meet](https://developers.google.com/workspace/meet/api/guides/overview) và [API cuộc họp Zoom](https://developers.zoom.us/docs/api/meetings/).
 
 Nếu thiếu thành phần của ngôn ngữ đã chọn, thanh trạng thái báo đúng ngôn ngữ còn thiếu. Ứng dụng không tự bịa transcript và không tải âm thanh lên mạng.
 
@@ -284,7 +288,7 @@ Trang quét không có lớp chữ sẽ không cung cấp tìm hoặc sao chép 
 
 Cách tìm tùy trình xem đang hoạt động. Tìm chữ trong PDF cần lớp văn bản.
 
-### Chọn một trong mười theme
+### Chọn mười theme có sẵn hoặc tự thiết kế màu
 
 Mở **Cài đặt > Giao diện > Chủ đề màu** hoặc dùng nút theme trên thanh công cụ xem.
 
@@ -298,6 +302,8 @@ Mở **Cài đặt > Giao diện > Chủ đề màu** hoặc dùng nút theme tr
 - Xanh ban ngày
 - Đen tương phản cao
 - Trắng tương phản cao
+
+Chọn **Tùy chỉnh** để sửa màu nền, bảng, chữ và màu nhấn. Các bề mặt và viền liên quan được tự tạo để giữ bảng màu đồng nhất. **Khôi phục màu theme mặc định** đưa màu tùy chỉnh về ban đầu.
 
 Thử theme sáng hoặc tương phản cao trong phòng nhiều ánh sáng. Thử Giấy ấm nếu muốn nền đọc dịu hơn. Lựa chọn được nhớ qua các lần mở ứng dụng. Theme đổi giao diện QuietShare và phần trình bày chữ. Nó không đổi màu nội dung website, điểm ảnh hoặc trang PDF.
 
@@ -315,6 +321,7 @@ Cài đặt chia thành **Giao diện**, **Nội dung**, **Bố cục**, **Trìn
 - Chỉnh độ mờ 40-100%. Thao tác tác động cả chữ của cửa sổ điều khiển. Hình chiếu công khai vẫn đục.
 - Chỉnh icon 12-24 px.
 - Trong **Bố cục**, chọn riêng nhãn dạng số cho tab tài liệu và tab Browser khi tiêu đề chiếm nhiều chỗ. Tooltip của tab vẫn hiện đường dẫn hoặc địa chỉ đầy đủ.
+- Hàng **Hiển thị tab dạng Tab 1, Tab 2, ...** cho phép bật riêng cho Lời nhắc/file và Trình duyệt. Các tab liền nhau dùng một dải thống nhất, còn tooltip vẫn hiện tên đầy đủ.
 - Dùng Bố cục để ẩn hoặc hiện thanh hoạt động, tab, công cụ, trạng thái và Explorer.
 - Kéo đường chia Explorer để đổi chiều rộng.
 - Dùng F11 để vào hoặc thoát chế độ tập trung.
@@ -542,13 +549,16 @@ Dùng điều khiển của ứng dụng thực sự chia sẻ hoặc ghi hình.
 QuietShare có thể ghi âm luồng phát mặc định của Windows khi bạn chủ động bật nút ghi. Tính năng phù hợp khi âm thanh cuộc họp, video thuyết trình hoặc người tham dự từ xa đang phát qua chính máy này.
 
 1. Mở **Cài đặt > Nội dung > Ngôn ngữ chép lời** và chọn **Tiếng Việt** hoặc **Tiếng Anh**.
-2. Chọn **Ghi âm và chép lời cuộc họp** trên thanh bên.
-3. Xác nhận icon ghi màu đỏ và thanh trạng thái cho biết đang ghi.
-4. Giữ âm thanh cuộc họp trên đúng thiết bị phát Windows cần dùng.
-5. Dùng vùng soạn lời nhắc để ghi chú thủ công trong lúc bản ghi đang chạy.
-6. Chọn **Dừng ghi âm** khi kết thúc hoặc đóng QuietShare để dừng và hoàn tất file.
-7. Tìm file WAV tại `%LOCALAPPDATA%\QuietShare\Meetings`.
-8. Đợi Windows Speech API hoàn tất. Transcript UTF-8 được lưu cạnh WAV và nối vào Lời nhắc cục bộ.
+2. Bật hoặc tắt **Tự chép lời sau khi ghi âm**, chọn thư mục xuất và chọn **WAV + nội dung** hoặc **Chỉ nội dung**.
+3. Chọn **Ghi âm và chép lời cuộc họp** trên thanh bên.
+4. Xác nhận icon ghi màu đỏ và thanh trạng thái cho biết đang ghi.
+5. Giữ âm thanh cuộc họp trên đúng thiết bị phát Windows cần dùng.
+6. Dùng vùng soạn lời nhắc để ghi chú thủ công trong lúc bản ghi đang chạy.
+7. Chọn **Dừng ghi âm** khi kết thúc hoặc đóng QuietShare để dừng và hoàn tất file.
+8. Tìm file trong thư mục đã chọn. Chỉ nội dung xóa WAV tạm sau khi lưu transcript thành công.
+9. Đợi Windows Speech API hoàn tất. Transcript UTF-8 được nối vào Lời nhắc.
+
+Để giữ tên người nói, dùng **Nhập transcript Teams / Zoom / Meet** rồi chọn file VTT/TXT do nhà cung cấp xuất. Chỉ thu âm thanh máy không thể tự cung cấp tên người nói đáng tin cậy.
 
 Bộ ghi chỉ lấy âm thanh phát ra từ máy. Nó không mở micro, không tự ghi khi khởi động và không đưa âm thanh vào đường trình chiếu của QuietShare. Nếu thiết bị phát thay đổi, bản ghi có thể dừng và để lại file WAV một phần nhưng đã hoàn tất. Nhận dạng giọng nói chạy cục bộ. Nếu thiếu thành phần ngôn ngữ Windows đã chọn, thanh trạng thái báo ngôn ngữ còn thiếu và không tạo transcript giả.
 

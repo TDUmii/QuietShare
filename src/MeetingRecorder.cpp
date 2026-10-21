@@ -3,6 +3,7 @@
 #include <audioclient.h>
 #include <mmdeviceapi.h>
 #include <mmreg.h>
+#include <shlobj.h>
 #include <algorithm>
 #include <cstdio>
 #include <vector>
@@ -79,8 +80,8 @@ bool WriteSilence(HANDLE file, unsigned long long bytes)
 
 std::wstring MakeOutputPath(const std::wstring& dataDirectory)
 {
-    const std::wstring folder = dataDirectory + L"\\Meetings";
-    CreateDirectoryW(folder.c_str(), nullptr);
+    const std::wstring folder = dataDirectory;
+    SHCreateDirectoryExW(nullptr, folder.c_str(), nullptr);
     SYSTEMTIME now{};
     GetLocalTime(&now);
     for (unsigned index = 0; index < 100; ++index) {
@@ -105,14 +106,15 @@ MeetingRecorder::~MeetingRecorder()
     Stop();
 }
 
-bool MeetingRecorder::Start(const std::wstring& dataDirectory)
+bool MeetingRecorder::Start(const std::wstring& dataDirectory, const std::wstring& outputDirectory)
 {
     Stop();
-    if (dataDirectory.empty()) {
+    const std::wstring folder = outputDirectory.empty() ? dataDirectory + L"\\Meetings" : outputDirectory;
+    if (folder.empty()) {
         errorCode.store(1);
         return false;
     }
-    const auto path = MakeOutputPath(dataDirectory);
+    const auto path = MakeOutputPath(folder);
     if (path.empty()) {
         errorCode.store(1);
         return false;

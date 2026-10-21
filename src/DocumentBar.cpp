@@ -65,8 +65,10 @@ void DocumentBar::Reflow(bool ensureActive) {
     for(const auto &tab:tabs_) {
         SIZE size{}; GetTextExtentPoint32W(dc,tab.name.c_str(),(int)tab.name.size(),&size);
         int width=std::clamp((int)size.cx+MulDiv(tab.script?40:60,dpi_,96)+iconPadding,MulDiv(88,dpi_,96),MulDiv(168,dpi_,96));
-        rects_.push_back({total_,MulDiv(2,dpi_,96),total_+width,client.bottom-MulDiv(2,dpi_,96)});
-        total_+=width+MulDiv(2,dpi_,96);
+        // Tabs share one continuous strip. The old two-pixel gaps made each
+        // mini-tab look like a detached card at small window sizes.
+        rects_.push_back({total_,MulDiv(1,dpi_,96),total_+width,client.bottom-MulDiv(1,dpi_,96)});
+        total_+=width;
     }
     SelectObject(dc,old); ReleaseDC(window_,dc);
     int arrows=total_>client.right?MulDiv(22,dpi_,96):0;
@@ -120,6 +122,7 @@ void DocumentBar::Paint(HDC dc) {
         if(r.right<=arrows || r.left>=client.right-arrows) continue;
         bool active=tabs_[i].id==active_;
         Fill(dc,r,active || (int)i==hovered_?Raised:Panel);
+        if(i>0 && r.left>arrows)Line(dc,r.left,r.top+MulDiv(6,dpi_,96),r.left,r.bottom-MulDiv(6,dpi_,96),Border,s);
         int iconX=r.left+MulDiv(8,dpi_,96), center=(r.top+r.bottom)/2;
         const int iconTop=center-iconSlot_/2;
         RECT icon{iconX,iconTop,iconX+iconSlot_,iconTop+iconSlot_};

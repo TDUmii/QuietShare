@@ -50,7 +50,7 @@ inline WORD BindingToHotkeyControl(KeyBinding binding)
 inline bool ValidatePreferences(const Preferences& p,std::wstring& error)
 {
     error.clear();
-    if(p.themeId<0||p.themeId>=static_cast<int>(Themes.size())){error=L"theme";return false;}
+    if(p.themeId<0||p.themeId>CustomThemeId){error=L"theme";return false;}
     if(p.transcriptionLanguage<0||p.transcriptionLanguage>1){error=L"transcription-language";return false;}
     if(p.opacityPercent<40||p.opacityPercent>100){error=L"opacity";return false;}
     if(p.textWeight!=400&&p.textWeight!=600&&p.textWeight!=700){error=L"weight";return false;}
@@ -157,7 +157,7 @@ inline bool LoadPreferences(const std::wstring& dataDirectory,Preferences& p)
             next.rememberWindowSize=values[appearance+4]!=0;next.allowFileEditing=values[appearance+5]!=0;
         }
     }
-    if(current||version4){if(values[31]>=Themes.size())return false;next.themeId=static_cast<int>(values[31]);}
+    if(current||version4){if(values[31]>CustomThemeId)return false;next.themeId=static_cast<int>(values[31]);}
     if(current){
         if(values[32]>1||values[33]>1||values[34]>1)return false;
         next.transcriptionLanguage=static_cast<int>(values[32]);

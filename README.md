@@ -32,7 +32,7 @@ A Windows presentation companion for scripts, documents and optional web browsin
 
   **Đọc và chuẩn bị:** lời nhắc cuộn tự động, sửa văn bản/code, xem ảnh/PDF, duyệt thư mục và lịch sử file thật.
 
-- **Make it readable:** 10 themes, word wrap, text size and weight, focus mode and adjustable layout. Change them in **Settings > Appearance** or the viewer toolbar.
+- **Make it readable:** 10 preset themes plus a custom palette, word wrap, text size and weight, focus mode and adjustable layout. Change them in **Settings > Appearance** or the viewer toolbar.
 
   **Dễ đọc hơn:** 10 theme sáng/tối/tương phản cao, xuống dòng, cỡ và độ đậm chữ, chế độ tập trung và bố cục tùy chỉnh. Đổi theme trong **Cài đặt > Giao diện** hoặc thanh công cụ xem tệp.
 
@@ -40,13 +40,14 @@ A Windows presentation companion for scripts, documents and optional web browsin
 
   **Duyệt web khi cần:** trình duyệt WebView2 tùy chọn, tối đa 8 tab. Trình đọc file dùng offline. Trình duyệt luôn tắt khi mới mở ứng dụng.
 
-- **Record and transcribe:** save Windows playback to WAV, then run local Vietnamese or English Windows Speech API. No microphone or auto-start.
+- **Record and transcribe:** choose Vietnamese or English, an output folder and whether to keep WAV files. The local recorder uses Windows playback only. Import exported VTT/TXT from Teams, Zoom or Meet to keep provider speaker names.
 
-  **Ghi âm và chép lời:** lưu âm thanh Windows thành WAV, rồi chạy Speech API cục bộ bằng tiếng Việt hoặc tiếng Anh. Không micro, không tự ghi.
+  **Ghi âm và chép lời:** lưu âm thanh Windows thành WAV rồi chạy Speech API cục bộ. Có thể nhập VTT/TXT Teams, Zoom hoặc Meet để giữ tên người nói. Không micro, không tự ghi.
 
 - **Shorten tab labels:** choose numbered labels independently for Lời nhắc/file tabs and Browser tabs. Tooltips keep the full path or address.
 
   **Rút gọn nhãn tab:** chọn riêng nhãn Tab 1, Tab 2 cho tab Lời nhắc/file và Browser. Tooltip vẫn giữ đường dẫn hoặc địa chỉ.
+
 
 ## 📊 Project Status / Tình trạng dự án
 
@@ -58,16 +59,16 @@ A Windows presentation companion for scripts, documents and optional web browsin
 
 ## 🛡️ Requirements and protection / Yêu cầu và bảo vệ
 
-**Windows 10 version 2004 (build 19041) or later, or Windows 11, x64.** Smart Mirror needs two distinct Extend displays, working DWM and Windows Graphics Capture. Browsing additionally requires [Microsoft Edge WebView2 Runtime](https://developer.microsoft.com/en-us/microsoft-edge/webview2/).
+**Windows 10 version 2004 (build 19041) or later, or Windows 11, x64.** Smart Mirror needs two distinct Extend displays, DWM and Windows Graphics Capture. Browsing needs [Microsoft Edge WebView2 Runtime](https://developer.microsoft.com/en-us/microsoft-edge/webview2/).
 
-**Windows 10 phiên bản 2004 (build 19041) trở lên hoặc Windows 11, x64.** Smart Mirror cần hai màn hình Extend khác nhau, DWM và Windows Graphics Capture hoạt động. Duyệt web cần [Microsoft Edge WebView2 Runtime](https://developer.microsoft.com/en-us/microsoft-edge/webview2/).
+**Windows 10 phiên bản 2004 (build 19041) trở lên hoặc Windows 11, x64.** Smart Mirror cần hai màn hình Extend khác nhau, DWM và Windows Graphics Capture. Duyệt web cần [Microsoft Edge WebView2 Runtime](https://developer.microsoft.com/en-us/microsoft-edge/webview2/).
 
 **Windows accepting capture exclusion does not verify what the audience sees.**
 
 **Windows nhận loại trừ capture không có nghĩa hình ảnh phía người xem đã được xác minh.**
 
 - Duplicate mode locks private content. / Duplicate khóa nội dung riêng.
-- Failed protection checks stop projection. Start it again after recovery. / Kiểm tra bảo vệ thất bại sẽ dừng chiếu. Hãy chủ động bắt đầu lại sau khi khôi phục.
+- Failed protection checks stop projection. Start again after recovery. / Kiểm tra bảo vệ thất bại sẽ dừng chiếu. Hãy chủ động bắt đầu lại sau khi khôi phục.
 - External cameras are outside this protection. / Cơ chế này không ngăn máy ảnh bên ngoài.
 
 ## 📚 Learn more / Tài liệu
@@ -81,5 +82,3 @@ A Windows presentation companion for scripts, documents and optional web browsin
 | [Troubleshooting](docs/TROUBLESHOOTING.md) | [Xử lý sự cố](docs/TROUBLESHOOTING.md) |
 | [Build from source](docs/BUILDING.md) | [Biên dịch từ mã nguồn](docs/BUILDING.md) |
 | [Dependencies and licenses](docs/DEPENDENCIES.md) | [Thư viện và giấy phép](docs/DEPENDENCIES.md) |
-
-Close QuietShare before upgrading. Use the installer or complete portable ZIP. / Đóng QuietShare trước khi nâng cấp. Dùng bộ cài hoặc toàn bộ ZIP portable.

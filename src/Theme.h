@@ -1,6 +1,9 @@
 #pragma once
 #include <windows.h>
 #include <array>
+#include <algorithm>
+#include <utility>
+#include "CustomTheme.h"
 namespace quietshare {
 struct ThemePalette {
     const wchar_t *vi,*en; bool dark;
@@ -36,6 +39,54 @@ inline const std::array<ThemePalette,10> Themes=[] {
     t[9].text=RGB(0,0,0);t[9].muted=RGB(40,40,40);t[9].border=RGB(90,90,90);
     return t;
 }();
+inline constexpr int CustomThemeId=10;
+inline CustomThemeColors customThemeColors{};
+inline int ThemeLuma(COLORREF color)
+{
+    return (299*GetRValue(color)+587*GetGValue(color)+114*GetBValue(color))/1000;
+}
+inline COLORREF MixThemeColor(COLORREF first,COLORREF second,int secondWeight)
+{
+    secondWeight=std::clamp(secondWeight,0,100);const int firstWeight=100-secondWeight;
+    return RGB((GetRValue(first)*firstWeight+GetRValue(second)*secondWeight)/100,
+               (GetGValue(first)*firstWeight+GetGValue(second)*secondWeight)/100,
+               (GetBValue(first)*firstWeight+GetBValue(second)*secondWeight)/100);
+}
+inline ThemePalette CustomThemePalette()
+{
+    const bool dark=ThemeLuma(customThemeColors.background)<140;
+    ThemePalette result=dark?DarkTheme(L"Tùy chỉnh",L"Custom",customThemeColors.background,
+                                       customThemeColors.panel,MixThemeColor(customThemeColors.panel,customThemeColors.background,dark?18:8)):
+                             LightTheme(L"Tùy chỉnh",L"Custom",customThemeColors.background,
+                                        customThemeColors.panel,MixThemeColor(customThemeColors.panel,customThemeColors.background,18));
+    result.bg=customThemeColors.background;result.card=customThemeColors.panel;
+    result.sidebar=MixThemeColor(customThemeColors.background,customThemeColors.panel,65);
+    result.elevated=MixThemeColor(customThemeColors.panel,dark?RGB(255,255,255):RGB(0,0,0),dark?8:4);
+    result.hover=MixThemeColor(customThemeColors.panel,customThemeColors.accent,18);
+    result.accent=customThemeColors.accent;
+    result.selection=MixThemeColor(customThemeColors.background,customThemeColors.accent,55);
+    result.text=customThemeColors.text;
+    result.muted=MixThemeColor(customThemeColors.text,customThemeColors.background,dark?45:55);
+    result.border=MixThemeColor(customThemeColors.panel,customThemeColors.text,dark?28:22);
+    result.green=customThemeColors.accent;
+    result.home=customThemeColors.background;result.homeCard=customThemeColors.panel;
+    result.rail=MixThemeColor(customThemeColors.background,customThemeColors.panel,72);
+    result.keyword=dark?RGB(197,153,255):RGB(111,40,148);
+    result.string=dark?RGB(224,184,122):RGB(132,65,12);
+    result.comment=MixThemeColor(customThemeColors.text,customThemeColors.background,dark?48:62);
+    result.number=dark?RGB(116,199,236):RGB(0,91,125);
+    result.error=dark?RGB(255,145,145):RGB(173,25,35);
+    return result;
+}
+inline ThemePalette ThemePaletteFor(int id)
+{
+    return id==CustomThemeId?CustomThemePalette():Themes[std::clamp(id,0,static_cast<int>(Themes.size())-1)];
+}
 inline ThemePalette theme=Themes[0];
-inline const wchar_t* ThemeName(int id,bool english) {return english?Themes[id].en:Themes[id].vi;}
+inline const wchar_t* ThemeName(int id,bool english)
+{
+    if(id==CustomThemeId)return english?L"Custom":L"Tùy chỉnh";
+    return english?Themes[std::clamp(id,0,static_cast<int>(Themes.size())-1)].en:
+                  Themes[std::clamp(id,0,static_cast<int>(Themes.size())-1)].vi;
+}
 }

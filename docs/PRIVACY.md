@@ -82,13 +82,13 @@ Kiểm tra WGC trong phiên khỏe mạnh không tự kết thúc phiên.
 - **Preferences, layout and optional window size:** stored locally.
 - **File drafts:** stay in memory until explicitly saved. Imported file content is not autosaved over the script.
 - **Clear history:** removes entries and pins without deleting original files.
-- **Meeting recordings and transcripts:** are written locally as WAV and UTF-8 TXT files under the user's QuietShare Meetings folder only after the recording control is enabled. The recorder uses the Windows playback mix, does not open a microphone and stops when QuietShare closes. Windows Speech API processes the selected language locally. Audio and transcripts are not uploaded by QuietShare.
+- **Meeting recordings and transcripts:** are written locally under the folder selected in **Settings > Reading** only after recording is enabled. WAV + transcript keeps the capture. Transcript only removes the temporary WAV after a successful save. The recorder uses Windows playback, no microphone, and stops when QuietShare closes. Windows Speech API processes the selected language locally. Audio and transcripts are not uploaded.
 
 - **Lời nhắc và lịch sử file:** được Windows DPAPI mã hóa cho người dùng cục bộ.
 - **Cấu hình, bố cục và kích thước cửa sổ tùy chọn:** được lưu trên máy.
 - **Bản sửa file:** giữ trong bộ nhớ đến khi chủ động lưu. Nội dung file đã mở không tự ghi đè lời nhắc.
 - **Xóa lịch sử:** xóa mục và ghim mà không xóa file gốc.
-- **Bản ghi và transcript cuộc họp:** được lưu cục bộ dưới dạng WAV và TXT UTF-8 trong thư mục Meetings của QuietShare chỉ sau khi bật nút ghi. Bộ ghi lấy âm thanh phát ra từ Windows, không mở micro và dừng khi QuietShare đóng. Windows Speech API xử lý cục bộ theo ngôn ngữ đã chọn. QuietShare không tải âm thanh hoặc transcript lên mạng.
+- **Bản ghi và transcript cuộc họp:** được lưu cục bộ trong thư mục tại **Cài đặt > Nội dung** sau khi bật nút ghi. WAV + nội dung giữ bản ghi. Chỉ nội dung xóa WAV tạm sau khi lưu thành công. Bộ ghi lấy âm thanh Windows, không mở micro và dừng khi QuietShare đóng. Windows Speech API xử lý cục bộ. QuietShare không tải âm thanh hoặc transcript lên mạng.
 
 - The optional browser uses a separate local WebView2 profile for site data, including cookies/sign-ins and saved shortcuts.
 - These records do not imply the script's DPAPI storage format.

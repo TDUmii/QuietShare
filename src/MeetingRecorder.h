@@ -18,7 +18,9 @@ public:
     MeetingRecorder(const MeetingRecorder&) = delete;
     MeetingRecorder& operator=(const MeetingRecorder&) = delete;
 
-    bool Start(const std::wstring& dataDirectory);
+    // outputDirectory is optional for backward compatibility with the
+    // default %LOCALAPPDATA%\QuietShare\Meetings location.
+    bool Start(const std::wstring& dataDirectory, const std::wstring& outputDirectory = {});
     void Stop();
     bool Running() const { return running.load(); }
     bool Ready() const { return ready.load(); }

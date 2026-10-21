@@ -19,6 +19,8 @@ foreach ($scriptName in @('run-content.ps1','run-documents.ps1','run-viewers.ps1
 & (Join-Path $PSScriptRoot 'run-projection-notice.ps1') -CompilerRoot $CompilerRoot
 & (Join-Path $PSScriptRoot 'run-meeting-recorder.ps1') -CompilerRoot $CompilerRoot
 & (Join-Path $PSScriptRoot 'run-meeting-transcriber.ps1') -CompilerRoot $CompilerRoot
+& (Join-Path $PSScriptRoot 'run-meeting-settings.ps1') -CompilerRoot $CompilerRoot
+& (Join-Path $PSScriptRoot 'run-meeting-transcript-import.ps1') -CompilerRoot $CompilerRoot
 & (Join-Path $PSScriptRoot 'run-local.ps1') -SkipContent
 & (Join-Path $PSScriptRoot 'run-integration.ps1')
 python -B (Join-Path $PSScriptRoot 'workspace_integration.py')

@@ -4,6 +4,7 @@
 #include <sapi.h>
 #include <sphelper.h>
 #include <algorithm>
+#include <cwctype>
 #include <vector>
 
 namespace quietshare {
@@ -65,6 +66,37 @@ bool WriteUtf8(const std::wstring& path,const std::wstring& text)
     return true;
 }
 
+bool TokenHasLanguage(ISpObjectToken *token,const wchar_t *language)
+{
+    if(!token||!language)return false;
+    LPWSTR raw=nullptr;
+    if(FAILED(token->GetStringValue(L"Language",&raw))||!raw)return false;
+    std::wstring value(raw);CoTaskMemFree(raw);
+    for(auto &character:value)character=static_cast<wchar_t>(towlower(character));
+    std::wstring wanted(language);for(auto &character:wanted)character=static_cast<wchar_t>(towlower(character));
+    return value.find(wanted)!=std::wstring::npos;
+}
+
+bool FindRecognizerToken(const wchar_t *language,ISpObjectToken **result)
+{
+    if(!result)return false;*result=nullptr;
+    IEnumSpObjectTokens *tokens=nullptr;ULONG count=0,fetched=0;
+    if(SUCCEEDED(SpEnumTokens(SPCAT_RECOGNIZERS,language,nullptr,&tokens))&&tokens&&
+       SUCCEEDED(tokens->GetCount(&count))&&count>0&&SUCCEEDED(tokens->Next(1,result,&fetched))&&fetched==1&&*result) {
+        ReleaseCom(tokens);return true;
+    }
+    ReleaseCom(tokens);
+    // Windows language packs sometimes omit the Language attribute in the
+    // filtered SAPI query. Enumerate the recognizers and inspect the value
+    // directly so Vietnamese packs are still discovered when installed.
+    if(FAILED(SpEnumTokens(SPCAT_RECOGNIZERS,nullptr,nullptr,&tokens))||!tokens)return false;
+    while(SUCCEEDED(tokens->Next(1,result,&fetched))&&fetched==1&&*result) {
+        if(TokenHasLanguage(*result,language)){ReleaseCom(tokens);return true;}
+        ReleaseCom(*result);
+    }
+    ReleaseCom(tokens);return false;
+}
+
 }
 
 MeetingTranscriber::~MeetingTranscriber()
@@ -111,14 +143,12 @@ bool MeetingTranscriber::Recognize(const std::wstring& wavPath,TranscriptionLang
     result.clear();code=0;
     const HRESULT initialized=CoInitializeEx(nullptr,COINIT_MULTITHREADED);
     if(FAILED(initialized)){code=2;return false;}
-    IEnumSpObjectTokens* tokens=nullptr;ISpObjectToken* recognizerToken=nullptr;ISpRecognizer* recognizer=nullptr;
+    ISpObjectToken* recognizerToken=nullptr;ISpRecognizer* recognizer=nullptr;
     ISpStream* stream=nullptr;ISpRecoContext* context=nullptr;ISpRecoGrammar* grammar=nullptr;
-    bool ok=false,ended=false;ULONG count=0,fetched=0;
+    bool ok=false,ended=false;
     const wchar_t* languageAttribute=nextLanguage==TranscriptionLanguage::English?L"Language=409":L"Language=42A";
-    HRESULT hr=SpEnumTokens(SPCAT_RECOGNIZERS,languageAttribute,nullptr,&tokens);
-    if(FAILED(hr)||!tokens){code=4;goto finish;}
-    if(FAILED(tokens->GetCount(&count))||count==0){code=4;goto finish;}
-    if(FAILED(tokens->Next(1,&recognizerToken,&fetched))||fetched!=1||!recognizerToken){code=4;goto finish;}
+    HRESULT hr=S_OK;
+    if(!FindRecognizerToken(languageAttribute,&recognizerToken)){code=4;goto finish;}
     hr=CoCreateInstance(CLSID_SpInprocRecognizer,nullptr,CLSCTX_INPROC_SERVER,__uuidof(ISpRecognizer),reinterpret_cast<void**>(&recognizer));
     if(FAILED(hr)||!recognizer){code=3;goto finish;}
     if(FAILED(hr=recognizer->SetRecognizer(recognizerToken))){code=4;goto finish;}
@@ -151,7 +181,7 @@ bool MeetingTranscriber::Recognize(const std::wstring& wavPath,TranscriptionLang
 finish:
     if(recognizer)recognizer->SetRecoState(SPRST_INACTIVE);
     if(stream)stream->Close();
-    ReleaseCom(grammar);ReleaseCom(context);ReleaseCom(stream);ReleaseCom(recognizer);ReleaseCom(recognizerToken);ReleaseCom(tokens);
+    ReleaseCom(grammar);ReleaseCom(context);ReleaseCom(stream);ReleaseCom(recognizer);ReleaseCom(recognizerToken);
     CoUninitialize();
     return ok;
 }

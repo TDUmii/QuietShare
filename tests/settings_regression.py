@@ -324,14 +324,17 @@ def main():
         check("fontSliderRemoved", not control(130))
         identifiers = (106, 107, 163, 108, 104, 146, 181, 151, 182, 183, 184,
                        185, 152, 155, 160, 161, 143, 187, 189, 200, 201, 202,
-                       203, 204, 205, 206, 207, *range(220, 230), *range(240, 249))
-        check("consolidatedControlsKeepStableMainParent", all(control(identifier) and
-              USER32.GetParent(control(identifier)) == window for identifier in identifiers))
+                       203, 204, 205, 206, 207, *range(220, 230), *range(240, 249),
+                       *range(249, 269))
+        unstable = [identifier for identifier in identifiers if not control(identifier) or
+                    USER32.GetParent(control(identifier)) != window]
+        check("consolidatedControlsKeepStableMainParent", not unstable)
         scrollbar_class = ctypes.create_unicode_buffer(64)
         USER32.GetClassNameW(control(187), scrollbar_class, len(scrollbar_class))
         check("settingsUsesNativeScrollbar", scrollbar_class.value.casefold() == "scrollbar")
         check("appearanceHidesOtherCategoryControls", not region_visible(control(163)) and not region_visible(control(160))
               and not region_visible(control(220)))
+        check("customThemeControlsAreAvailable", all(control(identifier) for identifier in (264, 265, 266, 267, 268)))
         check("opacityStartsOpaque", query(41) == 100 and native.control_text(control(205)) == "100")
         edit_alignment(205, "opacity", caret=True)
         check("ownerDrawButtonSuppressesSystemErase", native.send(control(200), 0x14) == 1)
@@ -388,6 +391,11 @@ def main():
         category(1)
         check("readingHidesAppearanceControls", not region_visible(control(205)) and not region_visible(control(206)))
         check("transcriptionLanguageControlAvailable", bool(control(256)) and native.control_text(control(256)) in ("Tiếng Việt", "Tiếng Anh", "Vietnamese", "English"))
+        check("transcriptionToggleAvailable", bool(control(259)) and any(label in native.control_text(control(259)) for label in ("Bật", "Tắt", "On", "Off")))
+        check("meetingProviderControlAvailable", bool(control(260)) and bool(native.control_text(control(260))))
+        check("meetingOutputControlAvailable", bool(control(261)) and bool(native.control_text(control(261))))
+        check("meetingFolderControlAvailable", bool(control(262)) and bool(native.control_text(control(262))))
+        check("meetingImportControlAvailable", bool(control(263)))
         edit_alignment(163, "contentSize", caret=True)
         real_focus(108)
         reading_window, reading_client = wintypes.RECT(), wintypes.RECT()

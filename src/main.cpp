@@ -21,6 +21,9 @@
 #include "Browser.h"
 #include "MeetingRecorder.h"
 #include "MeetingTranscriber.h"
+#include "MeetingSettings.h"
+#include "MeetingTranscriptImport.h"
+#include "CustomTheme.h"
 #include "Version.h"
 #include "Preferences.h"
 #include <algorithm>
@@ -80,7 +83,11 @@ constexpr int MODE = 100, PLAY = 101, SMALLER = 102, LARGER = 103, SPEED = 104, 
               SETTINGS_BROWSER=240,ICON_SIZE_INPUT=241,OPACITY_LESS=242,OPACITY_MORE=243,
               ICON_SMALLER=244,ICON_LARGER=245,BROWSER_MUTED=246,BROWSER_CAMERA=247,BROWSER_MICROPHONE=248,REMEMBER_SIZE=249,ALLOW_EDIT=250,SAVE_FILE=251,RECENT_CLEAR=252,RECENT_NEXT=253,RECENT_PREV=254,THEME_SELECT=255,RECENT_FIRST=400;
 constexpr int TRANSCRIPTION_LANGUAGE=256,SCRIPT_TAB_LABELS=257,BROWSER_TAB_LABELS=258,
-              TRANSCRIPTION_VI=270,TRANSCRIPTION_EN=271;
+              MEETING_TRANSCRIBE=259,MEETING_PROVIDER=260,MEETING_OUTPUT=261,MEETING_DIRECTORY=262,
+              MEETING_IMPORT=263,CUSTOM_BACKGROUND=264,CUSTOM_PANEL=265,CUSTOM_TEXT=266,CUSTOM_ACCENT=267,
+              CUSTOM_RESET=268,TRANSCRIPTION_VI=270,TRANSCRIPTION_EN=271,
+              PROVIDER_LOCAL=272,PROVIDER_TEAMS=273,PROVIDER_ZOOM=274,PROVIDER_MEET=275,
+              OUTPUT_WAV=276,OUTPUT_TRANSCRIPT=277;
 constexpr int NORMAL_SIDEBAR = 36, COMPACT_SIDEBAR = 36;
 constexpr UINT_PTR PRIVACY_TIMER = 1, SCROLL_TIMER = 2, SAVE_TIMER = 3, QA_TIMER = 4, MEETING_TIMER = 6;
 HINSTANCE instance;
@@ -104,6 +111,8 @@ ProjectTree projectTree;
 Browser browser;
 MeetingRecorder meetingRecorder;
 MeetingTranscriber meetingTranscriber;
+MeetingSettings meetingSettings;
+std::wstring meetingRecordingPath;
 unsigned displayedBrowserTab=0;
 bool updatingWebAddress=false,webAddressEdited=false;
 HWND webAddress=nullptr;
@@ -234,6 +243,8 @@ void UpdateMonitorLabels();
 void UpdateMirrorTimer();
 void HandleTranscriptionResult();
 void ApplyWindowAppearance();
+void PersistRecent();
+bool StorePreferences(const Preferences &candidate);
 void CommitOpacity();
 void CommitIconSize();
 void CaptureShortcut(UINT key,UINT modifiers);
@@ -243,11 +254,28 @@ UINT ShortcutModifiers();
 void RunFind(bool forward);
 std::wstring SelectedMonitor(HWND combo);
 bool OpenContentPath(const std::wstring &path);
+void ChooseMeetingDirectory();
+void ImportMeetingFile();
+void ChooseCustomColor(int controlId);
 bool IsImage() { return viewingFile && ActiveContent().kind == ContentKind::Image; }
 bool IsCode() { return viewingFile && (ActiveContent().kind == ContentKind::Code || documents.Active().language==L"md" || documents.Active().language==L"markdown"); }
 bool IsPdf() { return viewingFile && ActiveContent().kind == ContentKind::Pdf; }
 HWND ContentWindow() { return IsImage()?imageViewer:IsCode()?codeViewer.Window():IsPdf()?pdfViewer.Window():editor; }
 int &ActiveTextSize() { return IsCode() ? codePoints : fontPoints; }
+
+std::wstring ColorHex(COLORREF color)
+{
+    wchar_t value[16]{};
+    swprintf_s(value,L"#%02X%02X%02X",GetRValue(color),GetGValue(color),GetBValue(color));
+    return value;
+}
+
+const wchar_t *MeetingExportLabel(MeetingExportMode mode,bool english)
+{
+    return mode==MeetingExportMode::TranscriptOnly?
+        (english?L"Transcript only (remove WAV after success)":L"Chỉ nội dung (xóa WAV sau khi thành công)"):
+        (english?L"WAV + transcript":L"WAV + nội dung");
+}
 
 int S(int value)
 {
@@ -352,14 +380,11 @@ bool SaveNotes()
     InvalidateRect(window, nullptr, FALSE);
     return ok;
 }
-void HandleTranscriptionResult()
+bool AppendMeetingTranscript(const std::wstring &text,const std::wstring &sourcePath)
 {
-    std::wstring text,path;
-    if(!meetingTranscriber.TakeResult(text,path))return;
-    if(meetingTranscriber.ErrorCode()!=0){transcriptionNotice=meetingTranscriber.Status(english);return;}
-    if(text.empty()){
+    if(text.empty()) {
         transcriptionNotice=T(L"Không nhận ra lời nói trong bản ghi.",L"No speech was recognized in the recording.");
-        return;
+        return false;
     }
     if(!viewingFile)SaveActiveState();
     if(!scriptDraft.empty())scriptDraft+=L"\r\n\r\n";
@@ -372,12 +397,30 @@ void HandleTranscriptionResult()
     }
     if(!SaveNotes()){
         transcriptionNotice=T(L"Đã chép lời nhưng không lưu được Lời nhắc.",L"Transcript created, but the notes could not be saved.");
-        return;
+        return false;
     }
-    const auto slash=path.find_last_of(L"\\/");
-    const auto name=slash==std::wstring::npos?path:path.substr(slash+1);
+    if(!sourcePath.empty()) {
+        recentWorkspace.Touch(sourcePath,false);PersistRecent();
+    }
+    const auto slash=sourcePath.find_last_of(L"\\/");
+    const auto name=slash==std::wstring::npos?sourcePath:sourcePath.substr(slash+1);
     transcriptionNotice=T(L"Đã chép lời vào Lời nhắc",L"Transcript added to notes");
     if(!name.empty())transcriptionNotice+=L" · "+name;
+    return true;
+}
+void HandleTranscriptionResult()
+{
+    std::wstring text,path;
+    if(!meetingTranscriber.TakeResult(text,path))return;
+    if(meetingTranscriber.ErrorCode()!=0){transcriptionNotice=meetingTranscriber.Status(english);return;}
+    if(AppendMeetingTranscript(text,path) && meetingSettings.exportMode==MeetingExportMode::TranscriptOnly && !path.empty()) {
+        // Recognition currently consumes a finalized WAV. Transcript-only mode
+        // removes that temporary capture only after the text has been saved.
+        if(!DeleteFileW(path.c_str()))
+            transcriptionNotice+=T(L" · Không xóa được WAV tạm",L" · Temporary WAV could not be deleted");
+        else
+            meetingRecordingPath.clear();
+    }
 }
 bool ReadNotes(std::wstring &text)
 {
@@ -651,10 +694,11 @@ void UpdateButtons()
     SetTip(WEB_AUDIO,T(preferences.browserMuted?L"Bật âm thanh web":L"Tắt âm thanh web",
         preferences.browserMuted?L"Unmute web audio":L"Mute web audio"));
     const bool transcribing=meetingTranscriber.Running();
-    SetWindowTextW(GetDlgItem(window,MEETING_RECORD),T(transcribing?L"Đang chép lời":meetingRecorder.Running()?L"Dừng ghi âm":L"Ghi âm & chép lời",
-        transcribing?L"Transcribing":meetingRecorder.Running()?L"Stop meeting recording":L"Record and transcribe meeting"));
-    SetTip(MEETING_RECORD,T(transcribing?L"Đang chuyển âm thanh thành văn bản":meetingRecorder.Running()?L"Dừng ghi âm âm thanh máy":L"Ghi âm âm thanh máy rồi chép lời",
-        transcribing?L"Converting audio to text":meetingRecorder.Running()?L"Stop recording system audio":L"Record system audio, then transcribe it"));
+    const bool willTranscribe=meetingSettings.transcriptionEnabled;
+    SetWindowTextW(GetDlgItem(window,MEETING_RECORD),T(transcribing?L"Đang chép lời":meetingRecorder.Running()?L"Dừng ghi âm":willTranscribe?L"Ghi âm & chép lời":L"Ghi âm cuộc họp",
+        transcribing?L"Transcribing":meetingRecorder.Running()?L"Stop meeting recording":willTranscribe?L"Record and transcribe meeting":L"Record meeting"));
+    SetTip(MEETING_RECORD,T(transcribing?L"Đang chuyển âm thanh thành văn bản":meetingRecorder.Running()?L"Dừng ghi âm âm thanh máy":willTranscribe?L"Ghi âm âm thanh máy rồi chép lời":L"Ghi âm âm thanh máy, không chép lời",
+        transcribing?L"Converting audio to text":meetingRecorder.Running()?L"Stop recording system audio":willTranscribe?L"Record system audio, then transcribe it":L"Record system audio without transcription"));
     SetWindowTextW(GetDlgItem(window,WEB_NEW_TAB),T(L"Tab web mới",L"New web tab"));
     EnableWindow(GetDlgItem(window,WEB_NEW_TAB),!Blocked()&&browser.CanNewTab());
     SetTip(WEB_NEW_TAB,T(L"Tab web mới · Ctrl+T",L"New web tab · Ctrl+T"));
@@ -772,11 +816,19 @@ void UpdateButtons()
             {BROWSER_TOGGLE,browser.Enabled()},{POINTER,mirrorPointer},{WRAP,IsCode()?codeViewer.GetState().wrap:documents.Active().state.wrap},
             {BROWSER_MUTED,preferences.browserMuted},{BROWSER_CAMERA,preferences.browserAllowCamera},
             {BROWSER_MICROPHONE,preferences.browserAllowMicrophone},{SCRIPT_TAB_LABELS,preferences.numberedDocumentTabs},
-            {BROWSER_TAB_LABELS,preferences.numberedBrowserTabs}}) {
+            {BROWSER_TAB_LABELS,preferences.numberedBrowserTabs},{MEETING_TRANSCRIBE,meetingSettings.transcriptionEnabled}}) {
             std::wstring text=T(setting.second?L"Bật":L"Tắt",setting.second?L"On":L"Off");
             for(const auto& line:settingsLines)if(line.control==setting.first){text=line.text+L": "+text;break;}
             SetWindowTextW(GetDlgItem(window,setting.first),text.c_str());
         }
+        SetWindowTextW(GetDlgItem(window,MEETING_PROVIDER),MeetingProviderLabel(meetingSettings.provider,english).c_str());
+        SetWindowTextW(GetDlgItem(window,MEETING_OUTPUT),MeetingExportLabel(meetingSettings.exportMode,english));
+        SetWindowTextW(GetDlgItem(window,MEETING_DIRECTORY),meetingSettings.outputDirectory.c_str());
+        SetTip(MEETING_DIRECTORY,meetingSettings.outputDirectory.c_str());
+        SetWindowTextW(GetDlgItem(window,MEETING_IMPORT),T(L"Nhập transcript Teams / Zoom / Meet",L"Import Teams / Zoom / Meet transcript"));
+        const std::pair<int,COLORREF> customColors[]={{CUSTOM_BACKGROUND,customThemeColors.background},{CUSTOM_PANEL,customThemeColors.panel},
+            {CUSTOM_TEXT,customThemeColors.text},{CUSTOM_ACCENT,customThemeColors.accent}};
+        for(const auto [id,color]:customColors)SetWindowTextW(GetDlgItem(window,id),ColorHex(color).c_str());
         SetWindowTextW(GetDlgItem(window,RESET_LAYOUT),T(L"Đặt lại",L"Reset"));
         EnableWindow(GetDlgItem(window,WRAP),!Blocked()&&!IsImage()&&!IsPdf());
         EnableWindow(GetDlgItem(window,SPEED),!Blocked());
@@ -1025,6 +1077,12 @@ void Layout()
         numberRow(L"Kích thước icon (px)",L"Icon size (px)",ICON_SIZE_INPUT,ICON_SMALLER,ICON_LARGER);
         row(L"Độ đậm chữ",L"Text weight",TEXT_WEIGHT);
         settingsLines.push_back({T(L"40-100%. Áp dụng cho cửa sổ điều khiển, kể cả chữ. Màn hình chiếu không đổi.",L"40-100%. Applies to the control window, including text. Projection stays opaque."),{S(left),S(y),S(right),S(y+56)},false});y+=64;
+        heading(L"Theme tự thiết kế",L"Custom theme");
+        row(L"Màu nền",L"Background color",CUSTOM_BACKGROUND,128);
+        row(L"Màu bảng",L"Panel color",CUSTOM_PANEL,128);
+        row(L"Màu chữ",L"Text color",CUSTOM_TEXT,128);
+        row(L"Màu nhấn",L"Accent color",CUSTOM_ACCENT,128);
+        row(L"Khôi phục màu theme mặc định",L"Reset custom colors",CUSTOM_RESET,180);
         }
         if(settingsCategory==1) {
         heading(L"Đọc nội dung",L"Reading");
@@ -1037,7 +1095,12 @@ void Layout()
         settingsSizeHint={S(left),S(y+36),S(right),S(y+60)};y+=72;
         row(L"Độ đậm chữ",L"Text weight",TEXT_WEIGHT);
         row(L"Tốc độ lời nhắc",L"Script scrolling",SPEED);
+        row(L"Tự chép lời sau khi ghi âm",L"Transcribe after recording",MEETING_TRANSCRIBE);
         row(L"Ngôn ngữ chép lời",L"Transcription language",TRANSCRIPTION_LANGUAGE,180);
+        row(L"Nền tảng cuộc họp",L"Meeting platform",MEETING_PROVIDER,200);
+        row(L"Kiểu xuất cuộc họp",L"Meeting export",MEETING_OUTPUT,250);
+        row(L"Thư mục lưu WAV / transcript",L"WAV / transcript folder",MEETING_DIRECTORY,260);
+        row(L"Transcript có sẵn từ Teams / Zoom / Meet",L"Existing Teams / Zoom / Meet transcript",MEETING_IMPORT,260);
         row(L"Tự xuống dòng",L"Word wrap",WRAP);
         }
         if(settingsCategory==2) {
@@ -1045,8 +1108,9 @@ void Layout()
         row(L"Thanh điều hướng",L"Activity bar",SHOW_ACTIVITY);
         row(L"Explorer",L"Explorer",SHOW_TREE);
         row(L"Thanh tab",L"Tab bar",SHOW_TABS);
-        row(L"Nhãn tab Lời nhắc dạng Tab 1, Tab 2",L"Number script tabs",SCRIPT_TAB_LABELS);
-        row(L"Nhãn tab browser dạng Tab 1, Tab 2",L"Number browser tabs",BROWSER_TAB_LABELS);
+        heading(L"Hiển thị tab dạng Tab 1, Tab 2, ...",L"Show tabs as Tab 1, Tab 2, ...");
+        row(L"Lời nhắc",L"Script",SCRIPT_TAB_LABELS);
+        row(L"Trình duyệt",L"Browser",BROWSER_TAB_LABELS);
         row(L"Thanh công cụ",L"Toolbar",SHOW_TOOLBAR);
         row(L"Thanh trạng thái",L"Status bar",SHOW_STATUS);
         row(L"Khôi phục bố cục",L"Reset layout",RESET_LAYOUT);
@@ -1586,6 +1650,64 @@ void ChooseFolder()
     Layout();
     if(!Blocked()&&IsWindowVisible(projectTree.Handle()))SetFocus(projectTree.Handle());
 }
+void ChooseMeetingDirectory()
+{
+    if(Blocked())return;
+    Pause();LocalPicker picker;
+    auto paths=picker.Show(window,true,meetingSettings.outputDirectory,english,uiFont,filePicker,importError);
+    if(!paths.empty()) {
+        meetingSettings.outputDirectory=paths.front();
+        if(!SaveMeetingSettings(dataDir,meetingSettings))
+            importError=T(L"Không lưu được thư mục cuộc họp.",L"The meeting folder could not be saved.");
+        else {
+            importError.clear();
+            transcriptionNotice=T(L"Đã đổi thư mục lưu cuộc họp",L"Meeting output folder changed");
+        }
+    }
+    Layout();
+}
+void ImportMeetingFile()
+{
+    if(Blocked())return;
+    Pause();LocalPicker picker;
+    auto paths=picker.Show(window,false,meetingSettings.outputDirectory,english,uiFont,filePicker,importError);
+    if(paths.empty()){Layout();return;}
+    std::wstring text,error;
+    if(!ImportMeetingTranscript(paths.front(),meetingSettings.provider,text,error)) {
+        importError=error;
+        Layout();
+        return;
+    }
+    importError.clear();
+    if(viewingFile)ShowScript();
+    else if(page!=Page::Content){page=Page::Content;focusMode=false;Layout();}
+    AppendMeetingTranscript(text,paths.front());
+    Layout();
+}
+void ChooseCustomColor(int controlId)
+{
+    if(Blocked())return;
+    COLORREF *target=nullptr;
+    if(controlId==CUSTOM_BACKGROUND)target=&customThemeColors.background;
+    else if(controlId==CUSTOM_PANEL)target=&customThemeColors.panel;
+    else if(controlId==CUSTOM_TEXT)target=&customThemeColors.text;
+    else if(controlId==CUSTOM_ACCENT)target=&customThemeColors.accent;
+    if(!target)return;
+    // Keep private content out of the native color dialog and redraw it only
+    // after the protected owner window is visible again.
+    documentHost.Hide();ShowWindow(editor,SW_HIDE);ShowWindow(imageViewer,SW_HIDE);
+    if(mirror)mirror->Invalidate();
+    static COLORREF customColors[16]{};
+    CHOOSECOLORW chooser{sizeof(chooser)};
+    chooser.hwndOwner=window;chooser.rgbResult=*target;chooser.lpCustColors=customColors;
+    chooser.Flags=CC_FULLOPEN|CC_RGBINIT;
+    if(ChooseColorW(&chooser)) {
+        *target=chooser.rgbResult;
+        SaveCustomTheme(dataDir,customThemeColors);
+        auto candidate=preferences;candidate.themeId=CustomThemeId;StorePreferences(candidate);
+    }
+    Layout();
+}
 std::wstring SelectedMonitor(HWND combo)
 {
     int index=(int)SendMessageW(combo,CB_GETCURSEL,0,0);
@@ -2003,11 +2125,11 @@ void DrawButtonContents(DRAWITEMSTRUCT *item)
     }
     if(page==Page::Settings && (item->CtlID==REMEMBER_SIZE||item->CtlID==ALLOW_EDIT||item->CtlID==TOPMOST||item->CtlID==SHOW_ACTIVITY||item->CtlID==SHOW_TREE||item->CtlID==SHOW_TABS||
         item->CtlID==SHOW_TOOLBAR||item->CtlID==SHOW_STATUS||item->CtlID==INCLUDE_IGNORED||item->CtlID==BROWSER_TOGGLE||item->CtlID==POINTER||item->CtlID==WRAP||
-        item->CtlID==BROWSER_MUTED||item->CtlID==BROWSER_CAMERA||item->CtlID==BROWSER_MICROPHONE)) {
+        item->CtlID==BROWSER_MUTED||item->CtlID==BROWSER_CAMERA||item->CtlID==BROWSER_MICROPHONE||item->CtlID==MEETING_TRANSCRIBE)) {
         const int id=item->CtlID;const bool value=id==REMEMBER_SIZE?preferences.rememberWindowSize:id==ALLOW_EDIT?preferences.allowFileEditing:id==TOPMOST?topmost:id==SHOW_ACTIVITY?activityVisible:id==SHOW_TREE?treeVisible:
             id==SHOW_TABS?tabsVisible:id==SHOW_TOOLBAR?toolbarVisible:id==SHOW_STATUS?statusVisible:id==INCLUDE_IGNORED?projectTree.IncludeIgnored():
             id==BROWSER_TOGGLE?browser.Enabled():id==POINTER?mirrorPointer:id==BROWSER_MUTED?preferences.browserMuted:
-            id==BROWSER_CAMERA?preferences.browserAllowCamera:id==BROWSER_MICROPHONE?preferences.browserAllowMicrophone:IsCode()?codeViewer.GetState().wrap:documents.Active().state.wrap;
+            id==BROWSER_CAMERA?preferences.browserAllowCamera:id==BROWSER_MICROPHONE?preferences.browserAllowMicrophone:id==MEETING_TRANSCRIBE?meetingSettings.transcriptionEnabled:IsCode()?codeViewer.GetState().wrap:documents.Active().state.wrap;
         const bool disabled=item->itemState&ODS_DISABLED,hover=hoveredButton==item->hwndItem;
         FillRect(item->hDC,&item->rcItem,cardBrush);
         RECT button=item->rcItem;InflateRect(&button,-1,-1);
@@ -2023,6 +2145,19 @@ void DrawButtonContents(DRAWITEMSTRUCT *item)
             HPEN pen=CreatePen(PS_SOLID,std::max(1,S(1)),ACCENT);auto old=SelectObject(item->hDC,pen),brush=SelectObject(item->hDC,GetStockObject(NULL_BRUSH));
             RoundRect(item->hDC,button.left,button.top,button.right,button.bottom,S(8),S(8));SelectObject(item->hDC,brush);SelectObject(item->hDC,old);DeleteObject(pen);
         }
+        return;
+    }
+    if(page==Page::Settings && (item->CtlID==CUSTOM_BACKGROUND||item->CtlID==CUSTOM_PANEL||item->CtlID==CUSTOM_TEXT||item->CtlID==CUSTOM_ACCENT)) {
+        const bool disabled=(item->itemState&ODS_DISABLED)!=0,hover=hoveredButton==item->hwndItem&&!disabled;
+        FillRect(item->hDC,&item->rcItem,cardBrush);
+        RECT button=item->rcItem;InflateRect(&button,-1,-1);if(hover)FillRoundRect(item->hDC,button,HOVER,S(8));
+        COLORREF color=item->CtlID==CUSTOM_BACKGROUND?customThemeColors.background:item->CtlID==CUSTOM_PANEL?customThemeColors.panel:item->CtlID==CUSTOM_TEXT?customThemeColors.text:customThemeColors.accent;
+        RECT swatch{button.left+S(8),button.top+S(7),button.left+S(38),button.bottom-S(7)};
+        FillRoundRect(item->hDC,swatch,disabled?DISABLED:color,S(6));
+        HPEN border=CreatePen(PS_SOLID,std::max(1,S(1)),disabled?DIVIDER:theme.border);auto oldPen=SelectObject(item->hDC,border),oldBrush=SelectObject(item->hDC,GetStockObject(NULL_BRUSH));
+        RoundRect(item->hDC,swatch.left,swatch.top,swatch.right,swatch.bottom,S(6),S(6));SelectObject(item->hDC,oldBrush);SelectObject(item->hDC,oldPen);DeleteObject(border);
+        DrawTextAt(item->hDC,ColorHex(color),{button.left+S(48),button.top,button.right-S(8),button.bottom},disabled?DISABLED:TEXT,uiFont,DT_CENTER|DT_VCENTER|DT_SINGLELINE);
+        if(GetFocus()==item->hwndItem&&!(SendMessageW(window,WM_QUERYUISTATE,0,0)&UISF_HIDEFOCUS)){RECT focus=button;InflateRect(&focus,-2,-2);DrawFocusRect(item->hDC,&focus);}
         return;
     }
     bool disabled = (item->itemState & ODS_DISABLED) != 0;
@@ -2887,8 +3022,9 @@ bool StorePreferences(const Preferences& candidate)
     }
     preferences=candidate;f8Registered=globalHotkeys.Registered(PreferenceCommand::Mask);recallRegistered=globalHotkeys.Registered(PreferenceCommand::Recall);
     preferenceError.clear();browser.SetMediaPreferences(preferences.browserMuted,preferences.browserAllowCamera,preferences.browserAllowMicrophone);
-    if(theme.vi!=Themes[preferences.themeId].vi) {
-        theme=Themes[preferences.themeId];
+    const ThemePalette nextTheme=ThemePaletteFor(preferences.themeId);
+    if(theme.vi!=nextTheme.vi || theme.bg!=nextTheme.bg || theme.card!=nextTheme.card || theme.accent!=nextTheme.accent || theme.text!=nextTheme.text) {
+        theme=nextTheme;
         DeleteObject(bgBrush);DeleteObject(cardBrush);DeleteObject(numberBrush);
         bgBrush=CreateSolidBrush(BG);cardBrush=CreateSolidBrush(CARD);numberBrush=CreateSolidBrush(ELEVATED);
         SendMessageW(editor,EM_SETBKGNDCOLOR,0,BG);
@@ -3042,7 +3178,12 @@ LRESULT CALLBACK Proc(HWND h, UINT message, WPARAM wp, LPARAM lp)
             {225,L"Ctrl+O"},{226,L"Ctrl+Shift+O"},{227,L"Ctrl+B"},{228,L"Ctrl+Enter"},{229,L"Space"}};
         labels.insert(labels.end(),{{THEME_SELECT,L"Chủ đề màu"},{REMEMBER_SIZE,L"Nhớ kích thước cửa sổ"},{ALLOW_EDIT,L"Cho phép sửa file"},{SAVE_FILE,L"Lưu file"},
             {RECENT_CLEAR,L"Xóa lịch sử"},{RECENT_NEXT,L"Sau"},{RECENT_PREV,L"Trước"},{TRANSCRIPTION_LANGUAGE,L"Ngôn ngữ chép lời"},
-            {SCRIPT_TAB_LABELS,L"Nhãn tab Lời nhắc"},{BROWSER_TAB_LABELS,L"Nhãn tab browser"}});
+            {SCRIPT_TAB_LABELS,L"Nhãn tab Lời nhắc"},{BROWSER_TAB_LABELS,L"Nhãn tab browser"},
+            {MEETING_TRANSCRIBE,L"Tự chép lời sau khi ghi âm"},{MEETING_PROVIDER,L"Nền tảng cuộc họp"},
+            {MEETING_OUTPUT,L"Kiểu xuất cuộc họp"},{MEETING_DIRECTORY,L"Thư mục lưu cuộc họp"},
+            {MEETING_IMPORT,L"Nhập transcript nền tảng"},{CUSTOM_BACKGROUND,L"Màu nền theme"},
+            {CUSTOM_PANEL,L"Màu bảng theme"},{CUSTOM_TEXT,L"Màu chữ theme"},{CUSTOM_ACCENT,L"Màu nhấn theme"},
+            {CUSTOM_RESET,L"Khôi phục màu theme"}});
         for(int i=0;i<6;++i){labels.push_back({RECENT_FIRST+i*3,L"Mở lại"});labels.push_back({RECENT_FIRST+i*3+1,L"Ghim / bỏ ghim"});labels.push_back({RECENT_FIRST+i*3+2,L"Xóa khỏi lịch sử"});}
         for (const auto &label : labels)
         {
@@ -3480,7 +3621,7 @@ LRESULT CALLBACK Proc(HWND h, UINT message, WPARAM wp, LPARAM lp)
         }
         if (HIWORD(wp) != BN_CLICKED)
             return 0;
-        if(LOWORD(wp)>=1000&&LOWORD(wp)<1000+Themes.size()) {
+        if(LOWORD(wp)>=1000&&LOWORD(wp)<=1000+CustomThemeId) {
             auto candidate=preferences;candidate.themeId=LOWORD(wp)-1000;StorePreferences(candidate);Layout();return 0;
         }
         if((LOWORD(wp)>=SETTINGS_APPEARANCE&&LOWORD(wp)<=SETTINGS_KEYS)||LOWORD(wp)==SETTINGS_BROWSER) {
@@ -3528,13 +3669,50 @@ LRESULT CALLBACK Proc(HWND h, UINT message, WPARAM wp, LPARAM lp)
             else candidate.numberedBrowserTabs=!candidate.numberedBrowserTabs;
             StorePreferences(candidate);Layout();break;}
 
+        case MEETING_TRANSCRIBE:
+            meetingSettings.transcriptionEnabled=!meetingSettings.transcriptionEnabled;
+            if(!SaveMeetingSettings(dataDir,meetingSettings))
+                importError=T(L"Không lưu được thiết lập chép lời.",L"The transcription setting could not be saved.");
+            else importError.clear();
+            Layout();break;
+        case MEETING_PROVIDER:{
+            std::vector<ToolMenuItem> entries{{PROVIDER_LOCAL,T(L"Âm thanh máy / Windows SAPI",L"System audio / Windows SAPI"),true,0xeba7,meetingSettings.provider==MeetingProvider::Generic},
+                {PROVIDER_TEAMS,L"Microsoft Teams",true,0xeb51,meetingSettings.provider==MeetingProvider::Teams},
+                {PROVIDER_ZOOM,L"Zoom",true,0xeb51,meetingSettings.provider==MeetingProvider::Zoom},
+                {PROVIDER_MEET,L"Google Meet",true,0xeb51,meetingSettings.provider==MeetingProvider::GoogleMeet}};
+            RECT anchor{};GetWindowRect(GetDlgItem(window,MEETING_PROVIDER),&anchor);ToolMenu menu;
+            const int chosen=menu.Show(window,anchor,dpi,uiFont,std::move(entries));
+            MeetingProvider provider=meetingSettings.provider;
+            if(chosen==PROVIDER_LOCAL)provider=MeetingProvider::Generic;
+            else if(chosen==PROVIDER_TEAMS)provider=MeetingProvider::Teams;
+            else if(chosen==PROVIDER_ZOOM)provider=MeetingProvider::Zoom;
+            else if(chosen==PROVIDER_MEET)provider=MeetingProvider::GoogleMeet;
+            if(chosen>=PROVIDER_LOCAL&&chosen<=PROVIDER_MEET){meetingSettings.provider=provider;SaveMeetingSettings(dataDir,meetingSettings);Layout();}
+            break;
+        }
+        case MEETING_OUTPUT:{
+            std::vector<ToolMenuItem> entries{{OUTPUT_WAV,T(L"Giữ WAV và transcript",L"Keep WAV and transcript"),true,0xeba7,meetingSettings.exportMode==MeetingExportMode::WavAndTranscript},
+                {OUTPUT_TRANSCRIPT,T(L"Chỉ giữ nội dung cuộc họp",L"Keep transcript only"),true,0xeb51,meetingSettings.exportMode==MeetingExportMode::TranscriptOnly}};
+            RECT anchor{};GetWindowRect(GetDlgItem(window,MEETING_OUTPUT),&anchor);ToolMenu menu;
+            const int chosen=menu.Show(window,anchor,dpi,uiFont,std::move(entries));
+            if(chosen==OUTPUT_WAV||chosen==OUTPUT_TRANSCRIPT){meetingSettings.exportMode=chosen==OUTPUT_TRANSCRIPT?MeetingExportMode::TranscriptOnly:MeetingExportMode::WavAndTranscript;SaveMeetingSettings(dataDir,meetingSettings);Layout();}
+            break;
+        }
+        case MEETING_DIRECTORY:ChooseMeetingDirectory();break;
+        case MEETING_IMPORT:ImportMeetingFile();break;
+        case CUSTOM_BACKGROUND:case CUSTOM_PANEL:case CUSTOM_TEXT:case CUSTOM_ACCENT:ChooseCustomColor(LOWORD(wp));break;
+        case CUSTOM_RESET:
+            customThemeColors=CustomThemeColors{};SaveCustomTheme(dataDir,customThemeColors);
+            {auto candidate=preferences;candidate.themeId=CustomThemeId;StorePreferences(candidate);}Layout();break;
+
         case THEME_SELECT:{
             std::vector<ToolMenuItem> entries;
             for(int i=0;i<static_cast<int>(Themes.size());++i)
                 entries.push_back({1000+i,ThemeName(i,english),true,0,preferences.themeId==i});
+            entries.push_back({1000+CustomThemeId,ThemeName(CustomThemeId,english),true,0,preferences.themeId==CustomThemeId});
             RECT anchor{};GetWindowRect(GetDlgItem(window,THEME_SELECT),&anchor);
             ToolMenu menu;int chosen=menu.Show(window,anchor,dpi,uiFont,std::move(entries));
-            if(chosen>=1000&&chosen<1000+static_cast<int>(Themes.size())) {
+            if(chosen>=1000&&chosen<=1000+CustomThemeId) {
                 SendMessageW(window,WM_COMMAND,chosen,0);
             }
             break;
@@ -3554,12 +3732,17 @@ LRESULT CALLBACK Proc(HWND h, UINT message, WPARAM wp, LPARAM lp)
                 meetingRecorder.Stop();
                 KillTimer(h,MEETING_TIMER);
                 transcriptionHandled=false;transcriptionNotice.clear();
-                if(meetingRecorder.BytesWritten()>0&&meetingTranscriber.Start(meetingRecorder.OutputPath(),
+                meetingRecordingPath=meetingRecorder.OutputPath();
+                if(meetingRecorder.BytesWritten()>0&&meetingSettings.transcriptionEnabled&&meetingTranscriber.Start(meetingRecordingPath,
                         preferences.transcriptionLanguage==1?TranscriptionLanguage::English:TranscriptionLanguage::Vietnamese))
                     SetTimer(h,MEETING_TIMER,500,nullptr);
-                else if(meetingRecorder.BytesWritten()>0)
+                else if(meetingRecorder.BytesWritten()>0&&meetingSettings.transcriptionEnabled)
                     transcriptionNotice=meetingTranscriber.Status(english);
-            } else if(meetingRecorder.Start(dataDir)) {
+                else if(meetingRecorder.BytesWritten()>0)
+                    transcriptionNotice=T(L"Đã lưu WAV cuộc họp · chép lời đang tắt",L"Meeting WAV saved · transcription is off");
+                else if(meetingRecorder.ErrorCode()!=0)
+                    transcriptionNotice=meetingRecorder.Status(english);
+            } else if(meetingRecorder.Start(dataDir,meetingSettings.outputDirectory)) {
                 transcriptionHandled=false;transcriptionNotice.clear();
                 SetTimer(h,MEETING_TIMER,500,nullptr);
             }
@@ -3859,7 +4042,16 @@ int WINAPI wWinMain(HINSTANCE inst, HINSTANCE, LPWSTR, int show)
         return 4;
     CreateDirectoryW(dataDir.c_str(), nullptr);
     LoadLayoutPreferences();
-    if(!qa){LoadPreferences(dataDir,preferences);recentWorkspace.Load(dataDir);}
+    if(!qa){
+        LoadPreferences(dataDir,preferences);
+        meetingSettings.outputDirectory=DefaultMeetingDirectory(dataDir);
+        LoadMeetingSettings(dataDir,meetingSettings);
+        if(meetingSettings.outputDirectory.empty())meetingSettings.outputDirectory=DefaultMeetingDirectory(dataDir);
+        LoadCustomTheme(dataDir,customThemeColors);
+        recentWorkspace.Load(dataDir);
+    } else {
+        meetingSettings.outputDirectory=DefaultMeetingDirectory(dataDir);
+    }
     HANDLE singleInstance = nullptr;
     if (!qa)
     {
@@ -3885,7 +4077,7 @@ int WINAPI wWinMain(HINSTANCE inst, HINSTANCE, LPWSTR, int show)
         return 5;
     INITCOMMONCONTROLSEX controls{sizeof(controls), ICC_STANDARD_CLASSES | ICC_BAR_CLASSES};
     InitCommonControlsEx(&controls);
-    theme=Themes[preferences.themeId];
+    theme=ThemePaletteFor(preferences.themeId);
     bgBrush = CreateSolidBrush(BG);
     cardBrush = CreateSolidBrush(CARD);
     numberBrush = CreateSolidBrush(ELEVATED);

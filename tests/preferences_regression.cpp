@@ -116,7 +116,9 @@ int wmain()
         check(("themeRoundTrip"+std::to_string(id)).c_str(),SavePreferences(directory,candidate)&&LoadPreferences(directory,loaded)&&Equal(candidate,loaded));
     }
     invalid=edited;invalid.themeId=-1;check("negativeThemeRejected",!ValidatePreferences(invalid,error));
-    invalid.themeId=10;check("unknownThemeRejected",!ValidatePreferences(invalid,error));
+    auto custom=edited;custom.themeId=CustomThemeId;
+    check("customThemeRoundTrip",SavePreferences(directory,custom)&&LoadPreferences(directory,loaded)&&Equal(custom,loaded));
+    invalid.themeId=CustomThemeId+1;check("unknownThemeRejected",!ValidatePreferences(invalid,error));
     std::array<DWORD,31> v3{{0x50515351,3,PreferenceCommandCount,100,400}};
     for(unsigned i=0;i<PreferenceCommandCount;++i){v3[5+i*2]=defaults.shortcuts[i].key;v3[6+i*2]=defaults.shortcuts[i].modifiers;}
     v3[25]=16;v3[29]=1;v3[30]=1;

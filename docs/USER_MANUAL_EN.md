@@ -1,6 +1,6 @@
 # QuietShare User Manual
 
-English edition - QuietShare v0.16.0
+English edition - QuietShare v0.17.0
 
 Read, prepare and present with private notes on Windows.
 
@@ -207,11 +207,15 @@ Imported text and code files use explicit Save instead. Switching documents does
 
 1. Open **Settings > Reading > Transcription language**.
 2. Choose **Vietnamese** or **English**. The matching Windows speech recognition component must be installed.
-3. Select **Record and transcribe meeting** on the sidebar.
-4. QuietShare records the Windows playback mix only. It never opens a microphone and it does not start by itself.
-5. Select the same control to stop. The WAV is saved under `%LOCALAPPDATA%\QuietShare\Meetings`.
-6. Wait for the footer to show the transcription result. Windows Speech API processes the WAV locally.
-7. Find the UTF-8 `.txt` transcript next to the WAV. The recognized text is also appended to the local Lời nhắc.
+3. Use **Transcribe after recording** to choose whether the local transcript step runs.
+4. Choose a **Meeting platform** label for imported Teams, Zoom or Google Meet transcripts.
+5. Choose **WAV + transcript** or **Transcript only**. Transcript only uses a temporary WAV and deletes it after the transcript is saved successfully.
+6. Select **Record and transcribe meeting** on the sidebar.
+7. QuietShare records the Windows playback mix only. It never opens a microphone and it does not start by itself.
+8. Select the same control to stop. The chosen folder receives the WAV and, when kept, a UTF-8 `.txt` transcript.
+9. Wait for the footer to show the transcription result. Windows Speech API processes the WAV locally and appends the text to the local Lời nhắc.
+
+Use **Import Teams / Zoom / Meet transcript** for an exported `.vtt` or `.txt`. Provider speaker cues such as `<v Alice>` become `Alice: ...`. The mixed Windows playback stream cannot identify speakers by itself, and QuietShare does not silently connect to provider APIs. See the official [Teams transcript overview](https://learn.microsoft.com/en-us/microsoftteams/platform/graph-api/meeting-transcripts/overview-transcripts), [Google Meet API overview](https://developers.google.com/workspace/meet/api/guides/overview) and [Zoom meeting APIs](https://developers.zoom.us/docs/api/meetings/) when designing a separately authorized integration.
 
 If the selected language component is not installed, the footer reports the missing language. The application does not invent a transcript or upload the audio.
 
@@ -284,7 +288,7 @@ Scanned pages without a text layer cannot provide ordinary text search or copy. 
 
 Search behavior depends on the active viewer. PDF text search requires a text layer.
 
-### Choose among ten themes
+### Choose among ten preset themes or a custom palette
 
 Open **Settings > Appearance > Color theme**, or use the theme button on the viewer toolbar.
 
@@ -298,6 +302,8 @@ Open **Settings > Appearance > Color theme**, or use the theme button on the vie
 - Daylight blue
 - High contrast black
 - High contrast white
+
+Choose **Custom** to edit background, panel, text and accent colors. The derived surfaces and borders keep the palette coherent. **Reset custom colors** restores the initial custom palette.
 
 Try a light or high-contrast theme in a bright room. Try Warm paper for a softer reading background. Theme choice persists across launches. Themes change QuietShare's interface and text presentation. They do not recolor website contents, image pixels or PDF pages.
 
@@ -315,6 +321,7 @@ Settings separates controls into **Appearance**, **Reading**, **Workspace**, **P
 - Adjust opacity from 40% to 100%. This includes the controller's text. Public projection stays opaque.
 - Adjust icon size from 12 px to 24 px.
 - In **Workspace**, choose numbered labels independently for document tabs and Browser tabs when titles take too much space. The tab tooltip still shows the full path or address.
+- The **Show tabs as Tab 1, Tab 2, ...** section applies separately to Lời nhắc/files and Browser. Adjacent tabs share one connected strip while tooltips keep the full name.
 - Use Layout to show or hide the activity bar, tabs, toolbar, status bar and Explorer.
 - Drag the Explorer divider to adjust its width.
 - Use F11 to enter or leave focus mode.
@@ -542,13 +549,16 @@ Use the capture controls in the application that actually shares or records. Qui
 QuietShare can record the Windows default playback mix while you explicitly enable the recording control. This is useful when the meeting audio, presentation video or remote participants are played through this computer.
 
 1. Open **Settings > Reading > Transcription language** and choose **Vietnamese** or **English**.
-2. Select **Record and transcribe meeting** on the sidebar.
-3. Confirm the red record icon and the footer status show that recording is active.
-4. Keep the meeting audio on the intended Windows playback device.
-5. Use the script editor to write manual notes while the recording runs.
-6. Select **Stop meeting recording** when the session ends, or close QuietShare to stop and finalize it.
-7. Find the WAV file under `%LOCALAPPDATA%\QuietShare\Meetings`.
-8. Wait for Windows Speech API to finish. The UTF-8 transcript is saved beside the WAV and appended to the local Lời nhắc.
+2. Turn **Transcribe after recording** on or off, choose the output folder and choose **WAV + transcript** or **Transcript only**.
+3. Select **Record and transcribe meeting** on the sidebar.
+4. Confirm the red record icon and the footer status show that recording is active.
+5. Keep the meeting audio on the intended Windows playback device.
+6. Use the script editor to write manual notes while the recording runs.
+7. Select **Stop meeting recording** when the session ends, or close QuietShare to stop and finalize it.
+8. Find the output in the chosen folder. Transcript only deletes the temporary WAV after a successful save.
+9. Wait for Windows Speech API to finish. The UTF-8 transcript is appended to the local Lời nhắc.
+
+To preserve speaker names, choose **Import Teams / Zoom / Meet transcript** and select the provider's exported VTT/TXT file. System-audio capture alone cannot provide reliable speaker attribution.
 
 The recorder captures system playback only. It does not open the microphone, start at launch or send the audio to QuietShare's projection path. A playback-device change can stop the recording and leave a finalized partial WAV file. Speech recognition runs locally. If the selected Windows language component is missing, the footer reports the missing language and no fake transcript is created.
 
