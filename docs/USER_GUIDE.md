@@ -143,6 +143,16 @@ Lời nhắc tự lưu trên máy, tách biệt với file đã mở.
 - Separate-popup sign-in flows may not work.
 - Microphone/camera access is off by default. See [privacy](PRIVACY.md) for grant conditions.
 
+## Local meeting recording / Ghi âm cuộc họp cục bộ
+
+- **English:** Select **Record meeting audio** on the sidebar when you want to capture the Windows playback mix. The red record icon and footer show the active state. Select it again to stop. QuietShare saves a WAV file under `%LOCALAPPDATA%\QuietShare\Meetings`.
+- The recorder captures system playback only. It does not open the microphone, does not begin at launch and does not continue after QuietShare closes.
+- Use the script editor beside the recording control for manual notes. This release stores audio and notes separately. It does not claim automatic speech-to-text.
+
+- **Tiếng Việt:** Chọn **Ghi âm cuộc họp** ở thanh bên khi muốn lưu âm thanh phát ra từ Windows. Icon ghi màu đỏ và thanh trạng thái cho biết đang ghi. Chọn lại nút đó để dừng. QuietShare lưu file WAV tại `%LOCALAPPDATA%\QuietShare\Meetings`.
+- Bộ ghi chỉ lấy âm thanh phát ra từ máy. Nó không mở micro, không tự ghi khi khởi động và dừng khi QuietShare đóng.
+- Có thể dùng vùng soạn lời nhắc cạnh nút ghi để ghi chú thủ công. Phiên bản này lưu âm thanh và lời nhắc riêng, chưa tự nhận dạng lời nói.
+
 - Người dùng có thể chủ động **Ctrl+V** ảnh raster vào ô nhập web tương thích.
 - Hộp chọn file web, thả file, tải xuống, chia sẻ màn hình, thông báo, DevTools và menu native bị chặn.
 - Đăng nhập cần popup riêng có thể không hoạt động.

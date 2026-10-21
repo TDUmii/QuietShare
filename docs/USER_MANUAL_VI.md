@@ -1,6 +1,6 @@
 # Hướng dẫn sử dụng QuietShare
 
-Ấn bản tiếng Việt - QuietShare v0.14.5
+Ấn bản tiếng Việt - QuietShare v0.15.0
 
 Đọc, chuẩn bị và thuyết trình với lời nhắc riêng trên Windows.
 
@@ -523,6 +523,19 @@ Tăng FPS không sửa đường thu chưa xác minh. Trước tiên sửa đi�
 ## 12. Cuộc họp, OBS và phục hồi phiên
 
 Dùng điều khiển của ứng dụng thực sự chia sẻ hoặc ghi hình. Nút che và dừng của QuietShare tác động QuietShare. Chúng không điều khiển luồng trực tiếp của ứng dụng khác.
+
+### Ghi âm âm thanh cuộc họp trên máy này
+
+QuietShare có thể ghi âm luồng phát mặc định của Windows khi bạn chủ động bật nút ghi. Tính năng phù hợp khi âm thanh cuộc họp, video thuyết trình hoặc người tham dự từ xa đang phát qua chính máy này.
+
+1. Chọn **Ghi âm cuộc họp** trên thanh bên.
+2. Xác nhận icon ghi màu đỏ và thanh trạng thái cho biết đang ghi.
+3. Giữ âm thanh cuộc họp trên đúng thiết bị phát Windows cần dùng.
+4. Dùng vùng soạn lời nhắc để ghi chú thủ công trong lúc bản ghi đang chạy.
+5. Chọn **Dừng ghi âm** khi kết thúc hoặc đóng QuietShare để dừng và hoàn tất file.
+6. Tìm file WAV tại `%LOCALAPPDATA%\QuietShare\Meetings`.
+
+Bộ ghi chỉ lấy âm thanh phát ra từ máy. Nó không mở micro, không tự ghi khi khởi động và không đưa âm thanh vào đường trình chiếu của QuietShare. Nếu thiết bị phát thay đổi, bản ghi có thể dừng và để lại file WAV một phần nhưng đã hoàn tất. Phiên bản hiện tại lưu âm thanh và ghi chú thủ công riêng, chưa tự nhận dạng lời nói.
 
 ### Zoom, Meet hoặc Teams với một màn
 

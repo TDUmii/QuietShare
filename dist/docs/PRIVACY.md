@@ -82,11 +82,13 @@ Kiểm tra WGC trong phiên khỏe mạnh không tự kết thúc phiên.
 - **Preferences, layout and optional window size:** stored locally.
 - **File drafts:** stay in memory until explicitly saved. Imported file content is not autosaved over the script.
 - **Clear history:** removes entries and pins without deleting original files.
+- **Meeting recordings:** are written locally as WAV files under the user's QuietShare Meetings folder only after the recording control is enabled. The recorder uses the Windows playback mix, does not open a microphone and stops when QuietShare closes.
 
 - **Lời nhắc và lịch sử file:** được Windows DPAPI mã hóa cho người dùng cục bộ.
 - **Cấu hình, bố cục và kích thước cửa sổ tùy chọn:** được lưu trên máy.
 - **Bản sửa file:** giữ trong bộ nhớ đến khi chủ động lưu. Nội dung file đã mở không tự ghi đè lời nhắc.
 - **Xóa lịch sử:** xóa mục và ghim mà không xóa file gốc.
+- **Bản ghi cuộc họp:** được lưu cục bộ dưới dạng WAV trong thư mục Meetings của QuietShare chỉ sau khi bật nút ghi. Bộ ghi lấy âm thanh phát ra từ Windows, không mở micro và dừng khi QuietShare đóng.
 
 - The optional browser uses a separate local WebView2 profile for site data, including cookies/sign-ins and saved shortcuts.
 - These records do not imply the script's DPAPI storage format.

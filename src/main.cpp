@@ -19,6 +19,7 @@
 #include "FileIcons.h"
 #include "LocalPicker.h"
 #include "Browser.h"
+#include "MeetingRecorder.h"
 #include "Version.h"
 #include "Preferences.h"
 #include <algorithm>
@@ -74,11 +75,11 @@ constexpr int MODE = 100, PLAY = 101, SMALLER = 102, LARGER = 103, SPEED = 104, 
               OPEN_DISPLAY_SETTINGS=186,SETTINGS_SCROLL=187,PIN_WINDOW=188,RESOURCE_MODE=189,
               WEB_NEW_TAB=190,HOME_VERSION=192,SETTINGS_APPEARANCE=200,SETTINGS_READING=201,
               SETTINGS_WORKSPACE=202,SETTINGS_PROJECTION=203,SETTINGS_KEYS=204,OPACITY_INPUT=205,
-              TEXT_WEIGHT=206,RESET_PREFERENCES=207,MIRROR_ACTION=211,WEB_MENU=212,SHORTCUT_FIRST=220,
+              TEXT_WEIGHT=206,RESET_PREFERENCES=207,MIRROR_ACTION=211,WEB_MENU=212,WEB_AUDIO=213,MEETING_RECORD=214,SHORTCUT_FIRST=220,
               SETTINGS_BROWSER=240,ICON_SIZE_INPUT=241,OPACITY_LESS=242,OPACITY_MORE=243,
               ICON_SMALLER=244,ICON_LARGER=245,BROWSER_MUTED=246,BROWSER_CAMERA=247,BROWSER_MICROPHONE=248,REMEMBER_SIZE=249,ALLOW_EDIT=250,SAVE_FILE=251,RECENT_CLEAR=252,RECENT_NEXT=253,RECENT_PREV=254,THEME_SELECT=255,RECENT_FIRST=400;
 constexpr int NORMAL_SIDEBAR = 36, COMPACT_SIDEBAR = 36;
-constexpr UINT_PTR PRIVACY_TIMER = 1, SCROLL_TIMER = 2, SAVE_TIMER = 3, QA_TIMER = 4;
+constexpr UINT_PTR PRIVACY_TIMER = 1, SCROLL_TIMER = 2, SAVE_TIMER = 3, QA_TIMER = 4, MEETING_TIMER = 6;
 HINSTANCE instance;
 HWND window, editor, underlay, tooltips, hoveredButton, imageViewer, settingsScroll, filePicker,
      findInput, sourceMonitor, destinationMonitor, sizeInput, homeVersion;
@@ -98,6 +99,7 @@ DocumentBar documentBar;
 DocumentBar browserTabBar;
 ProjectTree projectTree;
 Browser browser;
+MeetingRecorder meetingRecorder;
 unsigned displayedBrowserTab=0;
 bool updatingWebAddress=false,webAddressEdited=false;
 HWND webAddress=nullptr;
@@ -610,6 +612,14 @@ void UpdateButtons()
         browser.Enabled()?L"Disable browser":L"Enable browser"));
     SetTip(BROWSER_TOGGLE,T(browser.Enabled()?L"Tắt trình duyệt":L"Bật trình duyệt",
         browser.Enabled()?L"Disable browser":L"Enable browser"));
+    SetWindowTextW(GetDlgItem(window,WEB_AUDIO),T(preferences.browserMuted?L"Bật âm thanh":L"Tắt âm thanh",
+        preferences.browserMuted?L"Unmute audio":L"Mute audio"));
+    SetTip(WEB_AUDIO,T(preferences.browserMuted?L"Bật âm thanh web":L"Tắt âm thanh web",
+        preferences.browserMuted?L"Unmute web audio":L"Mute web audio"));
+    SetWindowTextW(GetDlgItem(window,MEETING_RECORD),T(meetingRecorder.Running()?L"Dừng ghi âm":L"Ghi âm cuộc họp",
+        meetingRecorder.Running()?L"Stop meeting recording":L"Record meeting audio"));
+    SetTip(MEETING_RECORD,T(meetingRecorder.Running()?L"Dừng ghi âm âm thanh máy":L"Ghi âm âm thanh máy khi bật",
+        meetingRecorder.Running()?L"Stop recording system audio":L"Record system audio while enabled"));
     SetWindowTextW(GetDlgItem(window,WEB_NEW_TAB),T(L"Tab web mới",L"New web tab"));
     EnableWindow(GetDlgItem(window,WEB_NEW_TAB),!Blocked()&&browser.CanNewTab());
     SetTip(WEB_NEW_TAB,T(L"Tab web mới · Ctrl+T",L"New web tab · Ctrl+T"));
@@ -627,7 +637,7 @@ void UpdateButtons()
     SetTip(OPACITY_LESS,T(L"Giảm độ mờ 1%",L"Decrease opacity by 1%"));SetTip(OPACITY_MORE,T(L"Tăng độ mờ 1%",L"Increase opacity by 1%"));
     SetTip(ICON_SMALLER,T(L"Giảm kích thước icon 1 px",L"Decrease icon size by 1 px"));SetTip(ICON_LARGER,T(L"Tăng kích thước icon 1 px",L"Increase icon size by 1 px"));
     SetWindowTextW(GetDlgItem(window,NAV_BROWSER),T(L"Trình duyệt",L"Browser"));
-    for(int id:{WEB_ADDRESS,WEB_GO,WEB_RELOAD,WEB_MENU})EnableWindow(GetDlgItem(window,id),browser.Ready()&&!Blocked());
+    for(int id:{WEB_ADDRESS,WEB_GO,WEB_RELOAD,WEB_AUDIO,WEB_MENU})EnableWindow(GetDlgItem(window,id),browser.Ready()&&!Blocked());
     EnableWindow(GetDlgItem(window,WEB_BACK),browser.Ready()&&!Blocked()&&browser.CanBack());
     EnableWindow(GetDlgItem(window,WEB_FORWARD),browser.Ready()&&!Blocked()&&browser.CanForward());
     EnableWindow(GetDlgItem(window,BROWSER_TOGGLE),browser.Enabled()||!Blocked());
@@ -683,6 +693,7 @@ void UpdateButtons()
     EnableWindow(GetDlgItem(window,VERIFY_PRIVACY),!masked&&!verifying&&!storageBlocked);
     EnableWindow(GetDlgItem(window,MIRROR_START),!Blocked()&&monitors.size()>1&&SelectedMonitor(sourceMonitor)!=SelectedMonitor(destinationMonitor));
     EnableWindow(GetDlgItem(window,MIRROR_ACTION),(mirror&&mirror->Running())||(!Blocked()&&monitors.size()>1&&SelectedMonitor(sourceMonitor)!=SelectedMonitor(destinationMonitor)));
+    EnableWindow(GetDlgItem(window,MEETING_RECORD),!shuttingDown);
     UpdateProjectionStopButton();
     for (int id : {MODE, PLAY, SMALLER, LARGER, SPEED, RESET_ZOOM, NAV_SCRIPT, NAV_READ, OPEN_FILE, OPEN_DROP,
                    HOME_SCRIPT, VIEW_FILE})
@@ -840,7 +851,8 @@ void Layout()
             move(id,4,y,railWidth-8,32);y+=36;
         }
         move(VERIFY_PRIVACY,4,y+12,railWidth-8,32);move(MIRROR_ACTION,4,y+48,railWidth-8,32);
-        move(NAV_SETTINGS,4,std::max(y+88,height-56),railWidth-8,28);
+        move(MEETING_RECORD,4,y+84,railWidth-8,32);
+        move(NAV_SETTINGS,4,std::max(y+124,height-56),railWidth-8,28);
     }
     contentCardRect={S(contentLeft),S(48),S(contentRight),S(bottom)};
     if(page==Page::Content || focusMode) {
@@ -1034,7 +1046,7 @@ void Layout()
             }
             if(!Blocked())move(WEB_NEW_TAB,actionsLeft-26,2,24,24);
             int x=contentLeft;
-            for(int id:{WEB_BACK,WEB_FORWARD,WEB_RELOAD}){move(id,x,30,24,26);x+=26;}
+            for(int id:{WEB_BACK,WEB_FORWARD,WEB_RELOAD,WEB_AUDIO}){move(id,x,30,24,26);x+=26;}
             const int addressRight=contentRight-130,addressWidth=std::min(680,std::max(48,addressRight-x-4));
             MoveWindow(webAddress,S(x+4+(addressRight-x-4-addressWidth)/2),S(30),S(addressWidth),S(26),FALSE);
             if(!Blocked()){
@@ -1870,7 +1882,8 @@ void Paint(HDC dc)
     if(focusMode||!statusVisible)return;
     RECT footer{S(contentLeft),client.bottom-S(20),S(contentRight),client.bottom-S(2)};
     std::wstring label=projectionStoppedNotice?T(L"Trình chiếu đã dừng - xem Cài đặt > Trình chiếu.",L"Projection stopped - see Settings > Projection."):
-        Blocked()?T(L"Nội dung đang khóa",L"Content locked"):page==Page::Browser?(browser.Ready()?browser.Status(english):L""):
+        Blocked()?T(L"Nội dung đang khóa",L"Content locked"):
+        (meetingRecorder.Running()||meetingRecorder.ErrorCode()!=0)?meetingRecorder.Status(english):page==Page::Browser?(browser.Ready()?browser.Status(english):L""):
         saveFailed?T(L"Không lưu được lời nhắc",L"Script save failed"):
         savedNoteRecovered&&!dirty&&!reading?T(L"Đã giữ bản dự phòng lời nhắc cũ",L"Old script recovery copy preserved"):
         dirty?T(L"Đang lưu...",L"Saving..."):!sizeError.empty()?sizeError:!findMessage.empty()?findMessage:
@@ -1887,7 +1900,10 @@ void DrawActionIcon(HDC dc,int id,RECT r,COLORREF color)
         id==PLAY?(running?0xead1:0xeb2c):id==MODE?0xea73:id==OVERFLOW||id==WEB_MENU?0xea7c:id==LAYOUT_MENU?0xebeb:id==SHOW_TREE?0xea76:
         id==BROWSER_TOGGLE||id==FIND_CLOSE?0xea76:id==WEB_GO?0xea9c:
         id==WEB_ZOOM_OUT||id==OPACITY_LESS||id==ICON_SMALLER?0xeb3b:
-        id==WEB_ZOOM_IN||id==OPACITY_MORE||id==ICON_LARGER?0xea60:id==FIND_PREV?0xeab5:0xeab6;
+        id==WEB_ZOOM_IN||id==OPACITY_MORE||id==ICON_LARGER?0xea60:
+        id==WEB_AUDIO?(preferences.browserMuted?0xeb24:0xeb75):
+        id==MEETING_RECORD?(meetingRecorder.Running()?0xeba5:0xeba7):
+        id==FIND_PREV?0xeab5:0xeab6;
     DrawCodicon(dc,glyph,r,color,S(14));
 }
 void DrawButtonContents(DRAWITEMSTRUCT *item)
@@ -1954,14 +1970,15 @@ void DrawButtonContents(DRAWITEMSTRUCT *item)
         return;
     }
     bool disabled = (item->itemState & ODS_DISABLED) != 0;
-    const bool railAction=(item->CtlID==VERIFY_PRIVACY||item->CtlID==MIRROR_ACTION)&&item->rcItem.right<=S(36);
+    const bool railAction=(item->CtlID==VERIFY_PRIVACY||item->CtlID==MIRROR_ACTION||item->CtlID==MEETING_RECORD)&&item->rcItem.right<=S(36);
     const bool category=(item->CtlID>=SETTINGS_APPEARANCE&&item->CtlID<=SETTINGS_KEYS)||item->CtlID==SETTINGS_BROWSER;
     bool nav = railAction||item->CtlID == NAV_SCRIPT || item->CtlID == NAV_READ || item->CtlID == NAV_HOME || item->CtlID == NAV_SETTINGS || item->CtlID==NAV_PRESENTATION || item->CtlID==NAV_BROWSER;
     bool activeNav = (item->CtlID == NAV_SCRIPT && page == Page::Content) ||
                      (item->CtlID == NAV_READ && page == Page::Content && reading) ||
                      (item->CtlID == NAV_HOME && page == Page::Home) ||
                      (item->CtlID == NAV_SETTINGS && page == Page::Settings) || (item->CtlID==NAV_PRESENTATION && page==Page::Presentation) || (item->CtlID==NAV_BROWSER&&page==Page::Browser) ||
-                     (category&&settingsCategory==(item->CtlID==SETTINGS_BROWSER?5:item->CtlID-SETTINGS_APPEARANCE))||(item->CtlID==MIRROR_ACTION&&mirror&&mirror->Running());
+                     (category&&settingsCategory==(item->CtlID==SETTINGS_BROWSER?5:item->CtlID-SETTINGS_APPEARANCE))||(item->CtlID==MIRROR_ACTION&&mirror&&mirror->Running())||
+                     (item->CtlID==MEETING_RECORD&&meetingRecorder.Running());
     bool primary = item->CtlID == PLAY || item->CtlID == OPEN_FILE || (item->CtlID==BROWSER_TOGGLE&&!browser.Enabled());
     bool pressed = (item->itemState & ODS_SELECTED) != 0;
     bool hover = hoveredButton == item->hwndItem && !disabled;
@@ -1997,8 +2014,11 @@ void DrawButtonContents(DRAWITEMSTRUCT *item)
         COLORREF iconColor = disabled ? DISABLED : (activeNav ? TEXT : MUTED);
         wchar_t glyph=item->CtlID==NAV_HOME?0xeb06:item->CtlID==NAV_SCRIPT?0xeaf0:
             item->CtlID==NAV_SETTINGS?0xeb51:item->CtlID==NAV_BROWSER?0xeb01:item->CtlID==VERIFY_PRIVACY?0xeab2:
-            item->CtlID==MIRROR_ACTION?(mirror&&mirror->Running()?0xead1:0xeb2c):0xea7a;
-        if(railAction&&!disabled&&mirror&&mirror->IsVerified())iconColor=item->CtlID==MIRROR_ACTION&&mirror->Running()?GREEN:item->CtlID==VERIFY_PRIVACY?GREEN:TEXT;
+            item->CtlID==MIRROR_ACTION?(mirror&&mirror->Running()?0xead1:0xeb2c):
+            item->CtlID==MEETING_RECORD?(meetingRecorder.Running()?0xeba5:0xeba7):0xea7a;
+        if(railAction&&!disabled&&((mirror&&mirror->IsVerified())||item->CtlID==MEETING_RECORD))
+            iconColor=item->CtlID==MIRROR_ACTION&&mirror->Running()?GREEN:
+                item->CtlID==VERIFY_PRIVACY?GREEN:meetingRecorder.Running()?RGB(220,80,72):TEXT;
         DrawCodicon(item->hDC,glyph,button,iconColor,S(16));
     }
     else if(item->CtlID==WEB_BACK||item->CtlID==WEB_FORWARD||item->CtlID==WEB_RELOAD) {
@@ -2006,10 +2026,14 @@ void DrawButtonContents(DRAWITEMSTRUCT *item)
     }
     else if(item->CtlID==RECENT_PREV||item->CtlID==RECENT_NEXT)
         DrawCodicon(item->hDC,item->CtlID==RECENT_PREV?0xea9b:0xea9c,button,disabled?DISABLED:TEXT,S(16));
-    else if(stepper||item->CtlID==WEB_MENU||item->CtlID==WEB_NEW_TAB||item->CtlID==WEB_GO||item->CtlID==WEB_ZOOM_OUT||item->CtlID==WEB_ZOOM_IN||
+    else if(stepper||item->CtlID==WEB_MENU||item->CtlID==WEB_NEW_TAB||item->CtlID==WEB_GO||item->CtlID==WEB_ZOOM_OUT||item->CtlID==WEB_ZOOM_IN||item->CtlID==WEB_AUDIO||item->CtlID==MEETING_RECORD||
         (item->CtlID==BROWSER_TOGGLE&&page==Page::Browser&&browser.Enabled())||
         item->CtlID==PIN_WINDOW||item->CtlID==LAYOUT_MENU||item->CtlID==SHOW_TREE || (strip && (item->CtlID==FOCUS || item->CtlID==MASK || item->CtlID==TOPMOST || item->CtlID==SMALLER || item->CtlID==LARGER || item->CtlID==MODE || item->CtlID==PLAY || item->CtlID==OPEN_FILE || item->CtlID==OVERFLOW || item->CtlID==FIND_CLOSE || item->CtlID==FIND_PREV || item->CtlID==FIND_NEXT)))
-        DrawActionIcon(item->hDC,item->CtlID,button,disabled?DISABLED:(item->CtlID==PIN_WINDOW||item->CtlID==TOPMOST)?(topmost?GREEN:MUTED):primary&&!pressed?RGB(255,255,255):TEXT);
+        DrawActionIcon(item->hDC,item->CtlID,button,disabled?DISABLED:
+            (item->CtlID==PIN_WINDOW||item->CtlID==TOPMOST)?(topmost?GREEN:MUTED):
+            item->CtlID==WEB_AUDIO?(preferences.browserMuted?AMBER:TEXT):
+            item->CtlID==MEETING_RECORD?(meetingRecorder.Running()?RGB(220,80,72):TEXT):
+            primary&&!pressed?RGB(255,255,255):TEXT);
     else
     {
         DrawTextAt(item->hDC, TextOf(item->hwndItem), button,
@@ -2947,14 +2971,14 @@ LRESULT CALLBACK Proc(HWND h, UINT message, WPARAM wp, LPARAM lp)
             {NAV_PRESENTATION,L"Trình chiếu"},{VERIFY_PRIVACY,L"Kiểm tra WGC"},{MIRROR_START,L"Bắt đầu"},
             {MIRROR_STOP,L"Dừng"},{POINTER,L"Con trỏ"},{RELOAD_FILE,L"Tải lại"},{KEEP_FILE,L"Giữ bản đang xem"},
             {INCLUDE_IGNORED,L"Hiện thư mục đang bỏ qua"},{NAV_BROWSER,L"Trình duyệt"},{BROWSER_TOGGLE,L"Bật trình duyệt"},
-            {WEB_BACK,L"Quay lại"},{WEB_FORWARD,L"Tiến tới"},{WEB_RELOAD,L"Tải lại"},{WEB_GO,L"Mở"},{WEB_MENU,L"Menu trình duyệt"},
+            {WEB_BACK,L"Quay lại"},{WEB_FORWARD,L"Tiến tới"},{WEB_RELOAD,L"Tải lại"},{WEB_AUDIO,L"Âm thanh web"},{WEB_GO,L"Mở"},{WEB_MENU,L"Menu trình duyệt"},
             {WEB_ZOOM_OUT,L"−"},{WEB_ZOOM_RESET,L"100%"},{WEB_ZOOM_IN,L"+"},{WEB_NEW_TAB,L"Tab web mới"},{RESOURCE_MODE,L"Hiệu năng · 60 FPS"},
             {LAYOUT_MENU,L"Bố cục"},{SHOW_TREE,L"Ẩn Explorer"},{SHOW_ACTIVITY,L"Thanh điều hướng"},{SHOW_TABS,L"Thanh tab"},
             {SHOW_TOOLBAR,L"Thanh công cụ"},{SHOW_STATUS,L"Thanh trạng thái"},{RESET_LAYOUT,L"Khôi phục bố cục"},
             {WRAP,L"Xuống dòng code"},{OPEN_DISPLAY_SETTINGS,L"Thiết lập màn hình"},
             {SETTINGS_APPEARANCE,L"Giao diện"},{SETTINGS_READING,L"Nội dung"},{SETTINGS_WORKSPACE,L"Bố cục"},
             {SETTINGS_PROJECTION,L"Trình chiếu"},{SETTINGS_KEYS,L"Phím tắt"},{TEXT_WEIGHT,L"Thường"},
-            {SETTINGS_BROWSER,L"Trình duyệt"},{OPACITY_LESS,L"Giảm độ mờ"},{OPACITY_MORE,L"Tăng độ mờ"},
+            {SETTINGS_BROWSER,L"Trình duyệt"},{OPACITY_LESS,L"Giảm độ mờ"},{OPACITY_MORE,L"Tăng độ mờ"},{MEETING_RECORD,L"Ghi âm cuộc họp"},
             {ICON_SMALLER,L"Giảm kích thước icon"},{ICON_LARGER,L"Tăng kích thước icon"},
             {BROWSER_MUTED,L"Tắt âm thanh"},{BROWSER_CAMERA,L"Cho phép camera"},{BROWSER_MICROPHONE,L"Cho phép micro"},
             {RESET_PREFERENCES,L"Khôi phục mặc định"},{MIRROR_ACTION,L"Bắt đầu trình chiếu"},
@@ -3449,11 +3473,19 @@ LRESULT CALLBACK Proc(HWND h, UINT message, WPARAM wp, LPARAM lp)
         case RESET_PREFERENCES:{auto candidate=preferences;if(settingsCategory==4)candidate.shortcuts=DefaultPreferences().shortcuts;else{candidate.opacityPercent=100;candidate.textWeight=400;candidate.iconSize=16;candidate.themeId=0;}StorePreferences(candidate);Layout();break;}
         case OPACITY_LESS:case OPACITY_MORE:{auto candidate=preferences;candidate.opacityPercent=std::clamp(candidate.opacityPercent+(LOWORD(wp)==OPACITY_MORE?1:-1),40,100);StorePreferences(candidate);Layout();break;}
         case ICON_SMALLER:case ICON_LARGER:{auto candidate=preferences;candidate.iconSize=std::clamp(candidate.iconSize+(LOWORD(wp)==ICON_LARGER?1:-1),12,24);StorePreferences(candidate);Layout();break;}
-        case BROWSER_MUTED:case BROWSER_CAMERA:case BROWSER_MICROPHONE:{auto candidate=preferences;
-            if(LOWORD(wp)==BROWSER_MUTED)candidate.browserMuted=!candidate.browserMuted;
+        case WEB_AUDIO:case BROWSER_MUTED:case BROWSER_CAMERA:case BROWSER_MICROPHONE:{auto candidate=preferences;
+            if(LOWORD(wp)==WEB_AUDIO||LOWORD(wp)==BROWSER_MUTED)candidate.browserMuted=!candidate.browserMuted;
             else if(LOWORD(wp)==BROWSER_CAMERA)candidate.browserAllowCamera=!candidate.browserAllowCamera;
             else candidate.browserAllowMicrophone=!candidate.browserAllowMicrophone;
             StorePreferences(candidate);Layout();break;}
+        case MEETING_RECORD:
+            if(meetingRecorder.Running()) {
+                meetingRecorder.Stop();
+                KillTimer(h,MEETING_TIMER);
+            } else if(meetingRecorder.Start(dataDir)) {
+                SetTimer(h,MEETING_TIMER,500,nullptr);
+            }
+            Layout();break;
         case NAV_BROWSER:Pause();focusMode=false;page=Page::Browser;Layout();break;
         case BROWSER_TOGGLE:
             if(browser.Enabled())browser.Disable();
@@ -3462,7 +3494,9 @@ LRESULT CALLBACK Proc(HWND h, UINT message, WPARAM wp, LPARAM lp)
         case WEB_GO:if(!Blocked()){const auto target=TextOf(webAddress);webAddressEdited=false;browser.Navigate(target);browser.Focus();}break;
         case WEB_MENU: {
             std::vector<ToolMenuItem> entries{{WEB_NEW_TAB,T(L"Tab mới   Ctrl+T",L"New tab   Ctrl+T"),browser.CanNewTab(),0xea60},
-                {BROWSER_MUTED,T(L"Tắt âm thanh",L"Mute audio"),true,0xeb6d,preferences.browserMuted},
+                {BROWSER_MUTED,T(preferences.browserMuted?L"Bật âm thanh":L"Tắt âm thanh",
+                    preferences.browserMuted?L"Unmute audio":L"Mute audio"),true,
+                    static_cast<wchar_t>(preferences.browserMuted?0xeb75:0xeb24),preferences.browserMuted},
                 {SETTINGS_BROWSER,T(L"Thiết lập trình duyệt",L"Browser settings"),true,0xeb51},
                 {BROWSER_TOGGLE,T(L"Tắt trình duyệt",L"Disable browser"),true,0xea76}};
             RECT anchor{};GetWindowRect(GetDlgItem(h,WEB_MENU),&anchor);ToolMenu menu;
@@ -3647,6 +3681,13 @@ LRESULT CALLBACK Proc(HWND h, UINT message, WPARAM wp, LPARAM lp)
             if (!affinityOk || cloned != previousCloned || topologyKnown != previousKnown)
                 RefreshPrivacy();
         }
+        else if (wp == MEETING_TIMER)
+        {
+            if (!meetingRecorder.Running())
+                KillTimer(h, MEETING_TIMER);
+            UpdateButtons();
+            InvalidateRect(h, nullptr, FALSE);
+        }
         else if (wp == QA_TIMER && qa)
             QaTick();
         return 0;
@@ -3672,6 +3713,8 @@ LRESULT CALLBACK Proc(HWND h, UINT message, WPARAM wp, LPARAM lp)
     case WM_DESTROY:
         shuttingDown=true;
         browser.Disable();
+        KillTimer(h, MEETING_TIMER);
+        meetingRecorder.Stop();
         for (UINT_PTR timer : {PRIVACY_TIMER, SCROLL_TIMER, SAVE_TIMER, QA_TIMER,(UINT_PTR)5})
             KillTimer(h, timer);
         if(mirror)mirror->Stop();

@@ -41,7 +41,7 @@ $allowed = @('QuietShare.exe','Scintilla.dll','Lexilla.dll','pdfium.dll','WebVie
 $entries = $allowed | ForEach-Object { Join-Path $dist $_ }
 $entries += $docNames | ForEach-Object { Join-Path $docsFolder $_ }
 foreach ($entry in $entries) { if (!(Test-Path -LiteralPath $entry)) { throw "Missing payload: $entry" } }
-$zip = Join-Path $root 'QuietShare-v0.14.5-win-x64.zip'
+$zip = Join-Path $root 'QuietShare-v0.15.0-win-x64.zip'
 # Enumerate every archive entry explicitly; stale build files cannot enter it.
 Add-Type -AssemblyName System.IO.Compression.FileSystem
 $payload = @($allowed) + @($docNames | ForEach-Object { 'docs/' + $_ })

@@ -1,6 +1,6 @@
 # QuietShare User Manual
 
-English edition - QuietShare v0.14.5
+English edition - QuietShare v0.15.0
 
 Read, prepare and present with private notes on Windows.
 
@@ -523,6 +523,19 @@ Do not interpret a higher FPS preset as a repair for an unverified capture path.
 ## 12. Meetings, OBS and session recovery
 
 Use the capture controls in the application that actually shares or records. QuietShare's mask and stop controls act on QuietShare. They do not operate another application's live stream.
+
+### Record the meeting audio on this computer
+
+QuietShare can record the Windows default playback mix while you explicitly enable the recording control. This is useful when the meeting audio, presentation video or remote participants are played through this computer.
+
+1. Select **Record meeting audio** on the sidebar.
+2. Confirm the red record icon and the footer status show that recording is active.
+3. Keep the meeting audio on the intended Windows playback device.
+4. Use the script editor to write manual notes while the recording runs.
+5. Select **Stop meeting recording** when the session ends, or close QuietShare to stop and finalize it.
+6. Find the WAV file under `%LOCALAPPDATA%\QuietShare\Meetings`.
+
+The recorder captures system playback only. It does not open the microphone, start at launch or send the audio to QuietShare's projection path. A playback-device change can stop the recording and leave a finalized partial WAV file. The current edition stores the audio and manual notes separately. It does not claim automatic speech-to-text.
 
 ### Zoom, Meet or Teams on one display
 
