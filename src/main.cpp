@@ -87,7 +87,7 @@ constexpr int TRANSCRIPTION_LANGUAGE=256,SCRIPT_TAB_LABELS=257,BROWSER_TAB_LABEL
               MEETING_IMPORT=263,CUSTOM_BACKGROUND=264,CUSTOM_PANEL=265,CUSTOM_TEXT=266,CUSTOM_ACCENT=267,
               CUSTOM_RESET=268,TRANSCRIPTION_VI=270,TRANSCRIPTION_EN=271,
               PROVIDER_LOCAL=272,PROVIDER_TEAMS=273,PROVIDER_ZOOM=274,PROVIDER_MEET=275,
-              OUTPUT_WAV=276,OUTPUT_TRANSCRIPT=277;
+              OUTPUT_WAV=276,OUTPUT_TRANSCRIPT=277,PDF_PAGE=278;
 constexpr int NORMAL_SIDEBAR = 36, COMPACT_SIDEBAR = 36;
 constexpr UINT_PTR PRIVACY_TIMER = 1, SCROLL_TIMER = 2, SAVE_TIMER = 3, QA_TIMER = 4, MEETING_TIMER = 6;
 HINSTANCE instance;
@@ -752,6 +752,14 @@ void UpdateButtons()
     int zoom=IsPdf()?pdfViewer.GetState().zoom:IsCode()?codeViewer.GetState().zoom:IsImage()?imageZoom:fontPoints*100/24;
     std::wstring zoomLabel=std::to_wstring(zoom)+L"%";
     SetWindowTextW(GetDlgItem(window, RESET_ZOOM),page==Page::Settings?T(L"Đặt lại",L"Reset"):zoomLabel.c_str());
+    SetWindowTextW(GetDlgItem(window,PDF_PREV),T(L"Trang PDF trước",L"Previous PDF page"));
+    SetWindowTextW(GetDlgItem(window,PDF_NEXT),T(L"Trang PDF sau",L"Next PDF page"));
+    const auto pdfPageLabel=!Blocked()&&IsPdf()?std::to_wstring(pdfViewer.GetState().page+1)+L" / "+std::to_wstring(pdfViewer.PageCount()):L"";
+    SetWindowTextW(GetDlgItem(window,PDF_PAGE),pdfPageLabel.c_str());
+    EnableWindow(GetDlgItem(window,PDF_PREV),!Blocked()&&IsPdf()&&pdfViewer.GetState().page>0);
+    EnableWindow(GetDlgItem(window,PDF_NEXT),!Blocked()&&IsPdf()&&pdfViewer.GetState().page+1<pdfViewer.PageCount());
+    SetTip(PDF_PREV,T(L"Trang PDF trước - Page Up",L"Previous PDF page - Page Up"));
+    SetTip(PDF_NEXT,T(L"Trang PDF sau - Page Down",L"Next PDF page - Page Down"));
     SetWindowTextW(GetDlgItem(window, OPEN_FOLDER),T(L"Mở dự án",L"Open project"));
     SetWindowTextW(GetDlgItem(window,SAVE_FILE),T(L"Lưu",L"Save"));
     SetWindowTextW(GetDlgItem(window,RECENT_CLEAR),T(L"Xóa lịch sử",L"Clear history"));
@@ -979,12 +987,14 @@ void Layout()
             reveal(documentBar.Window());
         }
         int bodyTop=32;
-        if(!focusMode&&toolbarVisible) {
+        if(IsPdf()||(!focusMode&&toolbarVisible)) {
             int toolX=contentLeft,toolY=30;
             auto tool=[&](int id,int w){
                 if(toolX+w>contentRight){toolX=contentLeft;toolY+=28;}
                 move(id,toolX,toolY,w,24);toolX+=w+4;
             };
+            if(IsPdf()) {tool(PDF_PREV,24);tool(PDF_PAGE,84);tool(PDF_NEXT,24);}
+            if(!focusMode&&toolbarVisible) {
             tool(SMALLER,24);
             if(!IsCode()&&!IsImage()&&!IsPdf())tool(SIZE_INPUT,44);
             else tool(RESET_ZOOM,44);
@@ -996,6 +1006,7 @@ void Layout()
             tool(OPEN_FILE,24);
             if(!viewingFile)tool(MODE,24);
             if(reading&&!viewingFile)tool(PLAY,24);
+            }
             bodyTop=toolY+30;
         }
         contentCardRect={S(contentLeft),S(bodyTop),S(contentRight),S(bottom)};
@@ -1773,6 +1784,7 @@ void RunFind(bool forward)
     }
     findMessage=found?L"":IsPdf()&&!pdfViewer.HasText()?T(L"PDF ảnh không có lớp chữ để tìm.",L"This scanned PDF has no searchable text."):
                                       T(L"Không tìm thấy. Thử từ khác.",L"No match. Try another term.");
+    if(IsPdf())UpdateButtons();
     InvalidateRect(window,nullptr,FALSE);
 }
 void OverflowMenu()
@@ -1799,7 +1811,8 @@ void OverflowMenu()
         item(PLAY,L"Chạy / Dừng cuộn   Space",L"Start / stop scrolling   Space",safe);
     }
     if(IsPdf()) {
-        item(PDF_PREV,L"Trang PDF trước",L"Previous PDF page",safe);item(PDF_NEXT,L"Trang PDF sau",L"Next PDF page",safe);
+        item(PDF_PREV,L"Trang PDF trước",L"Previous PDF page",safe&&pdfViewer.GetState().page>0);
+        item(PDF_NEXT,L"Trang PDF sau",L"Next PDF page",safe&&pdfViewer.GetState().page+1<pdfViewer.PageCount());
         item(FIT_WIDTH,L"PDF vừa chiều ngang",L"Fit PDF width",safe);
     }
     item(FOCUS,L"Tập trung   F11",L"Focus   F11");
@@ -2086,6 +2099,11 @@ void DrawActionIcon(HDC dc,int id,RECT r,COLORREF color)
 }
 void DrawButtonContents(DRAWITEMSTRUCT *item)
 {
+    if(item->CtlID==PDF_PAGE) {
+        FillRect(item->hDC,&item->rcItem,bgBrush);
+        DrawTextAt(item->hDC,TextOf(item->hwndItem),item->rcItem,TEXT,uiFont,DT_CENTER|DT_VCENTER|DT_SINGLELINE);
+        return;
+    }
     if(page==Page::Home&&(item->CtlID==OPEN_DROP||item->CtlID==OPEN_FOLDER||(item->CtlID>=RECENT_FIRST&&item->CtlID<RECENT_FIRST+18))){
         const bool action=item->CtlID==OPEN_DROP||item->CtlID==OPEN_FOLDER;
         const bool disabled=(item->itemState&ODS_DISABLED)!=0,hover=hoveredButton==item->hwndItem;
@@ -2215,8 +2233,8 @@ void DrawButtonContents(DRAWITEMSTRUCT *item)
     else if(item->CtlID==WEB_BACK||item->CtlID==WEB_FORWARD||item->CtlID==WEB_RELOAD) {
         DrawCodicon(item->hDC,item->CtlID==WEB_BACK?0xea9b:item->CtlID==WEB_FORWARD?0xea9c:0xeb37,button,disabled?DISABLED:TEXT,S(14));
     }
-    else if(item->CtlID==RECENT_PREV||item->CtlID==RECENT_NEXT)
-        DrawCodicon(item->hDC,item->CtlID==RECENT_PREV?0xea9b:0xea9c,button,disabled?DISABLED:TEXT,S(16));
+    else if(item->CtlID==RECENT_PREV||item->CtlID==RECENT_NEXT||item->CtlID==PDF_PREV||item->CtlID==PDF_NEXT)
+        DrawCodicon(item->hDC,item->CtlID==RECENT_PREV||item->CtlID==PDF_PREV?0xea9b:0xea9c,button,disabled?DISABLED:TEXT,S(16));
     else if(stepper||item->CtlID==WEB_MENU||item->CtlID==WEB_NEW_TAB||item->CtlID==WEB_GO||item->CtlID==WEB_ZOOM_OUT||item->CtlID==WEB_ZOOM_IN||item->CtlID==WEB_AUDIO||item->CtlID==MEETING_RECORD||
         (item->CtlID==BROWSER_TOGGLE&&page==Page::Browser&&browser.Enabled())||
         item->CtlID==PIN_WINDOW||item->CtlID==LAYOUT_MENU||item->CtlID==SHOW_TREE || (strip && (item->CtlID==FOCUS || item->CtlID==MASK || item->CtlID==TOPMOST || item->CtlID==SMALLER || item->CtlID==LARGER || item->CtlID==MODE || item->CtlID==PLAY || item->CtlID==OPEN_FILE || item->CtlID==OVERFLOW || item->CtlID==FIND_CLOSE || item->CtlID==FIND_PREV || item->CtlID==FIND_NEXT)))
@@ -3159,7 +3177,7 @@ LRESULT CALLBACK Proc(HWND h, UINT message, WPARAM wp, LPARAM lp)
             {OPEN_FILE, L"Mở file"}, {OPEN_DROP, L"Mở hoặc thả file"}, {HOME_SCRIPT, L"Lời nhắc"},
             {HOME_SETTINGS, L"Cài đặt"}, {VIEW_FILE, L"Xem file"},
             {OPEN_FOLDER,L"Mở dự án"},{OVERFLOW,L"Thêm"},{FIND,L"Tìm"},{FIND_PREV,L"Trước"},
-            {FIND_NEXT,L"Sau"},{FIND_CLOSE,L"Đóng"},{PDF_PREV,L"Trang trước"},{PDF_NEXT,L"Trang sau"},
+            {FIND_NEXT,L"Sau"},{FIND_CLOSE,L"Đóng"},{PDF_PREV,L"Trang trước"},{PDF_NEXT,L"Trang sau"},{PDF_PAGE,L""},
             {NAV_PRESENTATION,L"Trình chiếu"},{VERIFY_PRIVACY,L"Kiểm tra WGC"},{MIRROR_START,L"Bắt đầu"},
             {MIRROR_STOP,L"Dừng"},{POINTER,L"Con trỏ"},{RELOAD_FILE,L"Tải lại"},{KEEP_FILE,L"Giữ bản đang xem"},
             {INCLUDE_IGNORED,L"Hiện thư mục đang bỏ qua"},{NAV_BROWSER,L"Trình duyệt"},{BROWSER_TOGGLE,L"Bật trình duyệt"},
@@ -3188,7 +3206,7 @@ LRESULT CALLBACK Proc(HWND h, UINT message, WPARAM wp, LPARAM lp)
         for (const auto &label : labels)
         {
             buttons.push_back(CreateWindowW(L"BUTTON", label.second,
-                                            WS_CHILD | WS_TABSTOP | WS_CLIPSIBLINGS | BS_OWNERDRAW, 0, 0, 0, 0, h,
+                                            WS_CHILD | (label.first==PDF_PAGE?0:WS_TABSTOP) | WS_CLIPSIBLINGS | BS_OWNERDRAW, 0, 0, 0, 0, h,
                                             (HMENU)(INT_PTR)label.first, instance, nullptr));
             SetWindowSubclass(buttons.back(), ButtonProc, 1, 0);
             if(label.first==OPEN_FILE || label.first==OPEN_DROP || label.first==OPEN_FOLDER ||
@@ -3547,7 +3565,7 @@ LRESULT CALLBACK Proc(HWND h, UINT message, WPARAM wp, LPARAM lp)
         }
         return 0;
     case WM_APP+16:
-        if(!Blocked())UpdateButtons();
+        if(!Blocked()){UpdateButtons();InvalidateRect(h,nullptr,FALSE);}
         return 0;
     case WM_APP+30:
         return MatchShortcut(preferences.Key(PreferenceCommand::Mask),(UINT)wp,ShortcutModifiers())&&!globalHotkeys.Registered(PreferenceCommand::Mask);
@@ -3814,8 +3832,8 @@ LRESULT CALLBACK Proc(HWND h, UINT message, WPARAM wp, LPARAM lp)
         case FIND_NEXT:RunFind(true);break;
         case FIND_PREV:RunFind(false);break;
         case FIND_CLOSE:findVisible=false;Layout();SetFocus(ContentWindow());break;
-        case PDF_PREV:if(!Blocked()&&IsPdf())pdfViewer.GoToPage(pdfViewer.GetState().page-1);UpdateButtons();break;
-        case PDF_NEXT:if(!Blocked()&&IsPdf())pdfViewer.GoToPage(pdfViewer.GetState().page+1);UpdateButtons();break;
+        case PDF_PREV:if(!Blocked()&&IsPdf()){pdfViewer.GoToPage(pdfViewer.GetState().page-1);SetFocus(pdfViewer.Window());}UpdateButtons();break;
+        case PDF_NEXT:if(!Blocked()&&IsPdf()){pdfViewer.GoToPage(pdfViewer.GetState().page+1);SetFocus(pdfViewer.Window());}UpdateButtons();break;
         case FIT_WIDTH:if(!Blocked()&&IsPdf())pdfViewer.FitWidth();UpdateButtons();break;
         case WRAP:if(!Blocked()&&!IsImage()&&!IsPdf()){Pause();if(IsCode())codeViewer.SetWrap(!codeViewer.GetState().wrap);else{documents.Active().state.wrap=!documents.Active().state.wrap;ApplyTextWrap();}UpdateButtons();}break;
         case CLOSE_TAB:CloseDocument(documents.Active().id);break;

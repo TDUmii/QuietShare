@@ -661,6 +661,7 @@ struct PdfViewer::Impl
     int renderedZoom = -1, selectStart = -1, selectEnd = -1;
     POINT dragStart{};
     int dragPanX = 0, dragPanY = 0;
+    int wheelRemainder = 0;
     bool selecting = false, fitWidth = false, hasText = false;
     bool rendering = false;
     unsigned operationDepth = 0;
@@ -737,6 +738,7 @@ struct PdfViewer::Impl
     void Mask()
     {
         safe = false;
+        wheelRemainder = 0;
         if (GetCapture() == window)
             ReleaseCapture();
         dragging = selecting = false;
@@ -782,6 +784,7 @@ struct PdfViewer::Impl
         bytes.shrink_to_fit();
         pages = 0;
         state = {};
+        wheelRemainder = 0;
         fitWidth = false;
         hasText = false;
         lastOwnerCheck = 0;
@@ -817,6 +820,36 @@ struct PdfViewer::Impl
         const double width = std::max(1L, rc.right - 24L), height = std::max(1L, rc.bottom - 40L);
         const double fit = fitWidth ? width / pageWidth : std::min(width / pageWidth, height / pageHeight);
         return fit * state.zoom / 100.0;
+    }
+    int BottomPan() const
+    {
+        RECT rc{};
+        GetClientRect(window, &rc);
+        return std::min(0, static_cast<int>(rc.bottom - 32 - std::round(pageHeight * Scale())));
+    }
+    bool Navigate(int target, bool atBottom = false)
+    {
+        if (!safe || operationDepth || target == state.page || !LoadPage(target))
+            return false;
+        state.panX = 0;
+        state.panY = atBottom ? BottomPan() : 0;
+        PostMessageW(GetParent(window), WM_APP + 16, 0, 0);
+        InvalidateRect(window, nullptr, FALSE);
+        return true;
+    }
+    void Scroll(int distance)
+    {
+        if (!safe || operationDepth || !page || !distance)
+            return;
+        const int bottom = BottomPan();
+        state.panY = std::clamp(state.panY, bottom, 0);
+        if (distance < 0 && state.panY == bottom && state.page + 1 < pages)
+            Navigate(state.page + 1);
+        else if (distance > 0 && state.panY == 0 && state.page > 0)
+            Navigate(state.page - 1, true);
+        else
+            state.panY = std::clamp(state.panY + distance, bottom, 0);
+        InvalidateRect(window, nullptr, FALSE);
     }
     bool Render()
     {
@@ -964,6 +997,8 @@ struct PdfViewer::Impl
             return DefWindowProcW(w, m, wp, lp);
         switch (m)
         {
+        case WM_GETDLGCODE:
+            return DLGC_WANTARROWS;
         case WM_ERASEBKGND:
             return 1;
         case WM_SETCURSOR:
@@ -1036,39 +1071,44 @@ struct PdfViewer::Impl
             p->dragging = p->selecting = false;
             return 0;
         case WM_MOUSEWHEEL:
-            if (!p->safe)
+            if (!p->safe || p->operationDepth)
                 return 0;
             if (GET_KEYSTATE_WPARAM(wp) & MK_CONTROL)
             {
+                p->wheelRemainder = 0;
                 p->state.zoom = std::clamp(p->state.zoom + (GET_WHEEL_DELTA_WPARAM(wp) > 0 ? 10 : -10), 25, 400);
                 p->state.panX = p->state.panY = 0;
                 PostMessageW(GetParent(w), WM_APP + 16, 0, 0);
             }
             else
-                p->state.panY += GET_WHEEL_DELTA_WPARAM(wp) / 2;
+            {
+                p->wheelRemainder += GET_WHEEL_DELTA_WPARAM(wp);
+                const int steps = p->wheelRemainder / WHEEL_DELTA;
+                p->wheelRemainder %= WHEEL_DELTA;
+                p->Scroll(steps * 60);
+            }
             InvalidateRect(w, nullptr, FALSE);
             return 0;
         case WM_KEYDOWN:
-            if (!p->safe)
+            if (!p->safe || p->operationDepth)
                 return 0;
             if (wp == VK_NEXT || wp == VK_RIGHT)
             {
-                if (p->LoadPage(std::min(p->pages - 1, p->state.page + 1)))
-                    p->state.panX = p->state.panY = 0;
+                p->Navigate(p->state.page + 1);
             }
             else if (wp == VK_PRIOR || wp == VK_LEFT)
             {
-                if (p->LoadPage(std::max(0, p->state.page - 1)))
-                    p->state.panX = p->state.panY = 0;
+                p->Navigate(p->state.page - 1);
             }
             else if (wp == VK_UP)
-                p->state.panY += 40;
+                p->Scroll(40);
             else if (wp == VK_DOWN)
-                p->state.panY -= 40;
+                p->Scroll(-40);
             else if (wp == VK_HOME)
             {
                 p->state.zoom = DefaultZoomPercent;
                 p->state.panX = p->state.panY = 0;
+                PostMessageW(GetParent(w), WM_APP + 16, 0, 0);
             }
             else
                 return DefWindowProcW(w, m, wp, lp);
@@ -1241,14 +1281,8 @@ void PdfViewer::FitWidth()
 }
 bool PdfViewer::GoToPage(int page)
 {
-    if (impl->operationDepth)
-        return false;
-    if (!impl->safe || !impl->LoadPage(page))
-        return false;
-    impl->state.panX = impl->state.panY = 0;
-    if (impl->window)
-        InvalidateRect(impl->window, nullptr, FALSE);
-    return true;
+    impl->wheelRemainder = 0;
+    return impl->Navigate(page);
 }
 int PdfViewer::PageCount() const
 {

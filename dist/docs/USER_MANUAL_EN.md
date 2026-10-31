@@ -1,6 +1,6 @@
 # QuietShare User Manual
 
-English edition - QuietShare v0.17.0
+English edition - QuietShare v0.17.1
 
 Read, prepare and present with private notes on Windows.
 
@@ -270,9 +270,9 @@ When code lines are too long, enable wrap. When inspecting indentation or alignm
 ### PDF reading
 
 1. Open a supported local PDF.
-2. Use Page Up and Page Down to change pages.
-3. Use the overflow menu for page navigation or Fit Width.
-4. Drag a blank part of the page to pan.
+2. Use Previous and Next beside the page number / total in the PDF toolbar. These controls remain visible in focus mode and when the main toolbar is hidden.
+3. With the PDF focused, use Page Up/Page Down or Left/Right to change pages. Up/Down scroll within and across pages. The overflow menu also offers Fit Width.
+4. Use the wheel to change pages when the whole page fits. Tall or zoomed pages pan within their bounds first. At an edge, the next wheel notch changes pages. Going back enters the previous page at its bottom. Ctrl+wheel zooms. You can also drag a blank part of the page to pan.
 5. Drag over text to select it when the PDF provides a text layer.
 6. Use Ctrl+F to search searchable text.
 

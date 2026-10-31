@@ -86,13 +86,13 @@ Lời nhắc tự lưu trên máy, tách biệt với file đã mở.
 
 - **Search:** press **Ctrl+F**, then Enter/Shift+Enter for next/previous. Press Esc to close search.
 - **PDF text:** search/copy requires a text layer.
-- **PDF pages:** use Page Up/Page Down. The overflow menu includes page navigation and Fit Width.
-- **PDF movement:** drag blank space to pan or drag text to select it.
+- **PDF pages:** the PDF toolbar shows Previous, page number / total and Next, including in focus mode or when the main toolbar is hidden. With the PDF focused, use Page Up/Page Down or Left/Right to change pages. The overflow menu also offers Fit Width.
+- **PDF movement:** the wheel changes pages when the whole page fits. On tall or zoomed pages, it pans to the edge, then the next wheel notch changes pages. Going back enters the previous page at its bottom. Up/Down scroll within and across pages. Ctrl+wheel zooms. Drag blank space to pan or drag text to select it.
 
 - **Tìm kiếm:** nhấn **Ctrl+F**, sau đó Enter/Shift+Enter để tìm tiếp/trước. Nhấn Esc để đóng.
 - **Chữ PDF:** cần lớp chữ để tìm/sao chép.
-- **Trang PDF:** dùng Page Up/Page Down. Menu mở rộng có chuyển trang và vừa chiều ngang.
-- **Di chuyển trong PDF:** kéo vùng trống để di chuyển hoặc kéo trên chữ để chọn.
+- **Trang PDF:** thanh công cụ PDF hiển thị nút trang trước, số trang / tổng số và trang sau, kể cả trong chế độ tập trung hoặc khi ẩn thanh công cụ chính. Khi PDF được chọn, dùng Page Up/Page Down hoặc Trái/Phải để đổi trang. Menu mở rộng vẫn có vừa chiều ngang.
+- **Di chuyển trong PDF:** con lăn đổi trang khi toàn bộ trang vừa khung. Với trang dài hoặc phóng to, con lăn di chuyển đến mép rồi nấc cuộn tiếp theo mới đổi trang. Khi lùi, trang trước mở ở cuối trang. Lên/Xuống cuộn trong trang và qua trang. Ctrl+con lăn để zoom. Kéo vùng trống để di chuyển hoặc kéo trên chữ để chọn.
 
 ## Appearance / Giao diện
 

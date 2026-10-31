@@ -54,6 +54,15 @@ USER32.PeekMessageW.argtypes = [ctypes.POINTER(wintypes.MSG),wintypes.HWND,winty
 USER32.PeekMessageW.restype = wintypes.BOOL
 KERNEL32.GetCurrentThreadId.restype = wintypes.DWORD
 
+class GuiThreadInfo(ctypes.Structure):
+    _fields_ = [("cbSize", wintypes.DWORD), ("flags", wintypes.DWORD),
+                ("hwndActive", wintypes.HWND), ("hwndFocus", wintypes.HWND),
+                ("hwndCapture", wintypes.HWND), ("hwndMenuOwner", wintypes.HWND),
+                ("hwndMoveSize", wintypes.HWND), ("hwndCaret", wintypes.HWND), ("rcCaret", wintypes.RECT)]
+
+USER32.GetGUIThreadInfo.argtypes = [wintypes.DWORD, ctypes.POINTER(GuiThreadInfo)]
+USER32.GetGUIThreadInfo.restype = wintypes.BOOL
+
 
 def children(window: int, pid: int) -> list[int]:
     found = []
@@ -227,11 +236,11 @@ def main() -> int:
         check("productionWindowOwned", bool(window) and native.window_pid(window) == app.pid)
         check("productionControlsInitialized", bool(wait_for(lambda: USER32.GetDlgItem(window,110),8)))
         version_label=wait_for(lambda:USER32.GetDlgItem(window,192),8)
-        check("homeVersionLabelExistsBeforePrivacyGate",bool(version_label) and native.control_text(version_label)=="v0.17.0")
+        check("homeVersionLabelExistsBeforePrivacyGate",bool(version_label) and native.control_text(version_label)=="v0.17.1")
         check("actualProductionPrivacyPreflight", bool(wait_for(lambda: send(window, GATE, timeout=6000), 20)),
               "Real production WGC gate; no QA bypass")
         USER32.ShowWindow(window, 4)
-        check("homeVersionAvailableInNativeControl",native.control_text(version_label)=="v0.17.0" and query(39)==1700)
+        check("homeVersionAvailableInNativeControl",native.control_text(version_label)=="v0.17.1" and query(39)==1701)
         affinity = wintypes.DWORD()
         check("productionAffinityReadback", USER32.GetWindowDisplayAffinity(window, ctypes.byref(affinity)) and affinity.value == 0x11)
         all_children = children(window, app.pid)
@@ -360,6 +369,21 @@ def main() -> int:
         activate(8)
         check("productionPdf120Pages", query(3) == 4 and query(6) == 120 and visible(pdf))
         check("newPdfDefaultsTo50",query(4)==50)
+        pdf_previous, pdf_next, pdf_page = (USER32.GetDlgItem(window, identifier) for identifier in (137, 138, 278))
+        check("pdfNavigationVisible", all(visible(control) for control in (pdf_previous, pdf_next, pdf_page)))
+        check("pdfFirstPageNavigationState", not USER32.IsWindowEnabled(pdf_previous) and USER32.IsWindowEnabled(pdf_next) and native.control_text(pdf_page)=="1 / 120")
+        send(pdf_next, 0x201, 1, (8 << 16) | 8)
+        send(pdf_next, 0x202, 0, (8 << 16) | 8)
+        check("pdfVisibleButtonReadsNextPage", wait_for(lambda: query(5)==2 and native.control_text(pdf_page)=="2 / 120"))
+        focus_info = GuiThreadInfo();focus_info.cbSize = ctypes.sizeof(focus_info)
+        check("pdfButtonReturnsReadingFocus", USER32.GetGUIThreadInfo(USER32.GetWindowThreadProcessId(window,None),ctypes.byref(focus_info)) and focus_info.hwndFocus==pdf)
+        send(pdf, 0x20A, ((120 & 0xFFFF) << 16), 0)
+        check("pdfWheelReadsPreviousPage", wait_for(lambda: query(5)==1 and native.control_text(pdf_page)=="1 / 120"))
+        send(pdf, 0x20A, ((-120 & 0xFFFF) << 16), 0)
+        check("pdfWheelReadsNextPage", wait_for(lambda: query(5)==2 and native.control_text(pdf_page)=="2 / 120"))
+        USER32.PostMessageW(focus_info.hwndFocus, 0x100, 0x27, 0)
+        check("pdfPostedArrowReadsNextPage", wait_for(lambda: query(5)==3 and native.control_text(pdf_page)=="3 / 120"))
+        command(137);command(137)
         command(103);command(108)
         check("pdfResetReturnsTo50",query(4)==50)
         command(138)
@@ -377,7 +401,8 @@ def main() -> int:
         activate(8)
         check("perTabPdfPageZoomPreserved", query(4) == 110 and query(5) == 3)
         send(pdf, 0x20A, (120 << 16), 0)
-        check("productionPdfPanResponsive", query(5) == 3 and query(4) == 110)
+        check("productionPdfWheelAboveTopReadsPreviousPage", query(5) == 2 and query(4) == 110)
+        command(138)
 
         activate(1)
         old_style = send(code, 2010, 0)
@@ -402,6 +427,9 @@ def main() -> int:
             check(f"focusStripHeight:{width}", query(8) == 32 and 28 * scale <= br[3] - br[1] <= 34 * scale,
                   {"barHeightPixels": br[3] - br[1], "dpi": USER32.GetDpiForWindow(window)})
             check(f"focusNeverOverlaysContent:{width}", br[3] <= cr[1] and cr[3] - cr[1] >= 80 * scale)
+            check(f"focusPdfNavigationVisible:{width}", all(visible(control) for control in (pdf_previous,pdf_next,pdf_page)))
+            nav = [rect(control,window) for control in (pdf_previous,pdf_page,pdf_next)]
+            check(f"focusPdfNavigationFits:{width}", br[3]<=nav[0][1] and nav[0][2]<=nav[1][0] and nav[1][2]<=nav[2][0] and nav[2][3]<=cr[1])
             check(f"focusExitIconCompact:{width}", fr[2] - fr[0] <= 30 * scale and fr[3] - fr[1] <= 30 * scale)
             check(f"focusSidebarHidden:{width}", not visible(USER32.GetDlgItem(window, 120)))
             check(f"focusRemovesNativeCaption:{width}", USER32.GetWindowLongW(window,-16)&0xC00000==0)
@@ -410,6 +438,9 @@ def main() -> int:
         check("tabsHorizontalOverflowScroll", query(7) < before, {"before": before, "after": query(7)})
         command(125)
         check("normalRestoresNativeCaption", USER32.GetWindowLongW(window,-16)&0xC00000==0xC00000)
+        command(183)
+        check("pdfNavigationSurvivesHiddenToolbar", all(visible(control) for control in (pdf_previous,pdf_next,pdf_page)))
+        command(183)
         def tab_wheel(delta, horizontal=False):
             send(bar, 0x20E if horizontal else 0x20A, (delta & 0xFFFF) << 16)
 

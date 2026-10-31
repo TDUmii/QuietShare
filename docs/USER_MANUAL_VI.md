@@ -1,6 +1,6 @@
 # Hướng dẫn sử dụng QuietShare
 
-Ấn bản tiếng Việt - QuietShare v0.17.0
+Ấn bản tiếng Việt - QuietShare v0.17.1
 
 Đọc, chuẩn bị và thuyết trình với lời nhắc riêng trên Windows.
 
@@ -270,9 +270,9 @@ Nếu dòng code quá dài, bật xuống dòng. Khi cần xem thụt lề hoặ
 ### Đọc PDF
 
 1. Mở PDF cục bộ được hỗ trợ.
-2. Dùng Page Up và Page Down để đổi trang.
-3. Dùng menu mở rộng để chuyển trang hoặc chọn vừa chiều ngang.
-4. Kéo phần trống của trang để di chuyển.
+2. Dùng nút trang trước và trang sau cạnh số trang / tổng số trên thanh công cụ PDF. Các nút vẫn hiển thị trong chế độ tập trung và khi ẩn thanh công cụ chính.
+3. Khi PDF được chọn, dùng Page Up/Page Down hoặc Trái/Phải để đổi trang. Lên/Xuống cuộn trong trang và qua trang. Menu mở rộng vẫn có vừa chiều ngang.
+4. Dùng con lăn để đổi trang khi toàn bộ trang vừa khung. Trang dài hoặc phóng to được cuộn trong giới hạn trước. Khi đến mép, nấc cuộn tiếp theo mới đổi trang. Khi lùi, trang trước mở ở cuối trang. Ctrl+con lăn để zoom. Bạn cũng có thể kéo phần trống của trang để di chuyển.
 5. Kéo trên chữ để chọn nếu PDF có lớp văn bản.
 6. Dùng Ctrl+F để tìm trong phần chữ có thể tìm kiếm.
 
