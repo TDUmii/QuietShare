@@ -1,5 +1,7 @@
 # User guide / Hướng dẫn sử dụng
 
+**Visual step-by-step guides / Hướng dẫn bằng ảnh:** [Tiếng Việt](VISUAL_GUIDE_VI.md) · [English](VISUAL_GUIDE_EN.md).
+
 [Overview](../README.md) · [Privacy](PRIVACY.md) · [Troubleshooting](TROUBLESHOOTING.md)
 
 [Giới thiệu](../README.md) · [Quyền riêng tư](PRIVACY.md) · [Xử lý sự cố](TROUBLESHOOTING.md)

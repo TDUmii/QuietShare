@@ -1,5 +1,7 @@
 # QuietShare User Manual
 
+> **Illustrated walkthrough:** [8 real UI screenshots with numbered red click targets](VISUAL_GUIDE_EN.md).
+
 English edition - QuietShare v0.17.1
 
 Read, prepare and present with private notes on Windows.

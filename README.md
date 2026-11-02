@@ -1,5 +1,7 @@
 # QuietShare
 
+**Hướng dẫn bằng ảnh, khoanh đỏ vị trí cần nhấn / Visual click-by-click guides:** [Tiếng Việt](docs/VISUAL_GUIDE_VI.md) · [English](docs/VISUAL_GUIDE_EN.md).
+
 A Windows presentation companion for scripts, documents and optional web browsing. Smart Mirror sends your public source display to a second Extend display while excluding QuietShare from the verified capture path.
 
 Ứng dụng Windows hỗ trợ đọc lời nhắc, tài liệu và nội dung web khi thuyết trình. Smart Mirror chiếu màn hình nguồn công khai sang màn hình Extend thứ hai, đồng thời loại QuietShare khỏi đường capture đã xác minh.

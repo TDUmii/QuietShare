@@ -1,0 +1,128 @@
+# QuietShare - Hướng dẫn bằng hình ảnh (Tiếng Việt)
+
+> **Phiên bản ảnh:** QuietShare 0.17.1, chụp từ bài kiểm thử UI ngày 31/10/2026. Các **khung đỏ đánh số** được thêm vào sau khi chụp để chỉ vị trí nhấn. Tùy kích thước cửa sổ, ngôn ngữ và phiên bản, vị trí nút có thể thay đổi. Các ảnh không phải giao diện giả lập.
+
+**Bắt đầu nhanh:** [Cài đặt](#1-tải-và-cài-đặt) · [Mở file](#2-trang-chủ-và-mở-dữ-liệu) · [Lời nhắc](#4-soạn-lời-nhắc-và-cuộn-tự-động) · [PDF](#5-đọc-pdf-và-tìm-kiếm) · [Trình chiếu](#8-trình-chiếu-smart-mirror-an-toàn) · [Ghi âm](#9-ghi-âm-và-chép-lời-cuộc-họp)
+
+Đọc trước: QuietShare là **bảng điều khiển riêng** để xem lời nhắc và tài liệu khi trình bày. Tính năng chiếu màn hình (Smart Mirror) chỉ hoạt động khi các điều kiện bảo vệ được kiểm tra thành công. **Không dùng ảnh chụp trong hướng dẫn làm bằng chứng bảo vệ màn hình ngoài đời thực.**
+
+## 1. Tải và cài đặt
+
+1. Vào [GitHub Releases](https://github.com/TDUmii/QuietShare/releases/latest), chọn bản phát hành phù hợp với Windows x64.
+2. Với **bộ cài**, tải tệp `QuietShare-Setup.exe`, mở tệp và làm theo hướng dẫn. Ứng dụng cài cho người dùng hiện tại, không yêu cầu tài khoản quản trị theo thiết kế.
+3. Với **portable**, tải ZIP tương ứng rồi **giải nén toàn bộ** vào một thư mục. Không chạy riêng `QuietShare.exe` từ trong ZIP, vì cần các thư viện nằm cùng thư mục.
+4. Khởi động QuietShare và xem **Trang chủ**. Chỉ lấy tệp từ Releases của repository chính thức; không cài bản được gửi lại từ nguồn không rõ.
+5. Khi nâng cấp, đóng ứng dụng trước, sau đó chạy bộ cài mới hoặc thay toàn bộ thư mục portable. Nếu sử dụng dữ liệu quan trọng, nên có bản sao lưu trước khi nâng cấp.
+
+**Yêu cầu:** Windows 10 từ bản 2004 (build 19041) hoặc Windows 11, x64. Trình duyệt nhúng cần WebView2 Runtime. Smart Mirror cần hai màn hình riêng ở chế độ Extend (không dùng Duplicate).
+
+## 2. Trang chủ và mở dữ liệu
+
+![Ảnh 01 - Trang chủ, nút Mở file, Mở dự án và Cài đặt](images/visual/01-home.png)
+
+1. **Khung đỏ 1 - Mở file:** nhấn **Mở file** trên trang chủ hoặc `Ctrl+O`, chọn file văn bản, code, PDF hoặc ảnh từ máy tính.
+2. **Khung đỏ 2 - Mở dự án:** nhấn **Mở dự án** hoặc `Ctrl+Shift+O` để chọn thư mục mã nguồn. Có thể duyệt thư mục và mở từng file bên trong.
+3. **Khung đỏ 3 - Cài đặt:** nhấn biểu tượng bánh răng ở góc trái dưới để điều chỉnh nội dung, giao diện, trình chiếu và các phím tắt.
+4. Mục **Gần đây** hiển thị file hoặc dự án bạn từng mở. Khi xóa mục khỏi lịch sử, file gốc **không bị xóa**.
+5. Chú ý phần **Trạng thái bảo vệ** ở cuối trang chủ: chưa được xác minh thì **không** hiểu là đã an toàn khi chia sẻ.
+
+## 3. Chuyển file, chỉnh sửa và lưu
+
+![Ảnh 02 - Thanh file, tab đang mở và nút lưu](images/visual/02-files.png)
+
+1. **Khung đỏ 1 - Tệp đang mở:** chọn biểu tượng hai tờ giấy ở thanh trái để đến khu vực tài liệu. `Ctrl+B` bật/tắt trình duyệt thư mục.
+2. **Khung đỏ 2 - Tab:** nhấn vào tên file cần xem. Khi nhiều file được mở, dùng thanh tab để chuyển qua lại.
+3. **Khung đỏ 3 - Lưu:** nhấn **Lưu** hoặc `Ctrl+S` sau khi sửa văn bản/code. QuietShare xem code như văn bản, **không chạy mã nguồn**.
+4. Nếu không thể chỉnh sửa, kiểm tra **Cài đặt > Nội dung > Cho phép sửa file văn bản / code**. PDF và ảnh vẫn là loại chỉ đọc.
+5. Nếu file đã bị thay đổi từ ứng dụng khác, xử lý cảnh báo tải lại/giữ nội dung trước khi lưu; không cố ghi đè một phiên bản chưa kiểm tra.
+
+## 4. Soạn lời nhắc và cuộn tự động
+
+![Ảnh 03 - Vùng lời nhắc, xuống dòng và biểu tượng bút](images/visual/03-script.png)
+
+1. Trong khu vực **Tệp đang mở**, nhấp chuột phải và chọn **Soạn lời nhắc** (Compose script). Lời nhắc được lưu cục bộ, độc lập với file nhập vào.
+2. **Khung đỏ 1 - Vùng soạn/đọc:** nhập nội dung theo từng đoạn ngắn; khi đọc, đặt con trỏ vào vùng này rồi nhấn **Space** để bắt đầu/tạm dừng cuộn tự động.
+3. **Khung đỏ 2 - Xuống dòng:** nhấn **Xuống dòng** để văn bản không tràn chiều ngang. Điều chỉnh cỡ chữ, độ đậm và tốc độ cuộn theo khoảng cách nhìn.
+4. **Khung đỏ 3 - Chế độ soạn:** biểu tượng bút cho phép nhận biết/chuyển chế độ soạn văn bản. Phím `Ctrl+Enter` chuyển qua lại giữa soạn và đọc.
+5. Nhấn `F11` để tập trung vào nội dung nếu muốn giảm bớt thanh điều khiển. Kiểm tra lại nội dung trước lúc trình bày.
+
+**Gợi ý:** Dùng câu ngắn, xuống dòng giữa các ý và thử tốc độ cuộn trước khi họp; đừng dựa vào một tốc độ duy nhất cho mọi bài nói.
+
+## 5. Đọc PDF và tìm kiếm
+
+![Ảnh 04 - Bộ điều hướng PDF, zoom và tab file](images/visual/04-pdf.png)
+
+1. Mở PDF với **Mở file** hoặc `Ctrl+O`.
+2. **Khung đỏ 1 - Trang:** hai nút mũi tên trước/sau cho phép đổi trang; vùng ở giữa thể hiện **trang hiện tại / tổng số trang**.
+3. **Khung đỏ 2 - Thu phóng:** nhấn **- / +** để chỉnh zoom; có thể dùng `Ctrl+con lăn`. Menu mở rộng hỗ trợ tùy chọn vừa chiều ngang.
+4. **Khung đỏ 3 - Tab PDF:** nhấn tab tên PDF để quay lại khi đang mở nhiều file.
+5. `Ctrl+F` để tìm văn bản, `Enter` để tìm tiếp, `Shift+Enter` để tìm trước và `Esc` để đóng ô tìm kiếm. Tìm/sao chép chỉ hoạt động khi PDF có **lớp chữ**; PDF scan dạng ảnh có thể không tìm được.
+6. Khi phóng to, con lăn cuộn trong trang; khi đã tới mép trang, cuộn thêm mới chuyển trang. Có thể sử dụng Page Up/Page Down hoặc phím mũi tên trong vùng PDF.
+
+## 6. Chỉnh giao diện, ngôn ngữ và bố cục
+
+![Ảnh 05 - Thiết lập giao diện, ngôn ngữ và chủ đề](images/visual/05-settings.png)
+
+1. Mở biểu tượng bánh răng ở thanh trái; **khung đỏ 1** chọn tab **Giao diện**.
+2. **Khung đỏ 2 - Ngôn ngữ:** chọn tiếng Việt hoặc tiếng Anh cho nhãn điều khiển.
+3. **Khung đỏ 3 - Chủ đề màu:** chọn theme có sẵn hoặc tùy chỉnh màu. Nếu chữ khó đọc, đổi sang theme có tương phản cao.
+4. Bên dưới còn có ghim cửa sổ trên cùng, nhớ kích thước, độ mờ và kích thước biểu tượng. Độ mờ ảnh hưởng đến **cửa sổ điều khiển**; không dùng độ mờ làm biện pháp bảo mật.
+5. Tab **Nội dung** cho phép bật/tắt sửa file, chỉnh cỡ chữ và tốc độ lời nhắc. Tab **Bố cục** điều chỉnh các thanh điều khiển.
+
+## 7. Bật trình duyệt tùy chọn
+
+![Ảnh 06 - Chọn Trình duyệt và nút bật trình duyệt](images/visual/06-browser.png)
+
+1. **Khung đỏ 1 - Biểu tượng quả địa cầu:** mở trang **Trình duyệt** trên thanh bên.
+2. **Khung đỏ 2 - Bật trình duyệt:** chỉ bật khi thực sự cần website. Nếu ứng dụng báo thiếu WebView2 Runtime, cài bản chính thức của Microsoft.
+3. **Khung đỏ 3 - Cài đặt:** mở **Cài đặt > Trình duyệt** để xem tùy chọn âm thanh, camera và micro.
+4. Khi đã bật, nhập địa chỉ web hoặc từ khóa vào tab mới; sử dụng các tab để chuyển trang. Trình duyệt giới hạn tối đa 8 tab và **mặc định tắt khi khởi động ứng dụng**.
+5. Cấp quyền camera/micro chỉ khi thực sự cần và bạn đã kiểm tra trang đang sử dụng. Đừng giả định mọi trang web được chặn theo cùng một cơ chế với nội dung cục bộ.
+
+## 8. Trình chiếu Smart Mirror an toàn
+
+![Ảnh 07 - Thiết lập màn hình, kiểm tra WGC, nút bắt đầu đang khóa](images/visual/07-projection.png)
+
+**Trước khi nhấn nút:** kết nối hai màn hình/TV khác nhau. Trong Windows nhấn `Win+P`, chọn **Extend / Mở rộng**. **Không dùng Duplicate / Nhân bản**, vì chế độ đó không tách nội dung riêng như yêu cầu. Màn hình nguồn phải là bề mặt công khai dự định cho người xem, và nơi đặt QuietShare cần nằm ở màn hình riêng.
+
+1. **Khung đỏ 1 - Thiết lập màn hình:** vào mục **Trình chiếu**, nhấn **Thiết lập màn hình** (hoặc **Cài đặt > Trình chiếu**) để chọn màn hình nguồn và màn hình đích **khác nhau**.
+2. **Khung đỏ 2 - Kiểm tra WGC:** chạy **Kiểm tra WGC** và đọc trạng thái bảo vệ. Chỉ tiếp tục sau khi kiểm tra thành công; nếu có mã `QS-P...`, xem [danh mục mã lỗi](USER_MANUAL_VI.md#13-danh-mục-mã-lỗi-trình-chiếu).
+3. **Khung đỏ 3 - Bắt đầu:** nhấn **Bắt đầu** *chỉ khi nút khả dụng và mọi điều kiện đều đạt*. **Trong ảnh minh họa nút đang khóa**, vì máy QA chỉ có một màn hình và chưa được xác minh. Tuyệt đối không suy ra rằng bấm nút này sẽ bỏ qua kiểm tra.
+4. **Quan sát màn hình vật lý thực sự mà người xem nhận được** hoặc xem luồng nhận trong ứng dụng họp/OBS. Xác minh rằng bảng điều khiển riêng không xuất hiện. Việc Windows chấp nhận cờ loại trừ capture **không đủ** để đảm bảo đường hiển thị thực tế an toàn.
+5. Khi kết thúc, nhấn **Dừng**, đóng phiên chia sẻ. Nếu chuyển màn hình, mất kết nối, đổi topology hoặc máy ngủ, hãy kiểm tra WGC và bắt đầu lại từ đầu.
+
+**Giới hạn:** Chức năng loại trừ phụ thuộc vào Windows Graphics Capture và môi trường hiển thị. Máy quay bên ngoài, chụp màn hình bằng thiết bị khác và một số đường chia sẻ ngoài phạm vi xác minh vẫn có thể ghi lại nội dung. Với Zoom/Meet/Teams hoặc OBS, luôn xem trước **đúng nguồn đang gửi**.
+
+## 9. Ghi âm và chép lời cuộc họp
+
+![Ảnh 08 - Tab Nội dung với cài đặt chép lời](images/visual/08-recording.png)
+
+1. Mở **Cài đặt**, **khung đỏ 1** chọn tab **Nội dung**.
+2. **Khung đỏ 2 - Ngôn ngữ chép lời:** chọn **Tiếng Việt** hoặc **Tiếng Anh** theo tiếng đang nói.
+3. **Khung đỏ 3 - Nền tảng cuộc họp:** chọn nguồn âm thanh phù hợp, chẳng hạn **Khác / âm thanh máy**.
+4. Quay lại khu vực **Ghi âm** (biểu tượng hình tròn ở thanh trái). Chọn thư mục lưu, tùy chọn giữ WAV, sau đó chủ động bắt đầu và dừng phiên ghi âm.
+5. Ứng dụng sử dụng **âm thanh phát từ Windows**; không mặc định lấy micro, không tự động ghi âm cuộc họp khi chưa kích hoạt. Có thể nhập bản VTT/TXT xuất từ Teams/Zoom/Meet nếu muốn giữ tên người nói do nền tảng cung cấp.
+6. Kiểm tra quyền riêng tư, thông báo và sự đồng ý của người tham gia theo quy định áp dụng trước khi ghi.
+
+## 10. Kiểm tra trước buổi thuyết trình
+
+- [ ] Thử mở một file văn bản/code, PDF và một ảnh.
+- [ ] Nếu dùng lời nhắc, thử nút xuống dòng, `Space`, `Ctrl+Enter` và tốc độ cuộn.
+- [ ] Nếu dùng website, thử bật trình duyệt và tải trang trước giờ trình bày.
+- [ ] Nếu dùng chiếu, chọn **Extend**, hai màn hình khác nhau, kiểm tra WGC, xem đầu ra người xem và kiểm tra lại sau mỗi thay đổi kết nối.
+- [ ] Nếu cần ghi âm, thử ngôn ngữ, thư mục lưu và đọc lại tệp được tạo.
+- [ ] Nếu hiển thị mã lỗi, ghi lại **mã QS-P...**, bước đang làm, trạng thái màn hình và phiên bản ứng dụng.
+
+## 11. Khi gặp sự cố
+
+| Hiện tượng | Cách xử lý |
+|---|---|
+| Không mở được file | Kiểm tra đường dẫn và quyền đọc; thử file nhỏ, định dạng được hỗ trợ |
+| Không chỉnh sửa được code/text | Kiểm tra **Cài đặt > Nội dung > Cho phép sửa**; PDF và ảnh là chỉ đọc |
+| Không tìm được chữ trong PDF | Kiểm tra PDF có lớp text hay chỉ là ảnh scan |
+| Trang web không tải | Kiểm tra WebView2 Runtime, kết nối và trạng thái bật trình duyệt |
+| **Bắt đầu** trình chiếu bị khóa | Kiểm tra **Win+P > Extend**, nguồn/đích khác nhau, chạy WGC |
+| Đang chiếu thì dừng | Xem mã lỗi, khôi phục màn hình và xác minh lại trước khi bắt đầu |
+| Chép lời không có nội dung | Kiểm tra Windows đang phát âm thanh, cấu hình ngôn ngữ, trạng thái phiên ghi âm |
+
+Tài liệu liên quan: [Hướng dẫn đầy đủ](USER_MANUAL_VI.md) · [Hướng dẫn ngắn](USER_GUIDE.md) · [Bảo vệ và trình chiếu](PRIVACY.md) · [Khắc phục sự cố](TROUBLESHOOTING.md) · [Bản tiếng Anh có ảnh](VISUAL_GUIDE_EN.md).
