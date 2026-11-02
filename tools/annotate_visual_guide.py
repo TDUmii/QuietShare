@@ -5,38 +5,41 @@ Output is documentation artwork. Works offline with Pillow.
 Usage: python tools/annotate_visual_guide.py
 """
 from pathlib import Path
+import re
 from PIL import Image, ImageDraw, ImageFont
 
 ROOT = Path(__file__).resolve().parents[1]
 SOURCE = ROOT / "artifacts" / "qa-visible"
 OUTPUT = ROOT / "docs" / "images" / "visual"
 OUTPUT.mkdir(parents=True, exist_ok=True)
+VERSION = re.search(r'^#define QUIETSHARE_VERSION_TEXT "([^"]+)"',
+                    (ROOT / "src" / "Version.h").read_text(encoding="utf-8-sig"), re.M).group(1)
 
-# Coordinates are relative to the unscaled 2026-10-31 UI capture.
+# Coordinates are relative to the unscaled 2026-11-02 real UI captures.
 CAPTURES = {
-    "01-home.png": ("home.png", [
-        (67, 119, 423, 230), (438, 119, 796, 230), (2, 489, 36, 533)
+    "01-home.png": ("home.bmp", [
+        (89, 113, 217, 152), (227, 113, 371, 152), (7, 504, 43, 534)
     ]),
-    "02-files.png": ("code-file.png", [
-        (2, 78, 36, 113), (47, 30, 178, 59), (668, 31, 710, 59)
+    "02-files.png": ("code-file.bmp", [
+        (7, 81, 43, 116), (57, 31, 190, 60), (676, 31, 712, 60)
     ]),
-    "03-script.png": ("editing.png", [
-        (44, 94, 691, 526), (343, 61, 432, 85), (570, 30, 595, 60)
+    "03-script.png": ("editing.bmp", [
+        (59, 94, 694, 531), (389, 60, 473, 86), (552, 60, 577, 86)
     ]),
-    "04-pdf.png": ("pdf-file.png", [
-        (92, 59, 144, 88), (184, 59, 288, 87), (543, 30, 672, 58)
+    "04-pdf.png": ("pdf-file.bmp", [
+        (58, 60, 198, 88), (202, 60, 301, 88), (540, 31, 672, 59)
     ]),
-    "05-settings.png": ("settings-appearance.png", [
-        (53, 80, 169, 108), (647, 172, 776, 204), (593, 218, 776, 253)
+    "05-settings.png": ("settings-appearance.bmp", [
+        (58, 80, 177, 107), (652, 171, 781, 203), (601, 218, 782, 252)
     ]),
-    "06-browser.png": ("browser-off.png", [
-        (2, 113, 35, 150), (45, 80, 210, 108), (3, 490, 36, 530)
+    "06-browser.png": ("browser-off.bmp", [
+        (7, 118, 43, 154), (58, 79, 222, 108), (7, 504, 43, 534)
     ]),
-    "07-projection.png": ("presentation.png", [
-        (44, 146, 266, 178), (45, 182, 267, 214), (45, 219, 127, 251)
+    "07-projection.png": ("presentation.bmp", [
+        (58, 147, 278, 176), (58, 183, 278, 213), (58, 219, 142, 252)
     ]),
-    "08-recording.png": ("settings.png", [
-        (182, 80, 299, 108), (593, 435, 779, 471), (576, 483, 776, 520)
+    "08-recording.png": ("settings.bmp", [
+        (186, 80, 305, 107), (601, 435, 782, 469), (582, 482, 782, 518)
     ]),
 }
 try:
@@ -65,7 +68,7 @@ for name, (original, targets) in CAPTURES.items():
         box = draw.textbbox((0, 0), str(index), font=FONT)
         draw.text((x - (box[2]-box[0])/2, y - (box[3]-box[1])/2 - box[1]),
                   str(index), fill=(255, 255, 255), font=FONT)
-    footer = "Viền đỏ = nơi cần nhấn  |  Red outline = click target  |  QuietShare 0.17.1"
+    footer = "Viền đỏ = nơi cần nhấn  |  Red outline = click target  |  QuietShare " + VERSION
     draw.text((12, im.height + 8), footer, font=SMALL, fill=(221, 230, 235))
     out = out.resize((out.width * 2, out.height * 2), Image.Resampling.LANCZOS)
     dest = OUTPUT / name

@@ -8,9 +8,13 @@ foreach ($name in @('README.md','THIRD-PARTY.md')) {
 }
 $docsFolder = Join-Path $dist 'docs'
 New-Item -ItemType Directory -Path $docsFolder -Force | Out-Null
-$docNames = @('README.md','USER_GUIDE.md','PRIVACY.md','TROUBLESHOOTING.md','BUILDING.md','DEPENDENCIES.md','BOOK.md','USER_MANUAL_EN.md','USER_MANUAL_VI.md','QuietShare-User-Manual-EN.pdf','QuietShare-Huong-Dan-Su-Dung-VI.pdf','quietshare-home.png','readme-banner.svg','project-status.svg')
+$docNames = @('README.md','USER_GUIDE.md','PRIVACY.md','TROUBLESHOOTING.md','BUILDING.md','DEPENDENCIES.md','BOOK.md','USER_MANUAL_EN.md','USER_MANUAL_VI.md','VISUAL_GUIDE_EN.md','VISUAL_GUIDE_VI.md','QuietShare-User-Manual-EN.pdf','QuietShare-Huong-Dan-Su-Dung-VI.pdf','quietshare-home.png','readme-banner.svg','project-status.svg')
+$visualNames = @('01-home.png','02-files.png','03-script.png','04-pdf.png','05-settings.png','06-browser.png','07-projection.png','08-recording.png')
+$docNames += $visualNames | ForEach-Object { 'images/visual/' + $_ }
 foreach ($name in $docNames) {
-    Copy-Item -LiteralPath (Join-Path (Join-Path $root 'docs') $name) -Destination $docsFolder -Force
+    $destination = Join-Path $docsFolder $name
+    New-Item -ItemType Directory -Path (Split-Path -Parent $destination) -Force | Out-Null
+    Copy-Item -LiteralPath (Join-Path (Join-Path $root 'docs') $name) -Destination $destination -Force
 }
 $license = 'dependencies/licenses/PDFium-third-party/freetype.txt'
 $licenseTarget = Join-Path $dist $license
@@ -41,11 +45,11 @@ $allowed = @('QuietShare.exe','Scintilla.dll','Lexilla.dll','pdfium.dll','WebVie
 $entries = $allowed | ForEach-Object { Join-Path $dist $_ }
 $entries += $docNames | ForEach-Object { Join-Path $docsFolder $_ }
 foreach ($entry in $entries) { if (!(Test-Path -LiteralPath $entry)) { throw "Missing payload: $entry" } }
-$zip = Join-Path $root 'QuietShare-v0.17.1-win-x64.zip'
+$zip = Join-Path $root 'QuietShare-v0.18.0-win-x64.zip'
 # Enumerate every archive entry explicitly; stale build files cannot enter it.
 Add-Type -AssemblyName System.IO.Compression.FileSystem
 $payload = @($allowed) + @($docNames | ForEach-Object { 'docs/' + $_ })
-$unexpectedDocs = Get-ChildItem -LiteralPath $docsFolder -File | Where-Object { $_.Name -notin $docNames }
+$unexpectedDocs = Get-ChildItem -LiteralPath $docsFolder -File -Recurse | Where-Object { $_.FullName.Substring($docsFolder.Length + 1).Replace('\','/') -notin $docNames }
 if ($unexpectedDocs) { throw 'Unexpected files remain in dist/docs.' }
 $stream = [IO.File]::Open($zip,[IO.FileMode]::Create)
 $archive = [IO.Compression.ZipArchive]::new($stream,[IO.Compression.ZipArchiveMode]::Create)

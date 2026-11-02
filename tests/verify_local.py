@@ -1,4 +1,4 @@
-"""Verify QuietShare 0.17.1 teleprompter GDI captures and export review PNGs.
+"""Verify QuietShare 0.18.0 teleprompter GDI captures and export review PNGs.
 
 This checks one local BitBlt capture path. It cannot establish what Zoom,
 Teams, OBS, another capture API, a remote viewer, or a projector receives.
@@ -21,7 +21,7 @@ PURPLE = (124, 58, 237)
 # Keep the visual smoke test aligned with the native design tokens in src/main.cpp.
 # The check intentionally accepts the shell, sidebar and elevated surfaces because
 # the redesigned layout uses all of them in a single capture.
-DARK_SURFACES = ((30, 30, 30), (37, 37, 38), (51, 51, 51), (60, 60, 60), (70, 70, 70), (25, 29, 33), (20,22,23), (34,39,40), (35,40,40))
+DARK_SURFACES = ((24, 24, 24), (18, 18, 18), (32, 32, 32), (36, 36, 36), (43, 43, 43), (30, 30, 30), (37, 37, 38), (51, 51, 51), (60, 60, 60), (70, 70, 70), (25, 29, 33), (20,22,23), (34,39,40), (35,40,40))
 REQUIRED_CAPTURES = {
     "qa-visible": ("editing.bmp", "visible.bmp", "large-text.bmp", "scrolling.bmp", "masked.bmp", "compact.bmp", "english.bmp",
                    "minimum-editing.bmp", "minimum-masked.bmp", "wide.bmp", "hover.bmp", "pressed.bmp", "english-editing.bmp", "empty.bmp", "empty-reading.bmp",
@@ -165,7 +165,7 @@ def main() -> int:
             check(f"{folder}.diagnosticsReadable", False, str(error))
             diagnostic = {}
         expected = {
-            "applicationVersion": "0.17.1",
+            "applicationVersion": "0.18.0",
             "topologyKnown": True,
             "displayCloned": False,
             "privacyApplied": True,
@@ -250,7 +250,7 @@ def main() -> int:
                         samples = [tuple(bitmap.rgb[(y * bitmap.width + x) * 3: (y * bitmap.width + x) * 3 + 3])
                                    for y in range(int(bitmap.height * .94), int(bitmap.height * .98))
                                    for x in range(int(bitmap.width * .50), int(bitmap.width * .56))]
-                        clear = sum(pixel == (30, 30, 30) for pixel in samples) / max(1, len(samples))
+                        clear = sum(pixel == (24, 24, 24) for pixel in samples) / max(1, len(samples))
                         check(f"{key}.numericEditDoesNotPaintIntoFooter", clear >= .99,
                               {"clearBackgroundFraction": clear, "minimum": .99,
                                "scope": "center footer strip below the synthetic minimum-size Settings viewport"})
@@ -322,7 +322,7 @@ def main() -> int:
     installer_report = artifacts / "installer-self-test.json"
     try:
         setup = json.loads(installer_report.read_text(encoding="utf-8-sig"))
-        for field, expected in {"selfTestPassed": True, "version": "0.17.1",
+        for field, expected in {"selfTestPassed": True, "version": "0.18.0",
                                 "versionResourceVerified": True, "payloadResourceId": 301,
                                 "payloadPortableExecutable": True, "fixedInstallPathVerified": True,
                                 "installationWrites": False, "error": ""}.items():
@@ -370,7 +370,7 @@ def main() -> int:
     report = {
         "passed": not failed,
         "method": "GDI BitBlt with SRCCOPY | CAPTUREBLT; synthetic purple underlay and exact window crops",
-        "applicationVersion": "0.17.1",
+        "applicationVersion": "0.18.0",
         "scope": "Local native text teleprompter editing, reading, font controls, timer scroll, pause, mask and compact layout",
         "limits": [
             "A separate QA executable uses synthetic fixtures and controlled visual/privacy gates. The shipping executable rejects these switches.",

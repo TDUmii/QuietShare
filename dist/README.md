@@ -4,6 +4,8 @@ A Windows presentation companion for scripts, documents and optional web browsin
 
 Ứng dụng Windows hỗ trợ đọc lời nhắc, tài liệu và nội dung web khi thuyết trình. Smart Mirror chiếu màn hình nguồn công khai sang màn hình Extend thứ hai, đồng thời loại QuietShare khỏi đường capture đã xác minh.
 
+**Visual guides / Hướng dẫn bằng ảnh:** [English](docs/VISUAL_GUIDE_EN.md) · [Tiếng Việt](docs/VISUAL_GUIDE_VI.md).
+
 ![QuietShare colorful banner / Banner QuietShare nhiều màu](docs/readme-banner.svg)
 
 **[Download the latest release](https://github.com/TDUmii/QuietShare/releases/latest) · [User guide](docs/USER_GUIDE.md)**
@@ -28,13 +30,13 @@ A Windows presentation companion for scripts, documents and optional web browsin
 
 ## 🎨 What you can do / Chức năng chính
 
-- **Read and prepare:** auto-scroll scripts, editable text/code, image/PDF viewers, local folders and real recent-file history.
+- **Read and prepare:** compact Home, real recent files, auto-scroll scripts, editable text/code, PDFs, images and local projects.
 
-  **Đọc và chuẩn bị:** lời nhắc cuộn tự động, sửa văn bản/code, xem ảnh/PDF, duyệt thư mục và lịch sử file thật.
+  **Đọc và chuẩn bị:** Home gọn, lịch sử thật, lời nhắc cuộn tự động, sửa văn bản/code, xem ảnh/PDF và dự án cục bộ.
 
-- **Make it readable:** 10 preset themes plus a custom palette, word wrap, text size and weight, focus mode and adjustable layout. Change them in **Settings > Appearance** or the viewer toolbar.
+- **Make it readable:** ten presets include Monochrome dark/light, plus custom colors. Adjust wrapping, text size/weight, focus and layout in **Settings > Appearance** or the viewer toolbar.
 
-  **Dễ đọc hơn:** 10 theme sáng/tối/tương phản cao, xuống dòng, cỡ và độ đậm chữ, chế độ tập trung và bố cục tùy chỉnh. Đổi theme trong **Cài đặt > Giao diện** hoặc thanh công cụ xem tệp.
+  **Dễ đọc hơn:** mười theme có Đơn sắc tối/sáng và màu tự chọn. Chỉnh xuống dòng, cỡ/độ đậm chữ, tập trung và bố cục trong **Cài đặt > Giao diện** hoặc thanh công cụ.
 
 - **Browse when needed:** optional WebView2 browser with up to 8 tabs. File readers work offline. Browsing starts disabled.
 

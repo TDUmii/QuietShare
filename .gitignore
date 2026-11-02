@@ -21,6 +21,16 @@ dist/*
 !dist/docs/quietshare-home.png
 !dist/docs/readme-banner.svg
 !dist/docs/project-status.svg
+!dist/docs/images/
+!dist/docs/images/visual/
+!dist/docs/images/visual/01-home.png
+!dist/docs/images/visual/02-files.png
+!dist/docs/images/visual/03-script.png
+!dist/docs/images/visual/04-pdf.png
+!dist/docs/images/visual/05-settings.png
+!dist/docs/images/visual/06-browser.png
+!dist/docs/images/visual/07-projection.png
+!dist/docs/images/visual/08-recording.png
 !dist/dependencies/
 dist/dependencies/*
 !dist/dependencies/licenses/

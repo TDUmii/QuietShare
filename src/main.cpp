@@ -87,8 +87,8 @@ constexpr int TRANSCRIPTION_LANGUAGE=256,SCRIPT_TAB_LABELS=257,BROWSER_TAB_LABEL
               MEETING_IMPORT=263,CUSTOM_BACKGROUND=264,CUSTOM_PANEL=265,CUSTOM_TEXT=266,CUSTOM_ACCENT=267,
               CUSTOM_RESET=268,TRANSCRIPTION_VI=270,TRANSCRIPTION_EN=271,
               PROVIDER_LOCAL=272,PROVIDER_TEAMS=273,PROVIDER_ZOOM=274,PROVIDER_MEET=275,
-              OUTPUT_WAV=276,OUTPUT_TRANSCRIPT=277,PDF_PAGE=278;
-constexpr int NORMAL_SIDEBAR = 36, COMPACT_SIDEBAR = 36;
+              OUTPUT_WAV=276,OUTPUT_TRANSCRIPT=277,PDF_PAGE=278,THEME_TOGGLE=279;
+constexpr int NORMAL_SIDEBAR = 48, COMPACT_SIDEBAR = 48;
 constexpr UINT_PTR PRIVACY_TIMER = 1, SCROLL_TIMER = 2, SAVE_TIMER = 3, QA_TIMER = 4, MEETING_TIMER = 6;
 HINSTANCE instance;
 HWND window, editor, underlay, tooltips, hoveredButton, imageViewer, settingsScroll, filePicker,
@@ -609,7 +609,8 @@ void DrawSidebar(HDC dc, int sidebar, int height, bool compact)
     DeleteObject(brush);
 
     if(compact) {
-        RECT separator{S(8),S(124),S(sidebar-8),S(125)};
+        const int separatorTop=MulDiv(height,96,dpi)<360?112:130;
+        RECT separator{S(10),S(separatorTop),S(sidebar-10),S(separatorTop+1)};
         HBRUSH line=CreateSolidBrush(DIVIDER);FillRect(dc,&separator,line);DeleteObject(line);
     }
     if (!compact)
@@ -790,6 +791,8 @@ void UpdateButtons()
     EnableWindow(GetDlgItem(window, PLAY), !Blocked() && !IsImage() && !IsCode()&&!IsPdf());
     EnableWindow(GetDlgItem(window, SPEED), !Blocked() && !IsImage() && !IsCode()&&!IsPdf());
     SetWindowTextW(GetDlgItem(window,THEME_SELECT),ThemeName(preferences.themeId,english));
+    SetWindowTextW(GetDlgItem(window,THEME_TOGGLE),T(theme.dark?L"Giao diện sáng":L"Giao diện tối",theme.dark?L"Light appearance":L"Dark appearance"));
+    SetTip(THEME_TOGGLE,T(L"Đổi sáng / tối",L"Switch light / dark appearance"));
     SetWindowTextW(GetDlgItem(window,TEXT_WEIGHT),preferences.textWeight==700?T(L"Đậm",L"Bold"):preferences.textWeight==600?T(L"Vừa",L"Semibold"):T(L"Thường",L"Regular"));
     if(page==Page::Content) {
         SetWindowTextW(GetDlgItem(window,WRAP),T(L"Xuống dòng",L"Word wrap"));
@@ -959,12 +962,13 @@ void Layout()
         HWND child=GetDlgItem(window,id);MoveWindow(child,S(left),S(top),S(w),S(h),FALSE);reveal(child);
     };
     if(!focusMode&&activityVisible) {
+        const int navHeight=height<360?28:34,navStep=navHeight+4;
         int y=12;for(int id:{NAV_HOME,NAV_SCRIPT,NAV_BROWSER}){
-            move(id,4,y,railWidth-8,32);y+=36;
+            move(id,6,y,railWidth-12,navHeight);y+=navStep;
         }
-        move(VERIFY_PRIVACY,4,y+12,railWidth-8,32);move(MIRROR_ACTION,4,y+48,railWidth-8,32);
-        move(MEETING_RECORD,4,y+84,railWidth-8,32);
-        move(NAV_SETTINGS,4,std::max(y+124,height-56),railWidth-8,28);
+        move(VERIFY_PRIVACY,6,y+12,railWidth-12,navHeight);move(MIRROR_ACTION,6,y+12+navStep,railWidth-12,navHeight);
+        move(MEETING_RECORD,6,y+12+navStep*2,railWidth-12,navHeight);
+        move(NAV_SETTINGS,6,std::max(y+12+navStep*3+8,height-48),railWidth-12,28);
     }
     contentCardRect={S(contentLeft),S(48),S(contentRight),S(bottom)};
     if(page==Page::Content || focusMode) {
@@ -1023,15 +1027,18 @@ void Layout()
         }
     }
     else if(page==Page::Home) {
-        const int padding=width<620?12:20;contentLeft+=padding;contentRight-=padding;
-        homeCompact=height<480;homeRowHeight=homeCompact?40:height<620?56:72;
-        const int w=(contentRight-contentLeft-12)/2;
-        const int actionTop=homeCompact?44:88,actionHeight=homeCompact?60:110;
-        move(OPEN_DROP,contentLeft,actionTop,w,actionHeight);move(OPEN_FOLDER,contentLeft+w+12,actionTop,w,actionHeight);
-        const int recentTop=homeCompact?140:height<620?238:248;
-        const int protectionTop=std::max(recentTop+(homeCompact?44:12),bottom-(homeCompact?76:108));
+        const int padding=width<620?16:32,available=contentRight-contentLeft;
+        const int homeWidth=std::min(760,available-padding*2);
+        contentLeft+=(available-homeWidth)/2;contentRight=contentLeft+homeWidth;
+        homeCompact=height<480;homeRowHeight=homeCompact?40:56;
+        const int actionTop=homeCompact?44:82,actionHeight=homeCompact?34:38;
+        const int openWidth=homeCompact?116:128,projectWidth=homeCompact?132:144;
+        move(OPEN_DROP,contentLeft,actionTop,openWidth,actionHeight);
+        move(OPEN_FOLDER,contentLeft+openWidth+10,actionTop,projectWidth,actionHeight);
+        const int recentTop=homeCompact?124:184;
+        const int protectionTop=std::max(recentTop+44,bottom-(homeCompact?80:94));
         homeProtectionRect={S(contentLeft),S(protectionTop+24),S(contentRight),S(bottom-4)};
-        homeRecentRect={S(contentLeft),S(recentTop),S(contentRight),S(std::max(recentTop,protectionTop-(homeCompact?4:12)))};
+        homeRecentRect={S(contentLeft),S(recentTop),S(contentRight),S(std::max(recentTop,protectionTop-16))};
         recentRows=std::clamp(MulDiv(homeRecentRect.bottom-homeRecentRect.top,96,dpi)/homeRowHeight,0,6);
         for(int i=0;i<6;++i)SetWindowTextW(GetDlgItem(window,RECENT_FIRST+i*3),L"");
         if(recentOffset>=recentWorkspace.entries.size())recentOffset=0;
@@ -1050,7 +1057,7 @@ void Layout()
             move(RECENT_FIRST+i*3+2,contentRight-38,y+(homeRowHeight-28)/2,32,28);
         }
         move(HOME_SETTINGS,contentRight-68,protectionTop,68,22);
-        if(!activityVisible&&!homeCompact)move(VERIFY_PRIVACY,contentRight-150,54,150,24);
+        if(!activityVisible&&!homeCompact)move(VERIFY_PRIVACY,contentRight-150,10,150,24);
     }
     else if(page==Page::Settings) {
         const int formWidth=std::min(760,contentRight-contentLeft),formLeft=contentLeft+(contentRight-contentLeft-formWidth)/2;
@@ -1201,6 +1208,7 @@ void Layout()
     } else if(!focusMode&&page!=Page::Content) {
         move(LAYOUT_MENU,contentRight-28,8,28,28);
         move(PIN_WINDOW,contentRight-60,8,28,28);
+        if(page==Page::Home)move(THEME_TOGGLE,contentRight-92,8,28,28);
     }
     if(splitterRect.right<=splitterRect.left&&(splitterDragging||splitterHovered)) {
         splitterDragging=splitterHovered=false;
@@ -1960,14 +1968,13 @@ void Paint(HDC dc)
     if(!focusMode&&activityVisible)DrawSidebar(dc,railWidth,client.bottom,true);
     RECT title{S(contentLeft),S(12),S(contentRight),S(40)};
     if(page==Page::Settings){title.left=settingsViewport.left+S(16);title.right=settingsViewport.right-S(16);}
-    if(page==Page::Home){title.right=S(contentRight-(homeCompact?64:0));title.top=S(homeCompact?8:34);title.bottom=S(homeCompact?36:66);
-        if(!homeCompact)DrawTextAt(dc,L"WORKSPACE / HOME",{S(contentLeft),S(10),S(contentRight-72),S(28)},MUTED,metaFont);}
+    if(page==Page::Home){title.right=S(contentRight-100);title.top=S(homeCompact?8:28);title.bottom=S(homeCompact?36:62);}
     if(!focusMode && page!=Page::Content && !(page==Page::Browser&&browser.Enabled()))DrawTextAt(dc,page==Page::Home?T(L"Trang chủ",L"Home"):
         page==Page::Settings?T(L"Cài đặt",L"Settings"):page==Page::Browser?T(L"Trình duyệt",L"Browser"):T(L"Trình chiếu",L"Presentation"),title,TEXT,page==Page::Home&&homeCompact?brandFont:titleFont,DT_LEFT|DT_VCENTER|DT_SINGLELINE|DT_END_ELLIPSIS);
     if(page==Page::Content || focusMode) {
-        FillRoundRect(dc,contentCardRect,CARD,S(12));
+        FillRoundRect(dc,contentCardRect,CARD,S(2));
         if(explorerRect.right>explorerRect.left) {
-            FillRoundRect(dc,explorerRect,CARD,S(12));
+            FillRoundRect(dc,explorerRect,CARD,S(2));
             RECT header=explorerRect;header.left+=S(12);header.right-=S(32);header.bottom=header.top+S(32);
             DrawTextAt(dc,L"Explorer",header,MUTED,metaFont,DT_LEFT|DT_VCENTER|DT_SINGLELINE|DT_END_ELLIPSIS);
             if(splitterHovered||splitterDragging) {
@@ -1990,7 +1997,7 @@ void Paint(HDC dc)
         }
     }
     else if(page==Page::Browser) {
-        FillRoundRect(dc,contentCardRect,CARD,S(12));
+        FillRoundRect(dc,contentCardRect,CARD,S(2));
         if(!Blocked()&&browser.Enabled()&&IsWindowVisible(webAddress)) {
             RECT input{};GetWindowRect(webAddress,&input);MapWindowPoints(nullptr,window,(POINT*)&input,2);InflateRect(&input,1,1);
             HPEN border=CreatePen(PS_SOLID,1,DIVIDER);auto old=SelectObject(dc,border),brush=SelectObject(dc,GetStockObject(NULL_BRUSH));
@@ -2002,31 +2009,34 @@ void Paint(HDC dc)
             Blocked()?browserPrivacyHint.c_str():browser.Status(english).c_str());
     }
     else if(page==Page::Home) {
-        DrawTextAt(dc,T(L"Gần đây",L"Recent"),{S(contentLeft),homeRecentRect.top-S(32),S(contentRight-164),homeRecentRect.top-S(8)},TEXT,brandFont);
-        FillRoundRect(dc,homeRecentRect,HOME_CARD,S(10));
+        DrawTextAt(dc,T(L"Gần đây",L"Recent"),{S(contentLeft),homeRecentRect.top-S(32),S(contentRight-164),homeRecentRect.top-S(8)},TEXT,uiFont);
+        if(!Blocked())for(int i=1;i<recentRows&&recentOffset+i<recentWorkspace.entries.size();++i){
+            RECT separator{homeRecentRect.left,homeRecentRect.top+S(i*homeRowHeight),homeRecentRect.right,homeRecentRect.top+S(i*homeRowHeight)+1};
+            HBRUSH line=CreateSolidBrush(DIVIDER);FillRect(dc,&separator,line);DeleteObject(line);
+        }
         if(Blocked()||recentWorkspace.entries.empty()||!recentRows){
             auto hint=Blocked()?T(L"Xác minh WGC để xem lịch sử.",L"Verify WGC to view your history."):
                 !recentRows?T(L"Tăng chiều cao cửa sổ để xem lịch sử.",L"Increase window height to view history."):
                 T(L"Chưa có file hay dự án gần đây.",L"No recent files or projects yet.");
-            RECT empty=homeRecentRect;InflateRect(&empty,-S(16),-S(8));DrawTextAt(dc,hint,empty,MUTED,uiFont,DT_LEFT|DT_VCENTER|DT_SINGLELINE|DT_END_ELLIPSIS);
+            RECT empty=homeRecentRect;InflateRect(&empty,0,-S(8));DrawTextAt(dc,hint,empty,MUTED,uiFont,DT_LEFT|DT_VCENTER|DT_SINGLELINE|DT_END_ELLIPSIS);
         }
         const int protectionTop=MulDiv(homeProtectionRect.top,96,dpi)-24;
-        DrawTextAt(dc,T(L"Trạng thái bảo vệ",L"Protection status"),{S(contentLeft),S(protectionTop),S(contentRight-76),S(protectionTop+22)},TEXT,brandFont);
-        FillRoundRect(dc,homeProtectionRect,HOME_CARD,S(10));
+        RECT separator{homeProtectionRect.left,S(protectionTop-8),homeProtectionRect.right,S(protectionTop-8)+1};
+        HBRUSH divider=CreateSolidBrush(DIVIDER);FillRect(dc,&separator,divider);DeleteObject(divider);
+        DrawTextAt(dc,T(L"Trạng thái bảo vệ",L"Protection status"),{S(contentLeft),S(protectionTop),S(contentRight-76),S(protectionTop+22)},TEXT,uiFont);
         DWORD affinity=0;const bool excluded=GetWindowDisplayAffinity(window,&affinity)&&affinity==0x11;
         RECT line=homeProtectionRect;line.left+=S(34);line.right-=S(12);line.top+=S(homeCompact?3:7);line.bottom=line.top+S(homeCompact?18:24);
         DrawCodicon(dc,excluded?0xeb77:0xeb53,{homeProtectionRect.left+S(10),line.top,homeProtectionRect.left+S(28),line.bottom},excluded?GREEN:AMBER,S(16));
         DrawTextAt(dc,excluded?T(L"Windows đã nhận loại trừ capture",L"Windows accepted capture exclusion"):
             T(L"Windows chưa nhận loại trừ capture",L"Windows has not accepted capture exclusion"),line,excluded?TEXT:AMBER,metaFont,DT_LEFT|DT_VCENTER|DT_SINGLELINE|DT_END_ELLIPSIS);
         line.top+=S(homeCompact?20:26);line.bottom+=S(homeCompact?20:26);
-        DrawCodicon(dc,0xeb53,{homeProtectionRect.left+S(10),line.top,homeProtectionRect.left+S(28),line.bottom},AMBER,S(16));
-        DrawTextAt(dc,T(L"Người xem / đầu nhận vật lý chưa được xác minh",L"Viewer / physical receiver unverified"),line,AMBER,metaFont,DT_LEFT|DT_VCENTER|DT_SINGLELINE|DT_END_ELLIPSIS);
-        if(projectionStoppedNotice||!importError.empty())DrawTextAt(dc,projectionStoppedNotice?T(L"Trình chiếu đã dừng - xem Chi tiết.",L"Projection stopped - see Details."):importError,
-            {S(contentLeft),S(42),S(contentRight),S(66)},AMBER,metaFont,DT_LEFT|DT_VCENTER|DT_SINGLELINE|DT_END_ELLIPSIS);
+        DrawCodicon(dc,0xeb53,{homeProtectionRect.left+S(10),line.top,homeProtectionRect.left+S(28),line.bottom},theme.monochrome?MUTED:AMBER,S(16));
+        DrawTextAt(dc,homeCompact?T(L"Người xem: chưa được xác minh",L"Viewer: unverified"):
+            T(L"Người xem / đầu nhận vật lý chưa được xác minh",L"Viewer / physical receiver unverified"),line,theme.monochrome?MUTED:AMBER,metaFont,DT_LEFT|DT_VCENTER|DT_SINGLELINE|DT_END_ELLIPSIS);
 
     }
     else if(page==Page::Settings) {
-        FillRoundRect(dc,settingsCardRect,CARD,S(12));
+        FillRoundRect(dc,settingsCardRect,CARD,S(2));
         const int saved=SaveDC(dc);IntersectClipRect(dc,settingsViewport.left,settingsViewport.top,settingsViewport.right,settingsViewport.bottom);
         for(const auto& line:settingsLines) {
             if(line.control==-1) {
@@ -2087,7 +2097,7 @@ void Paint(HDC dc)
 void DrawActionIcon(HDC dc,int id,RECT r,COLORREF color)
 {
     wchar_t glyph=id==SMALLER?0xeb3b:id==LARGER?0xea60:id==FOCUS?(focusMode?0xeb4d:0xeb4c):
-        id==MASK?(masked?0xeae7:0xea70):id==WEB_NEW_TAB?0xea60:id==TOPMOST||id==PIN_WINDOW?0xeb2b:id==OPEN_FILE?0xea7f:
+        id==MASK?(masked?0xeae7:0xea70):id==THEME_TOGGLE?0xeac6:id==WEB_NEW_TAB?0xea60:id==TOPMOST||id==PIN_WINDOW?0xeb2b:id==OPEN_FILE?0xea7f:
         id==PLAY?(running?0xead1:0xeb2c):id==MODE?0xea73:id==OVERFLOW||id==WEB_MENU?0xea7c:id==LAYOUT_MENU?0xebeb:id==SHOW_TREE?0xea76:
         id==BROWSER_TOGGLE||id==FIND_CLOSE?0xea76:id==WEB_GO?0xea9c:
         id==WEB_ZOOM_OUT||id==OPACITY_LESS||id==ICON_SMALLER?0xeb3b:
@@ -2106,36 +2116,37 @@ void DrawButtonContents(DRAWITEMSTRUCT *item)
     }
     if(page==Page::Home&&(item->CtlID==OPEN_DROP||item->CtlID==OPEN_FOLDER||(item->CtlID>=RECENT_FIRST&&item->CtlID<RECENT_FIRST+18))){
         const bool action=item->CtlID==OPEN_DROP||item->CtlID==OPEN_FOLDER;
-        const bool disabled=(item->itemState&ODS_DISABLED)!=0,hover=hoveredButton==item->hwndItem;
-        HBRUSH homeSurface=CreateSolidBrush(action?HOME_BG:HOME_CARD);FillRect(item->hDC,&item->rcItem,homeSurface);DeleteObject(homeSurface);
+        const bool disabled=(item->itemState&ODS_DISABLED)!=0,hover=hoveredButton==item->hwndItem&&!disabled,pressed=(item->itemState&ODS_SELECTED)!=0;
+        HBRUSH homeSurface=CreateSolidBrush(HOME_BG);FillRect(item->hDC,&item->rcItem,homeSurface);DeleteObject(homeSurface);
         RECT r=item->rcItem;InflateRect(&r,-1,-1);
-        FillRoundRect(item->hDC,r,hover?HOVER:action?(item->CtlID==OPEN_DROP?PIN_BG:HOME_CARD):HOME_CARD,S(12));
-        const COLORREF color=disabled?DISABLED:TEXT;
         if(action){
-            const bool shortCard=r.bottom<S(80);
-            if(shortCard){
-                const int mid=(r.top+r.bottom)/2;
-                DrawCodicon(item->hDC,item->CtlID==OPEN_DROP?0xea7f:0xea83,{S(10),mid-S(10),S(32),mid+S(10)},disabled?DISABLED:item->CtlID==OPEN_DROP?GREEN:MUTED,S(18));
-                DrawTextAt(item->hDC,T(item->CtlID==OPEN_DROP?L"Mở file":L"Mở dự án",item->CtlID==OPEN_DROP?L"Open file":L"Open project"),{S(42),S(7),r.right-S(8),S(30)},color,uiFont,DT_LEFT|DT_VCENTER|DT_SINGLELINE|DT_END_ELLIPSIS);
-                DrawTextAt(item->hDC,T(item->CtlID==OPEN_DROP?L"File trên máy":L"Thư mục code",item->CtlID==OPEN_DROP?L"Local files":L"Code folder"),{S(42),S(31),r.right-S(8),S(51)},disabled?DISABLED:item->CtlID==OPEN_DROP?TEXT:MUTED,metaFont,DT_LEFT|DT_VCENTER|DT_SINGLELINE|DT_END_ELLIPSIS);
-            }else{
-            DrawCodicon(item->hDC,item->CtlID==OPEN_DROP?0xea7f:0xea83,{S(12),S(8),S(34),S(30)},disabled?DISABLED:item->CtlID==OPEN_DROP?GREEN:MUTED,S(18));
-            DrawTextAt(item->hDC,T(item->CtlID==OPEN_DROP?L"Mở file":L"Mở dự án",item->CtlID==OPEN_DROP?L"Open file":L"Open project"),{S(12),S(36),r.right-S(10),S(62)},color,brandFont);
-            DrawTextAt(item->hDC,item->CtlID==OPEN_DROP?T(L"Code, PDF, ảnh, văn bản",L"Code, PDF, images, text"):T(L"Mở thư mục code",L"Open a code folder"),{S(12),S(66),r.right-S(10),S(90)},disabled?DISABLED:item->CtlID==OPEN_DROP?TEXT:MUTED,metaFont,DT_LEFT|DT_VCENTER|DT_SINGLELINE|DT_END_ELLIPSIS);
+            const bool primary=item->CtlID==OPEN_DROP;
+            const COLORREF surface=disabled?ELEVATED:primary?(pressed?ACCENT_DARK:hover?MixThemeColor(ACCENT,HOME_BG,12):ACCENT):hover?HOVER:HOME_BG;
+            if(primary||hover)FillRoundRect(item->hDC,r,surface,S(12));
+            if(!primary){
+                HPEN border=CreatePen(PS_SOLID,1,DIVIDER);auto oldPen=SelectObject(item->hDC,border),oldBrush=SelectObject(item->hDC,GetStockObject(NULL_BRUSH));
+                RoundRect(item->hDC,r.left,r.top,r.right,r.bottom,S(12),S(12));SelectObject(item->hDC,oldBrush);SelectObject(item->hDC,oldPen);DeleteObject(border);
             }
+            const COLORREF color=disabled?DISABLED:primary?(ThemeLuma(surface)>150?RGB(24,24,24):RGB(255,255,255)):TEXT;
+            const int mid=(r.top+r.bottom)/2;
+            DrawCodicon(item->hDC,primary?0xea7f:0xea83,{S(10),mid-S(9),S(28),mid+S(9)},color,S(16));
+            DrawTextAt(item->hDC,T(primary?L"Mở file":L"Mở dự án",primary?L"Open file":L"Open project"),{S(36),r.top,r.right-S(8),r.bottom},color,uiFont,DT_LEFT|DT_VCENTER|DT_SINGLELINE|DT_END_ELLIPSIS);
         }else if(!Blocked()){
             const size_t index=recentOffset+(item->CtlID-RECENT_FIRST)/3;const int part=(item->CtlID-RECENT_FIRST)%3;
             if(index<recentWorkspace.entries.size()){
                 const auto& entry=recentWorkspace.entries[index];
                 if(part) {
-                    if(part==1&&entry.pinned)FillRoundRect(item->hDC,r,hover?HOVER:PIN_BG,S(8));
+                    if(hover||(part==1&&entry.pinned))FillRoundRect(item->hDC,r,hover?HOVER:PIN_BG,S(8));
                     DrawCodicon(item->hDC,part==1?0xeb2b:0xea76,r,part==1&&entry.pinned?GREEN:MUTED,S(16));
                 }
                 else{
-                    DrawFileTypeIcon(item->hDC,FileIconForName(entry.path,entry.folder),{S(10),S(homeCompact?10:16),S(28),S(homeCompact?28:34)});
+                    if(hover)FillRoundRect(item->hDC,r,HOVER,S(8));
+                    const int mid=(r.top+r.bottom)/2;
+                    RECT tile{S(4),mid-S(17),S(34),mid+S(17)};FillRoundRect(item->hDC,tile,ELEVATED,S(10));
+                    DrawFileTypeIcon(item->hDC,FileIconForName(entry.path,entry.folder),{S(10),mid-S(9),S(28),mid+S(9)});
                     const auto name=entry.path.substr(entry.path.find_last_of(L"\\/")+1);
-                    DrawTextAt(item->hDC,name,{S(38),S(2),r.right-S(6),S(homeCompact?20:28)},TEXT,uiFont,DT_LEFT|DT_VCENTER|DT_SINGLELINE|DT_END_ELLIPSIS);
-                    DrawTextAt(item->hDC,entry.folder?T(L"Dự án",L"Project"):T(L"File gần đây",L"Recent file"),{S(38),S(homeCompact?20:28),r.right-S(6),S(homeCompact?36:48)},MUTED,metaFont,DT_LEFT|DT_VCENTER|DT_SINGLELINE|DT_END_ELLIPSIS);
+                    DrawTextAt(item->hDC,name,{S(44),S(2),r.right-S(6),S(homeCompact?20:28)},TEXT,uiFont,DT_LEFT|DT_VCENTER|DT_SINGLELINE|DT_END_ELLIPSIS);
+                    DrawTextAt(item->hDC,LocalParentFolder(entry.path),{S(44),S(homeCompact?20:28),r.right-S(6),S(homeCompact?36:48)},MUTED,metaFont,DT_LEFT|DT_VCENTER|DT_SINGLELINE|DT_END_ELLIPSIS);
                 }
             }
         }
@@ -2153,10 +2164,12 @@ void DrawButtonContents(DRAWITEMSTRUCT *item)
         RECT button=item->rcItem;InflateRect(&button,-1,-1);
         if(hover&&!disabled)FillRoundRect(item->hDC,button,HOVER,S(8));
         RECT track{button.right-S(44),button.top+S(6),button.right-S(8),button.top+S(24)};
-        FillRoundRect(item->hDC,track,disabled?DIVIDER:value?(id==TOPMOST?PIN_BG:ACCENT):ELEVATED,S(18));
+        const COLORREF trackColor=disabled?DIVIDER:value?(id==TOPMOST?PIN_BG:ACCENT):ELEVATED;
+        FillRoundRect(item->hDC,track,trackColor,S(18));
         const int knobLeft=track.left+S(value?20:2);
         RECT knob{knobLeft,track.top+S(2),knobLeft+S(14),track.bottom-S(2)};
-        FillRoundRect(item->hDC,knob,disabled?DISABLED:TEXT,S(14));
+        const COLORREF knobColor=value?(ThemeLuma(trackColor)>150?RGB(24,24,24):RGB(255,255,255)):TEXT;
+        FillRoundRect(item->hDC,knob,disabled?DISABLED:knobColor,S(14));
         RECT label=button;label.right=track.left-S(8);
         DrawTextAt(item->hDC,T(value?L"Bật":L"Tắt",value?L"On":L"Off"),label,disabled?DISABLED:MUTED,uiFont,DT_CENTER|DT_VCENTER|DT_SINGLELINE);
         if(GetFocus()==item->hwndItem&&!(SendMessageW(window,WM_QUERYUISTATE,0,0)&UISF_HIDEFOCUS)) {
@@ -2179,7 +2192,7 @@ void DrawButtonContents(DRAWITEMSTRUCT *item)
         return;
     }
     bool disabled = (item->itemState & ODS_DISABLED) != 0;
-    const bool railAction=(item->CtlID==VERIFY_PRIVACY||item->CtlID==MIRROR_ACTION||item->CtlID==MEETING_RECORD)&&item->rcItem.right<=S(36);
+    const bool railAction=(item->CtlID==VERIFY_PRIVACY||item->CtlID==MIRROR_ACTION||item->CtlID==MEETING_RECORD)&&item->rcItem.right<=S(48);
     const bool category=(item->CtlID>=SETTINGS_APPEARANCE&&item->CtlID<=SETTINGS_KEYS)||item->CtlID==SETTINGS_BROWSER;
     bool nav = railAction||item->CtlID == NAV_SCRIPT || item->CtlID == NAV_READ || item->CtlID == NAV_HOME || item->CtlID == NAV_SETTINGS || item->CtlID==NAV_PRESENTATION || item->CtlID==NAV_BROWSER;
     bool activeNav = (item->CtlID == NAV_SCRIPT && page == Page::Content) ||
@@ -2203,21 +2216,23 @@ void DrawButtonContents(DRAWITEMSTRUCT *item)
                      : nav       ? SIDEBAR
                                  : ELEVATED;
     if (primary && hover && !pressed)
-        color = RGB(0,96,160);
+        color = MixThemeColor(ACCENT,BG,12);
     if(page==Page::Browser&&!nav&&!(item->CtlID==BROWSER_TOGGLE&&!browser.Enabled())&&!hover&&!pressed)
         color=BG;
     const bool settingsRow=page==Page::Settings&&std::find(clippedSettingsControls.begin(),clippedSettingsControls.end(),item->hwndItem)!=clippedSettingsControls.end();
     if(page==Page::Home&&!nav&&!primary)color=hover?HOVER:HOME_BG;
     if(readingToggle&&!disabled)color=hover?HOVER:ACCENT_DARK;
     if(pinnedWindow&&!disabled)color=hover?HOVER:PIN_BG;
-    HBRUSH background = CreateSolidBrush(page==Page::Home?(nav?HOME_RAIL:HOME_BG):nav ? SIDEBAR : zoom||stepper ? ELEVATED : settingsRow ? CARD : BG);
+    const bool strip=page==Page::Content||page==Page::Browser||focusMode;
+    if(strip&&!nav&&!primary&&!readingToggle&&!pinnedWindow&&!hover&&!pressed)color=BG;
+    const COLORREF primaryText=ThemeLuma(color)>150?RGB(24,24,24):RGB(255,255,255);
+    HBRUSH background = CreateSolidBrush(page==Page::Home?(nav?HOME_RAIL:HOME_BG):nav ? SIDEBAR : page==Page::Settings&&(zoom||stepper) ? ELEVATED : settingsRow ? CARD : BG);
     FillRect(item->hDC, &item->rcItem, background);
     DeleteObject(background);
     RECT button = item->rcItem;
     InflateRect(&button, -1, -1);
     if ((!zoom&&!stepper) || hover || pressed)
         FillRoundRect(item->hDC, button, color, S(8));
-    bool strip=page==Page::Content || page==Page::Browser || focusMode;
     if (nav)
     {
         COLORREF iconColor = disabled ? DISABLED : (activeNav ? TEXT : MUTED);
@@ -2237,17 +2252,17 @@ void DrawButtonContents(DRAWITEMSTRUCT *item)
         DrawCodicon(item->hDC,item->CtlID==RECENT_PREV||item->CtlID==PDF_PREV?0xea9b:0xea9c,button,disabled?DISABLED:TEXT,S(16));
     else if(stepper||item->CtlID==WEB_MENU||item->CtlID==WEB_NEW_TAB||item->CtlID==WEB_GO||item->CtlID==WEB_ZOOM_OUT||item->CtlID==WEB_ZOOM_IN||item->CtlID==WEB_AUDIO||item->CtlID==MEETING_RECORD||
         (item->CtlID==BROWSER_TOGGLE&&page==Page::Browser&&browser.Enabled())||
-        item->CtlID==PIN_WINDOW||item->CtlID==LAYOUT_MENU||item->CtlID==SHOW_TREE || (strip && (item->CtlID==FOCUS || item->CtlID==MASK || item->CtlID==TOPMOST || item->CtlID==SMALLER || item->CtlID==LARGER || item->CtlID==MODE || item->CtlID==PLAY || item->CtlID==OPEN_FILE || item->CtlID==OVERFLOW || item->CtlID==FIND_CLOSE || item->CtlID==FIND_PREV || item->CtlID==FIND_NEXT)))
+        item->CtlID==THEME_TOGGLE||item->CtlID==PIN_WINDOW||item->CtlID==LAYOUT_MENU||item->CtlID==SHOW_TREE || (strip && (item->CtlID==FOCUS || item->CtlID==MASK || item->CtlID==TOPMOST || item->CtlID==SMALLER || item->CtlID==LARGER || item->CtlID==MODE || item->CtlID==PLAY || item->CtlID==OPEN_FILE || item->CtlID==OVERFLOW || item->CtlID==FIND_CLOSE || item->CtlID==FIND_PREV || item->CtlID==FIND_NEXT)))
         DrawActionIcon(item->hDC,item->CtlID,button,disabled?DISABLED:
             (item->CtlID==PIN_WINDOW||item->CtlID==TOPMOST)?(topmost?GREEN:MUTED):
             item->CtlID==WEB_AUDIO?(preferences.browserMuted?AMBER:TEXT):
             item->CtlID==MEETING_RECORD?(meetingRecorder.Running()?RGB(220,80,72):TEXT):
-            primary&&!pressed?RGB(255,255,255):TEXT);
+            primary?primaryText:TEXT);
     else
     {
         DrawTextAt(item->hDC, TextOf(item->hwndItem), button,
                    disabled  ? DISABLED
-                   : primary && !pressed ? RGB(255,255,255)
+                   : primary ? primaryText
                              : TEXT,
                    uiFont, DT_CENTER | DT_VCENTER | DT_SINGLELINE | DT_END_ELLIPSIS);
     }
@@ -2258,7 +2273,7 @@ void DrawButtonContents(DRAWITEMSTRUCT *item)
         RECT focus = button;
         InflateRect(&focus, -2, -2);
         HPEN pen = CreatePen(PS_SOLID, std::max(1, S(focusVisible ? 2 : 1)),
-                             primary        ? TEXT
+                             primary        ? primaryText
                              : focusVisible ? GREEN
                                             : DIVIDER);
         HGDIOBJ oldPen = SelectObject(item->hDC, pen);
@@ -2520,7 +2535,7 @@ bool CompactFits()
         HDC dc=GetDC(window);auto old=SelectObject(dc,homeCompact?brandFont:titleFont);
         SIZE label{};const auto text=T(L"Trang chủ",L"Home");
         GetTextExtentPoint32W(dc,text,lstrlenW(text),&label);SelectObject(dc,old);ReleaseDC(window,dc);
-        if(label.cx>S(contentRight-contentLeft-(homeCompact?64:0)))return false;
+        if(label.cx>S(contentRight-contentLeft-100))return false;
     }
     std::vector<RECT> controls;
     std::vector<HWND> children=buttons;
@@ -2814,9 +2829,14 @@ void QaTick()
         const int savedIcon=preferences.iconSize;preferences.iconSize=24;SetInterfaceIconSize(24);Layout();Capture(L"home-minimum-icons.bmp");
         preferences.iconSize=savedIcon;SetInterfaceIconSize(savedIcon);
         SetWindowPos(window,nullptr,0,0,S(800),S(680),SWP_NOMOVE|SWP_NOZORDER|SWP_NOACTIVATE);Layout();Capture(L"home-reference.bmp");
+        SendMessageW(window,WM_COMMAND,THEME_TOGGLE,0);Capture(L"home-light.bmp");
+        SetWindowPos(window,nullptr,0,0,S(430),S(320),SWP_NOMOVE|SWP_NOZORDER|SWP_NOACTIVATE);Layout();Capture(L"home-light-minimum.bmp");
+        SendMessageW(window,WM_COMMAND,THEME_TOGGLE,0);
         SetWindowPos(window,nullptr,0,0,S(840),S(560),SWP_NOMOVE|SWP_NOZORDER|SWP_NOACTIVATE);Layout();
         SendMessageW(window, WM_COMMAND, MAKEWPARAM(HOME_SETTINGS,BN_CLICKED),0);
         settingsCategory=0;settingsOffset=0;Layout();Capture(L"settings-appearance.bmp");
+        SendMessageW(window,WM_COMMAND,THEME_TOGGLE,0);Capture(L"settings-appearance-light.bmp");
+        SendMessageW(window,WM_COMMAND,THEME_TOGGLE,0);
         SendMessageW(window,WM_COMMAND,SETTINGS_BROWSER,0);Capture(L"settings-browser.bmp");
         SendMessageW(window,WM_COMMAND,SETTINGS_READING,0);
         qaSettings = page == Page::Settings && IsWindowVisible(sizeInput) && !GetDlgItem(window,130);
@@ -3201,7 +3221,7 @@ LRESULT CALLBACK Proc(HWND h, UINT message, WPARAM wp, LPARAM lp)
             {MEETING_OUTPUT,L"Kiểu xuất cuộc họp"},{MEETING_DIRECTORY,L"Thư mục lưu cuộc họp"},
             {MEETING_IMPORT,L"Nhập transcript nền tảng"},{CUSTOM_BACKGROUND,L"Màu nền theme"},
             {CUSTOM_PANEL,L"Màu bảng theme"},{CUSTOM_TEXT,L"Màu chữ theme"},{CUSTOM_ACCENT,L"Màu nhấn theme"},
-            {CUSTOM_RESET,L"Khôi phục màu theme"}});
+            {CUSTOM_RESET,L"Khôi phục màu theme"},{THEME_TOGGLE,L"Đổi sáng / tối"}});
         for(int i=0;i<6;++i){labels.push_back({RECENT_FIRST+i*3,L"Mở lại"});labels.push_back({RECENT_FIRST+i*3+1,L"Ghim / bỏ ghim"});labels.push_back({RECENT_FIRST+i*3+2,L"Xóa khỏi lịch sử"});}
         for (const auto &label : labels)
         {
@@ -3665,6 +3685,7 @@ LRESULT CALLBACK Proc(HWND h, UINT message, WPARAM wp, LPARAM lp)
         switch (LOWORD(wp))
         {
         case SAVE_FILE:SaveFile();break;
+        case THEME_TOGGLE:{auto candidate=preferences;candidate.themeId=theme.dark?1:0;StorePreferences(candidate);Layout();break;}
         case RECENT_CLEAR:if(!Blocked()){recentWorkspace.entries.clear();recentOffset=0;PersistRecent();Layout();}break;
         case RECENT_NEXT:if(!Blocked()){recentOffset+=recentRows;Layout();}break;
         case RECENT_PREV:if(!Blocked()){recentOffset=recentOffset>=static_cast<size_t>(recentRows)?recentOffset-recentRows:0;Layout();}break;

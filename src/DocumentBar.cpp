@@ -9,11 +9,8 @@
 namespace quietshare {
 namespace {
 const COLORREF& Panel=theme.card;
-const COLORREF& Raised=theme.elevated;
-const COLORREF& Border=theme.border;
 const COLORREF& Text=theme.text;
 const COLORREF& Muted=theme.muted;
-const COLORREF& Accent=theme.accent;
 void Fill(HDC dc, RECT rect, COLORREF color) {
     HBRUSH brush=CreateSolidBrush(color); FillRect(dc,&rect,brush); DeleteObject(brush);
 }
@@ -67,7 +64,7 @@ void DocumentBar::Reflow(bool ensureActive) {
         int width=std::clamp((int)size.cx+MulDiv(tab.script?40:60,dpi_,96)+iconPadding,MulDiv(88,dpi_,96),MulDiv(168,dpi_,96));
         // Tabs share one continuous strip. The old two-pixel gaps made each
         // mini-tab look like a detached card at small window sizes.
-        rects_.push_back({total_,MulDiv(1,dpi_,96),total_+width,client.bottom-MulDiv(1,dpi_,96)});
+        rects_.push_back({total_,0,total_+width,client.bottom});
         total_+=width;
     }
     SelectObject(dc,old); ReleaseDC(window_,dc);
@@ -109,7 +106,7 @@ void DocumentBar::ScrollWheel(int delta,int &remainder) {
     ScrollPixels(numerator/WHEEL_DELTA);
 }
 void DocumentBar::Paint(HDC dc) {
-    RECT client{}; GetClientRect(window_,&client); Fill(dc,client,Panel);
+    RECT client{}; GetClientRect(window_,&client); Fill(dc,client,theme.sidebar);
     SetBkMode(dc,TRANSPARENT); auto old=SelectObject(dc,font_);
     int s=MulDiv(1,dpi_,96), arrows=Overflowing()?MulDiv(22,dpi_,96):0;
     if(!safe_) {
@@ -121,8 +118,7 @@ void DocumentBar::Paint(HDC dc) {
         RECT r=rects_[i]; OffsetRect(&r,arrows-offset_,0);
         if(r.right<=arrows || r.left>=client.right-arrows) continue;
         bool active=tabs_[i].id==active_;
-        Fill(dc,r,active || (int)i==hovered_?Raised:Panel);
-        if(i>0 && r.left>arrows)Line(dc,r.left,r.top+MulDiv(6,dpi_,96),r.left,r.bottom-MulDiv(6,dpi_,96),Border,s);
+        if(active || (int)i==hovered_)Fill(dc,r,active?Panel:theme.hover);
         int iconX=r.left+MulDiv(8,dpi_,96), center=(r.top+r.bottom)/2;
         const int iconTop=center-iconSlot_/2;
         RECT icon{iconX,iconTop,iconX+iconSlot_,iconTop+iconSlot_};
@@ -134,7 +130,7 @@ void DocumentBar::Paint(HDC dc) {
             int x=r.right-MulDiv(13,dpi_,96), k=MulDiv(3,dpi_,96);
             Line(dc,x-k,center-k,x+k,center+k,Muted,s); Line(dc,x-k,center+k,x+k,center-k,Muted,s);
         }
-        if(active) { RECT underline{r.left,r.bottom-MulDiv(2,dpi_,96),r.right,r.bottom}; Fill(dc,underline,Accent); }
+        if(active) { RECT underline{r.left,r.bottom-s,r.right,r.bottom}; Fill(dc,underline,Text); }
     }
     RestoreDC(dc,saved);
     if(arrows) for(int right=0;right<2;right++) {

@@ -96,7 +96,8 @@ inline void DrawFileTypeIcon(HDC dc, FileIconKind kind, RECT bounds, bool disabl
     case FileIconKind::Shell: glyph = 0xea85; color = RGB(155, 198, 148); break;
     default: break;
     }
-    if(!theme.dark)color=RGB(GetRValue(color)/2,GetGValue(color)/2,GetBValue(color)/2);
+    if(theme.monochrome)color=theme.muted;
+    else if(!theme.dark)color=RGB(GetRValue(color)/2,GetGValue(color)/2,GetBValue(color)/2);
     if (disabled) color = theme.disabled;
     const int saved = SaveDC(dc);
     IntersectClipRect(dc, bounds.left, bounds.top, bounds.right, bounds.bottom);

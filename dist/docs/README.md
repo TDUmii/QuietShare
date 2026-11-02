@@ -1,5 +1,7 @@
 # Documentation / Tài liệu
 
+**Hướng dẫn từng bước có khoanh đỏ / Illustrated click-by-click guides:** [Tiếng Việt](VISUAL_GUIDE_VI.md) · [English](VISUAL_GUIDE_EN.md).
+
 Start with the [project overview](../README.md), then choose your language for the complete manual. The shorter topic guides use English first with Vietnamese directly below.
 
 Bắt đầu từ [giới thiệu dự án](../README.md), rồi chọn ngôn ngữ cho quyển hướng dẫn đầy đủ. Các hướng dẫn theo chủ đề có tiếng Anh trước, tiếng Việt ngay bên dưới.

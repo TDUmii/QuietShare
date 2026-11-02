@@ -1,6 +1,8 @@
 # QuietShare User Manual
 
-English edition - QuietShare v0.17.1
+> **Illustrated walkthrough:** [8 real UI screenshots with numbered red click targets](VISUAL_GUIDE_EN.md).
+
+English edition - QuietShare v0.18.0
 
 Read, prepare and present with private notes on Windows.
 
@@ -95,6 +97,8 @@ Uninstalling does not erase saved scripts or all local user data. Portable use a
 ## 3. Home and your workspace
 
 Home provides quick access to files and project folders you have actually opened. It does not insert demonstration recent files into your history.
+
+The compact **Home** header includes a primary **Open file** button and an outlined **Open project** button. Recent work uses a flat list across the available width, with protection status in its own section. The compact icon rail uses tooltips to identify each workspace. File, PDF and browser toolbars and tabs use matching flat controls.
 
 ![QuietShare Home](quietshare-home.png)
 
@@ -292,8 +296,8 @@ Search behavior depends on the active viewer. PDF text search requires a text la
 
 Open **Settings > Appearance > Color theme**, or use the theme button on the viewer toolbar.
 
-- Classic dark
-- Light
+- Monochrome dark (default)
+- Monochrome light
 - Warm paper
 - Midnight blue
 - Forest dark

@@ -70,7 +70,11 @@ def main():
             clear=api.rect(USER32.GetDlgItem(window,252),window)
             previous=api.rect(USER32.GetDlgItem(window,254),window)
             next_page=api.rect(USER32.GetDlgItem(window,253),window)
-            check(f'Home cards and recent actions do not overlap at {width}x{height}',file_card[2]<project_card[0]
+            check(f'Home open actions stay compact on one row at {width}x{height}',
+                  0<file_card[3]-file_card[1]<=round(40*scale) and 0<project_card[3]-project_card[1]<=round(40*scale)
+                  and file_card[1]==project_card[1] and file_card[3]==project_card[3])
+            check(f'Home theme toggle is visible at {width}x{height}',api.visible(USER32.GetDlgItem(window,279)))
+            check(f'Home actions and recent actions do not overlap at {width}x{height}',file_card[2]<project_card[0]
                   and file_card[3]<previous[1] and previous[2]<=next_page[0] and next_page[2]<=clear[0])
         check('recent navigation uses accessible action names instead of angle brackets',api.native.control_text(USER32.GetDlgItem(window,254)) not in ('<','>')
               and api.native.control_text(USER32.GetDlgItem(window,253)) not in ('<','>'))
@@ -83,9 +87,19 @@ def main():
         send(code,0x102,ord('y'))
         file_id=send(window,api.QUERY,2)
         send(code,2025,2)
-        command(1001)
-        check('light theme preserves unsaved code and caret',send(code,2006)==len(b'xyvalue = 1\n') and send(code,2008)==2 and send(code,2159)==1 and send(code,2482,32)==0xF7F5F3)
-        command(1000)
+        command(122)
+        history=(data/'recent.dpapi').read_bytes()
+        toggle=USER32.GetDlgItem(window,279)
+        send(toggle,0x00F5) # BM_CLICK exercises the visible Home toggle.
+        check('Home toggle selects monochrome light',struct.unpack('<35I',(data/'preferences.dat').read_bytes())[31]==1)
+        check('theme toggle preserves real recent history and source',api.native.control_text(USER32.GetDlgItem(window,400))==first.name
+              and (data/'recent.dpapi').read_bytes()==history and first.read_bytes()==b'xvalue = 1\n')
+        command(120)
+        check('light theme preserves unsaved code and caret',send(code,2006)==len(b'xyvalue = 1\n') and send(code,2008)==2 and send(code,2159)==1 and send(code,2482,32)==0xF8FAFA)
+        command(122);send(toggle,0x00F5)
+        check('Home toggle restores monochrome dark',struct.unpack('<35I',(data/'preferences.dat').read_bytes())[31]==0
+              and (data/'recent.dpapi').read_bytes()==history and api.native.control_text(USER32.GetDlgItem(window,400))==first.name)
+        command(120)
         for destination,label in ((154,'browser'),(122,'Home'),(123,'Settings')):
             command(destination);command(120)
             check(f'return from {label} retains the selected file and unsaved native buffer',send(window,api.QUERY,2)==file_id

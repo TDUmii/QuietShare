@@ -315,12 +315,12 @@ def main():
         check("themeMenuKeysQueued", USER32.PostMessageW(popup,0x200,0,(16 << 16) | 16)
               and USER32.PostMessageW(popup,0x100,0x28,0)
               and USER32.PostMessageW(popup,0x100,0x0D,0))
-        selected_light=wait_for(lambda:native.control_text(control(255))=='Sáng')
+        selected_light=wait_for(lambda:native.control_text(control(255))=='Đơn sắc sáng')
         metrics['themeMenuResult']={'label':native.control_text(control(255)),
                                     'popupStillExists':bool(USER32.IsWindow(popup))}
         check("themeMenuKeyboardSelectsLight",selected_light)
         command(1000)
-        check("themeReturnsToClassicWithoutRestart",native.control_text(control(255))=='Tối cổ điển')
+        check("themeReturnsToMonochromeDarkWithoutRestart",native.control_text(control(255))=='Đơn sắc tối')
         check("fontSliderRemoved", not control(130))
         identifiers = (106, 107, 163, 108, 104, 146, 181, 151, 182, 183, 184,
                        185, 152, 155, 160, 161, 143, 187, 189, 200, 201, 202,

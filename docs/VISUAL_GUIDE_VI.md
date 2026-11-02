@@ -1,6 +1,6 @@
 # QuietShare - Hướng dẫn bằng hình ảnh (Tiếng Việt)
 
-> **Phiên bản ảnh:** QuietShare 0.17.1, chụp từ bài kiểm thử UI ngày 31/10/2026. Các **khung đỏ đánh số** được thêm vào sau khi chụp để chỉ vị trí nhấn. Tùy kích thước cửa sổ, ngôn ngữ và phiên bản, vị trí nút có thể thay đổi. Các ảnh không phải giao diện giả lập.
+> **Phiên bản ảnh:** QuietShare 0.18.0, chụp từ bài kiểm thử UI ngày 2/11/2026. Các **khung đỏ đánh số** được thêm vào sau khi chụp để chỉ vị trí nhấn. Tùy kích thước cửa sổ, ngôn ngữ và phiên bản, vị trí nút có thể thay đổi. Các ảnh không phải giao diện giả lập.
 
 **Bắt đầu nhanh:** [Cài đặt](#1-tải-và-cài-đặt) · [Mở file](#2-trang-chủ-và-mở-dữ-liệu) · [Lời nhắc](#4-soạn-lời-nhắc-và-cuộn-tự-động) · [PDF](#5-đọc-pdf-và-tìm-kiếm) · [Trình chiếu](#8-trình-chiếu-smart-mirror-an-toàn) · [Ghi âm](#9-ghi-âm-và-chép-lời-cuộc-họp)
 
@@ -11,12 +11,14 @@
 1. Vào [GitHub Releases](https://github.com/TDUmii/QuietShare/releases/latest), chọn bản phát hành phù hợp với Windows x64.
 2. Với **bộ cài**, tải tệp `QuietShare-Setup.exe`, mở tệp và làm theo hướng dẫn. Ứng dụng cài cho người dùng hiện tại, không yêu cầu tài khoản quản trị theo thiết kế.
 3. Với **portable**, tải ZIP tương ứng rồi **giải nén toàn bộ** vào một thư mục. Không chạy riêng `QuietShare.exe` từ trong ZIP, vì cần các thư viện nằm cùng thư mục.
-4. Khởi động QuietShare và xem **Trang chủ**. Chỉ lấy tệp từ Releases của repository chính thức; không cài bản được gửi lại từ nguồn không rõ.
+4. Khởi động QuietShare và xem **Trang chủ**. Chỉ lấy tệp từ Releases của repository chính thức. không cài bản được gửi lại từ nguồn không rõ.
 5. Khi nâng cấp, đóng ứng dụng trước, sau đó chạy bộ cài mới hoặc thay toàn bộ thư mục portable. Nếu sử dụng dữ liệu quan trọng, nên có bản sao lưu trước khi nâng cấp.
 
 **Yêu cầu:** Windows 10 từ bản 2004 (build 19041) hoặc Windows 11, x64. Trình duyệt nhúng cần WebView2 Runtime. Smart Mirror cần hai màn hình riêng ở chế độ Extend (không dùng Duplicate).
 
 ## 2. Trang chủ và mở dữ liệu
+
+Trang chủ có các thao tác gọn phía trên danh sách gần đây toàn chiều rộng và khu vực bảo vệ riêng. **Mở file** là nút chính, **Mở dự án** dùng nút viền. Dùng nút chuyển sáng/tối trên Trang chủ để đổi nhanh giữa Đơn sắc tối và Đơn sắc sáng.
 
 ![Ảnh 01 - Trang chủ, nút Mở file, Mở dự án và Cài đặt](images/visual/01-home.png)
 
@@ -34,39 +36,39 @@
 2. **Khung đỏ 2 - Tab:** nhấn vào tên file cần xem. Khi nhiều file được mở, dùng thanh tab để chuyển qua lại.
 3. **Khung đỏ 3 - Lưu:** nhấn **Lưu** hoặc `Ctrl+S` sau khi sửa văn bản/code. QuietShare xem code như văn bản, **không chạy mã nguồn**.
 4. Nếu không thể chỉnh sửa, kiểm tra **Cài đặt > Nội dung > Cho phép sửa file văn bản / code**. PDF và ảnh vẫn là loại chỉ đọc.
-5. Nếu file đã bị thay đổi từ ứng dụng khác, xử lý cảnh báo tải lại/giữ nội dung trước khi lưu; không cố ghi đè một phiên bản chưa kiểm tra.
+5. Nếu file đã bị thay đổi từ ứng dụng khác, xử lý cảnh báo tải lại/giữ nội dung trước khi lưu. không cố ghi đè một phiên bản chưa kiểm tra.
 
 ## 4. Soạn lời nhắc và cuộn tự động
 
 ![Ảnh 03 - Vùng lời nhắc, xuống dòng và biểu tượng bút](images/visual/03-script.png)
 
 1. Trong khu vực **Tệp đang mở**, nhấp chuột phải và chọn **Soạn lời nhắc** (Compose script). Lời nhắc được lưu cục bộ, độc lập với file nhập vào.
-2. **Khung đỏ 1 - Vùng soạn/đọc:** nhập nội dung theo từng đoạn ngắn; khi đọc, đặt con trỏ vào vùng này rồi nhấn **Space** để bắt đầu/tạm dừng cuộn tự động.
+2. **Khung đỏ 1 - Vùng soạn/đọc:** nhập nội dung theo từng đoạn ngắn. khi đọc, đặt con trỏ vào vùng này rồi nhấn **Space** để bắt đầu/tạm dừng cuộn tự động.
 3. **Khung đỏ 2 - Xuống dòng:** nhấn **Xuống dòng** để văn bản không tràn chiều ngang. Điều chỉnh cỡ chữ, độ đậm và tốc độ cuộn theo khoảng cách nhìn.
 4. **Khung đỏ 3 - Chế độ soạn:** biểu tượng bút cho phép nhận biết/chuyển chế độ soạn văn bản. Phím `Ctrl+Enter` chuyển qua lại giữa soạn và đọc.
 5. Nhấn `F11` để tập trung vào nội dung nếu muốn giảm bớt thanh điều khiển. Kiểm tra lại nội dung trước lúc trình bày.
 
-**Gợi ý:** Dùng câu ngắn, xuống dòng giữa các ý và thử tốc độ cuộn trước khi họp; đừng dựa vào một tốc độ duy nhất cho mọi bài nói.
+**Gợi ý:** Dùng câu ngắn, xuống dòng giữa các ý và thử tốc độ cuộn trước khi họp. đừng dựa vào một tốc độ duy nhất cho mọi bài nói.
 
 ## 5. Đọc PDF và tìm kiếm
 
 ![Ảnh 04 - Bộ điều hướng PDF, zoom và tab file](images/visual/04-pdf.png)
 
 1. Mở PDF với **Mở file** hoặc `Ctrl+O`.
-2. **Khung đỏ 1 - Trang:** hai nút mũi tên trước/sau cho phép đổi trang; vùng ở giữa thể hiện **trang hiện tại / tổng số trang**.
-3. **Khung đỏ 2 - Thu phóng:** nhấn **- / +** để chỉnh zoom; có thể dùng `Ctrl+con lăn`. Menu mở rộng hỗ trợ tùy chọn vừa chiều ngang.
+2. **Khung đỏ 1 - Trang:** hai nút mũi tên trước/sau cho phép đổi trang. vùng ở giữa thể hiện **trang hiện tại / tổng số trang**.
+3. **Khung đỏ 2 - Thu phóng:** nhấn **- / +** để chỉnh zoom. có thể dùng `Ctrl+con lăn`. Menu mở rộng hỗ trợ tùy chọn vừa chiều ngang.
 4. **Khung đỏ 3 - Tab PDF:** nhấn tab tên PDF để quay lại khi đang mở nhiều file.
-5. `Ctrl+F` để tìm văn bản, `Enter` để tìm tiếp, `Shift+Enter` để tìm trước và `Esc` để đóng ô tìm kiếm. Tìm/sao chép chỉ hoạt động khi PDF có **lớp chữ**; PDF scan dạng ảnh có thể không tìm được.
-6. Khi phóng to, con lăn cuộn trong trang; khi đã tới mép trang, cuộn thêm mới chuyển trang. Có thể sử dụng Page Up/Page Down hoặc phím mũi tên trong vùng PDF.
+5. `Ctrl+F` để tìm văn bản, `Enter` để tìm tiếp, `Shift+Enter` để tìm trước và `Esc` để đóng ô tìm kiếm. Tìm/sao chép chỉ hoạt động khi PDF có **lớp chữ**. PDF scan dạng ảnh có thể không tìm được.
+6. Khi phóng to, con lăn cuộn trong trang. khi đã tới mép trang, cuộn thêm mới chuyển trang. Có thể sử dụng Page Up/Page Down hoặc phím mũi tên trong vùng PDF.
 
 ## 6. Chỉnh giao diện, ngôn ngữ và bố cục
 
 ![Ảnh 05 - Thiết lập giao diện, ngôn ngữ và chủ đề](images/visual/05-settings.png)
 
-1. Mở biểu tượng bánh răng ở thanh trái; **khung đỏ 1** chọn tab **Giao diện**.
+1. Mở biểu tượng bánh răng ở thanh trái. **khung đỏ 1** chọn tab **Giao diện**.
 2. **Khung đỏ 2 - Ngôn ngữ:** chọn tiếng Việt hoặc tiếng Anh cho nhãn điều khiển.
 3. **Khung đỏ 3 - Chủ đề màu:** chọn theme có sẵn hoặc tùy chỉnh màu. Nếu chữ khó đọc, đổi sang theme có tương phản cao.
-4. Bên dưới còn có ghim cửa sổ trên cùng, nhớ kích thước, độ mờ và kích thước biểu tượng. Độ mờ ảnh hưởng đến **cửa sổ điều khiển**; không dùng độ mờ làm biện pháp bảo mật.
+4. Bên dưới còn có ghim cửa sổ trên cùng, nhớ kích thước, độ mờ và kích thước biểu tượng. Độ mờ ảnh hưởng đến **cửa sổ điều khiển**. không dùng độ mờ làm biện pháp bảo mật.
 5. Tab **Nội dung** cho phép bật/tắt sửa file, chỉnh cỡ chữ và tốc độ lời nhắc. Tab **Bố cục** điều chỉnh các thanh điều khiển.
 
 ## 7. Bật trình duyệt tùy chọn
@@ -76,7 +78,7 @@
 1. **Khung đỏ 1 - Biểu tượng quả địa cầu:** mở trang **Trình duyệt** trên thanh bên.
 2. **Khung đỏ 2 - Bật trình duyệt:** chỉ bật khi thực sự cần website. Nếu ứng dụng báo thiếu WebView2 Runtime, cài bản chính thức của Microsoft.
 3. **Khung đỏ 3 - Cài đặt:** mở **Cài đặt > Trình duyệt** để xem tùy chọn âm thanh, camera và micro.
-4. Khi đã bật, nhập địa chỉ web hoặc từ khóa vào tab mới; sử dụng các tab để chuyển trang. Trình duyệt giới hạn tối đa 8 tab và **mặc định tắt khi khởi động ứng dụng**.
+4. Khi đã bật, nhập địa chỉ web hoặc từ khóa vào tab mới. sử dụng các tab để chuyển trang. Trình duyệt giới hạn tối đa 8 tab và **mặc định tắt khi khởi động ứng dụng**.
 5. Cấp quyền camera/micro chỉ khi thực sự cần và bạn đã kiểm tra trang đang sử dụng. Đừng giả định mọi trang web được chặn theo cùng một cơ chế với nội dung cục bộ.
 
 ## 8. Trình chiếu Smart Mirror an toàn
@@ -86,7 +88,7 @@
 **Trước khi nhấn nút:** kết nối hai màn hình/TV khác nhau. Trong Windows nhấn `Win+P`, chọn **Extend / Mở rộng**. **Không dùng Duplicate / Nhân bản**, vì chế độ đó không tách nội dung riêng như yêu cầu. Màn hình nguồn phải là bề mặt công khai dự định cho người xem, và nơi đặt QuietShare cần nằm ở màn hình riêng.
 
 1. **Khung đỏ 1 - Thiết lập màn hình:** vào mục **Trình chiếu**, nhấn **Thiết lập màn hình** (hoặc **Cài đặt > Trình chiếu**) để chọn màn hình nguồn và màn hình đích **khác nhau**.
-2. **Khung đỏ 2 - Kiểm tra WGC:** chạy **Kiểm tra WGC** và đọc trạng thái bảo vệ. Chỉ tiếp tục sau khi kiểm tra thành công; nếu có mã `QS-P...`, xem [danh mục mã lỗi](USER_MANUAL_VI.md#13-danh-mục-mã-lỗi-trình-chiếu).
+2. **Khung đỏ 2 - Kiểm tra WGC:** chạy **Kiểm tra WGC** và đọc trạng thái bảo vệ. Chỉ tiếp tục sau khi kiểm tra thành công. nếu có mã `QS-P...`, xem [danh mục mã lỗi](USER_MANUAL_VI.md#13-danh-mục-mã-lỗi-trình-chiếu).
 3. **Khung đỏ 3 - Bắt đầu:** nhấn **Bắt đầu** *chỉ khi nút khả dụng và mọi điều kiện đều đạt*. **Trong ảnh minh họa nút đang khóa**, vì máy QA chỉ có một màn hình và chưa được xác minh. Tuyệt đối không suy ra rằng bấm nút này sẽ bỏ qua kiểm tra.
 4. **Quan sát màn hình vật lý thực sự mà người xem nhận được** hoặc xem luồng nhận trong ứng dụng họp/OBS. Xác minh rằng bảng điều khiển riêng không xuất hiện. Việc Windows chấp nhận cờ loại trừ capture **không đủ** để đảm bảo đường hiển thị thực tế an toàn.
 5. Khi kết thúc, nhấn **Dừng**, đóng phiên chia sẻ. Nếu chuyển màn hình, mất kết nối, đổi topology hoặc máy ngủ, hãy kiểm tra WGC và bắt đầu lại từ đầu.
@@ -101,7 +103,7 @@
 2. **Khung đỏ 2 - Ngôn ngữ chép lời:** chọn **Tiếng Việt** hoặc **Tiếng Anh** theo tiếng đang nói.
 3. **Khung đỏ 3 - Nền tảng cuộc họp:** chọn nguồn âm thanh phù hợp, chẳng hạn **Khác / âm thanh máy**.
 4. Quay lại khu vực **Ghi âm** (biểu tượng hình tròn ở thanh trái). Chọn thư mục lưu, tùy chọn giữ WAV, sau đó chủ động bắt đầu và dừng phiên ghi âm.
-5. Ứng dụng sử dụng **âm thanh phát từ Windows**; không mặc định lấy micro, không tự động ghi âm cuộc họp khi chưa kích hoạt. Có thể nhập bản VTT/TXT xuất từ Teams/Zoom/Meet nếu muốn giữ tên người nói do nền tảng cung cấp.
+5. Ứng dụng sử dụng **âm thanh phát từ Windows**. không mặc định lấy micro, không tự động ghi âm cuộc họp khi chưa kích hoạt. Có thể nhập bản VTT/TXT xuất từ Teams/Zoom/Meet nếu muốn giữ tên người nói do nền tảng cung cấp.
 6. Kiểm tra quyền riêng tư, thông báo và sự đồng ý của người tham gia theo quy định áp dụng trước khi ghi.
 
 ## 10. Kiểm tra trước buổi thuyết trình
@@ -117,8 +119,8 @@
 
 | Hiện tượng | Cách xử lý |
 |---|---|
-| Không mở được file | Kiểm tra đường dẫn và quyền đọc; thử file nhỏ, định dạng được hỗ trợ |
-| Không chỉnh sửa được code/text | Kiểm tra **Cài đặt > Nội dung > Cho phép sửa**; PDF và ảnh là chỉ đọc |
+| Không mở được file | Kiểm tra đường dẫn và quyền đọc. thử file nhỏ, định dạng được hỗ trợ |
+| Không chỉnh sửa được code/text | Kiểm tra **Cài đặt > Nội dung > Cho phép sửa**. PDF và ảnh là chỉ đọc |
 | Không tìm được chữ trong PDF | Kiểm tra PDF có lớp text hay chỉ là ảnh scan |
 | Trang web không tải | Kiểm tra WebView2 Runtime, kết nối và trạng thái bật trình duyệt |
 | **Bắt đầu** trình chiếu bị khóa | Kiểm tra **Win+P > Extend**, nguồn/đích khác nhau, chạy WGC |

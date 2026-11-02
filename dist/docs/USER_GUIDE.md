@@ -1,5 +1,7 @@
 # User guide / Hướng dẫn sử dụng
 
+**Visual step-by-step guides / Hướng dẫn bằng ảnh:** [Tiếng Việt](VISUAL_GUIDE_VI.md) · [English](VISUAL_GUIDE_EN.md).
+
 [Overview](../README.md) · [Privacy](PRIVACY.md) · [Troubleshooting](TROUBLESHOOTING.md)
 
 [Giới thiệu](../README.md) · [Quyền riêng tư](PRIVACY.md) · [Xử lý sự cố](TROUBLESHOOTING.md)
@@ -21,6 +23,10 @@
 4. Đóng ứng dụng trước khi nâng cấp. Nâng cấp hoặc gỡ cài đặt vẫn giữ lời nhắc đã lưu.
 
 ## Files and projects / File và dự án
+
+Home places compact **Open file** and **Open project** actions above a full-width list of real recent work. Protection status appears in a separate section. Use the compact icon rail and its tooltips to switch workspaces.
+
+Trang chủ đặt hai nút gọn **Mở file** và **Mở dự án** trên danh sách công việc gần đây toàn chiều rộng. Trạng thái bảo vệ nằm trong khu vực riêng. Dùng thanh biểu tượng gọn và chú giải để chuyển không gian làm việc.
 
 - **Open files:** choose **Open file / Ctrl+O** or drag local files into the app.
 - **Open a project folder:** press **Ctrl+Shift+O**.
@@ -97,12 +103,12 @@ Lời nhắc tự lưu trên máy, tách biệt với file đã mở.
 ## Appearance / Giao diện
 
 - Choose **Settings > Appearance > Color theme**, or the theme button in the viewer toolbar.
-- Choices are Classic dark, Light, Warm paper, Midnight blue, Forest dark, Graphite, Soft mint, Daylight blue, High contrast black and High contrast white.
+- Choices are Monochrome dark (default), Monochrome light, Warm paper, Midnight blue, Forest dark, Graphite, Soft mint, Daylight blue, High contrast black and High contrast white.
 - Choose **Custom** to set background, panel, text and accent colors. QuietShare derives readable borders and surfaces from those four values and stores them locally. **Reset custom colors** restores the initial palette.
 - Themes persist across launches. Image pixels, PDF pages and website colors remain unchanged.
 
 - Chọn **Cài đặt > Giao diện > Chủ đề màu** hoặc nút theme trên thanh xem.
-- Có Tối cổ điển, Sáng, Giấy ấm, Xanh đêm, Rừng đêm, Than chì, Sương xanh, Xanh ban ngày, Đen tương phản cao và Trắng tương phản cao.
+- Có Đơn sắc tối (mặc định), Đơn sắc sáng, Giấy ấm, Xanh đêm, Rừng đêm, Than chì, Sương xanh, Xanh ban ngày, Đen tương phản cao và Trắng tương phản cao.
 - Chọn **Tùy chỉnh** để đặt màu nền, bảng, chữ và màu nhấn. QuietShare tự tạo viền và bề mặt có độ tương phản từ bốn màu này rồi lưu cục bộ. **Khôi phục màu theme mặc định** đưa bảng màu về ban đầu.
 - Theme được nhớ qua các lần mở. Màu ảnh, trang PDF và website giữ nguyên.
 

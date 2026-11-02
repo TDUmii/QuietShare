@@ -2,7 +2,7 @@
 
 > **Có hướng dẫn bằng ảnh:** [Xem 8 ảnh chụp giao diện có đánh số và khoanh đỏ](VISUAL_GUIDE_VI.md).
 
-Ấn bản tiếng Việt - QuietShare v0.17.1
+Ấn bản tiếng Việt - QuietShare v0.18.0
 
 Đọc, chuẩn bị và thuyết trình với lời nhắc riêng trên Windows.
 
@@ -97,6 +97,8 @@ Gỡ ứng dụng không xóa lời nhắc đã lưu hoặc toàn bộ dữ li�
 ## 3. Home và không gian làm việc
 
 Home giúp mở nhanh file và thư mục dự án bạn thực sự đã dùng. Ứng dụng không chèn các file minh họa vào lịch sử gần đây.
+
+Tiêu đề **Trang chủ** gọn có nút chính **Mở file** và nút viền **Mở dự án**. Công việc gần đây hiển thị thành danh sách phẳng toàn chiều rộng, trạng thái bảo vệ nằm trong khu vực riêng. Thanh biểu tượng gọn có chú giải cho từng không gian làm việc. Thanh công cụ và tab của file, PDF và trình duyệt dùng các điều khiển phẳng đồng nhất.
 
 ![Trang chủ QuietShare](quietshare-home.png)
 
@@ -294,8 +296,8 @@ Cách tìm tùy trình xem đang hoạt động. Tìm chữ trong PDF cần lớ
 
 Mở **Cài đặt > Giao diện > Chủ đề màu** hoặc dùng nút theme trên thanh công cụ xem.
 
-- Tối cổ điển
-- Sáng
+- Đơn sắc tối (mặc định)
+- Đơn sắc sáng
 - Giấy ấm
 - Xanh đêm
 - Rừng đêm

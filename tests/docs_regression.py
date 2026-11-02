@@ -13,8 +13,13 @@ from urllib.parse import unquote, urlsplit
 ROOT = Path(__file__).resolve().parents[1]
 DOCS = ["README.md", "docs/README.md", "docs/USER_GUIDE.md",
         "docs/PRIVACY.md", "docs/TROUBLESHOOTING.md", "docs/BUILDING.md", "docs/DEPENDENCIES.md", "docs/BOOK.md",
-        "docs/USER_MANUAL_EN.md", "docs/USER_MANUAL_VI.md"]
+        "docs/USER_MANUAL_EN.md", "docs/USER_MANUAL_VI.md",
+        "docs/VISUAL_GUIDE_EN.md", "docs/VISUAL_GUIDE_VI.md"]
 MANUALS = {"docs/USER_MANUAL_EN.md", "docs/USER_MANUAL_VI.md"}
+VISUAL_GUIDES = {"docs/VISUAL_GUIDE_EN.md", "docs/VISUAL_GUIDE_VI.md"}
+VISUAL_IMAGES = ["docs/images/visual/" + name for name in [
+    "01-home.png", "02-files.png", "03-script.png", "04-pdf.png",
+    "05-settings.png", "06-browser.png", "07-projection.png", "08-recording.png"]]
 PDFS = ["docs/QuietShare-User-Manual-EN.pdf", "docs/QuietShare-Huong-Dan-Su-Dung-VI.pdf"]
 
 
@@ -28,9 +33,9 @@ def main():
     for name in DOCS:
         path = ROOT / name
         text = path.read_text(encoding="utf-8-sig")
-        if name != "README.md" and name not in MANUALS:
+        if name != "README.md" and name not in MANUALS | VISUAL_GUIDES:
             check(name + ": bilingual title", " / " in text.splitlines()[0])
-        if not name.endswith("USER_MANUAL_EN.md"):
+        if not name.endswith(("USER_MANUAL_EN.md", "VISUAL_GUIDE_EN.md")):
             check(name + ": Vietnamese present", bool(re.search(r"[ăâđêôơưĂÂĐÊÔƠƯ]", text)))
         prose = re.sub(r"```.*?```", "", text, flags=re.S)
         check(name + ": ideas use lines instead of semicolons", ";" not in prose)
@@ -43,7 +48,7 @@ def main():
                 continue
             resolved = (path.parent / unquote(parts.path)).resolve()
             check(name + ": link " + target, resolved.is_relative_to(ROOT) and resolved.is_file())
-        if name != "README.md" and name not in MANUALS:
+        if name != "README.md" and name not in MANUALS | VISUAL_GUIDES:
             check(name + ": bilingual sections", all(" / " in h for h in re.findall(r"^## (.+)$", text, re.M)))
 
     current_version = re.search(r'QUIETSHARE_VERSION_TEXT "([^"]+)"', (ROOT/"src/Version.h").read_text()).group(1)
@@ -68,14 +73,25 @@ def main():
 
     overview = (ROOT / "README.md").read_text(encoding="utf-8-sig")
     check("README stays compact", len(overview.splitlines()) <= 100 and len(overview.split()) <= 850)
-    check("README English introduction first", overview.splitlines()[2].startswith("A Windows"))
-    check("README Vietnamese immediately below introduction", overview.splitlines()[4].startswith("Ứng dụng"))
+    paragraphs = [part for part in overview.split("\n\n") if part.strip()]
+    english_intro = next((i for i, part in enumerate(paragraphs) if part.startswith("A Windows")), -1)
+    check("README English introduction first", english_intro >= 0)
+    check("README Vietnamese immediately below introduction", english_intro >= 0 and english_intro + 1 < len(paragraphs)
+          and paragraphs[english_intro + 1].startswith("Ứng dụng"))
     check("README points to latest release", "releases/latest" in overview and not re.search(r"# QuietShare \d", overview))
     check("protection distinction retained", "does not verify what the audience sees" in overview and "Duplicate" in overview)
     obsolete = list((ROOT / "docs").glob("*Implementation_Plan.md")) + list((ROOT / "handoff").glob("*"))
     check("obsolete planning and handoff files removed", not obsolete)
     guides = {Path(name).name for name in DOCS if name.startswith("docs/")} | {"quietshare-home.png", "readme-banner.svg", "project-status.svg"} | {Path(name).name for name in PDFS}
-    check("source docs contain only current guides", {p.name for p in (ROOT / "docs").iterdir()} == guides)
+    guides |= {str(Path(name).relative_to("docs")).replace("\\", "/") for name in VISUAL_IMAGES}
+    check("source docs contain only current guides", {p.relative_to(ROOT / "docs").as_posix()
+          for p in (ROOT / "docs").rglob("*") if p.is_file()} == guides)
+    for name in VISUAL_GUIDES:
+        guide = (ROOT / name).read_text(encoding="utf-8-sig")
+        check(name + ": current screenshot edition", "QuietShare " + current_version in guide)
+        check(name + ": all eight annotated screenshots", all(Path(image).name in guide for image in VISUAL_IMAGES))
+    for name in VISUAL_IMAGES:
+        check(name + ": PNG signature", (ROOT / name).read_bytes().startswith(b"\x89PNG\r\n\x1a\n"))
     check("English commit guidance retained", "English commit messages" in (ROOT / "docs/BUILDING.md").read_text(encoding="utf-8"))
     for filename in ["readme-banner.svg", "project-status.svg"]:
         graphic = ET.parse(ROOT / "docs" / filename).getroot()
@@ -104,13 +120,13 @@ def main():
     notice = subprocess.run(["git", "show", "v0.14.0:THIRD-PARTY.md"], check=True, capture_output=True).stdout
     check("original legal text preserved", notice.replace(b"\r\n", b"\n") == (ROOT / "THIRD-PARTY.md").read_bytes().replace(b"\r\n", b"\n"))
     if "--dist" in sys.argv:
-        for name in DOCS + PDFS + ["docs/quietshare-home.png", "docs/readme-banner.svg", "docs/project-status.svg"]:
+        for name in DOCS + PDFS + VISUAL_IMAGES + ["docs/quietshare-home.png", "docs/readme-banner.svg", "docs/project-status.svg"]:
             source = (ROOT / name).read_bytes()
             if name.endswith((".md", ".svg")):
                 source = source.replace(b"\r\n", b"\n")
             check("dist parity: " + name, (ROOT / "dist" / name).read_bytes() == source)
-        expected = {Path(name).name for name in DOCS if name.startswith("docs/")} | {"quietshare-home.png", "readme-banner.svg", "project-status.svg"} | {Path(name).name for name in PDFS}
-        check("portable docs contain only current guides", {p.name for p in (ROOT / "dist/docs").iterdir()} == expected)
+        check("portable docs contain only current guides", {p.relative_to(ROOT / "dist/docs").as_posix()
+              for p in (ROOT / "dist/docs").rglob("*") if p.is_file()} == guides)
     report = {"checks": checks, "passed": sum(c["passed"] for c in checks),
               "failed": sum(not c["passed"] for c in checks),
               "readmeLines": len(overview.splitlines()), "sourceSha256": {

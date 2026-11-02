@@ -9,6 +9,7 @@ struct ThemePalette {
     const wchar_t *vi,*en; bool dark;
     COLORREF bg,sidebar,card,elevated,hover,accent,selection,text,muted,border,green,amber,disabled,pin,home,homeCard,rail;
     COLORREF keyword,string,comment,number,error;
+    bool monochrome=false;
 };
 inline ThemePalette DarkTheme(const wchar_t* vi,const wchar_t* en,COLORREF bg,COLORREF panel,COLORREF raised) {
     return {vi,en,true,bg,raised,panel,raised,RGB(70,70,70),RGB(0,122,204),RGB(4,57,94),
@@ -22,8 +23,8 @@ inline ThemePalette LightTheme(const wchar_t* vi,const wchar_t* en,COLORREF bg,C
 }
 inline const std::array<ThemePalette,10> Themes=[] {
     std::array<ThemePalette,10> t{{
-        DarkTheme(L"Tối cổ điển",L"Classic dark",RGB(30,30,30),RGB(37,37,38),RGB(60,60,60)),
-        LightTheme(L"Sáng",L"Light",RGB(243,245,247),RGB(255,255,255),RGB(229,234,238)),
+        DarkTheme(L"Đơn sắc tối",L"Monochrome dark",RGB(24,24,24),RGB(32,32,32),RGB(36,36,36)),
+        LightTheme(L"Đơn sắc sáng",L"Monochrome light",RGB(250,250,248),RGB(255,255,255),RGB(242,242,239)),
         LightTheme(L"Giấy ấm",L"Warm paper",RGB(244,236,218),RGB(255,248,231),RGB(232,221,199)),
         DarkTheme(L"Xanh đêm",L"Midnight blue",RGB(16,25,39),RGB(24,36,53),RGB(36,51,71)),
         DarkTheme(L"Rừng đêm",L"Forest dark",RGB(19,30,25),RGB(27,42,34),RGB(40,58,47)),
@@ -33,8 +34,16 @@ inline const std::array<ThemePalette,10> Themes=[] {
         DarkTheme(L"Đen tương phản cao",L"High contrast black",RGB(0,0,0),RGB(0,0,0),RGB(24,24,24)),
         LightTheme(L"Trắng tương phản cao",L"High contrast white",RGB(255,255,255),RGB(255,255,255),RGB(237,237,237))
     }};
-    // Retain the established default Home surfaces.
-    t[0].home=RGB(20,22,23);t[0].homeCard=RGB(34,39,40);t[0].rail=RGB(35,40,40);
+    t[0].sidebar=t[0].rail=RGB(18,18,18);t[0].hover=RGB(43,43,43);
+    t[0].text=t[0].accent=RGB(242,242,239);t[0].muted=RGB(171,171,170);
+    t[0].border=RGB(53,53,53);t[0].selection=t[0].pin=RGB(48,48,48);
+    t[0].green=t[0].text;t[0].disabled=RGB(120,120,118);
+    t[0].monochrome=true;
+    t[1].sidebar=t[1].rail=RGB(240,240,237);t[1].hover=RGB(232,232,227);
+    t[1].text=RGB(28,28,27);t[1].accent=RGB(32,32,30);t[1].muted=RGB(99,99,95);
+    t[1].border=RGB(216,216,210);t[1].selection=t[1].pin=RGB(228,228,222);
+    t[1].green=t[1].text;t[1].disabled=RGB(118,118,113);
+    t[1].monochrome=true;
     t[8].text=RGB(255,255,255);t[8].muted=RGB(225,225,225);t[8].border=RGB(155,155,155);
     t[9].text=RGB(0,0,0);t[9].muted=RGB(40,40,40);t[9].border=RGB(90,90,90);
     return t;
@@ -76,6 +85,7 @@ inline ThemePalette CustomThemePalette()
     result.comment=MixThemeColor(customThemeColors.text,customThemeColors.background,dark?48:62);
     result.number=dark?RGB(116,199,236):RGB(0,91,125);
     result.error=dark?RGB(255,145,145):RGB(173,25,35);
+    result.monochrome=false;
     return result;
 }
 inline ThemePalette ThemePaletteFor(int id)

@@ -157,6 +157,7 @@ int wmain(int argc, wchar_t **argv)
     }
     for(size_t id=0;id<Themes.size();++id) {
         theme=Themes[id];
+        check("paletteMonochromeShell:"+std::to_string(id),theme.monochrome==(id<2));
         const auto ratio=[](COLORREF a,COLORREF b){const double x=luminance(a),y=luminance(b);return (std::max(x,y)+0.05)/(std::min(x,y)+0.05);};
         bool readable=true;
         for(auto bg:{theme.bg,theme.card,theme.elevated,theme.hover,theme.selection,theme.pin,theme.home,theme.homeCard,theme.rail})
@@ -173,6 +174,7 @@ int wmain(int argc, wchar_t **argv)
         for(auto color:{theme.keyword,theme.string,theme.comment,theme.number})syntax=syntax&&ratio(color,theme.bg)>=4.5;
         check("paletteSyntaxContrast:"+std::to_string(id),syntax);
     }
+    check("customPaletteKeepsColor",!CustomThemePalette().monochrome);
     theme=Themes[0];code.RefreshTheme();code.SetEditable(false);
     const struct Coverage
     {

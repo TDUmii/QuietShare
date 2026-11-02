@@ -16,7 +16,11 @@ def main():
                "README.md", "THIRD-PARTY.md", "dependencies/licenses/PDFium-third-party/freetype.txt"}
     allowed.update("docs/" + name for name in ["README.md", "USER_GUIDE.md", "PRIVACY.md",
                    "TROUBLESHOOTING.md", "BUILDING.md", "DEPENDENCIES.md", "BOOK.md", "USER_MANUAL_EN.md", "USER_MANUAL_VI.md",
+                   "VISUAL_GUIDE_EN.md", "VISUAL_GUIDE_VI.md",
                    "QuietShare-User-Manual-EN.pdf", "QuietShare-Huong-Dan-Su-Dung-VI.pdf", "quietshare-home.png", "readme-banner.svg", "project-status.svg"])
+    allowed.update("docs/images/visual/" + name for name in [
+        "01-home.png", "02-files.png", "03-script.png", "04-pdf.png",
+        "05-settings.png", "06-browser.png", "07-projection.png", "08-recording.png"])
     target = root / "artifacts" / "qa-portable" / uuid.uuid4().hex
     target.mkdir(parents=True)
     with zipfile.ZipFile(archive) as package:
