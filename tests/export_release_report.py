@@ -8,7 +8,7 @@ import shutil
 import subprocess
 
 ROOT = Path(__file__).resolve().parents[1]
-VERSION = '0.18.0'
+VERSION = '0.19.0'
 
 def sha256(path):
     return hashlib.sha256((ROOT / path).read_bytes()).hexdigest()
@@ -28,6 +28,8 @@ def main():
     inventory = read('release-inventory.json')
     production = read('production-integration.json')
     workspace = read('workspace-integration.json')
+    presentation = read('presentation-integration.json')
+    shutdown = read('capture-shutdown.json')
     life = read('lifecycle-check.json')
     browser = read('qa-browser/browser-regression.json')
     settings = read('qa-settings/settings-regression.json')
@@ -42,6 +44,8 @@ def main():
         assert sha256('dist/' + name) == payload['sha256'], name
     assert production['exeSha256'] == life['exeSha256'] == actual_hash
     assert workspace['exeSha256']==actual_hash and not workspace['failure'] and workspace['failed']==0
+    assert presentation['exeSha256']==actual_hash and presentation['failed']==0
+    assert shutdown['exeSha256']==actual_hash and shutdown['failed']==0
     assert not production.get('failure') and not life.get('failure'), 'Incomplete shipping integration evidence'
     assert browser['exeSha256']==actual_hash and not browser['failure']
     assert settings['testedBinarySha256'] == scrollbar['testedBinarySha256'] == qa_hash and not settings['failure']
@@ -97,6 +101,8 @@ def main():
         ('Release PE / imports / embedded payloads','release-inventory.json'),
         ('Shipping EXE / script lifecycle','lifecycle-check.json'),
         ('Shipping workspace / recent / editing / size','workspace-integration.json'),
+        ('Shipping quick switch / encrypted presentation sets / recovery','presentation-integration.json'),
+        ('Real WGC / repeated process shutdown','capture-shutdown.json'),
         ('Native scrollbar / separate QA EXE','scrollbar-check.json'),
         ('Shipping EXE / multi-view integration','production-integration.json'),
         ('Optional browser / rendered WGC surface / lifecycle','qa-browser/browser-regression.json'),

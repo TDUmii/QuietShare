@@ -53,6 +53,10 @@ def main():
 
     current_version = re.search(r'QUIETSHARE_VERSION_TEXT "([^"]+)"', (ROOT/"src/Version.h").read_text()).group(1)
     mirror = (ROOT / "src/Mirror.cpp").read_text(encoding="utf-8-sig")
+    workspace_source = (ROOT / "src/main.cpp").read_text(encoding="utf-8-sig")
+    for number in range(1,8):
+        code=f"QS-W{number:03d}"
+        check(code+": UI and handbook agree",code in workspace_source and code in (ROOT/"docs/BOOK.md").read_text(encoding="utf-8-sig"))
     books = {name: (ROOT / name).read_text(encoding="utf-8-sig") for name in sorted(MANUALS)}
     mapping = re.findall(r'if\(std::strcmp\(reason,"([a-z-]+)"\)==0\)return "(QS-P\d{3})";', mirror)
     check("projection error codes are unique", len(mapping) >= 24 and len({code for _, code in mapping}) == len(mapping))

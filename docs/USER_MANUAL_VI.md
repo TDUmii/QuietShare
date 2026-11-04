@@ -2,7 +2,7 @@
 
 > **Có hướng dẫn bằng ảnh:** [Xem 8 ảnh chụp giao diện có đánh số và khoanh đỏ](VISUAL_GUIDE_VI.md).
 
-Ấn bản tiếng Việt - QuietShare v0.18.0
+Ấn bản tiếng Việt - QuietShare v0.19.0
 
 Đọc, chuẩn bị và thuyết trình với lời nhắc riêng trên Windows.
 
@@ -143,6 +143,18 @@ Di chuột để đọc chú giải các nút biểu tượng nhỏ. Với màn 
 
 Explorer bỏ qua junction và liên kết tượng trưng. Thư mục ẩn và thư mục phát triển nặng được lọc theo mặc định. Bật tùy chọn hiện các thư mục này khi cần thêm mục. Mở dự án không thực thi code hoặc cài thư viện của dự án đó.
 
+### Chuyển nhanh và bộ thuyết trình
+
+- Nhấn **Ctrl+K**, hoặc chọn **Chuyển nhanh** trong menu bố cục hay menu thêm.
+- Tìm theo tên tài liệu, đường dẫn đầy đủ, tiêu đề web hoặc địa chỉ. Dùng phím lên/xuống và Enter, hoặc nhấp đúp vào kết quả. Escape quay lại trang trước.
+- Chọn **Bộ thuyết trình**, nhập tên rồi bấm **Lưu bộ**. Tối đa tám bộ được lưu cục bộ, mã hóa theo tài khoản Windows.
+- Mỗi bộ gồm lời nhắc, thư mục dự án, thứ tự file, file đang xem và vị trí đọc. Bộ dùng đường dẫn tới file gốc, không sao chép tài liệu.
+- Lưu các file đang sửa trước khi lưu bộ. Lưu bộ không ghi các thay đổi chưa lưu vào file gốc.
+- Chọn bộ và bấm **Mở**. Xác nhận thay các tab hiện tại, sau đó xử lý file chưa lưu nếu có. File không tìm thấy được bỏ qua và báo lại.
+- Mở bộ không tự bật trình duyệt, ghi âm hay trình chiếu.
+- Lời nhắc trước khi mở bộ được giữ tại `notes-before-set.dpapi`. Để khôi phục, đóng QuietShare, giữ một bản sao `notes.dpapi`, sao chép `notes-before-set.dpapi` đè lên `notes.dpapi`, rồi mở lại bằng cùng tài khoản Windows. Bản dự phòng này được thay trong lần mở bộ tiếp theo.
+- **Xóa bộ** chỉ xóa bộ đã lưu sau khi xác nhận. Các tài liệu gốc vẫn nằm trên đĩa.
+
 ## 4. Mở, chỉnh sửa và lưu file
 
 Dùng **Mở file**, Ctrl+O hoặc thả file cục bộ. Hộp chọn được bảo vệ có các vị trí quen thuộc như Desktop, Downloads, Documents, Pictures và các ổ đĩa.
@@ -155,7 +167,7 @@ Dùng **Mở file**, Ctrl+O hoặc thả file cục bộ. Hộp chọn được 
 4. Dùng tab tài liệu hoặc nhấp phải **Tệp đang mở** để chuyển tài liệu.
 5. Dùng Ctrl+Tab và Ctrl+Shift+Tab để chuyển tài liệu tiếp hoặc trước trên trang tài liệu đang hoạt động.
 
-Có thể mở tối đa 32 tài liệu, tính cả lời nhắc tùy chọn. Một lần thả file nhận tối đa 31 file. Vị trí xem được giữ khi chuyển trong cùng phiên. Không có cam kết khôi phục danh sách tài liệu đang mở sau khi khởi động lại ứng dụng.
+Có thể mở tối đa 32 tài liệu, tính cả lời nhắc tùy chọn. Một lần thả file nhận tối đa 31 file. Vị trí xem được giữ khi chuyển trong cùng phiên. Các tab không tự khôi phục khi khởi động lại. Dùng bộ thuyết trình đã lưu để mở lại tài liệu đã chuẩn bị.
 
 ### Nội dung cục bộ được hỗ trợ
 
@@ -487,7 +499,7 @@ Nếu Windows chưa nhận màn, xử lý đầu vào, nguồn điện, dây, c�
 7. Nhấn F10 hoặc nút Play trình chiếu.
 8. Nhìn màn của người xem và xác nhận hiện tài liệu mẫu mà không có lời nhắc riêng.
 
-Nếu Play thất bại, ứng dụng mở cài đặt Trình chiếu kèm mã. Ghi lại mã trước khi thử tiếp. Nội dung riêng biến mất cho biết cổng bảo vệ chưa đạt. Bấm Play liên tục không sửa điều kiện đang lỗi.
+Nếu Play thất bại, ứng dụng mở bảng Trình chiếu kèm mã. Ghi lại mã trước khi thử tiếp. Nội dung riêng biến mất cho biết cổng bảo vệ chưa đạt. Bấm Play liên tục không sửa điều kiện đang lỗi.
 
 ### Một số kết quả thường gặp với HDMI
 
@@ -505,6 +517,17 @@ Các điều kiện này không chứng minh dây hoặc máy chiếu bị hỏn
 2. Dừng chia sẻ cuộc họp hoặc ghi hình trong ứng dụng tương ứng.
 3. Đóng hoặc che nội dung riêng.
 4. Chỉ đổi chế độ Windows hoặc rút dây sau khi kết thúc phiên.
+
+### Bảng trình chiếu và xem trước luồng đang gửi
+
+1. Mở **Trình chiếu** từ menu bố cục hoặc Chuyển nhanh.
+2. Chọn **Nguồn** và **Đích**. Sau khi cắm lại HDMI hoặc đổi chế độ màn hình, bấm **Làm mới** và kiểm tra lại cặp màn.
+3. Bấm **Kiểm tra WGC**, rồi **Bắt đầu**. Nếu không bắt đầu được, ứng dụng mở bảng kèm mã lỗi trong book.
+4. Chọn **Hướng xử lý** để đọc thao tác ứng với mã lỗi. Chức năng này giữ nguyên các kiểm tra bảo vệ và không tự bật lại đầu ra.
+5. **Hiện xem trước / Ẩn xem trước** điều khiển khung xem các hình đã được QuietShare gửi thành công. Khung dùng lại tài nguyên GPU của luồng chiếu, tối đa 10 FPS. Không tạo phiên capture riêng hay lưu file ảnh.
+6. Khi ẩn hoặc thu nhỏ cửa sổ, khung không tiếp tục dựng hình. Dừng chiếu, lỗi bảo vệ hoặc xác minh mới sẽ xóa hình cũ. Nếu bộ dựng xem trước lỗi, luồng chiếu công khai vẫn hoạt động độc lập và không thử lại liên tục.
+
+Windows nhận loại trừ capture, WGC đạt xác minh và đầu nhận vật lý được xác minh là ba trạng thái riêng. Khung này cho thấy luồng QuietShare đang gửi. Nó không xác nhận hình ảnh thực tế trên máy chiếu, TV hay máy của người dự họp.
 
 ## 11. Chiếu qua TV không dây
 
@@ -853,6 +876,36 @@ Mã dự phòng này biểu thị lý do chưa có ánh xạ công khai được
 1. Giữ lời nhắc riêng đóng.
 2. Giữ lại lý do nội bộ và phiên bản ứng dụng.
 3. Gửi bản ghi theo chương 14.
+
+### Lỗi bộ thuyết trình
+
+### QS-W001 - Không đọc được thư viện đã lưu
+
+Đóng QuietShare và giữ một bản sao presentations.dpapi. Khôi phục bản tốt bằng cùng tài khoản Windows. Nếu muốn tạo thư viện mới, đổi tên file cũ thành presentations-backup.dpapi trước khi mở lại. Ứng dụng giữ nguyên file không đọc được.
+
+### QS-W002 - Tên bộ trống hoặc quá dài
+
+Nhập tên có từ 1 đến 80 ký tự.
+
+### QS-W003 - Tài liệu có thay đổi chưa lưu
+
+Quay lại tài liệu và chọn Lưu hoặc Ctrl+S, sau đó lưu bộ lại. Thao tác lưu bộ không ghi đè file gốc.
+
+### QS-W004 - Đã lưu đủ tám bộ
+
+Xóa bộ không cần dùng hoặc nhập tên bộ có sẵn và xác nhận thay thế.
+
+### QS-W005 - Không lưu hoặc cập nhật được thư viện
+
+Kiểm tra dung lượng trống và quyền ghi thư mục dữ liệu QuietShare cục bộ. Giữ nguyên thư viện cũ và thử lại sau khi khắc phục.
+
+### QS-W006 - Không tạo được bản dự phòng lời nhắc
+
+Kiểm tra quyền truy cập và dung lượng thư mục dữ liệu cục bộ. Phiên hiện tại vẫn được giữ. Khắc phục trước khi mở bộ.
+
+### QS-W007 - Không mở được một số đường dẫn đã lưu
+
+Tìm lại file đã di chuyển hoặc tạm không truy cập được. Mở bằng Ctrl+O rồi lưu lại bộ đã sửa. Các tài liệu còn mở được vẫn được khôi phục.
 
 ## 14. Chẩn đoán và kiểm tra trước buổi trình bày
 

@@ -78,13 +78,13 @@ Kiểm tra WGC trong phiên khỏe mạnh không tự kết thúc phiên.
 
 ## Local storage / Dữ liệu cục bộ
 
-- **Scripts and recent-file history:** encrypted with Windows DPAPI for the local user.
+- **Scripts, recent-file history and saved presentation sets:** encrypted with Windows DPAPI for the local user. Sets include script snapshots, file paths and reading positions. Restoring a set keeps one encrypted copy of the previous script. Clearing recent history does not delete saved sets.
 - **Preferences, layout and optional window size:** stored locally.
 - **File drafts:** stay in memory until explicitly saved. Imported file content is not autosaved over the script.
 - **Clear history:** removes entries and pins without deleting original files.
 - **Meeting recordings and transcripts:** are written locally under the folder selected in **Settings > Reading** only after recording is enabled. WAV + transcript keeps the capture. Transcript only removes the temporary WAV after a successful save. The recorder uses Windows playback, no microphone, and stops when QuietShare closes. Windows Speech API processes the selected language locally. Audio and transcripts are not uploaded.
 
-- **Lời nhắc và lịch sử file:** được Windows DPAPI mã hóa cho người dùng cục bộ.
+- **Lời nhắc, lịch sử file và bộ thuyết trình:** được Windows DPAPI mã hóa cho người dùng cục bộ. Bộ chứa bản chụp lời nhắc, đường dẫn và vị trí đọc. Mở bộ giữ một bản dự phòng mã hóa của lời nhắc trước đó. Xóa lịch sử gần đây không xóa bộ đã lưu.
 - **Cấu hình, bố cục và kích thước cửa sổ tùy chọn:** được lưu trên máy.
 - **Bản sửa file:** giữ trong bộ nhớ đến khi chủ động lưu. Nội dung file đã mở không tự ghi đè lời nhắc.
 - **Xóa lịch sử:** xóa mục và ghim mà không xóa file gốc.
@@ -129,3 +129,11 @@ Kiểm tra WGC trong phiên khỏe mạnh không tự kết thúc phiên.
 - Đọc clipboard tự động bị từ chối.
 - Cho phép người dùng chủ động dán ảnh raster vào ô nhập web tương thích.
 - Tải xuống, hộp chọn file web, thả file, chia sẻ màn hình và các vùng native bị hạn chế vẫn bị chặn. Xem [hướng dẫn sử dụng](USER_GUIDE.md).
+
+## Outgoing preview / Xem trước luồng đang gửi
+
+- The private preview uses the same GPU image as a successfully presented public frame, up to 10 FPS. It creates no second capture session, CPU screenshot or image file.
+- Hidden preview does no rendering work. A stop or new verification clears the old image. The preview does not certify physical receivers or meeting participants.
+
+- Khung xem trước riêng dùng cùng ảnh GPU với khung đã được trình chiếu thành công, tối đa 10 FPS. Không tạo phiên capture thứ hai, chụp ảnh bằng CPU hay lưu file ảnh.
+- Khi ẩn, khung không dựng hình. Dừng chiếu hoặc xác minh mới sẽ xóa hình cũ. Khung không xác minh đầu nhận vật lý hay máy của người dự họp.

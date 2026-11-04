@@ -16,23 +16,23 @@ A Windows presentation companion for scripts, documents and optional web browsin
 
 ## 🚀 Get started / Bắt đầu
 
-1. Run **QuietShare-Setup.exe** or extract the complete portable ZIP. Both keep the app local to the current user.
+1. Run **QuietShare-Setup.exe** or extract the complete portable ZIP. Uses local per-user data.
 
-   Chạy **QuietShare-Setup.exe** hoặc giải nén toàn bộ ZIP portable. Cả hai cách đều dùng dữ liệu cục bộ của tài khoản hiện tại.
+   Chạy **QuietShare-Setup.exe** hoặc giải nén toàn bộ ZIP portable. Dữ liệu lưu cục bộ theo tài khoản.
 
 2. Wait for verification, then open files with **Ctrl+O** or folders with **Ctrl+Shift+O**. Use the sidebar to switch files or prepare a script.
 
    Chờ xác minh rồi mở file bằng **Ctrl+O** hoặc thư mục bằng **Ctrl+Shift+O**. Dùng thanh bên để chuyển file hoặc chuẩn bị lời nhắc.
 
-3. Set Windows to **Extend**, choose source and destination in **Settings > Projection**, then select **Verify WGC** before **Start projection**. Inspect the real audience output.
+3. Set Windows to **Extend**, choose source and destination in **Settings > Projection**, then select **Verify WGC** before **Start projection**. Preview the outgoing stream and inspect the real audience output.
 
-   Đặt Windows ở **Extend**, chọn nguồn và đích trong **Cài đặt > Trình chiếu**, rồi **Kiểm tra WGC** trước khi **Bắt đầu trình chiếu**. Quan sát đúng đầu nhận.
+   Đặt Windows ở **Extend**, chọn nguồn và đích trong **Cài đặt > Trình chiếu**, rồi **Kiểm tra WGC** trước khi **Bắt đầu trình chiếu**. Xem trước luồng đang gửi và quan sát đúng đầu nhận.
 
 ## 🎨 What you can do / Chức năng chính
 
-- **Read and prepare:** compact Home, real recent files, auto-scroll scripts, editable text/code, PDFs, images and local projects.
+- **Read and prepare:** compact Home, quick switch (Ctrl+K), saved presentation sets, scripts, editable text/code, PDFs and images.
 
-  **Đọc và chuẩn bị:** Home gọn, lịch sử thật, lời nhắc cuộn tự động, sửa văn bản/code, xem ảnh/PDF và dự án cục bộ.
+  **Đọc và chuẩn bị:** Home gọn, chuyển nhanh (Ctrl+K), bộ thuyết trình đã lưu, lời nhắc, sửa văn bản/code và xem ảnh/PDF.
 
 - **Make it readable:** ten presets include Monochrome dark/light, plus custom colors. Adjust wrapping, text size/weight, focus and layout in **Settings > Appearance** or the viewer toolbar.
 

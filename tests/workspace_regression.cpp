@@ -1,5 +1,6 @@
 #include "../src/Workspace.h"
 #include "../src/Documents.h"
+#include "../src/PresentationSets.h"
 #include <fstream>
 #include <iostream>
 #include <iterator>
@@ -53,6 +54,20 @@ int wmain(){
     tabs.Reload(doc.id,error);doc.draftUnavailable=true;doc.dirty=true;doc.draft.clear();
     check(!tabs.Save(doc.id,error)&&read(file)=="external update with different size","an unavailable oversized draft cannot be saved as an empty file");
     check(!tabs.Save(0,error),"script autosave is separate from imported file save");
+    PresentationSets sets;PresentationSet set;set.name=L"Báo cáo tuần";set.script=L"Lời nhắc riêng";set.folder=root;
+    set.files.push_back({file,{}});set.files[0].view.page=23;set.files[0].view.zoom=75;set.files[0].view.scrollY=123;set.active=1;
+    sets.items.push_back(set);check(sets.Save(root),"presentation set saves with per-user DPAPI");
+    const auto setsPath=root+L"\\presentations.dpapi";
+    PresentationSets restored;check(restored.Load(root)&&restored.items.size()==1&&restored.items[0].name==set.name&&restored.items[0].script==set.script&&
+        restored.items[0].active==1&&restored.items[0].files[0].view.page==23&&restored.items[0].files[0].view.scrollY==123&&restored.items[0].files[0].view.zoom==75,
+        "presentation set retains Unicode script, tab selection and reading positions");
+    const auto encryptedSet=read(setsPath);check(encryptedSet.find("sample.txt")==std::string::npos,"presentation paths are absent from encrypted library bytes");
+    write(setsPath,encryptedSet.substr(0,encryptedSet.size()/2));
+    check(!restored.Load(root)&&restored.items.size()==1&&restored.items[0].script==set.script,"truncated library preserves current in-memory sets");
+    sets.items[0].name.clear();check(!sets.Save(root)&&read(setsPath)==encryptedSet.substr(0,encryptedSet.size()/2),"invalid set never overwrites the existing library");
+    sets.items.assign(PresentationSets::Limit+1,set);check(!sets.Save(root),"presentation library count is bounded");
+    sets.items.clear();check(sets.Save(root)&&restored.Load(root)&&restored.items.empty(),"deleting sets persists without removing original documents");
+    DeleteFileW(setsPath.c_str());
     DeleteFileW(file.c_str());DeleteFileW(profile.c_str());RemoveDirectoryW(root.c_str());
     std::ofstream report("artifacts/qa-workspace/workspace-regression.json");report<<"{\"passed\":"<<passed<<",\"failed\":"<<failed<<"}";
     return failed?1:0;

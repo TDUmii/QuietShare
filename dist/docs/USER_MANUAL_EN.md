@@ -2,7 +2,7 @@
 
 > **Illustrated walkthrough:** [8 real UI screenshots with numbered red click targets](VISUAL_GUIDE_EN.md).
 
-English edition - QuietShare v0.18.0
+English edition - QuietShare v0.19.0
 
 Read, prepare and present with private notes on Windows.
 
@@ -143,6 +143,18 @@ Use tooltips to identify compact icon controls. For a small laptop display, hide
 
 Explorer skips junctions and symbolic links. Hidden and heavy development folders are filtered by default. The setting to include them can reveal more entries when needed. Opening a project does not execute its code or install its dependencies.
 
+### Quick switch and presentation sets
+
+- Press **Ctrl+K**, or choose **Quick switch** in the layout or overflow menu.
+- Search by document name, full path, web title or address. Use Up/Down and Enter, or double-click a result. Escape returns to the previous workspace.
+- Choose **Presentation sets**, enter a name and select **Save set**. Up to eight named sets are kept locally with Windows user-account encryption.
+- A set contains the script, project folder, file order, active file and reading positions. It references original files rather than copying them.
+- Save modified document files first. Saving a set never writes unsaved edits into the originals.
+- Select a set and choose **Open**. Confirm replacing the current tabs, then resolve any unsaved file changes. Missing files are skipped and reported.
+- Restoring a set does not enable browsing, start recording or start projection.
+- The outgoing script is preserved as `notes-before-set.dpapi`. To recover it, close QuietShare, keep a copy of `notes.dpapi`, copy `notes-before-set.dpapi` over `notes.dpapi`, then reopen QuietShare under the same Windows account. This backup is replaced on the next set restore.
+- **Delete set** removes the saved collection after confirmation. Original documents remain on disk.
+
 ## 4. Open, edit and save files
 
 Use **Open file**, Ctrl+O or a local file drop. The protected picker provides familiar locations such as Desktop, Downloads, Documents, Pictures and drives.
@@ -155,7 +167,7 @@ Use **Open file**, Ctrl+O or a local file drop. The protected picker provides fa
 4. Use document tabs or right-click **Open files** to switch documents.
 5. Use Ctrl+Tab and Ctrl+Shift+Tab to move between documents on the active document page.
 
-Up to 32 documents can be open, including the optional script. A file drop accepts up to 31 files at once. Viewing positions are retained while switching within the current session. Open-document restoration across application restarts is not promised.
+Up to 32 documents can be open, including the optional script. A file drop accepts up to 31 files at once. Viewing positions are retained while switching within the current session. Open tabs are not restored automatically. Use a saved presentation set to reopen a prepared collection.
 
 ### Supported local content
 
@@ -487,7 +499,7 @@ If Windows cannot detect the display, resolve its input, power, cable, port or d
 7. Press F10 or the projection Play control.
 8. Look at the physical audience display and confirm the sample material is visible without private notes.
 
-If Play fails, the app opens Projection settings with a code. Record that code before trying again. Private content disappearing indicates the protection gate failed. Repeatedly clicking Play does not correct the underlying condition.
+If Play fails, the app opens the Projection board with a code. Record that code before trying again. Private content disappearing indicates the protection gate failed. Repeatedly clicking Play does not correct the underlying condition.
 
 ### Common HDMI outcomes
 
@@ -505,6 +517,17 @@ These conditions do not prove that a cable or projector is defective. Use the ex
 2. Stop any meeting share or recording in its own application.
 3. Close or mask private material.
 4. Change Windows display mode or unplug the cable only after ending the session.
+
+### Projection board and live outgoing preview
+
+1. Open **Presentation** from the layout menu or Quick switch.
+2. Choose **Source** and **Target**. After reconnecting HDMI or changing display mode, select **Refresh** and check the pair again.
+3. Select **Verify WGC**, then **Start**. A failed start opens the board with the handbook error code.
+4. Select **Recovery** for the action associated with that code. It does not weaken the privacy checks or automatically restart output.
+5. **Show preview / Hide preview** controls a local preview of frames successfully sent by QuietShare. It reuses the outgoing GPU resource at up to 10 FPS. No separate capture or image file is created.
+6. Hidden or minimized preview does no rendering work. A stop, safety failure or new verification clears the old preview. A preview renderer failure leaves public projection independent and does not retry continuously.
+
+Windows capture exclusion, WGC verification and physical receiver verification remain distinct. This local preview shows QuietShare's outgoing stream. It cannot confirm a physical projector, a TV or a meeting participant's display.
 
 ## 11. Present to a wireless television
 
@@ -853,6 +876,36 @@ This fallback indicates a reason without a recognized public mapping.
 1. Keep private notes closed.
 2. Preserve the internal reason and application version.
 3. Report the record using chapter 14.
+
+### Presentation-set errors
+
+### QS-W001 - Saved library cannot be read
+
+Close QuietShare and keep a copy of presentations.dpapi. Restore a known-good copy under the same Windows account. To start a new library, rename the old file to presentations-backup.dpapi before reopening. The app preserves the unreadable file.
+
+### QS-W002 - Set name is empty or too long
+
+Enter a name containing 1-80 characters.
+
+### QS-W003 - A document has unsaved edits
+
+Return to that document and use Save or Ctrl+S. Then save the set again. Originals are not overwritten by saving a set.
+
+### QS-W004 - Eight sets are already saved
+
+Delete an unneeded set or use an existing name and confirm replacement.
+
+### QS-W005 - Library cannot be saved or updated
+
+Check free space and write access to the local QuietShare data folder. Keep the existing library and retry after correcting the condition.
+
+### QS-W006 - Previous script backup could not be created
+
+Check access and free space in the local data folder. The current session remains open. Correct the condition before loading the set.
+
+### QS-W007 - One or more saved paths could not be opened
+
+Locate the moved or unavailable files. Open them with Ctrl+O, then save the corrected set. Available documents are still restored.
 
 ## 14. Diagnose problems and keep a session checklist
 

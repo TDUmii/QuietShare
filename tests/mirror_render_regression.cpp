@@ -149,6 +149,28 @@ namespace quietshare
 // Compile-only friendship exposes state to this harness, never to a shipped EXE.
 struct MirrorRegressionAccess
 {
+    static void CheckPreview(HWND window,Capture& shared,ID3D11Texture2D* texture)
+    {
+        MirrorController controller;auto& s=*controller.impl;s.privateWindow=window;
+        shared.device->AddRef();*s.capture.device.put()=shared.device.get();
+        shared.context->AddRef();*s.capture.context.put()=shared.context.get();s.capture.size=shared.size;
+        HWND child=CreateWindowExW(0,L"STATIC",L"Synthetic preview",WS_CHILD|WS_VISIBLE,0,0,128,96,window,nullptr,GetModuleHandleW(nullptr),nullptr);
+        Check(s.renderer.Create(s.capture,window,640,480)&&s.renderer.Present(s.capture,texture),"preview fixture uses an outgoing production GPU frame");
+        s.running=s.verified=true;controller.SetPreviewWindow(child);s.PresentPreview(1000);
+        Check(controller.PreviewHasFrame()&&s.previewRenderer.swap&&!s.previewRenderer.copy&&!s.capture.session,
+            "preview shares outgoing GPU resource without another capture, texture copy or CPU readback");
+        std::vector<unsigned char> pixels;
+        Check(ReadBack(s.capture,s.previewRenderer,pixels)&&ColorAt(pixels,128,64,48,RGB(31,178,54))&&ColorAt(pixels,128,64,3,0),
+            "preview displays the same public frame with matching aspect and black letterbox");
+        s.PresentPreview(1050);Check(s.previewAt==1000,"preview updates are capped at ten per second");
+        ShowWindow(child,SW_HIDE);s.PresentPreview(1200);Check(s.previewAt==1000,"hidden preview does no rendering work");
+        controller.SetPreviewWindow(nullptr);Check(!controller.PreviewHasFrame()&&!s.previewRenderer.swap,"closing preview immediately releases its GPU renderer");
+        controller.SetPreviewWindow(window);Check(!s.previewWindow,"preview rejects a public top-level window");
+        ShowWindow(child,SW_SHOW);controller.SetPreviewWindow(child);s.PresentPreview(1400);controller.Invalidate();
+        Check(!controller.PreviewHasFrame()&&!s.previewRenderer.swap&&!controller.Running(),"safety invalidation revokes and releases preview with public output");
+        Check(controller.ErrorCode()==L"QS-P015"&&!controller.Recovery(true).empty()&&!controller.Recovery(false).empty(),"projection failure exposes stable code and bilingual recovery action");
+        controller.SetPreviewWindow(nullptr);DestroyWindow(child);
+    }
     static void CheckDisplayNotifications(HWND window,ID3D11Device *device,const wchar_t *reportPath)
     {
         const auto monitors=EnumerateMonitors();
@@ -459,6 +481,7 @@ int wmain(int argc,wchar_t**argv)
     }
     CheckFrameTiming();
     CheckExecutionRequest();
+    Check(PinCaptureRuntime(),"system WGC module is pinned before asynchronous capture workers can start");
     MirrorRegressionAccess::CheckProbePreparation();
     if(argc>1&&std::wcscmp(argv[1],L"--timing-only")==0)return failed?1:0;
     SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
@@ -498,6 +521,7 @@ int wmain(int argc,wchar_t**argv)
     capture.size={401,200};
     Check(!renderer.Present(capture,texture.get()),"unexpected frame size cannot project");
     capture.size={400,200};capture.context->ClearState();renderer.Clear();
+    MirrorRegressionAccess::CheckPreview(window,capture,texture.get());
     SetWindowPos(window,nullptr,0,0,800,200,SWP_NOMOVE|SWP_NOZORDER|SWP_NOACTIVATE);
     Check(renderer.Create(capture,window,800,200),"wide target shader and swapchain recreation");
     Check(renderer.Present(capture,texture.get())&&ReadBack(capture,renderer,pixels),"wide target frame rendered");

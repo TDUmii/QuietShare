@@ -1,6 +1,6 @@
 # QuietShare - Hướng dẫn bằng hình ảnh (Tiếng Việt)
 
-> **Phiên bản ảnh:** QuietShare 0.18.0, chụp từ bài kiểm thử UI ngày 2/11/2026. Các **khung đỏ đánh số** được thêm vào sau khi chụp để chỉ vị trí nhấn. Tùy kích thước cửa sổ, ngôn ngữ và phiên bản, vị trí nút có thể thay đổi. Các ảnh không phải giao diện giả lập.
+> **Phiên bản ảnh:** QuietShare 0.19.0, chụp từ bài kiểm thử UI ngày 2/11/2026. Các **khung đỏ đánh số** được thêm vào sau khi chụp để chỉ vị trí nhấn. Tùy kích thước cửa sổ, ngôn ngữ và phiên bản, vị trí nút có thể thay đổi. Các ảnh không phải giao diện giả lập.
 
 **Bắt đầu nhanh:** [Cài đặt](#1-tải-và-cài-đặt) · [Mở file](#2-trang-chủ-và-mở-dữ-liệu) · [Lời nhắc](#4-soạn-lời-nhắc-và-cuộn-tự-động) · [PDF](#5-đọc-pdf-và-tìm-kiếm) · [Trình chiếu](#8-trình-chiếu-smart-mirror-an-toàn) · [Ghi âm](#9-ghi-âm-và-chép-lời-cuộc-họp)
 
@@ -83,17 +83,17 @@ Trang chủ có các thao tác gọn phía trên danh sách gần đây toàn ch
 
 ## 8. Trình chiếu Smart Mirror an toàn
 
-![Ảnh 07 - Thiết lập màn hình, kiểm tra WGC, nút bắt đầu đang khóa](images/visual/07-projection.png)
+![Ảnh 07 - Chọn màn hình, kiểm tra và xem trước luồng đang gửi](images/visual/07-projection.png)
 
-**Trước khi nhấn nút:** kết nối hai màn hình/TV khác nhau. Trong Windows nhấn `Win+P`, chọn **Extend / Mở rộng**. **Không dùng Duplicate / Nhân bản**, vì chế độ đó không tách nội dung riêng như yêu cầu. Màn hình nguồn phải là bề mặt công khai dự định cho người xem, và nơi đặt QuietShare cần nằm ở màn hình riêng.
+**Chuẩn bị:** kết nối hai màn hình khác nhau. Nhấn `Win+P`, chọn **Extend / Mở rộng**. Đặt toàn bộ QuietShare trong màn nguồn đã chọn.
 
-1. **Khung đỏ 1 - Thiết lập màn hình:** vào mục **Trình chiếu**, nhấn **Thiết lập màn hình** (hoặc **Cài đặt > Trình chiếu**) để chọn màn hình nguồn và màn hình đích **khác nhau**.
-2. **Khung đỏ 2 - Kiểm tra WGC:** chạy **Kiểm tra WGC** và đọc trạng thái bảo vệ. Chỉ tiếp tục sau khi kiểm tra thành công. nếu có mã `QS-P...`, xem [danh mục mã lỗi](USER_MANUAL_VI.md#13-danh-mục-mã-lỗi-trình-chiếu).
-3. **Khung đỏ 3 - Bắt đầu:** nhấn **Bắt đầu** *chỉ khi nút khả dụng và mọi điều kiện đều đạt*. **Trong ảnh minh họa nút đang khóa**, vì máy QA chỉ có một màn hình và chưa được xác minh. Tuyệt đối không suy ra rằng bấm nút này sẽ bỏ qua kiểm tra.
-4. **Quan sát màn hình vật lý thực sự mà người xem nhận được** hoặc xem luồng nhận trong ứng dụng họp/OBS. Xác minh rằng bảng điều khiển riêng không xuất hiện. Việc Windows chấp nhận cờ loại trừ capture **không đủ** để đảm bảo đường hiển thị thực tế an toàn.
-5. Khi kết thúc, nhấn **Dừng**, đóng phiên chia sẻ. Nếu chuyển màn hình, mất kết nối, đổi topology hoặc máy ngủ, hãy kiểm tra WGC và bắt đầu lại từ đầu.
+1. **Khung đỏ 1 - Nguồn và đích:** chọn hai màn khác nhau. Bấm **Làm mới** sau khi cắm lại HDMI hoặc đổi chế độ màn hình.
+2. **Khung đỏ 2 - Kiểm tra và bắt đầu:** bấm **Kiểm tra WGC**, rồi **Bắt đầu**. Ứng dụng kiểm tra bảo vệ trước khi tạo đầu ra. Nếu lỗi, đọc mã trong book và bấm **Hướng xử lý**.
+3. **Khung đỏ 3 - Xem trước luồng đang gửi:** vùng này hiển thị các hình QuietShare đã gửi thành công, tối đa 10 FPS. Ảnh QA chưa có hình vì máy kiểm thử chỉ có một màn. **Ẩn xem trước** dừng bộ dựng hình của khung.
+4. Quan sát máy chiếu, TV hoặc phía người nhận cuộc họp. Khung xem trước cục bộ và Windows nhận loại trừ capture không xác minh được hình ảnh thực tế bên ngoài.
+5. Bấm **Dừng** khi kết thúc. Sau thay đổi màn hình hay lỗi bảo vệ, khôi phục cấu hình, kiểm tra lại và chủ động bắt đầu.
 
-**Giới hạn:** Chức năng loại trừ phụ thuộc vào Windows Graphics Capture và môi trường hiển thị. Máy quay bên ngoài, chụp màn hình bằng thiết bị khác và một số đường chia sẻ ngoài phạm vi xác minh vẫn có thể ghi lại nội dung. Với Zoom/Meet/Teams hoặc OBS, luôn xem trước **đúng nguồn đang gửi**.
+**Chuyển nhanh:** nhấn **Ctrl+K** để tìm tài liệu, tab web, lệnh hoặc bộ thuyết trình. Chọn **Bộ thuyết trình** để lưu một bộ có tên sau khi lưu các file đang sửa. Hướng dẫn đầy đủ có quy trình xác nhận thay tab, xử lý file đổi đường dẫn và khôi phục lời nhắc.
 
 ## 9. Ghi âm và chép lời cuộc họp
 

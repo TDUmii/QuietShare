@@ -208,3 +208,15 @@ Meeting audio mixed from Teams, Zoom or Google Meet cannot identify speakers by 
 - F8 và Ctrl+Alt+Q dùng toàn hệ thống khi đăng ký thành công.
 - Phím khác tùy vùng đang nhận focus.
 - Đổi mười phím tắt tại **Cài đặt > Phím tắt**. Tổ hợp trùng hoặc dành riêng bị từ chối.
+
+## Quick switch and saved sets / Chuyển nhanh và bộ đã lưu
+
+- **Ctrl+K** searches open documents, browser tabs, commands and saved presentation sets.
+- Choose **Presentation sets** to save up to eight named collections with script, local file paths and reading positions. Save edited files first.
+- Opening a set asks before replacing tabs and retains the previous script in an encrypted recovery copy. It never starts projection or browsing automatically.
+- **Presentation** now includes source/target selectors, Refresh, code-specific Recovery and a live preview of the outgoing stream, up to 10 FPS. A physical receiver remains unverified.
+
+- **Ctrl+K** tìm tài liệu đang mở, tab web, lệnh và bộ thuyết trình đã lưu.
+- Chọn **Bộ thuyết trình** để lưu tối đa tám bộ có tên, gồm lời nhắc, đường dẫn file và vị trí đọc. Lưu file đang sửa trước.
+- Mở bộ cần xác nhận thay tab và giữ lời nhắc trước đó trong bản dự phòng mã hóa. Ứng dụng không tự bật chiếu hay trình duyệt.
+- **Trình chiếu** có chọn nguồn/đích, Làm mới, Hướng xử lý theo mã lỗi và xem trước luồng đang gửi, tối đa 10 FPS. Đầu nhận vật lý vẫn chưa được xác minh.

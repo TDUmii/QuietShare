@@ -15,7 +15,7 @@ OUTPUT.mkdir(parents=True, exist_ok=True)
 VERSION = re.search(r'^#define QUIETSHARE_VERSION_TEXT "([^"]+)"',
                     (ROOT / "src" / "Version.h").read_text(encoding="utf-8-sig"), re.M).group(1)
 
-# Coordinates are relative to the unscaled 2026-11-02 real UI captures.
+# Coordinates are relative to the unscaled 2026-11-05 real UI captures.
 CAPTURES = {
     "01-home.png": ("home.bmp", [
         (89, 113, 217, 152), (227, 113, 371, 152), (7, 504, 43, 534)
@@ -36,7 +36,7 @@ CAPTURES = {
         (7, 118, 43, 154), (58, 79, 222, 108), (7, 504, 43, 534)
     ]),
     "07-projection.png": ("presentation.bmp", [
-        (58, 147, 278, 176), (58, 183, 278, 213), (58, 219, 142, 252)
+        (108, 79, 816, 144), (149, 147, 325, 176), (278, 273, 596, 453)
     ]),
     "08-recording.png": ("settings.bmp", [
         (186, 80, 305, 107), (601, 435, 782, 469), (582, 482, 782, 518)
@@ -63,6 +63,10 @@ for name, (original, targets) in CAPTURES.items():
         x = min(max(left + 9, 22), im.width - 23)
         y = top - 14 if top >= 27 else top + 12
         y = max(20, min(im.height - 20, y))
+        if name == "07-projection.png" and index == 1:
+            x, y = 300, 61
+        if name == "07-projection.png" and index == 2:
+            x, y = 146, 147
         draw.ellipse((x - 17, y - 17, x + 17, y + 17),
                      fill=(228, 24, 34), outline=(255, 255, 255), width=2)
         box = draw.textbbox((0, 0), str(index), font=FONT)

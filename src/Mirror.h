@@ -83,6 +83,12 @@ public:
     bool Busy() const;
     double Fps() const;
     HWND Projector() const;
+    // Optional private child surface. Reuses the outgoing GPU frame at <=10 FPS.
+    // No capture session, readback, screenshot or disk storage is created.
+    void SetPreviewWindow(HWND child);
+    bool PreviewHasFrame() const;
+    std::wstring ErrorCode() const;
+    std::wstring Recovery(bool english = false) const;
     std::wstring Status(bool english = false) const;
 private:
 #if defined(QUIETSHARE_MIRROR_REGRESSION)

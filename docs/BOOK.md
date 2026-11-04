@@ -41,3 +41,15 @@ The recorder and transcriber use the Windows playback mix only. They do not open
 Bộ ghi và bộ chép lời chỉ dùng âm thanh phát ra từ Windows. Chúng không mở micro và không tải âm thanh lên mạng.
 
 [Documentation index](README.md) | [Mục lục tài liệu](README.md)
+
+## Presentation-set errors / Lỗi bộ thuyết trình
+
+| Code / Mã | English | Tiếng Việt |
+|---|---|---|
+| `QS-W001` | Saved library cannot be read. Close QuietShare and keep a copy of presentations.dpapi. Restore a known-good copy under the same Windows account. To start a new library, rename the old file to presentations-backup.dpapi before reopening. The app preserves the unreadable file. | Không đọc được thư viện đã lưu. Đóng QuietShare và giữ một bản sao presentations.dpapi. Khôi phục bản tốt bằng cùng tài khoản Windows. Nếu muốn tạo thư viện mới, đổi tên file cũ thành presentations-backup.dpapi trước khi mở lại. Ứng dụng giữ nguyên file không đọc được. |
+| `QS-W002` | Set name is empty or too long. Enter a name containing 1-80 characters. | Tên bộ trống hoặc quá dài. Nhập tên có từ 1 đến 80 ký tự. |
+| `QS-W003` | A document has unsaved edits. Return to that document and use Save or Ctrl+S. Then save the set again. Originals are not overwritten by saving a set. | Tài liệu có thay đổi chưa lưu. Quay lại tài liệu và chọn Lưu hoặc Ctrl+S, sau đó lưu bộ lại. Thao tác lưu bộ không ghi đè file gốc. |
+| `QS-W004` | Eight sets are already saved. Delete an unneeded set or use an existing name and confirm replacement. | Đã lưu đủ tám bộ. Xóa bộ không cần dùng hoặc nhập tên bộ có sẵn và xác nhận thay thế. |
+| `QS-W005` | Library cannot be saved or updated. Check free space and write access to the local QuietShare data folder. Keep the existing library and retry after correcting the condition. | Không lưu hoặc cập nhật được thư viện. Kiểm tra dung lượng trống và quyền ghi thư mục dữ liệu QuietShare cục bộ. Giữ nguyên thư viện cũ và thử lại sau khi khắc phục. |
+| `QS-W006` | Previous script backup could not be created. Check access and free space in the local data folder. The current session remains open. Correct the condition before loading the set. | Không tạo được bản dự phòng lời nhắc. Kiểm tra quyền truy cập và dung lượng thư mục dữ liệu cục bộ. Phiên hiện tại vẫn được giữ. Khắc phục trước khi mở bộ. |
+| `QS-W007` | One or more saved paths could not be opened. Locate the moved or unavailable files. Open them with Ctrl+O, then save the corrected set. Available documents are still restored. | Không mở được một số đường dẫn đã lưu. Tìm lại file đã di chuyển hoặc tạm không truy cập được. Mở bằng Ctrl+O rồi lưu lại bộ đã sửa. Các tài liệu còn mở được vẫn được khôi phục. |

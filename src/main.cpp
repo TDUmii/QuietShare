@@ -16,6 +16,7 @@
 #include "Mirror.h"
 #include "ToolMenu.h"
 #include "Workspace.h"
+#include "PresentationSets.h"
 #include "FileIcons.h"
 #include "LocalPicker.h"
 #include "Browser.h"
@@ -87,7 +88,11 @@ constexpr int TRANSCRIPTION_LANGUAGE=256,SCRIPT_TAB_LABELS=257,BROWSER_TAB_LABEL
               MEETING_IMPORT=263,CUSTOM_BACKGROUND=264,CUSTOM_PANEL=265,CUSTOM_TEXT=266,CUSTOM_ACCENT=267,
               CUSTOM_RESET=268,TRANSCRIPTION_VI=270,TRANSCRIPTION_EN=271,
               PROVIDER_LOCAL=272,PROVIDER_TEAMS=273,PROVIDER_ZOOM=274,PROVIDER_MEET=275,
-              OUTPUT_WAV=276,OUTPUT_TRANSCRIPT=277,PDF_PAGE=278,THEME_TOGGLE=279;
+              OUTPUT_WAV=276,OUTPUT_TRANSCRIPT=277,PDF_PAGE=278,THEME_TOGGLE=279,
+              QUICK_SWITCH=280,QUICK_INPUT=281,QUICK_LIST=282,QUICK_OPEN=283,QUICK_BACK=284,
+              SET_LIBRARY=285,SET_NAME=286,SET_SAVE=287,SET_DELETE=288,REFRESH_DISPLAYS=289,
+              PREVIEW_TOGGLE=290,PROJECTION_HELP=291,PROJECTION_STATUS=293,
+              WORKSPACE_STATUS=294,PREVIEW_CANVAS=295,QUICK_LABEL=296,SET_LABEL=297;
 constexpr int NORMAL_SIDEBAR = 48, COMPACT_SIDEBAR = 48;
 constexpr UINT_PTR PRIVACY_TIMER = 1, SCROLL_TIMER = 2, SAVE_TIMER = 3, QA_TIMER = 4, MEETING_TIMER = 6;
 HINSTANCE instance;
@@ -97,6 +102,13 @@ bool updatingSize=false;
 DocumentId sizeInputDocument=0;
 std::wstring pickerFolder;
 RecentWorkspace recentWorkspace;
+PresentationSets presentationSets;
+HWND quickInput=nullptr,quickList=nullptr,setName=nullptr,projectionPreview=nullptr;
+struct QuickEntry {std::wstring title,detail;int kind=0;std::uint64_t id=0;};
+std::vector<QuickEntry> quickEntries;
+std::wstring workspaceNotice;
+bool previewEnabled=true,setsUnavailable=false,recoveryVisible=false;
+RECT previewBounds{},projectionStatusBounds{},projectionStepsBounds{};
 size_t recentOffset=0;
 int recentRows=3;
 RECT homeRecentRect{},homeProtectionRect{};
@@ -148,8 +160,9 @@ int fontPoints = DefaultTextPoints, speed = 1;
 double scrollRemainder = 0;
 ULONGLONG lastScrollTick = 0;
 std::wstring dataDir;
-enum class Page { Home, Content, Settings, Presentation, Browser };
+enum class Page { Home, Content, Settings, Presentation, Browser, Quick, Sets };
 Page page = Page::Content;
+Page quickReturn=Page::Home;
 LoadedContent &ActiveContent() { return documents.Active().content; }
 bool viewingFile = false, focusMode = false, scriptReading = false;
 int codePoints = DefaultCodePoints, imageZoom = DefaultZoomPercent, panX = 0, panY = 0;
@@ -257,6 +270,11 @@ bool OpenContentPath(const std::wstring &path);
 void ChooseMeetingDirectory();
 void ImportMeetingFile();
 void ChooseCustomColor(int controlId);
+void OpenQuick(bool sets=false);
+void RefreshQuick();
+void OpenQuickSelection();
+void SavePresentationSet();
+void LoadPresentationSet(size_t index);
 bool IsImage() { return viewingFile && ActiveContent().kind == ContentKind::Image; }
 bool IsCode() { return viewingFile && (ActiveContent().kind == ContentKind::Code || documents.Active().language==L"md" || documents.Active().language==L"markdown"); }
 bool IsPdf() { return viewingFile && ActiveContent().kind == ContentKind::Pdf; }
@@ -667,6 +685,22 @@ void UpdateBrowserZoomControls()
     EnableWindow(GetDlgItem(window,WEB_ZOOM_OUT),browser.Ready()&&!Blocked()&&browser.ZoomPercent()>25);
     EnableWindow(GetDlgItem(window,WEB_ZOOM_IN),browser.Ready()&&!Blocked()&&browser.ZoomPercent()<400);
 }
+void UpdateProjectionReadout()
+{
+    std::wstring projectionText=mirror?mirror->Status(english):L"";
+    if(mirror&&!mirror->ErrorCode().empty())projectionText=mirror->ErrorCode()+L" - "+projectionText.substr(0,projectionText.find(L" ["));
+    if(mirror&&mirror->Running())projectionText=T(L"Đang gửi: ",L"Sending: ")+std::to_wstring((int)mirror->Fps())+T(L" FPS. Xem trước tối đa 10 FPS.",L" FPS. Preview up to 10 FPS.");
+    if(recoveryVisible&&mirror)projectionText=mirror->ErrorCode()+L"\r\n"+mirror->Recovery(english);
+    if(TextOf(GetDlgItem(window,PROJECTION_STATUS))!=projectionText)SetWindowTextW(GetDlgItem(window,PROJECTION_STATUS),projectionText.c_str());
+}
+void UpdateQuickActions()
+{
+    const auto n=SendMessageW(quickList,LB_GETCURSEL,0,0);
+    const bool selected=n>=0&&static_cast<size_t>(n)<quickEntries.size();
+    EnableWindow(GetDlgItem(window,QUICK_OPEN),!Blocked()&&selected&&quickEntries[n].kind!=4);
+    EnableWindow(GetDlgItem(window,SET_DELETE),!Blocked()&&selected&&quickEntries[n].kind==2);
+    EnableWindow(GetDlgItem(window,SET_SAVE),!Blocked()&&!setsUnavailable);
+}
 void UpdateButtons()
 {
     browser.SetEnglish(english);
@@ -677,6 +711,7 @@ void UpdateButtons()
         webShortcuts.push_back({preferences.shortcuts[i].key,preferences.shortcuts[i].modifiers,i+1});
     }
     webShortcuts.push_back({L'L',MOD_CONTROL,PreferenceCommandCount+1});
+    webShortcuts.push_back({L'K',MOD_CONTROL,PreferenceCommandCount+2});
     browser.SetCommandShortcuts(webShortcuts);
     if(!Blocked()&&browser.Enabled()) {
         const bool changed=displayedBrowserTab!=browser.ActiveTabId();
@@ -779,8 +814,8 @@ void UpdateButtons()
     for(int id:{OPEN_FOLDER,RELOAD_FILE,KEEP_FILE,INCLUDE_IGNORED,FIND_NEXT,FIND_PREV,FIND_INPUT})
         EnableWindow(GetDlgItem(window,id),!Blocked());
     EnableWindow(GetDlgItem(window,VERIFY_PRIVACY),!masked&&!verifying&&!storageBlocked);
-    EnableWindow(GetDlgItem(window,MIRROR_START),!Blocked()&&monitors.size()>1&&SelectedMonitor(sourceMonitor)!=SelectedMonitor(destinationMonitor));
-    EnableWindow(GetDlgItem(window,MIRROR_ACTION),(mirror&&mirror->Running())||(!Blocked()&&monitors.size()>1&&SelectedMonitor(sourceMonitor)!=SelectedMonitor(destinationMonitor)));
+    EnableWindow(GetDlgItem(window,MIRROR_START),!masked&&!verifying&&!storageBlocked);
+    EnableWindow(GetDlgItem(window,MIRROR_ACTION),(mirror&&mirror->Running())||(!masked&&!verifying&&!storageBlocked));
     EnableWindow(GetDlgItem(window,MEETING_RECORD),!shuttingDown&&!transcribing);
     UpdateProjectionStopButton();
     for (int id : {MODE, PLAY, SMALLER, LARGER, SPEED, RESET_ZOOM, NAV_SCRIPT, NAV_READ, OPEN_FILE, OPEN_DROP,
@@ -790,9 +825,22 @@ void UpdateButtons()
     EnableWindow(GetDlgItem(window, LARGER), !Blocked() && (IsPdf()?pdfViewer.GetState().zoom<400:IsCode()?codeViewer.GetState().zoom<400:IsImage() ? imageZoom < 400 : ActiveTextSize() < 200));
     EnableWindow(GetDlgItem(window, PLAY), !Blocked() && !IsImage() && !IsCode()&&!IsPdf());
     EnableWindow(GetDlgItem(window, SPEED), !Blocked() && !IsImage() && !IsCode()&&!IsPdf());
+    UpdateProjectionReadout();
     SetWindowTextW(GetDlgItem(window,THEME_SELECT),ThemeName(preferences.themeId,english));
     SetWindowTextW(GetDlgItem(window,THEME_TOGGLE),T(theme.dark?L"Giao diện sáng":L"Giao diện tối",theme.dark?L"Light appearance":L"Dark appearance"));
     SetTip(THEME_TOGGLE,T(L"Đổi sáng / tối",L"Switch light / dark appearance"));
+    for(const auto& label:std::vector<std::pair<int,const wchar_t*>>{
+        {QUICK_SWITCH,T(L"Chuyển nhanh - Ctrl+K",L"Quick switch - Ctrl+K")},{QUICK_OPEN,T(L"Mở",L"Open")},
+        {QUICK_BACK,T(L"Quay lại",L"Back")},{SET_LIBRARY,T(L"Bộ thuyết trình",L"Presentation sets")},
+        {SET_SAVE,T(L"Lưu bộ",L"Save set")},{SET_DELETE,T(L"Xóa bộ",L"Delete set")},
+        {REFRESH_DISPLAYS,T(L"Làm mới",L"Refresh")},{PROJECTION_HELP,T(recoveryVisible?L"Quay lại":L"Hướng xử lý",recoveryVisible?L"Back":L"Recovery")},
+        {PREVIEW_TOGGLE,T(previewEnabled&&!recoveryVisible?L"Ẩn xem trước":L"Hiện xem trước",previewEnabled&&!recoveryVisible?L"Hide preview":L"Show preview")}}){
+        SetWindowTextW(GetDlgItem(window,label.first),label.second);SetTip(label.first,label.second);}
+    SetWindowTextW(GetDlgItem(window,QUICK_LABEL),T(L"Tìm kiếm",L"Search"));
+    SetWindowTextW(GetDlgItem(window,SET_LABEL),T(L"Tên bộ",L"Name"));
+    if(TextOf(GetDlgItem(window,WORKSPACE_STATUS))!=workspaceNotice)SetWindowTextW(GetDlgItem(window,WORKSPACE_STATUS),workspaceNotice.c_str());
+    SendMessageW(quickInput,EM_SETCUEBANNER,TRUE,reinterpret_cast<LPARAM>(T(L"Tìm tài liệu, tab hoặc lệnh...",L"Find a document, tab or command...")));
+    SendMessageW(setName,EM_SETCUEBANNER,TRUE,reinterpret_cast<LPARAM>(T(L"Tên bộ thuyết trình",L"Presentation name")));
     SetWindowTextW(GetDlgItem(window,TEXT_WEIGHT),preferences.textWeight==700?T(L"Đậm",L"Bold"):preferences.textWeight==600?T(L"Vừa",L"Semibold"):T(L"Thường",L"Regular"));
     if(page==Page::Content) {
         SetWindowTextW(GetDlgItem(window,WRAP),T(L"Xuống dòng",L"Word wrap"));
@@ -874,6 +922,7 @@ void UpdateButtons()
     SetTip(NAV_SCRIPT,T(L"Trở lại tệp đang xem",L"Return to current file"));SetTip(NAV_READ,currentTips[8].c_str());
     for (HWND button : buttons)
         InvalidateRect(button, nullptr, FALSE);
+    UpdateQuickActions();
     InvalidateRect(window, nullptr, FALSE);
 }
 void Pause()
@@ -935,7 +984,7 @@ void Layout()
         // minimized owner an off-screen rectangle. Projection has its own HWND.
         if(GetCapture()==settingsScroll)SendMessageW(settingsScroll,WM_CANCELMODE,0,0);
         if(GetCapture()==window){ReleaseCapture();splitterDragging=splitterHovered=false;SaveLayoutPreferences();}
-        browser.Show(false);documentHost.Hide();SendMessageW(tooltips,TTM_POP,0,0);
+        browser.Show(false);documentHost.Hide();if(mirror)mirror->SetPreviewWindow(nullptr);ShowWindow(projectionPreview,SW_HIDE);SendMessageW(tooltips,TTM_POP,0,0);
         renderedSafe=!Blocked();UpdateButtons();UpdateMirrorTimer();return;
     }
     if(page!=Page::Settings&&GetCapture()==settingsScroll)SendMessageW(settingsScroll,WM_CANCELMODE,0,0);
@@ -1198,9 +1247,37 @@ void Layout()
         }
     }
     else if(page==Page::Presentation) {
-        move(OPEN_DISPLAY_SETTINGS,contentLeft,116,std::min(220,contentRight-contentLeft),28);
-        move(VERIFY_PRIVACY,contentLeft,152,std::min(220,contentRight-contentLeft),28);
-        move(MIRROR_START,contentLeft,188,84);move(MIRROR_STOP,contentLeft+92,188,84);
+        const int w=contentRight-contentLeft;
+        const bool shortWindow=height<360;
+        if(shortWindow){const int half=(w-6)/2;move(SOURCE_MONITOR,contentLeft,48,half,28);move(DEST_MONITOR,contentLeft+half+6,48,w-half-6,28);}
+        else {move(SOURCE_MONITOR,contentLeft+52,48,w-52,28);move(DEST_MONITOR,contentLeft+52,80,w-52,28);}
+        const int startY=shortWindow?84:116;
+        move(REFRESH_DISPLAYS,contentLeft,startY,88,28);move(VERIFY_PRIVACY,contentLeft+92,startY,104,28);
+        move(MIRROR_START,contentLeft+200,startY,68,28);move(MIRROR_STOP,contentLeft+272,startY,60,28);
+        const int actionsY=shortWindow?116:154;
+        move(PREVIEW_TOGGLE,contentLeft,actionsY,132,26);move(PROJECTION_HELP,contentLeft+136,actionsY,96,26);
+        projectionStepsBounds={S(contentLeft),S(actionsY+30),S(contentRight),S(actionsY+(shortWindow?70:82))};
+        const int previewTop=shortWindow?188:actionsY+88;
+        const int maxHeight=std::max(0,bottom-previewTop-(shortWindow?20:height<500?32:80));
+        double aspect=16.0/9;const int dst=static_cast<int>(SendMessageW(destinationMonitor,CB_GETCURSEL,0,0));
+        if(dst>=0&&dst<static_cast<int>(monitors.size())){const auto& r=monitors[dst].bounds;aspect=double(r.right-r.left)/std::max(1L,r.bottom-r.top);}
+        int pw=w,ph=static_cast<int>(pw/aspect);if(ph>maxHeight){ph=maxHeight;pw=static_cast<int>(ph*aspect);}
+        previewBounds={S(contentLeft+(w-pw)/2),S(previewTop),S(contentLeft+(w+pw)/2),S(previewTop+ph)};
+        if(previewEnabled&&!recoveryVisible&&ph>=48&&!masked&&!verifying){MoveWindow(projectionPreview,previewBounds.left,previewBounds.top,previewBounds.right-previewBounds.left,previewBounds.bottom-previewBounds.top,FALSE);reveal(projectionPreview);}
+        projectionStatusBounds={S(contentLeft),S(previewEnabled&&!recoveryVisible&&ph>=48?previewTop+ph+6:previewTop),S(contentRight),S(bottom)};
+        MoveWindow(GetDlgItem(window,PROJECTION_STATUS),projectionStatusBounds.left,projectionStatusBounds.top,projectionStatusBounds.right-projectionStatusBounds.left,projectionStatusBounds.bottom-projectionStatusBounds.top,FALSE);
+        reveal(GetDlgItem(window,PROJECTION_STATUS));
+    }
+    else if(page==Page::Quick||page==Page::Sets) {
+        move(QUICK_LABEL,contentLeft,50,68,30);move(QUICK_INPUT,contentLeft+72,50,contentRight-contentLeft-72,30);
+        const int listBottom=std::max(116,bottom-(page==Page::Sets?108:80));
+        move(QUICK_LIST,contentLeft,88,contentRight-contentLeft,listBottom-88);
+        if(page==Page::Sets){move(SET_LABEL,contentLeft,listBottom+8,60,28);move(SET_NAME,contentLeft+64,listBottom+8,std::max(80,contentRight-contentLeft-158),28);move(SET_SAVE,contentRight-88,listBottom+8,88,28);
+            move(SET_DELETE,contentLeft+80,listBottom+42,76,28);}
+        else move(SET_LIBRARY,contentLeft+80,listBottom+8,144,28);
+        move(QUICK_OPEN,contentLeft,listBottom+(page==Page::Sets?42:8),72,28);
+        move(QUICK_BACK,contentRight-76,listBottom+(page==Page::Sets?42:8),76,28);
+        move(WORKSPACE_STATUS,contentLeft,bottom-34,contentRight-contentLeft,32);
     }
     if(!focusMode&&page==Page::Browser) {
         move(LAYOUT_MENU,contentRight-24,2,24,24);
@@ -1210,13 +1287,19 @@ void Layout()
         move(PIN_WINDOW,contentRight-60,8,28,28);
         if(page==Page::Home)move(THEME_TOGGLE,contentRight-92,8,28,28);
     }
+    if(!focusMode&&page!=Page::Quick&&page!=Page::Sets) {
+        const int x=page==Page::Content?contentRight-(!viewingFile?148:200):page==Page::Home?contentRight-124:contentRight-124;
+        // On content pages this command is also available in the overflow menu;
+        // keep the existing tab strip clear at laptop widths.
+        if(page!=Page::Content&&page!=Page::Browser)move(QUICK_SWITCH,x,8,28,28);
+    }
     if(splitterRect.right<=splitterRect.left&&(splitterDragging||splitterHovered)) {
         splitterDragging=splitterHovered=false;
         if(GetCapture()==window)ReleaseCapture();
     }
     RECT body=contentCardRect;InflateRect(&body,-S(page==Page::Browser?2:4),-S(page==Page::Browser?2:4));
     std::vector<HWND> shellControls=buttons;
-    for(HWND control:{settingsScroll,sizeInput,opacityInput,iconSizeInput,findInput,webAddress,sourceMonitor,destinationMonitor,documentBar.Window(),browserTabBar.Window(),homeVersion,projectTree.Handle()})shellControls.push_back(control);
+    for(HWND control:{settingsScroll,sizeInput,opacityInput,iconSizeInput,findInput,webAddress,sourceMonitor,destinationMonitor,documentBar.Window(),browserTabBar.Window(),homeVersion,projectTree.Handle(),quickInput,quickList,setName,projectionPreview})shellControls.push_back(control);
     for(HWND control:shellControls)if(control) {
         const bool visible=std::find(visibleControls.begin(),visibleControls.end(),control)!=visibleControls.end();
         const bool wasVisible=(GetWindowLongPtrW(control,GWL_STYLE)&WS_VISIBLE)!=0;
@@ -1236,6 +1319,9 @@ void Layout()
     renderedSafe=!Blocked();
     documentHost.Show(displayType,renderedSafe,page==Page::Content);
     browser.SetBounds(body);browser.Show(page==Page::Browser&&renderedSafe&&!IsIconic(window));
+    if(mirror)mirror->SetPreviewWindow(page==Page::Presentation&&previewEnabled&&!masked&&!verifying&&IsWindowVisible(projectionPreview)?projectionPreview:nullptr);
+    for(HWND control:{quickInput,quickList,setName})if(control&&Blocked()){ShowWindow(control,SW_HIDE);}
+    for(int id:{QUICK_OPEN,SET_SAVE,SET_DELETE,SET_LIBRARY,QUICK_SWITCH})EnableWindow(GetDlgItem(window,id),!Blocked());
     UpdateButtons();UpdateDocumentBar();
     UpdateMirrorTimer();
     // Native EDIT formatting/text updates can repaint immediately. Apply the
@@ -1341,7 +1427,8 @@ void RefreshFonts()
                            CLEARTYPE_QUALITY, 0, L"Segoe UI");
     for (HWND button : buttons)
         SendMessageW(button, WM_SETFONT, (WPARAM)uiFont, TRUE);
-    for(HWND control:{findInput,sizeInput,opacityInput,iconSizeInput,webAddress,sourceMonitor,destinationMonitor,projectTree.Handle()})if(control)SendMessageW(control,WM_SETFONT,(WPARAM)uiFont,TRUE);
+    for(HWND control:{findInput,sizeInput,opacityInput,iconSizeInput,webAddress,sourceMonitor,destinationMonitor,projectTree.Handle(),quickInput,quickList,setName})if(control)SendMessageW(control,WM_SETFONT,(WPARAM)uiFont,TRUE);
+    if(quickList)SendMessageW(quickList,LB_SETITEMHEIGHT,0,S(48));
     if(homeVersion)SendMessageW(homeVersion,WM_SETFONT,(WPARAM)metaFont,TRUE);
     projectTree.SetDpi(dpi);
     if (oldUi)
@@ -1732,6 +1819,111 @@ std::wstring SelectedMonitor(HWND combo)
     int index=(int)SendMessageW(combo,CB_GETCURSEL,0,0);
     return index>=0 && index<(int)monitors.size()?monitors[index].stableId:L"";
 }
+void RefreshQuick()
+{
+    if(!quickList)return;
+    SendMessageW(quickList,LB_RESETCONTENT,0,0);quickEntries.clear();
+    if(Blocked()||(page!=Page::Quick&&page!=Page::Sets))return;
+    auto query=TextOf(quickInput);if(!query.empty())CharLowerBuffW(query.data(),static_cast<DWORD>(query.size()));
+    auto add=[&](std::wstring title,std::wstring detail,int kind,std::uint64_t id){
+        auto hay=title+L" "+detail;if(!hay.empty())CharLowerBuffW(hay.data(),static_cast<DWORD>(hay.size()));
+        if(!query.empty()&&hay.find(query)==std::wstring::npos)return;
+        quickEntries.push_back({std::move(title),std::move(detail),kind,id});
+        SendMessageW(quickList,LB_ADDSTRING,0,reinterpret_cast<LPARAM>(quickEntries.back().title.c_str()));
+    };
+    if(page==Page::Quick) {
+        for(const auto& d:documents.Items())if(d->id||!scriptDraft.empty())add(d->id?d->displayName:T(L"Lời nhắc",L"Script"),d->id?d->canonicalPath:T(L"Lời nhắc cục bộ",L"Local script"),0,d->id);
+        for(const auto& t:browser.Tabs())add(t.title.empty()?t.address:t.title,t.address,1,t.id);
+        add(T(L"Bộ thuyết trình",L"Presentation sets"),T(L"Lưu và mở lại bộ tài liệu",L"Save and reopen a collection"),3,SET_LIBRARY);
+        add(T(L"Trình chiếu và xem trước",L"Projection and live preview"),T(L"Nguồn, đích, mã lỗi và cách xử lý",L"Source, destination, error and recovery"),3,NAV_PRESENTATION);
+        add(T(L"Đổi sáng / tối",L"Toggle light / dark"),T(L"Chủ đề đơn sắc",L"Monochrome appearance"),3,THEME_TOGGLE);
+        add(T(L"Mở file",L"Open file"),L"Ctrl+O",3,OPEN_FILE);
+    }
+    for(size_t i=0;i<presentationSets.items.size();++i){const auto& s=presentationSets.items[i];add(s.name,
+        std::to_wstring(s.files.size())+T(L" tài liệu - Bộ thuyết trình",L" documents - Presentation set"),2,i);}
+    if(quickEntries.empty()){
+        quickEntries.push_back({page==Page::Sets?T(L"Chưa có bộ thuyết trình",L"No presentation sets yet"):T(L"Không có kết quả",L"No matches"),
+            page==Page::Sets?T(L"Nhập tên bên dưới để lưu bộ hiện tại",L"Enter a name below to save the current set"):T(L"Thử tên hoặc đường dẫn khác",L"Try another name or path"),4,0});
+        SendMessageW(quickList,LB_ADDSTRING,0,reinterpret_cast<LPARAM>(quickEntries.back().title.c_str()));
+    }
+    SendMessageW(quickList,LB_SETCURSEL,0,0);
+    UpdateQuickActions();
+}
+void OpenQuick(bool sets)
+{
+    if(Blocked())return;
+    if(page!=Page::Quick&&page!=Page::Sets)quickReturn=page;
+    Pause();focusMode=false;page=sets?Page::Sets:Page::Quick;
+    SetWindowTextW(quickInput,L"");workspaceNotice=setsUnavailable?T(L"QS-W001 - Không đọc được thư viện. Giữ nguyên bản lưu cũ.",L"QS-W001 - Cannot read the library. Existing file preserved."):L"";
+    RefreshQuick();Layout();SetFocus(quickInput);
+}
+void SavePresentationSet()
+{
+    if(Blocked()||setsUnavailable||!SaveActiveState())return;
+    auto name=TextOf(setName);const auto first=name.find_first_not_of(L" \t\r\n"),last=name.find_last_not_of(L" \t\r\n");
+    name=first==std::wstring::npos?L"":name.substr(first,last-first+1);
+    if(name.empty()||name.size()>80){workspaceNotice=T(L"QS-W002 - Nhập tên bộ (1-80 ký tự).",L"QS-W002 - Enter a set name (1-80 characters).");Layout();return;}
+    // Snapshot paths and reading state. Unsaved file drafts stay in the current
+    // session; saving a collection never writes over their original files.
+    for(const auto& d:documents.Items())if(d->id&&d->dirty){workspaceNotice=T(L"QS-W003 - Lưu file đang sửa trước khi lưu bộ.",L"QS-W003 - Save modified files before saving the set.");Layout();return;}
+    PresentationSet saved;saved.name=name;saved.folder=projectTree.Root();saved.script=scriptDraft;saved.scriptView=documents.Get(0)->state;
+    for(const auto& d:documents.Items())if(d->id){saved.files.push_back({d->canonicalPath,d->state});if(d->id==documents.Active().id)saved.active=static_cast<unsigned>(saved.files.size());}
+    auto next=presentationSets;auto found=std::find_if(next.items.begin(),next.items.end(),[&](const auto& s){return _wcsicmp(s.name.c_str(),name.c_str())==0;});
+    if(found!=next.items.end()){
+        RECT anchor{};GetWindowRect(setName,&anchor);ToolMenu menu;
+        if(menu.Show(window,anchor,dpi,uiFont,{{1,T(L"Thay bộ trùng tên",L"Replace the set with this name"),true,0xeb4b},{0,T(L"Hủy",L"Cancel"),true,0xea76}})!=1||Blocked())return;
+        *found=std::move(saved);
+    }else if(next.items.size()<PresentationSets::Limit)next.items.push_back(std::move(saved));
+    else {workspaceNotice=T(L"QS-W004 - Đã đủ 8 bộ. Xóa một bộ hoặc thay bộ trùng tên.",L"QS-W004 - Eight sets saved. Delete one or replace a matching name.");Layout();return;}
+    if(next.Save(dataDir)){presentationSets=std::move(next);workspaceNotice=T(L"Đã lưu bộ thuyết trình trên máy.",L"Presentation set saved locally.");RefreshQuick();}
+    else workspaceNotice=T(L"QS-W005 - Không lưu được bộ. Kiểm tra quyền ghi và dung lượng.",L"QS-W005 - Cannot save the set. Check write access and free space.");
+    Layout();
+}
+void LoadPresentationSet(size_t index)
+{
+    if(Blocked()||index>=presentationSets.items.size()||!SaveActiveState())return;
+    const auto saved=presentationSets.items[index];
+    RECT anchor{};GetWindowRect(window,&anchor);anchor.bottom=anchor.top+S(72);ToolMenu menu;
+    if(menu.Show(window,anchor,dpi,uiFont,{{1,T(L"Mở bộ và thay các tab hiện tại",L"Open set and replace current tabs"),true,0xeaf7},
+        {0,T(L"Hủy - giữ phiên đang mở",L"Cancel - keep current session"),true,0xea76}})!=1||Blocked()||!ConfirmFiles())return;
+    // Preserve the outgoing script as a DPAPI recovery file before replacing it.
+    if(!SaveNotes()||!CopyFileW((dataDir+L"\\notes.dpapi").c_str(),(dataDir+L"\\notes-before-set.dpapi").c_str(),FALSE)){
+        workspaceNotice=T(L"QS-W006 - Không tạo được bản dự phòng lời nhắc. Giữ nguyên phiên.",L"QS-W006 - Cannot back up the script. Current session preserved.");Layout();return;}
+    Pause();documentHost.CloseExternal();documents.CloseAllFiles();reloadPending=0;findVisible=false;
+    scriptDraft=saved.script;auto* script=documents.Get(0);script->content.text=scriptDraft;script->state=saved.scriptView;scriptReading=false;
+    unsigned missing=0;DocumentId active=0;
+    for(size_t i=0;i<saved.files.size();++i){auto result=documents.Open(saved.files[i].path,importError);
+        if(result){documents.Active().state=saved.files[i].view;recentWorkspace.Touch(documents.Active().canonicalPath,false);if(saved.active==i+1)active=result.id;}else ++missing;
+        documents.EvictInactiveHeavy();}
+    if(saved.folder.empty())projectTree.Clear();else if(!projectTree.OpenFolder(saved.folder,importError)){projectTree.Clear();++missing;}
+    else recentWorkspace.Touch(projectTree.Root(),true);
+    PersistRecent();
+    documents.Activate(active,importError);viewingFile=documents.Active().id!=0;dirty=true;
+    // SaveNotes must read this snapshot even when the old editor still exists.
+    {const bool file=viewingFile;viewingFile=true;SaveNotes();viewingFile=file;}
+    RenderDocument();documents.EvictInactiveHeavy();
+    importError=missing?L"QS-W007 - "+std::to_wstring(missing)+T(L" mục không mở được. Kiểm tra lại đường dẫn.",L" items could not be opened. Check their paths."):
+        T(L"Đã mở bộ. Lời nhắc trước đó được giữ tại notes-before-set.dpapi.",L"Set opened. Previous script retained in notes-before-set.dpapi.");Layout();
+}
+void OpenQuickSelection()
+{
+    if(Blocked())return;const auto index=SendMessageW(quickList,LB_GETCURSEL,0,0);
+    if(index<0||static_cast<size_t>(index)>=quickEntries.size())return;const auto entry=quickEntries[index];
+    if(entry.kind==0)ActivateDocument(entry.id);
+    else if(entry.kind==1){page=Page::Browser;browser.ActivateTab(static_cast<unsigned>(entry.id));Layout();}
+    else if(entry.kind==2)LoadPresentationSet(static_cast<size_t>(entry.id));
+    else if(entry.id==SET_LIBRARY)OpenQuick(true);
+    else if(entry.kind==3){page=quickReturn;SendMessageW(window,WM_COMMAND,static_cast<WPARAM>(entry.id),0);Layout();}
+}
+LRESULT CALLBACK ProjectionPreviewProc(HWND h,UINT msg,WPARAM wp,LPARAM lp,UINT_PTR,DWORD_PTR)
+{
+    if(msg==WM_ERASEBKGND)return 1;
+    if(msg==WM_PAINT){PAINTSTRUCT ps{};auto dc=BeginPaint(h,&ps);
+        if(!mirror||!mirror->PreviewHasFrame()){RECT r{};GetClientRect(h,&r);FillRect(dc,&r,static_cast<HBRUSH>(GetStockObject(BLACK_BRUSH)));
+            const bool small=r.right<S(180);InflateRect(&r,-S(6),-S(4));DrawTextAt(dc,T(small?L"Chưa phát":L"Chưa có hình xem trước",small?L"No preview":L"No preview frame"),r,RGB(190,190,190),metaFont,DT_CENTER|DT_VCENTER|DT_SINGLELINE|DT_END_ELLIPSIS);}
+        EndPaint(h,&ps);return 0;}
+    return DefSubclassProc(h,msg,wp,lp);
+}
 void UpdateMonitors()
 {
     auto source=SelectedMonitor(sourceMonitor),destination=SelectedMonitor(destinationMonitor);
@@ -1753,7 +1945,8 @@ void UpdateMonitorLabels()
         SendMessageW(combo,CB_RESETCONTENT,0,0);
         for(size_t i=0;i<monitors.size();++i) {
             const auto& monitor=monitors[i];
-            std::wstring label=T(L"Màn ",L"Display ")+std::to_wstring(monitor.displayNumber?monitor.displayNumber:(int)i+1);
+            std::wstring label=combo==sourceMonitor?T(L"Nguồn: Màn ",L"Source: Display "):T(L"Đích: Màn ",L"Target: Display ");
+            label+=std::to_wstring(monitor.displayNumber?monitor.displayNumber:(int)i+1);
             if(monitor.primary)label+=T(L" · Chính",L" · Main");
             if(monitor.handle==current)label+=T(L" · Cửa sổ này",L" · This window");
             label+=L" · "+std::to_wstring(monitor.bounds.right-monitor.bounds.left)+L"x"+std::to_wstring(monitor.bounds.bottom-monitor.bounds.top);
@@ -1808,6 +2001,8 @@ void OverflowMenu()
         for(const auto& binding:bindings)if(id==binding.first)label=label.substr(0,label.find(L"   "))+L"   "+ShortcutLabel(preferences.Key(binding.second));
         entries.push_back({id,label,enabled,icon});};
     item(OPEN_FILE,L"Mở file...   Ctrl+O",L"Open files...   Ctrl+O",safe);
+    item(QUICK_SWITCH,L"Chuyển nhanh   Ctrl+K",L"Quick switch   Ctrl+K",safe);
+    item(SET_LIBRARY,L"Bộ thuyết trình",L"Presentation sets",safe);
     item(OPEN_FOLDER,L"Mở dự án...   Ctrl+Shift+O",L"Open project...   Ctrl+Shift+O",safe);
     item(SAVE_FILE,L"Lưu file   Ctrl+S",L"Save file   Ctrl+S",safe&&viewingFile&&preferences.allowFileEditing&&!IsImage()&&!IsPdf());
     item(HOME_SCRIPT,L"Soạn lời nhắc",L"Compose script",safe);
@@ -1869,6 +2064,8 @@ void OpenContentMenu()
 void LayoutMenu()
 {
     std::vector<ToolMenuItem> entries={
+        {QUICK_SWITCH,T(L"Chuyển nhanh   Ctrl+K",L"Quick switch   Ctrl+K"),!Blocked(),0xea6d},
+        {SET_LIBRARY,T(L"Bộ thuyết trình",L"Presentation sets"),!Blocked(),0xeaf7},
         {SHOW_ACTIVITY,T(L"Thanh điều hướng",L"Activity bar"),true,0xeb51,activityVisible},
         {SHOW_TREE,T(L"Explorer   Ctrl+B",L"Explorer   Ctrl+B"),!Blocked(),0xeaf7,treeVisible},
         {SHOW_TABS,T(L"Thanh tab",L"Tab bar"),true,0xea7f,tabsVisible},
@@ -1968,9 +2165,10 @@ void Paint(HDC dc)
     if(!focusMode&&activityVisible)DrawSidebar(dc,railWidth,client.bottom,true);
     RECT title{S(contentLeft),S(12),S(contentRight),S(40)};
     if(page==Page::Settings){title.left=settingsViewport.left+S(16);title.right=settingsViewport.right-S(16);}
-    if(page==Page::Home){title.right=S(contentRight-100);title.top=S(homeCompact?8:28);title.bottom=S(homeCompact?36:62);}
+    if(page==Page::Home){title.right=S(contentRight-132);title.top=S(homeCompact?8:28);title.bottom=S(homeCompact?36:62);}
     if(!focusMode && page!=Page::Content && !(page==Page::Browser&&browser.Enabled()))DrawTextAt(dc,page==Page::Home?T(L"Trang chủ",L"Home"):
-        page==Page::Settings?T(L"Cài đặt",L"Settings"):page==Page::Browser?T(L"Trình duyệt",L"Browser"):T(L"Trình chiếu",L"Presentation"),title,TEXT,page==Page::Home&&homeCompact?brandFont:titleFont,DT_LEFT|DT_VCENTER|DT_SINGLELINE|DT_END_ELLIPSIS);
+        page==Page::Settings?T(L"Cài đặt",L"Settings"):page==Page::Browser?T(L"Trình duyệt",L"Browser"):page==Page::Quick?T(L"Chuyển nhanh",L"Quick switch"):
+        page==Page::Sets?T(L"Bộ thuyết trình",L"Presentation sets"):T(L"Trình chiếu",L"Presentation"),title,TEXT,page==Page::Home&&homeCompact?brandFont:titleFont,DT_LEFT|DT_VCENTER|DT_SINGLELINE|DT_END_ELLIPSIS);
     if(page==Page::Content || focusMode) {
         FillRoundRect(dc,contentCardRect,CARD,S(2));
         if(explorerRect.right>explorerRect.left) {
@@ -2068,16 +2266,21 @@ void Paint(HDC dc)
         RestoreDC(dc,saved);
     }
     else if(page==Page::Presentation) {
-        DrawTextAt(dc,T(L"Nguồn",L"Source"),{S(contentLeft),S(48),S(contentLeft+80),S(76)},MUTED,metaFont);
-        DrawTextAt(dc,TextOf(sourceMonitor),{S(contentLeft+88),S(48),S(contentRight),S(76)},TEXT,uiFont,DT_LEFT|DT_VCENTER|DT_SINGLELINE|DT_END_ELLIPSIS);
-        DrawTextAt(dc,T(L"Đích",L"Destination"),{S(contentLeft),S(80),S(contentLeft+80),S(108)},MUTED,metaFont);
-        DrawTextAt(dc,TextOf(destinationMonitor),{S(contentLeft+88),S(80),S(contentRight),S(108)},TEXT,uiFont,DT_LEFT|DT_VCENTER|DT_SINGLELINE|DT_END_ELLIPSIS);
-        RECT status{S(contentLeft),S(232),S(contentRight),client.bottom-S(24)};
-        std::wstring text=mirror?mirror->Status(english):L"";
-        if(monitors.size()<2)text+=T(L"\nCần hai màn hình ở chế độ Extend để chiếu.",L"\nTwo displays in Extend are required for projection.");
-        else text+=T(L"\nĐầu nhận vật lý chưa được xác minh.",L"\nPhysical receiver unverified.");
-        if(mirror && mirror->Running())text+=L"\nFPS: "+std::to_wstring((int)mirror->Fps());
-        DrawTextAt(dc,text,status,MUTED,metaFont,DT_LEFT|DT_WORDBREAK);
+        if(MulDiv(client.bottom,96,dpi)>=360){
+            DrawTextAt(dc,T(L"Nguồn",L"Source"),{S(contentLeft),S(48),S(contentLeft+48),S(76)},MUTED,metaFont);
+            DrawTextAt(dc,T(L"Đích",L"Target"),{S(contentLeft),S(80),S(contentLeft+48),S(108)},MUTED,metaFont);
+        }
+        DWORD affinity=0;const bool excluded=GetWindowDisplayAffinity(window,&affinity)&&affinity==0x11;
+        std::wstring steps=excluded?T(L"Windows: loại trừ đã nhận",L"Windows: exclusion accepted"):T(L"Windows: chưa nhận loại trừ",L"Windows: exclusion not accepted");
+        steps+=mirror&&mirror->IsVerified()?T(L"  |  WGC: đạt",L"  |  WGC: passed"):T(L"  |  WGC: chưa đạt",L"  |  WGC: not passed");
+        steps+=T(L"\nĐầu nhận: chưa xác minh",L"\nPhysical receiver: unverified");
+        if(projectionStepsBounds.bottom>projectionStepsBounds.top)DrawTextAt(dc,steps,projectionStepsBounds,MUTED,metaFont,DT_LEFT|DT_WORDBREAK);
+        // The native status child exposes this fixed diagnostic text to assistive tools.
+    }
+    else if(page==Page::Quick||page==Page::Sets) {
+        if(Blocked())DrawCenteredMessage(dc,contentCardRect,T(L"Nội dung đang khóa",L"Content locked"),T(L"Kiểm tra WGC để mở thư viện.",L"Verify WGC to open the library."));
+        else if(quickEntries.empty()){RECT r{};GetWindowRect(quickList,&r);MapWindowPoints(nullptr,window,reinterpret_cast<POINT*>(&r),2);InflateRect(&r,-S(12),-S(12));
+            DrawTextAt(dc,page==Page::Sets?T(L"Chưa lưu bộ nào. Nhập tên và chọn Lưu bộ.",L"No saved sets. Enter a name and select Save set."):T(L"Không có kết quả.",L"No matches."),r,MUTED,uiFont,DT_LEFT|DT_WORDBREAK);}
     }
     if(focusMode||!statusVisible)return;
     RECT footer{S(contentLeft),client.bottom-S(20),S(contentRight),client.bottom-S(2)};
@@ -2085,6 +2288,7 @@ void Paint(HDC dc)
         Blocked()?T(L"Nội dung đang khóa",L"Content locked"):
         meetingTranscriber.Running()?meetingTranscriber.Status(english):!transcriptionNotice.empty()?transcriptionNotice:
         (meetingRecorder.Running()||meetingRecorder.ErrorCode()!=0)?meetingRecorder.Status(english):page==Page::Browser?(browser.Ready()?browser.Status(english):L""):
+        (page==Page::Quick||page==Page::Sets)&&!workspaceNotice.empty()?workspaceNotice:
         saveFailed?T(L"Không lưu được lời nhắc",L"Script save failed"):
         savedNoteRecovered&&!dirty&&!reading?T(L"Đã giữ bản dự phòng lời nhắc cũ",L"Old script recovery copy preserved"):
         dirty?T(L"Đang lưu...",L"Saving..."):!sizeError.empty()?sizeError:!findMessage.empty()?findMessage:
@@ -2097,7 +2301,7 @@ void Paint(HDC dc)
 void DrawActionIcon(HDC dc,int id,RECT r,COLORREF color)
 {
     wchar_t glyph=id==SMALLER?0xeb3b:id==LARGER?0xea60:id==FOCUS?(focusMode?0xeb4d:0xeb4c):
-        id==MASK?(masked?0xeae7:0xea70):id==THEME_TOGGLE?0xeac6:id==WEB_NEW_TAB?0xea60:id==TOPMOST||id==PIN_WINDOW?0xeb2b:id==OPEN_FILE?0xea7f:
+        id==MASK?(masked?0xeae7:0xea70):id==QUICK_SWITCH?0xea6d:id==THEME_TOGGLE?0xeac6:id==WEB_NEW_TAB?0xea60:id==TOPMOST||id==PIN_WINDOW?0xeb2b:id==OPEN_FILE?0xea7f:
         id==PLAY?(running?0xead1:0xeb2c):id==MODE?0xea73:id==OVERFLOW||id==WEB_MENU?0xea7c:id==LAYOUT_MENU?0xebeb:id==SHOW_TREE?0xea76:
         id==BROWSER_TOGGLE||id==FIND_CLOSE?0xea76:id==WEB_GO?0xea9c:
         id==WEB_ZOOM_OUT||id==OPACITY_LESS||id==ICON_SMALLER?0xeb3b:
@@ -2252,7 +2456,7 @@ void DrawButtonContents(DRAWITEMSTRUCT *item)
         DrawCodicon(item->hDC,item->CtlID==RECENT_PREV||item->CtlID==PDF_PREV?0xea9b:0xea9c,button,disabled?DISABLED:TEXT,S(16));
     else if(stepper||item->CtlID==WEB_MENU||item->CtlID==WEB_NEW_TAB||item->CtlID==WEB_GO||item->CtlID==WEB_ZOOM_OUT||item->CtlID==WEB_ZOOM_IN||item->CtlID==WEB_AUDIO||item->CtlID==MEETING_RECORD||
         (item->CtlID==BROWSER_TOGGLE&&page==Page::Browser&&browser.Enabled())||
-        item->CtlID==THEME_TOGGLE||item->CtlID==PIN_WINDOW||item->CtlID==LAYOUT_MENU||item->CtlID==SHOW_TREE || (strip && (item->CtlID==FOCUS || item->CtlID==MASK || item->CtlID==TOPMOST || item->CtlID==SMALLER || item->CtlID==LARGER || item->CtlID==MODE || item->CtlID==PLAY || item->CtlID==OPEN_FILE || item->CtlID==OVERFLOW || item->CtlID==FIND_CLOSE || item->CtlID==FIND_PREV || item->CtlID==FIND_NEXT)))
+        item->CtlID==QUICK_SWITCH||item->CtlID==THEME_TOGGLE||item->CtlID==PIN_WINDOW||item->CtlID==LAYOUT_MENU||item->CtlID==SHOW_TREE || (strip && (item->CtlID==FOCUS || item->CtlID==MASK || item->CtlID==TOPMOST || item->CtlID==SMALLER || item->CtlID==LARGER || item->CtlID==MODE || item->CtlID==PLAY || item->CtlID==OPEN_FILE || item->CtlID==OVERFLOW || item->CtlID==FIND_CLOSE || item->CtlID==FIND_PREV || item->CtlID==FIND_NEXT)))
         DrawActionIcon(item->hDC,item->CtlID,button,disabled?DISABLED:
             (item->CtlID==PIN_WINDOW||item->CtlID==TOPMOST)?(topmost?GREEN:MUTED):
             item->CtlID==WEB_AUDIO?(preferences.browserMuted?AMBER:TEXT):
@@ -2975,6 +3179,17 @@ void QaTick()
             Capture(L"pdf-file.bmp");ToggleFocus();Capture(L"pdf-focus.bmp");ToggleFocus();
             page=Page::Presentation;Layout();Capture(L"presentation.bmp");
             english=true;Layout();Capture(L"presentation-en.bmp");
+            english=false;
+            if(qaVisual){
+                OpenQuick();Capture(L"quick-switch.bmp");OpenQuick(true);Capture(L"presentation-sets.bmp");
+                page=Page::Presentation;Layout();
+                SetWindowPos(window,nullptr,0,0,S(430),S(320),SWP_NOMOVE|SWP_NOZORDER|SWP_NOACTIVATE);Layout();Capture(L"presentation-minimum.bmp");
+                english=true;Layout();Capture(L"presentation-minimum-en.bmp");english=false;
+                SendMessageW(window,WM_COMMAND,THEME_TOGGLE,0);Capture(L"presentation-minimum-light.bmp");
+                SetWindowPos(window,nullptr,0,0,S(840),S(560),SWP_NOMOVE|SWP_NOZORDER|SWP_NOACTIVATE);Layout();Capture(L"presentation-light.bmp");
+                OpenQuick();Capture(L"quick-switch-light.bmp");OpenQuick(true);Capture(L"presentation-sets-light.bmp");
+                SendMessageW(window,WM_COMMAND,THEME_TOGGLE,0);
+            }
             english=false;page=Page::Content;Layout();ToggleMask();Capture(L"tabs-masked.bmp");ToggleMask();
             ShowScript();
         }
@@ -3214,7 +3429,8 @@ LRESULT CALLBACK Proc(HWND h, UINT message, WPARAM wp, LPARAM lp)
             {RESET_PREFERENCES,L"Khôi phục mặc định"},{MIRROR_ACTION,L"Bắt đầu trình chiếu"},
             {220,L"F8"},{221,L"Ctrl+Alt+Q"},{222,L"F9"},{223,L"F10"},{224,L"F11"},
             {225,L"Ctrl+O"},{226,L"Ctrl+Shift+O"},{227,L"Ctrl+B"},{228,L"Ctrl+Enter"},{229,L"Space"}};
-        labels.insert(labels.end(),{{THEME_SELECT,L"Chủ đề màu"},{REMEMBER_SIZE,L"Nhớ kích thước cửa sổ"},{ALLOW_EDIT,L"Cho phép sửa file"},{SAVE_FILE,L"Lưu file"},
+        labels.insert(labels.end(),{{QUICK_SWITCH,L"Chuyển nhanh"},{QUICK_OPEN,L"Mở"},{QUICK_BACK,L"Quay lại"},{SET_LIBRARY,L"Bộ thuyết trình"},{SET_SAVE,L"Lưu bộ"},{SET_DELETE,L"Xóa bộ"},
+            {REFRESH_DISPLAYS,L"Làm mới"},{PREVIEW_TOGGLE,L"Xem trước"},{PROJECTION_HELP,L"Hướng xử lý"},{THEME_SELECT,L"Chủ đề màu"},{REMEMBER_SIZE,L"Nhớ kích thước cửa sổ"},{ALLOW_EDIT,L"Cho phép sửa file"},{SAVE_FILE,L"Lưu file"},
             {RECENT_CLEAR,L"Xóa lịch sử"},{RECENT_NEXT,L"Sau"},{RECENT_PREV,L"Trước"},{TRANSCRIPTION_LANGUAGE,L"Ngôn ngữ chép lời"},
             {SCRIPT_TAB_LABELS,L"Nhãn tab Lời nhắc"},{BROWSER_TAB_LABELS,L"Nhãn tab browser"},
             {MEETING_TRANSCRIBE,L"Tự chép lời sau khi ghi âm"},{MEETING_PROVIDER,L"Nền tảng cuộc họp"},
@@ -3281,6 +3497,17 @@ LRESULT CALLBACK Proc(HWND h, UINT message, WPARAM wp, LPARAM lp)
             SetWindowLongPtrW(projectTree.Handle(),GWL_STYLE,GetWindowLongPtrW(projectTree.Handle(),GWL_STYLE)|TVS_NOTOOLTIPS);
         ApplyPrivacy(tooltips);
         findInput=CreateWindowExW(0,L"EDIT",L"",WS_CHILD|WS_TABSTOP|ES_AUTOHSCROLL,0,0,0,0,h,(HMENU)FIND_INPUT,instance,nullptr);
+        quickInput=CreateWindowExW(0,L"EDIT",L"",WS_CHILD|WS_TABSTOP|ES_AUTOHSCROLL,0,0,0,0,h,(HMENU)QUICK_INPUT,instance,nullptr);
+        SendMessageW(quickInput,EM_SETLIMITTEXT,256,0);
+        quickList=CreateWindowExW(0,L"LISTBOX",L"",WS_CHILD|WS_TABSTOP|WS_VSCROLL|LBS_NOTIFY|LBS_NOINTEGRALHEIGHT|LBS_OWNERDRAWFIXED|LBS_HASSTRINGS,0,0,0,0,h,(HMENU)QUICK_LIST,instance,nullptr);
+        setName=CreateWindowExW(0,L"EDIT",L"",WS_CHILD|WS_TABSTOP|ES_AUTOHSCROLL,0,0,0,0,h,(HMENU)SET_NAME,instance,nullptr);
+        SendMessageW(setName,EM_SETLIMITTEXT,80,0);
+        projectionPreview=CreateWindowExW(0,L"STATIC",L"Live projection preview",WS_CHILD|WS_CLIPSIBLINGS,0,0,0,0,h,(HMENU)PREVIEW_CANVAS,instance,nullptr);
+        SetWindowSubclass(projectionPreview,ProjectionPreviewProc,1,0);
+        HWND projectionStatus=CreateWindowExW(0,L"STATIC",L"",WS_CHILD|WS_CLIPSIBLINGS|SS_LEFT,0,0,0,0,h,(HMENU)PROJECTION_STATUS,instance,nullptr);
+        buttons.push_back(projectionStatus);
+        for(int id:{WORKSPACE_STATUS,QUICK_LABEL,SET_LABEL})buttons.push_back(CreateWindowExW(0,L"STATIC",L"",WS_CHILD|WS_CLIPSIBLINGS|(id==WORKSPACE_STATUS?SS_LEFT:SS_LEFT|SS_CENTERIMAGE),0,0,0,0,h,(HMENU)(INT_PTR)id,instance,nullptr));
+        for(HWND child:{quickInput,quickList,setName})SetWindowTheme(child,theme.dark?L"DarkMode_Explorer":L"Explorer",nullptr);
         webAddress=CreateWindowExW(0,L"EDIT",L"",WS_CHILD|WS_TABSTOP|WS_CLIPSIBLINGS|ES_AUTOHSCROLL|ES_MULTILINE,0,0,0,0,h,(HMENU)WEB_ADDRESS,instance,nullptr);
         SendMessageW(webAddress,EM_SETLIMITTEXT,4096,0);SetWindowTheme(webAddress,theme.dark?L"DarkMode_Explorer":L"Explorer",nullptr);
         SetWindowSubclass(webAddress,AddressInputProc,1,0);
@@ -3364,6 +3591,7 @@ LRESULT CALLBACK Proc(HWND h, UINT message, WPARAM wp, LPARAM lp)
         if(wp==browser.Generation()&&page==Page::Browser&&!Blocked()) {
             if(lp>0&&lp<=PreferenceCommandCount)RunPreferenceCommand(static_cast<PreferenceCommand>(lp-1));
             else if(lp==PreferenceCommandCount+1){SetFocus(webAddress);SendMessageW(webAddress,EM_SETSEL,0,-1);}
+            else if(lp==PreferenceCommandCount+2)OpenQuick();
         }
         return 0;
     case WM_APP+33:if(!DispatchPreferenceShortcut(L'S',ShortcutModifiers()))SaveFile();return 0;
@@ -3491,9 +3719,21 @@ LRESULT CALLBACK Proc(HWND h, UINT message, WPARAM wp, LPARAM lp)
         auto measure=(MEASUREITEMSTRUCT*)lp;
         if(measure->CtlType==ODT_MENU){measure->itemWidth=S(280);measure->itemHeight=S(28);return TRUE;}
         if(measure->CtlType==ODT_COMBOBOX){measure->itemHeight=S(28);return TRUE;}
+        if(measure->CtlID==QUICK_LIST){measure->itemHeight=S(48);return TRUE;}
         break;
     }
     case WM_DRAWITEM:
+        if(((DRAWITEMSTRUCT*)lp)->CtlID==QUICK_LIST){
+            auto* d=reinterpret_cast<DRAWITEMSTRUCT*>(lp);const bool selected=d->itemState&ODS_SELECTED;
+            HBRUSH brush=CreateSolidBrush(selected?ACCENT_DARK:CARD);FillRect(d->hDC,&d->rcItem,brush);DeleteObject(brush);
+            if(!Blocked()&&d->itemID<quickEntries.size()){const auto& e=quickEntries[d->itemID];RECT icon=d->rcItem;icon.right=icon.left+S(32);
+                DrawCodicon(d->hDC,e.kind==0?0xeaf0:e.kind==1?0xeb01:e.kind==2?0xeaf7:0xea6d,icon,MUTED,S(16));
+                RECT top=d->rcItem;top.left+=S(36);top.right-=S(8);top.top+=S(5);top.bottom=top.top+S(20);
+                DrawTextAt(d->hDC,e.title,top,TEXT,uiFont,DT_LEFT|DT_VCENTER|DT_SINGLELINE|DT_END_ELLIPSIS);
+                RECT sub=top;sub.top+=S(21);sub.bottom+=S(21);DrawTextAt(d->hDC,e.detail,sub,MUTED,metaFont,DT_LEFT|DT_SINGLELINE|DT_PATH_ELLIPSIS);
+                if(d->itemState&ODS_FOCUS)DrawFocusRect(d->hDC,&d->rcItem);}
+            return TRUE;
+        }
         if(((DRAWITEMSTRUCT*)lp)->CtlType==ODT_COMBOBOX) {
             auto draw=(DRAWITEMSTRUCT*)lp;bool selected=draw->itemState&ODS_SELECTED;
             HBRUSH brush=CreateSolidBrush(selected?ACCENT_DARK:ELEVATED);FillRect(draw->hDC,&draw->rcItem,brush);DeleteObject(brush);
@@ -3576,6 +3816,10 @@ LRESULT CALLBACK Proc(HWND h, UINT message, WPARAM wp, LPARAM lp)
         case 43:return capturingShortcut+1;
         case 44:return !preferenceError.empty();
             case 64:return documentBar.Count();
+        case 66:return presentationSets.items.size();
+        case 67:return mirror&&mirror->PreviewHasFrame();
+        case 68:return page==Page::Presentation;
+        case 69:return page==Page::Quick||page==Page::Sets;
         case 65:{DWORD affinity=0;return GetWindowDisplayAffinity(window,&affinity)&&affinity==0x11;}
             case 60:return preferences.iconSize;
             case 61:return preferences.browserMuted;
@@ -3620,6 +3864,7 @@ LRESULT CALLBACK Proc(HWND h, UINT message, WPARAM wp, LPARAM lp)
     case WM_CTLCOLOREDIT:
     case WM_CTLCOLORLISTBOX:
     case WM_CTLCOLORSTATIC:
+        if(GetDlgCtrlID((HWND)lp)==PROJECTION_STATUS||GetDlgCtrlID((HWND)lp)==WORKSPACE_STATUS||GetDlgCtrlID((HWND)lp)==QUICK_LABEL||GetDlgCtrlID((HWND)lp)==SET_LABEL){SetBkColor((HDC)wp,BG);SetTextColor((HDC)wp,MUTED);return (LRESULT)bgBrush;}
         if((HWND)lp==homeVersion){SetBkColor((HDC)wp,page==Page::Home?HOME_BG:BG);SetTextColor((HDC)wp,MUTED);return (LRESULT)bgBrush;}
         if((HWND)lp==sizeInput||(HWND)lp==opacityInput||(HWND)lp==iconSizeInput){
             SetBkColor((HDC)wp,ELEVATED);SetTextColor((HDC)wp,TEXT);return (LRESULT)numberBrush;
@@ -3637,6 +3882,9 @@ LRESULT CALLBACK Proc(HWND h, UINT message, WPARAM wp, LPARAM lp)
         DragFinish(drop);Layout();return 0;
     }
     case WM_COMMAND:
+        if(LOWORD(wp)==QUICK_INPUT&&HIWORD(wp)==EN_CHANGE){RefreshQuick();return 0;}
+        if(LOWORD(wp)==QUICK_LIST&&HIWORD(wp)==LBN_SELCHANGE){UpdateQuickActions();return 0;}
+        if(LOWORD(wp)==QUICK_LIST&&HIWORD(wp)==LBN_DBLCLK){OpenQuickSelection();return 0;}
         if(LOWORD(wp)==WEB_ADDRESS&&HIWORD(wp)==EN_CHANGE){if(!updatingWebAddress)webAddressEdited=true;return 0;}
         if(LOWORD(wp)==SIZE_INPUT&&HIWORD(wp)==EN_CHANGE&&!updatingSize){sizeError.clear();InvalidateRect(h,nullptr,FALSE);return 0;}
         if(LOWORD(wp)==SIZE_INPUT&&HIWORD(wp)==EN_KILLFOCUS){CommitSizeInput();return 0;}
@@ -3684,6 +3932,24 @@ LRESULT CALLBACK Proc(HWND h, UINT message, WPARAM wp, LPARAM lp)
         }
         switch (LOWORD(wp))
         {
+        case QUICK_SWITCH:OpenQuick();break;
+        case SET_LIBRARY:OpenQuick(true);break;
+        case QUICK_OPEN:OpenQuickSelection();break;
+        case QUICK_BACK:page=quickReturn;Layout();if(page==Page::Content)SetFocus(ContentWindow());break;
+        case SET_SAVE:SavePresentationSet();break;
+        case SET_DELETE:{
+            if(Blocked())break;const auto n=SendMessageW(quickList,LB_GETCURSEL,0,0);
+            if(n<0||static_cast<size_t>(n)>=quickEntries.size()||quickEntries[n].kind!=2)break;
+            const auto index=static_cast<size_t>(quickEntries[n].id);RECT anchor{};GetWindowRect(GetDlgItem(window,SET_DELETE),&anchor);ToolMenu menu;
+            if(menu.Show(window,anchor,dpi,uiFont,{{1,T(L"Xóa bộ đã chọn (giữ file gốc)",L"Delete selected set (keep original files)"),true,0xea76},
+                {0,T(L"Hủy",L"Cancel"),true,0xea76}})!=1||Blocked())break;
+            auto next=presentationSets;next.items.erase(next.items.begin()+index);
+            if(next.Save(dataDir)){presentationSets=std::move(next);workspaceNotice=T(L"Đã xóa bộ, giữ nguyên file gốc.",L"Set deleted. Original files are unchanged.");RefreshQuick();}
+            else workspaceNotice=T(L"QS-W005 - Không cập nhật được thư viện. Kiểm tra quyền ghi.",L"QS-W005 - Cannot update the library. Check write access.");Layout();break;
+        }
+        case REFRESH_DISPLAYS:if(mirror)mirror->HandleDisplayChange();topologyKnown=TryGetDisplayCloned(cloned);UpdateMonitors();Layout();break;
+        case PREVIEW_TOGGLE:if(recoveryVisible){recoveryVisible=false;previewEnabled=true;}else previewEnabled=!previewEnabled;Layout();break;
+        case PROJECTION_HELP:recoveryVisible=!recoveryVisible;Layout();break;
         case SAVE_FILE:SaveFile();break;
         case THEME_TOGGLE:{auto candidate=preferences;candidate.themeId=theme.dark?1:0;StorePreferences(candidate);Layout();break;}
         case RECENT_CLEAR:if(!Blocked()){recentWorkspace.entries.clear();recentOffset=0;PersistRecent();Layout();}break;
@@ -3816,7 +4082,7 @@ LRESULT CALLBACK Proc(HWND h, UINT message, WPARAM wp, LPARAM lp)
         case NAV_HOME:
             Pause(); focusMode = false; page = Page::Home; Layout(); break;
         case NAV_PRESENTATION:
-            Pause();focusMode=false;page=Page::Settings;settingsCategory=3;settingsOffset=0;Layout();break;
+            Pause();focusMode=false;page=Page::Presentation;Layout();break;
         case HOME_SETTINGS:
             settingsCategory=3;
             [[fallthrough]];
@@ -3840,10 +4106,11 @@ LRESULT CALLBACK Proc(HWND h, UINT message, WPARAM wp, LPARAM lp)
         case MIRROR_ACTION:
             SendMessageW(h,WM_COMMAND,mirror&&mirror->Running()?MIRROR_STOP:MIRROR_START,0);break;
         case MIRROR_START:
-            if(!mirror || masked)break;
+            if(!mirror||masked||storageBlocked||verifying)break;
+            recoveryVisible=false;UpdateMonitors();
             documentHost.Hide();verifying=true;Layout();
             if(mirror->Start(SelectedMonitor(sourceMonitor),SelectedMonitor(destinationMonitor),mirrorPointer))ClearProjectionStoppedNotice();
-            else {page=Page::Settings;settingsCategory=3;settingsOffset=0;}
+            else {page=Page::Presentation;}
             verifying=false;Layout();break;
         case MIRROR_STOP:ClearProjectionStoppedNotice();documentHost.Hide();if(mirror)mirror->Stop();Layout();break;
         case POINTER:mirrorPointer=!mirrorPointer;UpdateButtons();break;
@@ -3960,7 +4227,7 @@ LRESULT CALLBACK Proc(HWND h, UINT message, WPARAM wp, LPARAM lp)
             }
             static ULONGLONG lastStatusPaint=0;
             if((page==Page::Presentation||(page==Page::Settings&&settingsCategory==3)) && GetTickCount64()-lastStatusPaint>=250) {
-                lastStatusPaint=GetTickCount64();InvalidateRect(h,nullptr,FALSE);
+                lastStatusPaint=GetTickCount64();UpdateProjectionReadout();InvalidateRect(h,nullptr,FALSE);
             }
         }
         else if (wp == SCROLL_TIMER)
@@ -4088,6 +4355,7 @@ int WINAPI wWinMain(HINSTANCE inst, HINSTANCE, LPWSTR, int show)
         if(meetingSettings.outputDirectory.empty())meetingSettings.outputDirectory=DefaultMeetingDirectory(dataDir);
         LoadCustomTheme(dataDir,customThemeColors);
         recentWorkspace.Load(dataDir);
+        if(GetFileAttributesW((dataDir+L"\\presentations.dpapi").c_str())!=INVALID_FILE_ATTRIBUTES)setsUnavailable=!presentationSets.Load(dataDir);
     } else {
         meetingSettings.outputDirectory=DefaultMeetingDirectory(dataDir);
     }
@@ -4204,6 +4472,14 @@ int WINAPI wWinMain(HINSTANCE inst, HINSTANCE, LPWSTR, int show)
         }
         if(message.message==WM_KEYDOWN) {
             bool control=(GetKeyState(VK_CONTROL)&0x8000)!=0,shift=(GetKeyState(VK_SHIFT)&0x8000)!=0;
+            if(control&&message.wParam==L'K'){OpenQuick();continue;}
+            if(page==Page::Quick||page==Page::Sets){
+                if(message.wParam==VK_ESCAPE){SendMessageW(window,WM_COMMAND,QUICK_BACK,0);continue;}
+                if(message.wParam==VK_RETURN){SendMessageW(window,WM_COMMAND,message.hwnd==setName?SET_SAVE:QUICK_OPEN,0);continue;}
+                if(message.hwnd==quickInput&&(message.wParam==VK_DOWN||message.wParam==VK_UP)){
+                    const int count=static_cast<int>(SendMessageW(quickList,LB_GETCOUNT,0,0));int pos=static_cast<int>(SendMessageW(quickList,LB_GETCURSEL,0,0));
+                    if(count>0)SendMessageW(quickList,LB_SETCURSEL,std::clamp(pos+(message.wParam==VK_DOWN?1:-1),0,count-1),0);UpdateQuickActions();continue;}
+            }
             if(!control && message.hwnd==projectTree.Handle() && message.wParam==VK_RETURN && !Blocked()) {
                 const auto file=projectTree.SelectedFile();
                 if(!file.empty())OpenContentPath(file);

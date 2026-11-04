@@ -40,6 +40,7 @@ def main():
         check(prefix + "current source fingerprint", hashlib.sha256((ROOT/"docs"/source).read_bytes()).hexdigest()
               in str(reader.metadata.subject))
         check(prefix + "selectable Unicode text", not any(char in text for char in ["\ufffd", "\u25a0", "\x00"]))
+        check(prefix + "headings are rendered", not re.search(r"(?m)^#{1,6} ", text))
         check(prefix + "dedicated contents page", contents in pages[1])
         check(prefix + "contents links", len(reader.pages[1].get("/Annots", [])) >= 14)
         check(prefix + "chapter bookmarks", len([item for item in reader.outline if not isinstance(item, list)]) >= 14)
@@ -47,6 +48,8 @@ def main():
             check(prefix + "chapter " + heading, plain(heading) in text)
         for code in [f"QS-P{number:03d}" for number in range(1,25)] + ["QS-P000", "QS-P099"]:
             check(prefix + "error recipe " + code, code in text)
+        for code in [f"QS-W{number:03d}" for number in range(1,8)]:
+            check(prefix + "saved-set error recipe " + code, code in text)
         for index, page in enumerate(reader.pages, 1):
             check(prefix + f"page {index} A4", abs(float(page.mediabox.width)-595.28)<1
                   and abs(float(page.mediabox.height)-841.89)<1)

@@ -1,6 +1,6 @@
 # QuietShare - Illustrated step-by-step guide (English)
 
-> **Screenshot version:** QuietShare 0.18.0, real local UI test captures dated November 2, 2026. **Numbered red outlines** were added to point out controls. Locations may change with display scale, window size, language or release. The screenshots are not synthetic mockups.
+> **Screenshot version:** QuietShare 0.19.0, real local UI test captures dated November 2, 2026. **Numbered red outlines** were added to point out controls. Locations may change with display scale, window size, language or release. The screenshots are not synthetic mockups.
 
 **Jump to:** [Install](#1-download-and-install) · [Home and files](#2-home-and-opening-content) · [Script](#4-write-a-script-and-auto-scroll) · [PDF](#5-view-and-search-pdfs) · [Mirror](#8-safe-smart-mirror-projection) · [Recording](#9-record-and-transcribe-meetings)
 
@@ -81,17 +81,17 @@ Home has compact actions above a full-width recent list and a separate protectio
 
 ## 8. Safe Smart Mirror projection
 
-![Figure 07 - Set displays, Verify WGC and disabled Start button](images/visual/07-projection.png)
+![Figure 07 - Display selection, projection actions and outgoing preview](images/visual/07-projection.png)
 
-**Preflight:** connect two *different* screens, then press `Win+P` in Windows and choose **Extend**, not Duplicate. Place the presenter panel on the private display and choose an intended public source display.
+**Preflight:** connect two different displays. Press `Win+P` and choose **Extend**. Keep QuietShare fully on the selected source display.
 
-1. **Red 1 - Set up displays:** open **Projection** and choose **Display setup** (or **Settings > Projection**). Select **different** source and destination monitors.
-2. **Red 2 - Verify WGC:** run the WGC protection check and read the result. If it fails, do not start. consult the [projection error catalog](USER_MANUAL_EN.md#13-projection-error-catalog).
-3. **Red 3 - Start:** start only **after verification succeeds and the button becomes available**. **The button is disabled in this screenshot**, because the QA environment has one display and protection is not verified.
-4. Inspect the **actual audience output or meeting/OBS source preview**. Windows accepting capture exclusion does **not by itself** validate what participants can see.
-5. Finish with **Stop**. After suspend, a disconnected monitor, display mode change or topology change, restore the configuration and verify again before restarting.
+1. **Red 1 - Source and target:** select two different displays. Use **Refresh** after reconnecting HDMI or changing display mode.
+2. **Red 2 - Verify and start:** select **Verify WGC**, then **Start**. The app checks protection before creating output. Failed starts show a handbook code. Select **Recovery** for the next action.
+3. **Red 3 - Outgoing preview:** this area shows frames successfully sent by QuietShare, up to 10 FPS. The QA screenshot has no outgoing frame because this host has one display. **Hide preview** stops its renderer.
+4. Inspect the actual projector, TV or meeting receiver. A local preview and Windows capture exclusion do not verify the physical audience output.
+5. Select **Stop** when finished. After a display or safety change, restore the setup, verify again and explicitly start output.
 
-**Limitations:** protection depends on Windows Graphics Capture and the environment. External cameras and unverified sharing/capture pipelines can still expose private material. In Teams, Zoom, Meet or OBS, inspect precisely the source you send.
+**Quick switch:** press **Ctrl+K** to find a document, web tab, command or saved presentation set. Choose **Presentation sets** to save a named collection after saving edited files. The full manual explains replacement confirmation, missing paths and script recovery.
 
 ## 9. Record and transcribe meetings
 

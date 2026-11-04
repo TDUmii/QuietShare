@@ -382,6 +382,23 @@ struct CanaryWindows
         UpdateWindow(underlay); UpdateWindow(overlay); DwmFlush(); return true;
     }
 };
+bool PinCaptureRuntime()
+{
+    // WGC can dispatch an internal wait callback after Close/RoUninitialize.
+    // Keep its OS code mapped until process termination, while still closing
+    // every capture/GPU object normally. No timed shutdown delay is reliable.
+    // https://github.com/robmikh/Win32CaptureSample/issues/99
+    static const bool pinned=[] {
+        HMODULE loaded=LoadLibraryExW(L"GraphicsCapture.dll",nullptr,LOAD_LIBRARY_SEARCH_SYSTEM32);
+        if(!loaded)return false;
+        HMODULE retained=nullptr;
+        const bool ok=GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_PIN|GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS,
+            reinterpret_cast<LPCWSTR>(loaded),&retained)!=FALSE;
+        FreeLibrary(loaded);
+        return ok;
+    }();
+    return pinned;
+}
 struct Capture
 {
     Com<ID3D11Device> device;
@@ -399,7 +416,9 @@ struct Capture
     }
     bool Create(const MonitorInfo &monitor, bool pointer)
     {
-        Clear(); Com<CaptureSupport> supported; boolean yes=false;
+        Clear();
+        if(!PinCaptureRuntime())return false;
+        Com<CaptureSupport> supported; boolean yes=false;
         if(FAILED(Factory(L"Windows.Graphics.Capture.GraphicsCaptureSession",kSupport,supported)) ||
            FAILED(supported->IsSupported(&yes)) || !yes || !monitor.adapterKnown) return false;
         Com<IDXGIFactory1> factory; Com<IDXGIAdapter1> adapter;
@@ -635,12 +654,17 @@ struct Renderer
         ID3D11ShaderResourceView *none=nullptr;
         capture.context->PSSetShaderResources(0,1,&none);
         capture.context->CopyResource(copy.get(),texture);
+        return Draw(capture,resource.get(),sourceWidth,sourceHeight);
+    }
+    bool Draw(Capture &capture,ID3D11ShaderResourceView *image,int imageWidth,int imageHeight)
+    {
         const float black[4]={0,0,0,1};capture.context->ClearRenderTargetView(target.get(),black);
-        const float scale=std::min(float(width)/sourceWidth,float(height)/sourceHeight);
-        D3D11_VIEWPORT viewport{};viewport.Width=sourceWidth*scale;viewport.Height=sourceHeight*scale;
+        const float scale=std::min(float(width)/imageWidth,float(height)/imageHeight);
+        D3D11_VIEWPORT viewport{};viewport.Width=imageWidth*scale;viewport.Height=imageHeight*scale;
         viewport.TopLeftX=(width-viewport.Width)/2;viewport.TopLeftY=(height-viewport.Height)/2;
         viewport.MinDepth=0;viewport.MaxDepth=1;
-        auto *rt=target.get();auto *srv=resource.get();auto *sample=sampler.get();
+        auto *rt=target.get();auto *srv=image;auto *sample=sampler.get();
+        ID3D11ShaderResourceView *none=nullptr;
         capture.context->OMSetRenderTargets(1,&rt,nullptr);capture.context->RSSetViewports(1,&viewport);
         capture.context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
         capture.context->VSSetShader(vertex.get(),nullptr,0);capture.context->PSSetShader(pixel.get(),nullptr,0);
@@ -660,7 +684,10 @@ enum class State
 struct MirrorController::Impl : std::enable_shared_from_this<MirrorController::Impl>
 {
     Capture capture;
-    Renderer renderer;
+    Renderer renderer,previewRenderer;
+    HWND previewWindow=nullptr;
+    bool previewHasFrame=false,previewFailed=false;
+    ULONGLONG previewAt=0;
     HWND privateWindow=nullptr,projector=nullptr;
     std::wstring sourceId,destinationId;
     MonitorInfo source{},destination{};
@@ -716,6 +743,8 @@ struct MirrorController::Impl : std::enable_shared_from_this<MirrorController::I
     };
     bool BeginVerification(HWND owner,const std::wstring &id,bool mounted)
     {
+        ResetPreview();
+        previewFailed=false;
         CancelStoppedNotice();
         failureCode=nullptr;
         const bool preserve=mounted&&running&&verified&&projector&&owner==privateWindow&&id==sourceId;
@@ -728,6 +757,7 @@ struct MirrorController::Impl : std::enable_shared_from_this<MirrorController::I
     void Clear()
     {
         ++epoch;verified=false;running=false;fps=0;frameCount=0;presentAfter=0;nextFrameAt=0;
+        ResetPreview();
         // Clear revokes output immediately, even when COM teardown is deferred.
         // Release only our own UI thread's request; retain its earlier state.
         execution.Release();
@@ -746,8 +776,28 @@ struct MirrorController::Impl : std::enable_shared_from_this<MirrorController::I
             SetWindowLongPtrW(old,GWLP_USERDATA,0);ShowWindow(old,SW_HIDE);DestroyWindow(old);
         }
         if(capture.context)capture.context->ClearState();
-        renderer.Clear();capture.Clear();
+        previewRenderer.Clear();renderer.Clear();capture.Clear();
         clearing=false;clearPending=false;
+    }
+    void ResetPreview()
+    {
+        previewHasFrame=false;previewAt=0;
+        if(IsWindow(previewWindow)){InvalidateRect(previewWindow,nullptr,FALSE);UpdateWindow(previewWindow);}
+    }
+    void PresentPreview(ULONGLONG now)
+    {
+        if(previewFailed||!running||!verified||busy||!IsWindow(previewWindow)||!IsWindowVisible(previewWindow)||now-previewAt<100)return;
+        const unsigned attempt=epoch;
+        RECT r{};GetClientRect(previewWindow,&r);if(r.right<1||r.bottom<1)return;
+        previewAt=now;
+        if(previewRenderer.width!=r.right||previewRenderer.height!=r.bottom) {
+            ResetPreview();previewAt=now;
+            if(!previewRenderer.Create(capture,previewWindow,r.right,r.bottom)){previewFailed=true;return;}
+        }
+        if(epoch!=attempt||!running)return;
+        previewHasFrame=previewRenderer.Draw(capture,renderer.resource.get(),renderer.sourceWidth,renderer.sourceHeight);
+        if(epoch!=attempt||!running){ResetPreview();return;}
+        if(!previewHasFrame){previewFailed=true;previewRenderer.Clear();InvalidateRect(previewWindow,nullptr,FALSE);UpdateWindow(previewWindow);}
     }
     bool SameTopology()
     {
@@ -1109,6 +1159,8 @@ void MirrorController::Tick()
         if(!presented){s.Fail(State::RenderFailed);return;}
         if(s.running)
         {
+            s.PresentPreview(now);
+            if(s.epoch!=attempt)return;
             ++s.frameCount;
 #if defined(QUIETSHARE_MIRROR_REGRESSION)
             ++s.testPresentedFrames;
@@ -1167,6 +1219,40 @@ bool MirrorController::Running() const {return impl->running;}
 bool MirrorController::Busy() const {return impl->busy;}
 double MirrorController::Fps() const {return impl->fps;}
 HWND MirrorController::Projector() const {return impl->projector;}
+void MirrorController::SetPreviewWindow(HWND child)
+{
+    auto& s=*impl;
+    // A preview may only live inside the already-protected control window.
+    if(child&&(!IsWindow(child)||!(GetWindowLongPtrW(child,GWL_STYLE)&WS_CHILD)||GetAncestor(child,GA_ROOT)!=s.privateWindow))child=nullptr;
+    if(s.previewWindow==child)return;
+    if(s.operations||s.clearing||s.busy)return;
+    s.ResetPreview();s.previewRenderer.Clear();s.previewWindow=child;s.previewFailed=false;s.ResetPreview();
+}
+bool MirrorController::PreviewHasFrame() const {return impl->running&&!impl->busy&&impl->previewHasFrame;}
+std::wstring MirrorController::ErrorCode() const {
+    std::wstring result;if(impl->failureCode)for(const char* c=ProjectionErrorCode(impl->failureCode);*c;++c)result+=static_cast<wchar_t>(*c);return result;
+}
+std::wstring MirrorController::Recovery(bool english) const {
+    const auto code=ErrorCode();
+    const wchar_t *vi=L"Chọn nguồn và đích, kiểm tra WGC rồi bấm Bắt đầu.",*en=L"Choose source and destination, verify WGC, then select Start.";
+    if(code==L"QS-P001"||code==L"QS-P002"||code==L"QS-P010"||code==L"QS-P011"||code==L"QS-P015"||code==L"QS-P024"){
+        vi=L"Win+P > Extend. Làm mới danh sách, chọn lại nguồn / đích, kiểm tra WGC rồi Bắt đầu.";
+        en=L"Win+P > Extend. Refresh displays, reselect source / destination, verify WGC, then Start.";
+    }else if(code==L"QS-P003"||code==L"QS-P004"){
+        vi=L"Kết nối hai màn vào cùng GPU. Kiểm tra driver hoặc dock, làm mới màn rồi thử lại.";
+        en=L"Connect both displays to the same GPU. Check drivers or dock, refresh displays and retry.";
+    }else if(code==L"QS-P005"){
+        vi=L"Đưa toàn bộ QuietShare về màn nguồn đã chọn, kiểm tra WGC rồi Bắt đầu.";
+        en=L"Move the entire QuietShare window onto the selected source, verify WGC, then Start.";
+    }else if(code==L"QS-P006"||code==L"QS-P007"||code==L"QS-P021"){
+        vi=L"Dùng Windows 10 build 19041+ hoặc Windows 11 với DWM. Cập nhật Windows và driver đồ họa.";
+        en=L"Use Windows 10 build 19041+ or Windows 11 with DWM. Update Windows and graphics drivers.";
+    }else if(!code.empty()){
+        vi=L"Kiểm tra kết nối màn, driver và chế độ Extend. Kiểm tra WGC lại, sau đó chủ động Bắt đầu.";
+        en=L"Check the display connection, drivers and Extend mode. Verify WGC again, then explicitly Start.";
+    }
+    return english?en:vi;
+}
 std::wstring MirrorController::Status(bool english) const
 {
     const wchar_t *vi=L"Chưa xác minh WGC. Nội dung riêng đang khóa.",*en=L"WGC is unverified. Private content is locked.";

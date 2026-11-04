@@ -503,7 +503,7 @@ def main():
         primary_number, monitor_count = query(29), query(30)
         source_text = native.control_text(control(160))
         check("windowsDisplayNumbersAvailable", primary_number >= 1 and monitor_count >= 1)
-        check("defaultSourceUsesPrimaryWindowsDisplay", source_text.startswith("Màn " + str(primary_number) + " ·") and "Chính" in source_text)
+        check("defaultSourceUsesPrimaryWindowsDisplay", source_text.startswith("Nguồn: Màn " + str(primary_number) + " ·") and "Chính" in source_text)
         check("windowDisplayMarkerPresentOnSingleDisplay", monitor_count != 1 or "Cửa sổ này" in source_text)
         check("destinationDefaultsOtherDisplayWhenAvailable", monitor_count == 1 or
               native.send(control(160), 0x147) != native.send(control(161), 0x147))
@@ -713,7 +713,7 @@ def main():
         check("languageChangesInSettings", bool(native.control_text(control(107))) and native.control_text(control(107)) != before and query(21) == 1)
         category(3)
         source_text = native.control_text(control(160))
-        check("englishMonitorIdentityUsesWindowsDisplayNumber", source_text.startswith("Display " + str(primary_number) + " ·") and "Main" in source_text)
+        check("englishMonitorIdentityUsesWindowsDisplayNumber", source_text.startswith("Source: Display " + str(primary_number) + " ·") and "Main" in source_text)
         check("englishWindowDisplayMarkerOnSingleDisplay", monitor_count != 1 or "This window" in source_text)
         category(0)
         command(107)
@@ -750,7 +750,7 @@ def main():
         check("settingsSpaceRestoresFocusedButton", native.control_text(control(106)) == before and query(23) == 0)
 
         command(139)
-        check("projectionEntryOpensDedicatedSettingsCategory", query(21) == 1 and query(40) == 3)
+        check("projectionEntryOpensDedicatedBoard", query(68) == 1)
         check("projectionSelectorsVisibleInDedicatedSettings", region_visible(control(160))
               and region_visible(control(161)))
         command(186)
