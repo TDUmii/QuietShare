@@ -14,8 +14,8 @@ $env:PATH = $CompilerRoot + ';' + $env:PATH
 Push-Location $projectRoot
 try {
     & $compiler '-std=c++17' '-O2' '-static' '-municode' '-DUNICODE' '-D_UNICODE' '-D_WIN32_WINNT=0x0A00' `
-        'tests/meeting_transcriber_regression.cpp' 'src/MeetingTranscriber.cpp' `
-        '-o' (Join-Path $output 'meeting-transcriber-regression.exe') '-lole32' '-luuid' '-lsapi'
+        'tests/meeting_transcriber_regression.cpp' 'src/MeetingTranscriber.cpp' 'src/SpeechRuntime.cpp' `
+        '-o' (Join-Path $output 'meeting-transcriber-regression.exe') '-lole32' '-luuid' '-lsapi' '-lcrypt32'
     if ($LASTEXITCODE) { throw 'Meeting transcriber regression compilation failed.' }
     & (Join-Path $output 'meeting-transcriber-regression.exe') | Out-File -LiteralPath (Join-Path $output 'meeting-transcriber-regression.txt') -Encoding ascii
     if ($LASTEXITCODE) { throw 'Meeting transcriber regression failed.' }

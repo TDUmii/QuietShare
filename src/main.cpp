@@ -17,6 +17,7 @@
 #include "ToolMenu.h"
 #include "Workspace.h"
 #include "PresentationSets.h"
+#include "ReadingTools.h"
 #include "FileIcons.h"
 #include "LocalPicker.h"
 #include "Browser.h"
@@ -24,6 +25,8 @@
 #include "MeetingTranscriber.h"
 #include "MeetingSettings.h"
 #include "MeetingTranscriptImport.h"
+#include "MeetingNotebook.h"
+#include "SpeechRuntime.h"
 #include "CustomTheme.h"
 #include "Version.h"
 #include "Preferences.h"
@@ -93,6 +96,14 @@ constexpr int TRANSCRIPTION_LANGUAGE=256,SCRIPT_TAB_LABELS=257,BROWSER_TAB_LABEL
               SET_LIBRARY=285,SET_NAME=286,SET_SAVE=287,SET_DELETE=288,REFRESH_DISPLAYS=289,
               PREVIEW_TOGGLE=290,PROJECTION_HELP=291,PROJECTION_STATUS=293,
               WORKSPACE_STATUS=294,PREVIEW_CANVAS=295,QUICK_LABEL=296,SET_LABEL=297;
+constexpr int PDF_TOOLS=300,PDF_PAGES=301,PDF_GOTO_INPUT=302,PDF_GOTO=303,PDF_BOOKMARK=304,PDF_BOOKMARKS=305,
+    CUE_TOGGLE=306,CUE_SYNC=307,CUE_PREV=308,CUE_NEXT=309,CUE_LINK=310,CUE_READER=311,CUE_LIST=312,
+    NAV_MEETING=313,CUE_SMALLER=314,CUE_LARGER=315;
+constexpr int MEETING_LIST=320,MEETING_EDITOR=321,MEETING_SPEAKER=322,MEETING_BEGIN=323,MEETING_END=324,
+    MEETING_SAVE=325,MEETING_DECISION=326,MEETING_ACTION=327,MEETING_EXPORT=328,MEETING_CHECK=329,
+    SPEECH_SETUP=330,SPEECH_MODEL=331,MEETING_STATUS=332,SPEAKER_LABEL=333,TIME_LABEL=334,
+    MEETING_ADD=335,MEETING_DELETE=336,MEETING_CANCEL=337,MEETING_SEARCH=338,MEETING_FILTER=339,
+    MEETING_VIEW_LIST=340,MEETING_VIEW_EDIT=341,MEETING_VIEW_META=342;
 constexpr int NORMAL_SIDEBAR = 48, COMPACT_SIDEBAR = 48;
 constexpr UINT_PTR PRIVACY_TIMER = 1, SCROLL_TIMER = 2, SAVE_TIMER = 3, QA_TIMER = 4, MEETING_TIMER = 6;
 HINSTANCE instance;
@@ -103,6 +114,13 @@ DocumentId sizeInputDocument=0;
 std::wstring pickerFolder;
 RecentWorkspace recentWorkspace;
 PresentationSets presentationSets;
+ReadingTools readingTools;
+bool readingUnavailable=false,readingDirty=false,pdfBookmarksOnly=false,cuesDirty=true,updatingCues=false;
+HWND pdfPages=nullptr,pdfGoto=nullptr,cueList=nullptr,cueReader=nullptr;
+RECT pdfRailRect{},cueRect{};
+std::vector<ScriptSection> scriptSections;
+int selectedCue=0,lastCuePage=-1;
+std::wstring lastCuePath,shownCueText;
 HWND quickInput=nullptr,quickList=nullptr,setName=nullptr,projectionPreview=nullptr;
 struct QuickEntry {std::wstring title,detail;int kind=0;std::uint64_t id=0;};
 std::vector<QuickEntry> quickEntries;
@@ -123,6 +141,17 @@ ProjectTree projectTree;
 Browser browser;
 MeetingRecorder meetingRecorder;
 MeetingTranscriber meetingTranscriber;
+SpeechInstaller speechInstaller;
+MeetingNotebook meetingNotebook;
+HWND meetingList=nullptr,meetingEditor=nullptr,meetingSpeaker=nullptr,meetingBegin=nullptr,meetingEnd=nullptr;
+HWND meetingSearch=nullptr;
+std::vector<size_t> meetingRows;
+int meetingFilter=0;
+int meetingView=0;
+bool notebookUnavailable=false,notebookDirty=false,updatingNotebook=false,speechReady=false,windowsSpeechReady=false,playbackReady=false,speechInstallSeen=true;
+int notebookSelection=-1,preflightPeak=0;
+RECT meetingEditorRect{};
+std::wstring lastMeetingExport;
 MeetingSettings meetingSettings;
 std::wstring meetingRecordingPath;
 unsigned displayedBrowserTab=0;
@@ -160,7 +189,7 @@ int fontPoints = DefaultTextPoints, speed = 1;
 double scrollRemainder = 0;
 ULONGLONG lastScrollTick = 0;
 std::wstring dataDir;
-enum class Page { Home, Content, Settings, Presentation, Browser, Quick, Sets };
+enum class Page { Home, Content, Settings, Presentation, Browser, Quick, Sets, Meeting };
 Page page = Page::Content;
 Page quickReturn=Page::Home;
 LoadedContent &ActiveContent() { return documents.Active().content; }
@@ -275,6 +304,19 @@ void RefreshQuick();
 void OpenQuickSelection();
 void SavePresentationSet();
 void LoadPresentationSet(size_t index);
+void RefreshReadingTools();
+void ReadingAction(int command);
+void SyncCueToPage();
+void SaveReadingTools();
+void OpenMeeting();
+void MeetingPreflight();
+void UpdateMeetingReadout();
+bool CommitMeeting();
+bool SaveMeeting();
+void FillMeetingList();
+void SelectMeeting(int index);
+void MeetingAction(int command);
+bool AdoptMeeting(const std::wstring& text,const std::wstring& path,bool provider=false);
 bool IsImage() { return viewingFile && ActiveContent().kind == ContentKind::Image; }
 bool IsCode() { return viewingFile && (ActiveContent().kind == ContentKind::Code || documents.Active().language==L"md" || documents.Active().language==L"markdown"); }
 bool IsPdf() { return viewingFile && ActiveContent().kind == ContentKind::Pdf; }
@@ -431,15 +473,12 @@ void HandleTranscriptionResult()
     std::wstring text,path;
     if(!meetingTranscriber.TakeResult(text,path))return;
     if(meetingTranscriber.ErrorCode()!=0){transcriptionNotice=meetingTranscriber.Status(english);return;}
-    if(AppendMeetingTranscript(text,path) && meetingSettings.exportMode==MeetingExportMode::TranscriptOnly && !path.empty()) {
-        // Recognition currently consumes a finalized WAV. Transcript-only mode
-        // removes that temporary capture only after the text has been saved.
-        if(!DeleteFileW(path.c_str()))
-            transcriptionNotice+=T(L" · Không xóa được WAV tạm",L" · Temporary WAV could not be deleted");
-        else
-            meetingRecordingPath.clear();
+    if(AdoptMeeting(text,path)&&meetingSettings.exportMode==MeetingExportMode::TranscriptOnly&&!meetingRecordingPath.empty()){
+        if(!DeleteFileW(meetingRecordingPath.c_str()))transcriptionNotice+=T(L" - Không xóa được WAV tạm",L" - Temporary WAV could not be removed");
+        else meetingRecordingPath.clear();
     }
 }
+
 bool ReadNotes(std::wstring &text)
 {
     auto bytes = ReadBytes(dataDir + L"\\notes.dpapi");
@@ -690,6 +729,7 @@ void UpdateProjectionReadout()
     std::wstring projectionText=mirror?mirror->Status(english):L"";
     if(mirror&&!mirror->ErrorCode().empty())projectionText=mirror->ErrorCode()+L" - "+projectionText.substr(0,projectionText.find(L" ["));
     if(mirror&&mirror->Running())projectionText=T(L"Đang gửi: ",L"Sending: ")+std::to_wstring((int)mirror->Fps())+T(L" FPS. Xem trước tối đa 10 FPS.",L" FPS. Preview up to 10 FPS.");
+    if(!previewEnabled)projectionText+=T(L"\r\nXem trước: đã tắt",L"\r\nPreview: off");
     if(recoveryVisible&&mirror)projectionText=mirror->ErrorCode()+L"\r\n"+mirror->Recovery(english);
     if(TextOf(GetDlgItem(window,PROJECTION_STATUS))!=projectionText)SetWindowTextW(GetDlgItem(window,PROJECTION_STATUS),projectionText.c_str());
 }
@@ -732,7 +772,7 @@ void UpdateButtons()
     const bool transcribing=meetingTranscriber.Running();
     const bool willTranscribe=meetingSettings.transcriptionEnabled;
     SetWindowTextW(GetDlgItem(window,MEETING_RECORD),T(transcribing?L"Đang chép lời":meetingRecorder.Running()?L"Dừng ghi âm":willTranscribe?L"Ghi âm & chép lời":L"Ghi âm cuộc họp",
-        transcribing?L"Transcribing":meetingRecorder.Running()?L"Stop meeting recording":willTranscribe?L"Record and transcribe meeting":L"Record meeting"));
+        transcribing?L"Transcribing":meetingRecorder.Running()?L"Stop recording":willTranscribe?L"Record & transcribe":L"Record meeting"));
     SetTip(MEETING_RECORD,T(transcribing?L"Đang chuyển âm thanh thành văn bản":meetingRecorder.Running()?L"Dừng ghi âm âm thanh máy":willTranscribe?L"Ghi âm âm thanh máy rồi chép lời":L"Ghi âm âm thanh máy, không chép lời",
         transcribing?L"Converting audio to text":meetingRecorder.Running()?L"Stop recording system audio":willTranscribe?L"Record system audio, then transcribe it":L"Record system audio without transcription"));
     SetWindowTextW(GetDlgItem(window,WEB_NEW_TAB),T(L"Tab web mới",L"New web tab"));
@@ -829,6 +869,11 @@ void UpdateButtons()
     SetWindowTextW(GetDlgItem(window,THEME_SELECT),ThemeName(preferences.themeId,english));
     SetWindowTextW(GetDlgItem(window,THEME_TOGGLE),T(theme.dark?L"Giao diện sáng":L"Giao diện tối",theme.dark?L"Light appearance":L"Dark appearance"));
     SetTip(THEME_TOGGLE,T(L"Đổi sáng / tối",L"Switch light / dark appearance"));
+    for(const auto& label:std::vector<std::pair<int,const wchar_t*>>{{PDF_TOOLS,T(L"Công cụ PDF",L"PDF tools")},{PDF_GOTO,T(L"Đến trang",L"Go to page")},
+        {CUE_PREV,T(L"Phần trước",L"Previous section")},{CUE_NEXT,T(L"Phần sau",L"Next section")},{CUE_LINK,T(L"Gắn trang",L"Link page")},
+        {CUE_SYNC,T(readingTools.sync?L"Tự: bật":L"Tự: tắt",readingTools.sync?L"Sync on":L"Sync off")},{CUE_SMALLER,L"A-"},{CUE_LARGER,L"A+"}}){
+        SetWindowTextW(GetDlgItem(window,label.first),label.second);SetTip(label.first,label.second);}
+
     for(const auto& label:std::vector<std::pair<int,const wchar_t*>>{
         {QUICK_SWITCH,T(L"Chuyển nhanh - Ctrl+K",L"Quick switch - Ctrl+K")},{QUICK_OPEN,T(L"Mở",L"Open")},
         {QUICK_BACK,T(L"Quay lại",L"Back")},{SET_LIBRARY,T(L"Bộ thuyết trình",L"Presentation sets")},
@@ -922,7 +967,7 @@ void UpdateButtons()
     SetTip(NAV_SCRIPT,T(L"Trở lại tệp đang xem",L"Return to current file"));SetTip(NAV_READ,currentTips[8].c_str());
     for (HWND button : buttons)
         InvalidateRect(button, nullptr, FALSE);
-    UpdateQuickActions();
+    UpdateQuickActions();UpdateMeetingReadout();
     InvalidateRect(window, nullptr, FALSE);
 }
 void Pause()
@@ -1005,7 +1050,7 @@ void Layout()
     contentLeft=railWidth+gutter;contentRight=width-gutter;
     std::vector<HWND> visibleControls;
     auto reveal=[&](HWND control){visibleControls.push_back(control);};
-    fontLabelRect={};explorerRect={};splitterRect={};
+    fontLabelRect={};explorerRect={};splitterRect={};pdfRailRect={};cueRect={};
     const int bottom=height-(!focusMode&&statusVisible?20:4);
     auto move=[&](int id,int left,int top,int w,int h=32){
         HWND child=GetDlgItem(window,id);MoveWindow(child,S(left),S(top),S(w),S(h),FALSE);reveal(child);
@@ -1016,7 +1061,7 @@ void Layout()
             move(id,6,y,railWidth-12,navHeight);y+=navStep;
         }
         move(VERIFY_PRIVACY,6,y+12,railWidth-12,navHeight);move(MIRROR_ACTION,6,y+12+navStep,railWidth-12,navHeight);
-        move(MEETING_RECORD,6,y+12+navStep*2,railWidth-12,navHeight);
+        move(NAV_MEETING,6,y+12+navStep*2,railWidth-12,navHeight);
         move(NAV_SETTINGS,6,std::max(y+12+navStep*3+8,height-48),railWidth-12,28);
     }
     contentCardRect={S(contentLeft),S(48),S(contentRight),S(bottom)};
@@ -1046,7 +1091,7 @@ void Layout()
                 if(toolX+w>contentRight){toolX=contentLeft;toolY+=28;}
                 move(id,toolX,toolY,w,24);toolX+=w+4;
             };
-            if(IsPdf()) {tool(PDF_PREV,24);tool(PDF_PAGE,84);tool(PDF_NEXT,24);}
+            if(IsPdf()) {tool(PDF_PREV,24);tool(PDF_PAGE,84);tool(PDF_NEXT,24);tool(PDF_TOOLS,24);}
             if(!focusMode&&toolbarVisible) {
             tool(SMALLER,24);
             if(!IsCode()&&!IsImage()&&!IsPdf())tool(SIZE_INPUT,44);
@@ -1164,6 +1209,8 @@ void Layout()
         row(L"Tốc độ lời nhắc",L"Script scrolling",SPEED);
         row(L"Tự chép lời sau khi ghi âm",L"Transcribe after recording",MEETING_TRANSCRIBE);
         row(L"Ngôn ngữ chép lời",L"Transcription language",TRANSCRIPTION_LANGUAGE,180);
+        row(L"Mô hình Whisper cục bộ",L"Local Whisper model",SPEECH_MODEL,180);
+        row(L"Cài bộ nhận dạng tùy chọn",L"Install optional recognizer",SPEECH_SETUP,180);
         row(L"Nền tảng cuộc họp",L"Meeting platform",MEETING_PROVIDER,200);
         row(L"Kiểu xuất cuộc họp",L"Meeting export",MEETING_OUTPUT,250);
         row(L"Thư mục lưu WAV / transcript",L"WAV / transcript folder",MEETING_DIRECTORY,260);
@@ -1191,6 +1238,7 @@ void Layout()
         row(L"Màn hình nguồn",L"Source display",SOURCE_MONITOR,monitorWidth);
         row(L"Màn hình đích",L"Destination",DEST_MONITOR,monitorWidth);
         row(L"Con trỏ khi chiếu",L"Presentation pointer",POINTER);
+        row(L"Xem trước luồng đang gửi",L"Outgoing preview",PREVIEW_TOGGLE,132);
         row(L"Tài nguyên",L"Resources",RESOURCE_MODE,std::min(188,right-left-100));
         y+=8;settingsLines.push_back({L"",{S(left),S(y),S(right),S(y+104)},false,-1});y+=112;
         }
@@ -1246,6 +1294,32 @@ void Layout()
             contentCardRect={S(contentLeft),S(84),S(contentRight),S(bottom)};
         }
     }
+    else if(page==Page::Meeting) {
+        int x=contentLeft,y=48;auto action=[&](int id,int w){if(x+w>contentRight){x=contentLeft;y+=30;}move(id,x,y,w,28);x+=w+4;};
+        action(MEETING_RECORD,156);action(MEETING_EXPORT,120);if(meetingTranscriber.Running()||speechInstaller.Running())action(MEETING_CANCEL,104);
+        int top=y+34;const bool compact=width<760||height<500;const int statusHeight=compact?36:48;
+        move(MEETING_STATUS,contentLeft,top,contentRight-contentLeft,statusHeight);top+=statusHeight+6;
+        if(compact){const int w=(contentRight-contentLeft-8)/3;move(MEETING_VIEW_LIST,contentLeft,top,w,26);move(MEETING_VIEW_EDIT,contentLeft+w+4,top,w,26);move(MEETING_VIEW_META,contentLeft+2*w+8,top,w,26);top+=32;}
+        if(!Blocked()){
+            const int listWidth=compact?contentRight-contentLeft:std::min(268,(contentRight-contentLeft)/3);
+            if(!compact||meetingView==0){move(MEETING_FILTER,contentLeft,top,112,26);MoveWindow(meetingSearch,S(contentLeft+116),S(top),S(std::max(40,listWidth-116)),S(26),FALSE);reveal(meetingSearch);
+                MoveWindow(meetingList,S(contentLeft),S(top+32),S(listWidth),S(std::max(32,bottom-top-32)),FALSE);reveal(meetingList);}
+            if(!compact||meetingView!=0){
+                int editLeft=compact?contentLeft:contentLeft+listWidth+8,editTop=top;const int ew=contentRight-editLeft;
+                if(!compact||meetingView==2){
+                    move(SPEAKER_LABEL,editLeft,editTop,64,26);MoveWindow(meetingSpeaker,S(editLeft+68),S(editTop),S(std::max(40,ew-68)),S(26),FALSE);reveal(meetingSpeaker);editTop+=30;
+                    move(TIME_LABEL,editLeft,editTop,88,26);const int tw=std::max(70,(ew-96)/2);
+                    MoveWindow(meetingBegin,S(editLeft+92),S(editTop),S(tw),S(26),FALSE);reveal(meetingBegin);
+                    MoveWindow(meetingEnd,S(editLeft+96+tw),S(editTop),S(std::max(70,ew-96-tw)),S(26),FALSE);reveal(meetingEnd);editTop+=30;
+                }
+                int bx=editLeft,by=bottom-28;
+                for(const auto& a:std::vector<std::pair<int,int>>{{MEETING_SAVE,88},{MEETING_DECISION,112},{MEETING_ACTION,124}}){if(bx+a.second>contentRight){bx=editLeft;by-=30;}move(a.first,bx,by,a.second,26);bx+=a.second+4;}
+                if(!compact||meetingView==1){meetingEditorRect={S(editLeft),S(editTop),S(contentRight),S(std::max(editTop+24,by-6))};
+                    MoveWindow(meetingEditor,meetingEditorRect.left,meetingEditorRect.top,meetingEditorRect.right-meetingEditorRect.left,meetingEditorRect.bottom-meetingEditorRect.top,FALSE);reveal(meetingEditor);}
+            }
+        }
+        contentCardRect={S(contentLeft),S(top),S(contentRight),S(bottom)};
+    }
     else if(page==Page::Presentation) {
         const int w=contentRight-contentLeft;
         const bool shortWindow=height<360;
@@ -1298,8 +1372,28 @@ void Layout()
         if(GetCapture()==window)ReleaseCapture();
     }
     RECT body=contentCardRect;InflateRect(&body,-S(page==Page::Browser?2:4),-S(page==Page::Browser?2:4));
+    if(page==Page::Content&&IsPdf()&&!Blocked()) {
+        RefreshReadingTools();
+        auto child=[&](HWND control,RECT r){MoveWindow(control,r.left,r.top,std::max(1L,r.right-r.left),std::max(1L,r.bottom-r.top),FALSE);reveal(control);};
+        if(readingTools.cuesVisible){
+            if(body.right-body.left>=S(720)){cueRect=body;cueRect.left=cueRect.right-S(248);body.right=cueRect.left-S(8);}
+            else {cueRect=body;const int h=std::clamp<int>((body.bottom-body.top)/3,S(52),S(160));cueRect.top=cueRect.bottom-h;body.bottom=cueRect.top-S(6);}
+            int x=MulDiv(cueRect.left,96,dpi),y=MulDiv(cueRect.top,96,dpi),right=MulDiv(cueRect.right,96,dpi);
+            for(const auto& action:std::vector<std::pair<int,int>>{{CUE_PREV,24},{CUE_NEXT,24},{CUE_LINK,64},{CUE_SYNC,48},{CUE_SMALLER,24},{CUE_LARGER,24}}){
+                if(x+action.second>right){x=MulDiv(cueRect.left,96,dpi);y+=26;}move(action.first,x,y,action.second,24);x+=action.second+2;}
+            int textTop=S(y+28);
+            if(cueRect.bottom-textTop>=S(180)){child(cueList,{cueRect.left,textTop,cueRect.right,textTop+S(84)});textTop+=S(90);}
+            child(cueReader,{cueRect.left,textTop,cueRect.right,cueRect.bottom});
+        }
+        if(readingTools.pagesVisible&&body.right-body.left>=S(230)&&body.bottom-body.top>S(90)){
+            pdfRailRect=body;pdfRailRect.right=pdfRailRect.left+S(108);body.left=pdfRailRect.right+S(8);
+            child(pdfGoto,{pdfRailRect.left,pdfRailRect.top,pdfRailRect.right-S(32),pdfRailRect.top+S(26)});
+            move(PDF_GOTO,MulDiv(pdfRailRect.right,96,dpi)-28,MulDiv(pdfRailRect.top,96,dpi),28,26);
+            child(pdfPages,{pdfRailRect.left,pdfRailRect.top+S(32),pdfRailRect.right,pdfRailRect.bottom});
+        } else pdfViewer.ClearThumbnails();
+    } else pdfViewer.ClearThumbnails();
     std::vector<HWND> shellControls=buttons;
-    for(HWND control:{settingsScroll,sizeInput,opacityInput,iconSizeInput,findInput,webAddress,sourceMonitor,destinationMonitor,documentBar.Window(),browserTabBar.Window(),homeVersion,projectTree.Handle(),quickInput,quickList,setName,projectionPreview})shellControls.push_back(control);
+    for(HWND control:{settingsScroll,sizeInput,opacityInput,iconSizeInput,findInput,webAddress,sourceMonitor,destinationMonitor,documentBar.Window(),browserTabBar.Window(),homeVersion,projectTree.Handle(),quickInput,quickList,setName,projectionPreview,pdfPages,pdfGoto,cueList,cueReader,meetingList,meetingEditor,meetingSpeaker,meetingBegin,meetingEnd,meetingSearch})shellControls.push_back(control);
     for(HWND control:shellControls)if(control) {
         const bool visible=std::find(visibleControls.begin(),visibleControls.end(),control)!=visibleControls.end();
         const bool wasVisible=(GetWindowLongPtrW(control,GWL_STYLE)&WS_VISIBLE)!=0;
@@ -1318,9 +1412,10 @@ void Layout()
     DocumentType displayType=IsCode()?DocumentType::Code:documents.Active().type;
     renderedSafe=!Blocked();
     documentHost.Show(displayType,renderedSafe,page==Page::Content);
+    if(Blocked())for(HWND control:{pdfPages,pdfGoto,cueList,cueReader})ShowWindow(control,SW_HIDE);
     browser.SetBounds(body);browser.Show(page==Page::Browser&&renderedSafe&&!IsIconic(window));
     if(mirror)mirror->SetPreviewWindow(page==Page::Presentation&&previewEnabled&&!masked&&!verifying&&IsWindowVisible(projectionPreview)?projectionPreview:nullptr);
-    for(HWND control:{quickInput,quickList,setName})if(control&&Blocked()){ShowWindow(control,SW_HIDE);}
+    for(HWND control:{quickInput,quickList,setName,meetingList,meetingEditor,meetingSpeaker,meetingBegin,meetingEnd,meetingSearch})if(control&&Blocked()){ShowWindow(control,SW_HIDE);}
     for(int id:{QUICK_OPEN,SET_SAVE,SET_DELETE,SET_LIBRARY,QUICK_SWITCH})EnableWindow(GetDlgItem(window,id),!Blocked());
     UpdateButtons();UpdateDocumentBar();
     UpdateMirrorTimer();
@@ -1427,8 +1522,11 @@ void RefreshFonts()
                            CLEARTYPE_QUALITY, 0, L"Segoe UI");
     for (HWND button : buttons)
         SendMessageW(button, WM_SETFONT, (WPARAM)uiFont, TRUE);
-    for(HWND control:{findInput,sizeInput,opacityInput,iconSizeInput,webAddress,sourceMonitor,destinationMonitor,projectTree.Handle(),quickInput,quickList,setName})if(control)SendMessageW(control,WM_SETFONT,(WPARAM)uiFont,TRUE);
+    for(HWND control:{findInput,sizeInput,opacityInput,iconSizeInput,webAddress,sourceMonitor,destinationMonitor,projectTree.Handle(),quickInput,quickList,setName,pdfPages,pdfGoto,cueList,meetingList,meetingEditor,meetingSpeaker,meetingBegin,meetingEnd,meetingSearch})if(control)SendMessageW(control,WM_SETFONT,(WPARAM)uiFont,TRUE);
     if(quickList)SendMessageW(quickList,LB_SETITEMHEIGHT,0,S(48));
+    if(pdfPages)SendMessageW(pdfPages,LB_SETITEMHEIGHT,0,S(142));
+    if(cueList)SendMessageW(cueList,LB_SETITEMHEIGHT,0,S(26));
+    if(meetingList)SendMessageW(meetingList,LB_SETITEMHEIGHT,0,S(56));
     if(homeVersion)SendMessageW(homeVersion,WM_SETFONT,(WPARAM)metaFont,TRUE);
     projectTree.SetDpi(dpi);
     if (oldUi)
@@ -1775,21 +1873,15 @@ void ChooseMeetingDirectory()
 void ImportMeetingFile()
 {
     if(Blocked())return;
-    Pause();LocalPicker picker;
-    auto paths=picker.Show(window,false,meetingSettings.outputDirectory,english,uiFont,filePicker,importError);
+    Pause();LocalPicker picker;auto paths=picker.Show(window,false,meetingSettings.outputDirectory,english,uiFont,filePicker,importError);
     if(paths.empty()){Layout();return;}
-    std::wstring text,error;
-    if(!ImportMeetingTranscript(paths.front(),meetingSettings.provider,text,error)) {
-        importError=error;
-        Layout();
-        return;
-    }
-    importError.clear();
-    if(viewingFile)ShowScript();
-    else if(page!=Page::Content){page=Page::Content;focusMode=false;Layout();}
-    AppendMeetingTranscript(text,paths.front());
+    const auto bytes=ReadBytes(paths.front());
+    if(bytes.empty()||!AdoptMeeting(DecodeMeetingTranscript(bytes),paths.front(),true)){
+        if(transcriptionNotice.empty())transcriptionNotice=T(L"QS-N004 - Transcript không hợp lệ hoặc quá lớn.",L"QS-N004 - Transcript is invalid or too large.");
+    }else OpenMeeting();
     Layout();
 }
+
 void ChooseCustomColor(int controlId)
 {
     if(Blocked())return;
@@ -1819,6 +1911,248 @@ std::wstring SelectedMonitor(HWND combo)
     int index=(int)SendMessageW(combo,CB_GETCURSEL,0,0);
     return index>=0 && index<(int)monitors.size()?monitors[index].stableId:L"";
 }
+void SaveReadingTools()
+{
+    KillTimer(window,7);if(!readingDirty||readingUnavailable||qa)return;
+    if(readingTools.Save(dataDir))readingDirty=false;
+    else importError=T(L"QS-D002 - Không lưu được đánh dấu và liên kết trang.",L"QS-D002 - Could not save bookmarks and page links.");
+}
+void ReadingChanged(){readingDirty=true;if(window)SetTimer(window,7,800,nullptr);}
+int PageFromRow(int row)
+{
+    if(row<0)return -1;
+    if(!pdfBookmarksOnly)return row;
+    const auto* f=readingTools.Find(documents.Active().canonicalPath);
+    if(f)for(int n:f->bookmarks)if(n<pdfViewer.PageCount()&&row--==0)return n;
+    return -1;
+}
+void RefreshReadingTools()
+{
+    if(!pdfPages||!cueList)return;
+    static int shownSection=-1,shownPoints=-1,shownWeight=-1;static COLORREF shownColor=CLR_INVALID,shownBackground=CLR_INVALID;
+    const bool textChanged=cuesDirty||shownSection!=selectedCue;
+    if(cuesDirty){scriptSections=OutlineScript(scriptDraft);selectedCue=std::clamp(selectedCue,0,std::max(0,static_cast<int>(scriptSections.size())-1));
+        updatingCues=true;SendMessageW(cueList,LB_RESETCONTENT,0,0);
+        for(const auto& section:scriptSections)SendMessageW(cueList,LB_ADDSTRING,0,reinterpret_cast<LPARAM>((section.title.empty()?T(L"Toàn bộ lời nhắc",L"Whole script"):section.title.c_str())));
+        updatingCues=false;cuesDirty=false;}
+    if(IsPdf()){
+        const auto* f=readingTools.Find(documents.Active().canonicalPath);
+        const int count=pdfBookmarksOnly?(f?static_cast<int>(std::count_if(f->bookmarks.begin(),f->bookmarks.end(),[](int n){return n<pdfViewer.PageCount();})):0):pdfViewer.PageCount();
+        if(SendMessageW(pdfPages,LB_GETCOUNT,0,0)!=count)SendMessageW(pdfPages,LB_SETCOUNT,count,0);
+        int row=pdfViewer.GetState().page;
+        if(pdfBookmarksOnly){row=-1;int i=0;if(f)for(int n:f->bookmarks)if(n<pdfViewer.PageCount()){if(n==pdfViewer.GetState().page)row=i;++i;}}
+        SendMessageW(pdfPages,LB_SETCURSEL,row,0);
+        if(GetFocus()!=pdfGoto)SetWindowTextW(pdfGoto,std::to_wstring(pdfViewer.GetState().page+1).c_str());
+    }
+    SendMessageW(cueList,LB_SETCURSEL,scriptSections.empty()?-1:selectedCue,0);
+    if(textChanged){std::wstring text;if(!scriptSections.empty()){const auto& section=scriptSections[selectedCue];text=scriptDraft.substr(section.begin,section.end-section.begin);}
+        if(text!=shownCueText){shownCueText=text;SetWindowTextW(cueReader,text.c_str());SendMessageW(cueReader,EM_SETSEL,0,0);}shownSection=selectedCue;}
+    if(!textChanged&&shownPoints==readingTools.cuePoints&&shownWeight==preferences.textWeight&&shownColor==TEXT&&shownBackground==CARD)return;
+    shownPoints=readingTools.cuePoints;shownWeight=preferences.textWeight;shownColor=TEXT;shownBackground=CARD;SendMessageW(cueReader,EM_SETBKGNDCOLOR,0,CARD);
+    CHARFORMAT2W fmt{};fmt.cbSize=sizeof(fmt);fmt.dwMask=CFM_SIZE|CFM_COLOR|CFM_FACE|CFM_WEIGHT;
+    fmt.yHeight=readingTools.cuePoints*20;fmt.crTextColor=TEXT;fmt.wWeight=preferences.textWeight;wcscpy_s(fmt.szFaceName,L"Segoe UI");
+    POINT pos{};SendMessageW(cueReader,EM_GETSCROLLPOS,0,reinterpret_cast<LPARAM>(&pos));
+    SendMessageW(cueReader,EM_SETCHARFORMAT,SCF_ALL,reinterpret_cast<LPARAM>(&fmt));SendMessageW(cueReader,EM_SETSCROLLPOS,0,reinterpret_cast<LPARAM>(&pos));
+}
+void SyncCueToPage()
+{
+    if(Blocked()||!IsPdf()||!readingTools.sync)return;
+    const auto& path=documents.Active().canonicalPath;const int pageNumber=pdfViewer.GetState().page;
+    if(lastCuePath==path&&lastCuePage==pageNumber)return;
+    lastCuePath=path;lastCuePage=pageNumber;RefreshReadingTools();int best=-1,bestPage=-1;
+    for(size_t i=0;i<scriptSections.size();++i){const int linked=readingTools.LinkedPage(path,scriptSections[i]);if(linked>=0&&linked<=pageNumber&&linked>bestPage){best=static_cast<int>(i);bestPage=linked;}}
+    if(best>=0){selectedCue=best;RefreshReadingTools();}
+}
+void ReadingAction(int command)
+{
+    if(Blocked()||!IsPdf())return;if(command!=PDF_GOTO)RefreshReadingTools();
+    if(readingUnavailable)importError=T(L"QS-D001 - Không đọc được đánh dấu cũ. File lưu được giữ nguyên.",L"QS-D001 - Previous reading tools could not be read. Existing file preserved.");
+    switch(command){
+    case PDF_TOOLS:{
+        RECT anchor{};GetWindowRect(GetDlgItem(window,PDF_TOOLS),&anchor);ToolMenu menu;
+        const auto* f=readingTools.Find(documents.Active().canonicalPath);const int n=pdfViewer.GetState().page;
+        const bool marked=f&&std::find(f->bookmarks.begin(),f->bookmarks.end(),n)!=f->bookmarks.end();
+        const int chosen=menu.Show(window,anchor,dpi,uiFont,{
+            {PDF_PAGES,T(L"Ảnh thu nhỏ các trang",L"Page thumbnails"),true,0xeaf0,readingTools.pagesVisible&&!pdfBookmarksOnly},
+            {PDF_BOOKMARKS,T(L"Các trang đã đánh dấu",L"Bookmarked pages"),true,0xeaa5,pdfBookmarksOnly&&readingTools.pagesVisible},
+            {PDF_BOOKMARK,T(marked?L"Bỏ đánh dấu trang này":L"Đánh dấu trang này",marked?L"Unbookmark this page":L"Bookmark this page"),!readingUnavailable,0xeaa5,marked},
+            {PDF_PAGE,T(L"Đến trang...",L"Go to page..."),true,0xea9c},
+            {CUE_TOGGLE,T(L"Lời nhắc theo trang",L"Page-linked script"),true,0xea73,readingTools.cuesVisible},
+            {CUE_SYNC,T(L"Đồng bộ lời nhắc với PDF",L"Sync script with PDF"),true,0xeb37,readingTools.sync}});
+        if(chosen)ReadingAction(chosen);return;}
+    case PDF_PAGE:readingTools.pagesVisible=true;pdfBookmarksOnly=false;Layout();SetFocus(pdfGoto);SendMessageW(pdfGoto,EM_SETSEL,0,-1);return;
+    case PDF_PAGES:readingTools.pagesVisible=!readingTools.pagesVisible||pdfBookmarksOnly;pdfBookmarksOnly=false;break;
+    case PDF_BOOKMARKS:readingTools.pagesVisible=true;pdfBookmarksOnly=true;break;
+    case PDF_BOOKMARK:{if(readingUnavailable)break;auto& marks=readingTools.For(documents.Active().canonicalPath).bookmarks;const int n=pdfViewer.GetState().page;
+        auto found=std::find(marks.begin(),marks.end(),n);if(found!=marks.end())marks.erase(found);else if(marks.size()<64){marks.push_back(n);std::sort(marks.begin(),marks.end());}
+        else {importError=T(L"QS-D002 - Tối đa 64 đánh dấu mỗi PDF.",L"QS-D002 - Up to 64 bookmarks per PDF.");break;}ReadingChanged();break;}
+    case PDF_GOTO:{const auto value=TextOf(pdfGoto);unsigned n=0;bool valid=!value.empty()&&value.size()<=5;
+        for(wchar_t c:value){if(c<L'0'||c>L'9'){valid=false;break;}n=n*10+c-L'0';}
+        if(!valid||!n||n>static_cast<unsigned>(pdfViewer.PageCount()))importError=T(L"QS-D003 - Nhập số trang trong PDF hiện tại.",L"QS-D003 - Enter a page number within this PDF.");
+        else {pdfViewer.GoToPage(static_cast<int>(n-1));importError.clear();SetFocus(pdfViewer.Window());SyncCueToPage();}break;}
+    case CUE_TOGGLE:readingTools.cuesVisible=!readingTools.cuesVisible;ReadingChanged();break;
+    case CUE_SYNC:readingTools.sync=!readingTools.sync;lastCuePage=-1;ReadingChanged();SyncCueToPage();break;
+    case CUE_SMALLER:case CUE_LARGER:readingTools.cuePoints=std::clamp(readingTools.cuePoints+(command==CUE_LARGER?2:-2),8,200);ReadingChanged();break;
+    case CUE_PREV:case CUE_NEXT:selectedCue=std::clamp(selectedCue+(command==CUE_NEXT?1:-1),0,std::max(0,static_cast<int>(scriptSections.size())-1));
+        if(readingTools.sync&&!scriptSections.empty()){const auto linked=readingTools.LinkedPage(documents.Active().canonicalPath,scriptSections[selectedCue]);
+            if(linked>=0&&linked<pdfViewer.PageCount()){lastCuePage=linked;lastCuePath=documents.Active().canonicalPath;pdfViewer.GoToPage(linked);}}break;
+    case CUE_LINK:if(!scriptSections.empty()&&!readingUnavailable){readingTools.Link(documents.Active().canonicalPath,scriptSections[selectedCue],pdfViewer.GetState().page);ReadingChanged();
+        importError=T(L"Đã gắn phần lời nhắc với trang PDF hiện tại.",L"Script section linked to the current PDF page.");}break;
+    }
+    if(!readingTools.pagesVisible)pdfViewer.ClearThumbnails();
+    RefreshReadingTools();Layout();InvalidateRect(pdfPages,nullptr,FALSE);
+}
+void FillMeetingList()
+{
+    if(!meetingList)return;meetingRows.clear();auto query=TextOf(meetingSearch);if(!query.empty())CharLowerBuffW(query.data(),static_cast<DWORD>(query.size()));
+    for(size_t i=0;i<meetingNotebook.segments.size();++i){const auto& segment=meetingNotebook.segments[i];
+        if((meetingFilter==1&&!segment.decision)||(meetingFilter==2&&!segment.action))continue;
+        auto hay=segment.speaker+L" "+segment.text;if(!hay.empty())CharLowerBuffW(hay.data(),static_cast<DWORD>(hay.size()));
+        if(query.empty()||hay.find(query)!=std::wstring::npos)meetingRows.push_back(i);}
+    SendMessageW(meetingList,LB_SETCOUNT,meetingRows.size(),0);int row=-1;for(size_t i=0;i<meetingRows.size();++i)if(static_cast<int>(meetingRows[i])==notebookSelection)row=static_cast<int>(i);
+    SendMessageW(meetingList,LB_SETCURSEL,row,0);InvalidateRect(meetingList,nullptr,FALSE);
+}
+bool CommitMeeting()
+{
+    if(updatingNotebook||notebookSelection<0||static_cast<size_t>(notebookSelection)>=meetingNotebook.segments.size())return true;
+    auto next=meetingNotebook.segments[notebookSelection];next.text=TextOf(meetingEditor);next.speaker=TrimMeetingLine(TextOf(meetingSpeaker));
+    next.start=MeetingTime(TrimMeetingLine(TextOf(meetingBegin)));next.end=MeetingTime(TrimMeetingLine(TextOf(meetingEnd)));
+    if(next.start< -1||next.end< -1||((next.start<0)!=(next.end<0))||(next.start>=0&&next.end<=next.start)){
+        transcriptionNotice=T(L"QS-N002 - Nhập giờ bắt đầu/kết thúc HH:MM:SS.mmm, hoặc để trống cả hai.",L"QS-N002 - Enter start/end as HH:MM:SS.mmm, or leave both blank.");UpdateMeetingReadout();return false;}
+    auto& old=meetingNotebook.segments[notebookSelection];
+    if(old.text!=next.text||old.speaker!=next.speaker||old.start!=next.start||old.end!=next.end){old=std::move(next);notebookDirty=true;}
+    return true;
+}
+bool SaveMeeting()
+{
+    KillTimer(window,8);if(notebookUnavailable)return true;if(!CommitMeeting())return false;
+    if(!notebookDirty)return true;
+    if(notebookUnavailable||!meetingNotebook.Valid()||!meetingNotebook.Save(dataDir)){
+        transcriptionNotice=T(L"QS-N005 - Chưa lưu được ghi chép. Kiểm tra quyền ghi và dung lượng.",L"QS-N005 - Notes could not be saved. Check write access and free space.");UpdateMeetingReadout();return false;}
+    notebookDirty=false;FillMeetingList();return true;
+}
+void SelectMeeting(int index)
+{
+    if(!CommitMeeting()){FillMeetingList();return;}
+    notebookSelection=index>=0&&static_cast<size_t>(index)<meetingNotebook.segments.size()?index:-1;
+    updatingNotebook=true;
+    if(notebookSelection>=0){const auto& s=meetingNotebook.segments[notebookSelection];SetWindowTextW(meetingEditor,s.text.c_str());SetWindowTextW(meetingSpeaker,s.speaker.c_str());
+        SetWindowTextW(meetingBegin,MeetingClock(s.start).c_str());SetWindowTextW(meetingEnd,MeetingClock(s.end).c_str());}
+    else for(HWND c:{meetingEditor,meetingSpeaker,meetingBegin,meetingEnd})SetWindowTextW(c,L"");
+    updatingNotebook=false;SendMessageW(meetingEditor,EM_SETREADONLY,notebookSelection<0||notebookUnavailable,0);FillMeetingList();UpdateMeetingReadout();
+}
+bool AdoptMeeting(const std::wstring& text,const std::wstring& path,bool provider)
+{
+    if(notebookUnavailable){transcriptionNotice=T(L"QS-N001 - Không đọc được ghi chép cũ. Bản lưu được giữ nguyên.",L"QS-N001 - Previous notes could not be read. Existing file preserved.");return false;}
+    if(!SaveMeeting())return false;
+    MeetingNotebook next;if(!next.Parse(text,path,provider&&meetingSettings.provider!=MeetingProvider::Generic)){transcriptionNotice=T(L"QS-N004 - Không có transcript hợp lệ hoặc vượt giới hạn.",L"QS-N004 - No valid transcript, or the input exceeds the limits.");return false;}
+    const auto target=dataDir+L"\\meeting-notes.dpapi";
+    if(GetFileAttributesW(target.c_str())!=INVALID_FILE_ATTRIBUTES&&!CopyFileW(target.c_str(),(dataDir+L"\\meeting-notes-before-import.dpapi").c_str(),FALSE)){
+        transcriptionNotice=T(L"QS-N005 - Không tạo được bản dự phòng ghi chép.",L"QS-N005 - A notes recovery copy could not be created.");return false;}
+    if(!next.Save(dataDir)){transcriptionNotice=T(L"QS-N005 - Không lưu được transcript mới. Giữ nguyên ghi chép cũ.",L"QS-N005 - The new transcript could not be saved. Previous notes preserved.");return false;}
+    notebookSelection=-1;meetingNotebook=std::move(next);notebookDirty=false;lastMeetingExport=path;
+    if(!path.empty()){recentWorkspace.Touch(path,false);PersistRecent();}SelectMeeting(meetingNotebook.segments.empty()?-1:0);
+    transcriptionNotice=T(L"Đã lưu transcript trong Cuộc họp.",L"Transcript saved in Meetings.");return true;
+}
+void MeetingPreflight()
+{
+    playbackReady=MeetingRecorder::PlaybackAvailable(&preflightPeak);
+    speechReady=SpeechRuntimeReady(dataDir,meetingSettings.speechModel);
+    windowsSpeechReady=MeetingTranscriber::LanguageAvailable(preferences.transcriptionLanguage==1?TranscriptionLanguage::English:TranscriptionLanguage::Vietnamese);
+    UpdateMeetingReadout();
+}
+void UpdateMeetingReadout()
+{
+    if(!window)return;
+    SetWindowTextW(GetDlgItem(window,NAV_MEETING),T(L"Cuộc họp",L"Meetings"));SetTip(NAV_MEETING,T(L"Cuộc họp",L"Meetings"));
+    if(meetingSearch)SendMessageW(meetingSearch,EM_SETCUEBANNER,TRUE,reinterpret_cast<LPARAM>(T(L"Tìm đoạn...",L"Find segments...")));
+    static COLORREF editorColor=CLR_INVALID,editorBackground=CLR_INVALID;
+    if(meetingEditor&&(editorColor!=TEXT||editorBackground!=CARD)){const bool previousUpdate=updatingNotebook;updatingNotebook=true;editorColor=TEXT;editorBackground=CARD;POINT pos{};SendMessageW(meetingEditor,EM_GETSCROLLPOS,0,reinterpret_cast<LPARAM>(&pos));
+        SendMessageW(meetingEditor,EM_SETBKGNDCOLOR,0,CARD);CHARFORMAT2W format{};format.cbSize=sizeof(format);format.dwMask=CFM_COLOR;format.crTextColor=TEXT;
+        SendMessageW(meetingEditor,EM_SETCHARFORMAT,SCF_ALL,reinterpret_cast<LPARAM>(&format));SendMessageW(meetingEditor,EM_SETSCROLLPOS,0,reinterpret_cast<LPARAM>(&pos));updatingNotebook=previousUpdate;}
+    std::wstring state;
+    if(speechInstaller.Running())state=T(L"Đang cài Whisper: ",L"Installing Whisper: ")+std::to_wstring(speechInstaller.Progress())+L"%";
+    else if(meetingTranscriber.Running())state=meetingTranscriber.Status(english)+T(L" - Có thể dừng xử lý.",L" - Processing can be stopped.");
+    else if(meetingRecorder.Running())state=meetingRecorder.Status(english)+L"\r\n"+T(L"Mức âm thanh: ",L"Playback level: ")+std::to_wstring(meetingRecorder.LevelPercent())+L"%";
+    else state=(playbackReady?T(L"Đầu ra Windows: sẵn sàng",L"Windows playback: ready"):T(L"Đầu ra Windows: chưa sẵn sàng",L"Windows playback: unavailable"))+
+        std::wstring(L" | ")+(speechReady?L"Whisper":windowsSpeechReady?L"Windows Speech":T(L"Chưa cài nhận dạng - QS-R004",L"Recognizer missing - QS-R004"));
+    if(notebookUnavailable)state+=T(L"\r\nQS-N001 - Ghi chép cũ không đọc được, được giữ nguyên.",L"\r\nQS-N001 - Previous notes unreadable, existing file preserved.");
+    else if(!transcriptionNotice.empty()){RECT r{};GetClientRect(window,&r);if(MulDiv(r.bottom,96,dpi)<420)state=transcriptionNotice;else state+=L"\r\n"+transcriptionNotice;}
+    if(TextOf(GetDlgItem(window,MEETING_STATUS))!=state)SetWindowTextW(GetDlgItem(window,MEETING_STATUS),state.c_str());
+    const bool busy=meetingRecorder.Running()||meetingTranscriber.Running()||speechInstaller.Running();
+    EnableWindow(GetDlgItem(window,SPEECH_SETUP),!busy);EnableWindow(GetDlgItem(window,SPEECH_MODEL),!busy);
+    EnableWindow(GetDlgItem(window,MEETING_CANCEL),meetingTranscriber.Running()||speechInstaller.Running());
+    const bool editable=!Blocked()&&!notebookUnavailable&&notebookSelection>=0;
+    for(int id:{MEETING_SAVE,MEETING_DECISION,MEETING_ACTION,MEETING_DELETE})EnableWindow(GetDlgItem(window,id),editable);
+    for(HWND c:{meetingSpeaker,meetingBegin,meetingEnd})EnableWindow(c,editable);
+    EnableWindow(GetDlgItem(window,MEETING_EXPORT),!shuttingDown);
+    for(int id:{MEETING_ADD,MEETING_IMPORT})EnableWindow(GetDlgItem(window,id),!Blocked()&&!notebookUnavailable);
+    const auto label=[&](int id,const wchar_t* vi,const wchar_t* en){SetWindowTextW(GetDlgItem(window,id),T(vi,en));};
+    label(MEETING_VIEW_LIST,L"Các đoạn",L"Segments");label(MEETING_VIEW_EDIT,L"Nội dung",L"Content");label(MEETING_VIEW_META,L"Người / giờ",L"Speaker / time");
+    label(MEETING_SAVE,L"Lưu đoạn",L"Save segment");label(MEETING_EXPORT,L"Xuất / thêm",L"Export / more");label(MEETING_CHECK,L"Kiểm tra",L"Check setup");
+    label(SPEECH_SETUP,L"Cài Whisper",L"Install Whisper");label(SPEECH_MODEL,meetingSettings.speechModel?L"Small · 466 MiB":L"Base · 142 MiB",meetingSettings.speechModel?L"Small · 466 MiB":L"Base · 142 MiB");
+    label(MEETING_ADD,L"Thêm đoạn",L"Add segment");label(MEETING_DELETE,L"Xóa đoạn",L"Delete segment");label(MEETING_CANCEL,L"Dừng xử lý",L"Cancel task");
+    label(SPEAKER_LABEL,L"Người nói",L"Speaker");label(TIME_LABEL,L"Giờ đầu / cuối",L"Start / end");
+    const MeetingSegment* s=editable?&meetingNotebook.segments[notebookSelection]:nullptr;
+    label(MEETING_DECISION,s&&s->decision?L"Quyết định: có":L"Quyết định",s&&s->decision?L"Decision: on":L"Decision");
+    label(MEETING_ACTION,s&&s->action?L"Việc: có":L"Việc cần làm",s&&s->action?L"Action: on":L"Action item");
+    const wchar_t* filtersVi[]={L"Tất cả",L"Quyết định",L"Việc cần làm"};const wchar_t* filtersEn[]={L"All segments",L"Decisions",L"Action items"};
+    SetWindowTextW(GetDlgItem(window,MEETING_FILTER),english?filtersEn[meetingFilter]:filtersVi[meetingFilter]);
+}
+void OpenMeeting(){Pause();focusMode=false;page=Page::Meeting;MeetingPreflight();FillMeetingList();if(notebookSelection<0&&!meetingNotebook.segments.empty())SelectMeeting(0);Layout();}
+void ExportMeeting(int format)
+{
+    if(Blocked()||!SaveMeeting()||meetingNotebook.segments.empty())return;
+    const auto text=format==1?meetingNotebook.Vtt():format==2?meetingNotebook.Minutes(english):meetingNotebook.Text();
+    if(text.empty()){transcriptionNotice=T(L"QS-N003 - VTT cần giờ bắt đầu/kết thúc của mọi đoạn. Có thể xuất TXT.",L"QS-N003 - VTT needs start/end times for every segment. TXT remains available.");UpdateMeetingReadout();return;}
+    CreateDirectoryW(meetingSettings.outputDirectory.c_str(),nullptr);std::wstring folder,error;
+    if(!CanonicalLocalPath(meetingSettings.outputDirectory,true,folder,error)){transcriptionNotice=T(L"QS-N005 - Thư mục xuất chưa ghi được.",L"QS-N005 - Output folder is not writable.");UpdateMeetingReadout();return;}
+    const auto target=folder+L"\\Meeting-notes-"+std::to_wstring(GetTickCount64())+(format==1?L".vtt":format==2?L".md":L".txt");
+    const int n=WideCharToMultiByte(CP_UTF8,WC_ERR_INVALID_CHARS,text.data(),static_cast<int>(text.size()),nullptr,0,nullptr,nullptr);std::string bytes(std::max(0,n),'\0');
+    bool ok=n>0&&WideCharToMultiByte(CP_UTF8,WC_ERR_INVALID_CHARS,text.data(),static_cast<int>(text.size()),bytes.data(),n,nullptr,nullptr);
+    HANDLE file=ok?CreateFileW(target.c_str(),GENERIC_WRITE,0,nullptr,CREATE_NEW,FILE_ATTRIBUTE_NORMAL,nullptr):INVALID_HANDLE_VALUE;DWORD written=0;
+    if(file!=INVALID_HANDLE_VALUE){ok=WriteFile(file,bytes.data(),static_cast<DWORD>(bytes.size()),&written,nullptr)&&written==bytes.size()&&FlushFileBuffers(file);CloseHandle(file);if(!ok)DeleteFileW(target.c_str());}else ok=false;
+    if(ok){lastMeetingExport=target;recentWorkspace.Touch(target,false);PersistRecent();transcriptionNotice=T(L"Đã xuất: ",L"Exported: ")+target;}
+    else transcriptionNotice=T(L"QS-N005 - Không lưu được file xuất. Kiểm tra quyền ghi và dung lượng.",L"QS-N005 - Export failed. Check write access and free space.");UpdateMeetingReadout();
+}
+void MeetingAction(int command)
+{
+    if(command==NAV_MEETING){OpenMeeting();return;}
+    if(command==MEETING_CHECK){MeetingPreflight();return;}
+    if(command==MEETING_CANCEL){meetingTranscriber.Stop();speechInstaller.Stop();transcriptionHandled=true;speechInstallSeen=true;transcriptionNotice=T(L"QS-R006 - Đã dừng xử lý. Bản ghi được giữ nguyên.",L"QS-R006 - Processing stopped. Recording preserved.");Layout();return;}
+    if(command==SPEECH_SETUP){if(meetingRecorder.Running()||meetingTranscriber.Running()||speechInstaller.Running())return;
+        if(speechInstaller.Start(dataDir,meetingSettings.speechModel)){speechInstallSeen=false;transcriptionNotice.clear();SetTimer(window,MEETING_TIMER,500,nullptr);}Layout();return;}
+    if(command==SPEECH_MODEL){if(meetingRecorder.Running()||meetingTranscriber.Running()||speechInstaller.Running())return;
+        meetingSettings.speechModel=1-meetingSettings.speechModel;SaveMeetingSettings(dataDir,meetingSettings);MeetingPreflight();return;}
+    if(command==MEETING_EXPORT){
+        RECT anchor{};GetWindowRect(GetDlgItem(window,MEETING_EXPORT),&anchor);ToolMenu menu;const bool safe=!Blocked()&&!notebookUnavailable;
+        const int chosen=menu.Show(window,anchor,dpi,uiFont,{
+            {1,T(L"Xuất transcript TXT",L"Export transcript TXT"),safe,0xeb4b},{2,T(L"Xuất transcript VTT",L"Export transcript VTT"),safe,0xeb4b},
+            {3,T(L"Xuất biên bản: quyết định và việc cần làm",L"Export minutes: decisions and action items"),safe,0xeb4b},
+            {4,T(L"Thêm transcript vào lời nhắc",L"Append transcript to the script"),safe,0xea73},{5,T(L"Mở file vừa xuất trong QuietShare",L"Open last export in QuietShare"),safe&&!lastMeetingExport.empty(),0xeaf0},
+            {6,T(L"Thêm đoạn ghi chép",L"Add a notes segment"),safe,0xea60},{7,T(L"Xóa đoạn đang chọn",L"Delete selected segment"),safe&&notebookSelection>=0,0xea76},
+            {8,T(L"Nhập transcript Teams / Zoom / Meet",L"Import Teams / Zoom / Meet transcript"),safe,0xeaf7},
+            {9,T(L"Kiểm tra nguồn âm thanh và nhận dạng",L"Check playback and recognition"),true,0xeb77},
+            {10,T(L"Cài / sửa Whisper cục bộ",L"Install / repair local Whisper"),!meetingRecorder.Running()&&!meetingTranscriber.Running()&&!speechInstaller.Running(),0xeb51},
+            {11,T(L"Cài đặt cuộc họp",L"Meeting settings"),true,0xeb51}});
+        if(chosen>=1&&chosen<=3)ExportMeeting(chosen-1);
+        else if(chosen==4){if(CommitMeeting()&&meetingNotebook.Text().size()+scriptDraft.size()<=500000){AppendMeetingTranscript(meetingNotebook.Text(),L"");cuesDirty=true;}}
+        else if(chosen==5)OpenContentPath(lastMeetingExport);
+        else if(chosen==6||chosen==7)MeetingAction(chosen==6?MEETING_ADD:MEETING_DELETE);
+        else if(chosen==8)ImportMeetingFile();else if(chosen==9)MeetingPreflight();else if(chosen==10)MeetingAction(SPEECH_SETUP);
+        else if(chosen==11){settingsCategory=1;settingsOffset=0;page=Page::Settings;Layout();}
+        return;
+    }
+    if(Blocked()||notebookUnavailable)return;
+    if(command==MEETING_SAVE){SaveMeeting();UpdateMeetingReadout();return;}
+    if(command==MEETING_FILTER){meetingFilter=(meetingFilter+1)%3;FillMeetingList();UpdateMeetingReadout();return;}
+    if(!CommitMeeting())return;
+    if(command==MEETING_ADD){if(meetingNotebook.segments.size()>=MeetingNotebook::Limit)return;meetingNotebook.segments.push_back({});notebookDirty=true;SelectMeeting(static_cast<int>(meetingNotebook.segments.size()-1));meetingView=1;Layout();SetFocus(meetingEditor);}
+    else if(command==MEETING_DELETE&&notebookSelection>=0){meetingNotebook.segments.erase(meetingNotebook.segments.begin()+notebookSelection);notebookSelection=-1;notebookDirty=true;SelectMeeting(meetingNotebook.segments.empty()?-1:0);}
+    else if((command==MEETING_DECISION||command==MEETING_ACTION)&&notebookSelection>=0){auto& s=meetingNotebook.segments[notebookSelection];if(command==MEETING_DECISION)s.decision=!s.decision;else s.action=!s.action;notebookDirty=true;FillMeetingList();UpdateMeetingReadout();}
+
+    if(notebookDirty)SetTimer(window,8,1000,nullptr);UpdateMeetingReadout();
+}
 void RefreshQuick()
 {
     if(!quickList)return;
@@ -1834,6 +2168,7 @@ void RefreshQuick()
     if(page==Page::Quick) {
         for(const auto& d:documents.Items())if(d->id||!scriptDraft.empty())add(d->id?d->displayName:T(L"Lời nhắc",L"Script"),d->id?d->canonicalPath:T(L"Lời nhắc cục bộ",L"Local script"),0,d->id);
         for(const auto& t:browser.Tabs())add(t.title.empty()?t.address:t.title,t.address,1,t.id);
+        add(T(L"Cuộc họp",L"Meetings"),T(L"Ghi âm, transcript, quyết định và việc cần làm",L"Recording, transcript, decisions and action items"),3,NAV_MEETING);
         add(T(L"Bộ thuyết trình",L"Presentation sets"),T(L"Lưu và mở lại bộ tài liệu",L"Save and reopen a collection"),3,SET_LIBRARY);
         add(T(L"Trình chiếu và xem trước",L"Projection and live preview"),T(L"Nguồn, đích, mã lỗi và cách xử lý",L"Source, destination, error and recovery"),3,NAV_PRESENTATION);
         add(T(L"Đổi sáng / tối",L"Toggle light / dark"),T(L"Chủ đề đơn sắc",L"Monochrome appearance"),3,THEME_TOGGLE);
@@ -1890,7 +2225,7 @@ void LoadPresentationSet(size_t index)
     if(!SaveNotes()||!CopyFileW((dataDir+L"\\notes.dpapi").c_str(),(dataDir+L"\\notes-before-set.dpapi").c_str(),FALSE)){
         workspaceNotice=T(L"QS-W006 - Không tạo được bản dự phòng lời nhắc. Giữ nguyên phiên.",L"QS-W006 - Cannot back up the script. Current session preserved.");Layout();return;}
     Pause();documentHost.CloseExternal();documents.CloseAllFiles();reloadPending=0;findVisible=false;
-    scriptDraft=saved.script;auto* script=documents.Get(0);script->content.text=scriptDraft;script->state=saved.scriptView;scriptReading=false;
+    cuesDirty=true;scriptDraft=saved.script;auto* script=documents.Get(0);script->content.text=scriptDraft;script->state=saved.scriptView;scriptReading=false;
     unsigned missing=0;DocumentId active=0;
     for(size_t i=0;i<saved.files.size();++i){auto result=documents.Open(saved.files[i].path,importError);
         if(result){documents.Active().state=saved.files[i].view;recentWorkspace.Touch(documents.Active().canonicalPath,false);if(saved.active==i+1)active=result.id;}else ++missing;
@@ -2076,6 +2411,7 @@ void LayoutMenu()
         {NAV_SCRIPT,T(L"Tệp đang mở",L"Open files"),!Blocked(),0xeaf0},
         {HOME_SCRIPT,T(L"Soạn lời nhắc",L"Compose script"),!Blocked(),0xea73},
         {NAV_BROWSER,T(L"Trình duyệt",L"Browser"),true,0xeb01},
+        {NAV_MEETING,T(L"Cuộc họp",L"Meetings"),true,0xeba7},
         {NAV_PRESENTATION,T(L"Trình chiếu",L"Presentation"),true,0xea7a},
         {NAV_SETTINGS,T(L"Cài đặt",L"Settings"),true,0xeb51}};
     RECT anchor{};GetWindowRect(GetDlgItem(window,LAYOUT_MENU),&anchor);
@@ -2167,7 +2503,7 @@ void Paint(HDC dc)
     if(page==Page::Settings){title.left=settingsViewport.left+S(16);title.right=settingsViewport.right-S(16);}
     if(page==Page::Home){title.right=S(contentRight-132);title.top=S(homeCompact?8:28);title.bottom=S(homeCompact?36:62);}
     if(!focusMode && page!=Page::Content && !(page==Page::Browser&&browser.Enabled()))DrawTextAt(dc,page==Page::Home?T(L"Trang chủ",L"Home"):
-        page==Page::Settings?T(L"Cài đặt",L"Settings"):page==Page::Browser?T(L"Trình duyệt",L"Browser"):page==Page::Quick?T(L"Chuyển nhanh",L"Quick switch"):
+        page==Page::Settings?T(L"Cài đặt",L"Settings"):page==Page::Meeting?T(L"Cuộc họp",L"Meetings"):page==Page::Browser?T(L"Trình duyệt",L"Browser"):page==Page::Quick?T(L"Chuyển nhanh",L"Quick switch"):
         page==Page::Sets?T(L"Bộ thuyết trình",L"Presentation sets"):T(L"Trình chiếu",L"Presentation"),title,TEXT,page==Page::Home&&homeCompact?brandFont:titleFont,DT_LEFT|DT_VCENTER|DT_SINGLELINE|DT_END_ELLIPSIS);
     if(page==Page::Content || focusMode) {
         FillRoundRect(dc,contentCardRect,CARD,S(2));
@@ -2277,6 +2613,7 @@ void Paint(HDC dc)
         if(projectionStepsBounds.bottom>projectionStepsBounds.top)DrawTextAt(dc,steps,projectionStepsBounds,MUTED,metaFont,DT_LEFT|DT_WORDBREAK);
         // The native status child exposes this fixed diagnostic text to assistive tools.
     }
+    else if(page==Page::Meeting) {if(Blocked())DrawCenteredMessage(dc,contentCardRect,T(L"Transcript đang khóa",L"Transcript locked"),T(L"Kiểm tra WGC để xem nội dung.",L"Verify WGC to view the content."));}
     else if(page==Page::Quick||page==Page::Sets) {
         if(Blocked())DrawCenteredMessage(dc,contentCardRect,T(L"Nội dung đang khóa",L"Content locked"),T(L"Kiểm tra WGC để mở thư viện.",L"Verify WGC to open the library."));
         else if(quickEntries.empty()){RECT r{};GetWindowRect(quickList,&r);MapWindowPoints(nullptr,window,reinterpret_cast<POINT*>(&r),2);InflateRect(&r,-S(12),-S(12));
@@ -2286,6 +2623,7 @@ void Paint(HDC dc)
     RECT footer{S(contentLeft),client.bottom-S(20),S(contentRight),client.bottom-S(2)};
     std::wstring label=projectionStoppedNotice?T(L"Trình chiếu đã dừng - xem Cài đặt > Trình chiếu.",L"Projection stopped - see Settings > Projection."):
         Blocked()?T(L"Nội dung đang khóa",L"Content locked"):
+        page==Page::Meeting?std::to_wstring(meetingNotebook.segments.size())+T(L" đoạn ghi chép",L" notes segments"):
         meetingTranscriber.Running()?meetingTranscriber.Status(english):!transcriptionNotice.empty()?transcriptionNotice:
         (meetingRecorder.Running()||meetingRecorder.ErrorCode()!=0)?meetingRecorder.Status(english):page==Page::Browser?(browser.Ready()?browser.Status(english):L""):
         (page==Page::Quick||page==Page::Sets)&&!workspaceNotice.empty()?workspaceNotice:
@@ -2301,7 +2639,7 @@ void Paint(HDC dc)
 void DrawActionIcon(HDC dc,int id,RECT r,COLORREF color)
 {
     wchar_t glyph=id==SMALLER?0xeb3b:id==LARGER?0xea60:id==FOCUS?(focusMode?0xeb4d:0xeb4c):
-        id==MASK?(masked?0xeae7:0xea70):id==QUICK_SWITCH?0xea6d:id==THEME_TOGGLE?0xeac6:id==WEB_NEW_TAB?0xea60:id==TOPMOST||id==PIN_WINDOW?0xeb2b:id==OPEN_FILE?0xea7f:
+        id==PDF_TOOLS?0xea7c:id==PDF_GOTO?0xea9c:id==CUE_PREV?0xeab5:id==CUE_NEXT?0xeab6:id==MASK?(masked?0xeae7:0xea70):id==QUICK_SWITCH?0xea6d:id==THEME_TOGGLE?0xeac6:id==WEB_NEW_TAB?0xea60:id==TOPMOST||id==PIN_WINDOW?0xeb2b:id==OPEN_FILE?0xea7f:
         id==PLAY?(running?0xead1:0xeb2c):id==MODE?0xea73:id==OVERFLOW||id==WEB_MENU?0xea7c:id==LAYOUT_MENU?0xebeb:id==SHOW_TREE?0xea76:
         id==BROWSER_TOGGLE||id==FIND_CLOSE?0xea76:id==WEB_GO?0xea9c:
         id==WEB_ZOOM_OUT||id==OPACITY_LESS||id==ICON_SMALLER?0xeb3b:
@@ -2396,7 +2734,7 @@ void DrawButtonContents(DRAWITEMSTRUCT *item)
         return;
     }
     bool disabled = (item->itemState & ODS_DISABLED) != 0;
-    const bool railAction=(item->CtlID==VERIFY_PRIVACY||item->CtlID==MIRROR_ACTION||item->CtlID==MEETING_RECORD)&&item->rcItem.right<=S(48);
+    const bool railAction=(item->CtlID==VERIFY_PRIVACY||item->CtlID==MIRROR_ACTION||item->CtlID==NAV_MEETING)&&item->rcItem.right<=S(48);
     const bool category=(item->CtlID>=SETTINGS_APPEARANCE&&item->CtlID<=SETTINGS_KEYS)||item->CtlID==SETTINGS_BROWSER;
     bool nav = railAction||item->CtlID == NAV_SCRIPT || item->CtlID == NAV_READ || item->CtlID == NAV_HOME || item->CtlID == NAV_SETTINGS || item->CtlID==NAV_PRESENTATION || item->CtlID==NAV_BROWSER;
     bool activeNav = (item->CtlID == NAV_SCRIPT && page == Page::Content) ||
@@ -2404,7 +2742,8 @@ void DrawButtonContents(DRAWITEMSTRUCT *item)
                      (item->CtlID == NAV_HOME && page == Page::Home) ||
                      (item->CtlID == NAV_SETTINGS && page == Page::Settings) || (item->CtlID==NAV_PRESENTATION && page==Page::Presentation) || (item->CtlID==NAV_BROWSER&&page==Page::Browser) ||
                      (category&&settingsCategory==(item->CtlID==SETTINGS_BROWSER?5:item->CtlID-SETTINGS_APPEARANCE))||(item->CtlID==MIRROR_ACTION&&mirror&&mirror->Running())||
-                     (item->CtlID==MEETING_RECORD&&meetingRecorder.Running());
+                     (item->CtlID==NAV_MEETING&&(meetingRecorder.Running()||page==Page::Meeting))||
+                     (page==Page::Meeting&&item->CtlID==MEETING_VIEW_LIST+meetingView);
     bool primary = item->CtlID == PLAY || item->CtlID == OPEN_FILE || (item->CtlID==BROWSER_TOGGLE&&!browser.Enabled());
     bool pressed = (item->itemState & ODS_SELECTED) != 0;
     bool hover = hoveredButton == item->hwndItem && !disabled;
@@ -2443,8 +2782,8 @@ void DrawButtonContents(DRAWITEMSTRUCT *item)
         wchar_t glyph=item->CtlID==NAV_HOME?0xeb06:item->CtlID==NAV_SCRIPT?0xeaf0:
             item->CtlID==NAV_SETTINGS?0xeb51:item->CtlID==NAV_BROWSER?0xeb01:item->CtlID==VERIFY_PRIVACY?0xeab2:
             item->CtlID==MIRROR_ACTION?(mirror&&mirror->Running()?0xead1:0xeb2c):
-            item->CtlID==MEETING_RECORD?(meetingRecorder.Running()?0xeba5:0xeba7):0xea7a;
-        if(railAction&&!disabled&&((mirror&&mirror->IsVerified())||item->CtlID==MEETING_RECORD))
+            item->CtlID==NAV_MEETING?(meetingRecorder.Running()?0xeba5:0xeba7):0xea7a;
+        if(railAction&&!disabled&&((mirror&&mirror->IsVerified())||item->CtlID==NAV_MEETING))
             iconColor=item->CtlID==MIRROR_ACTION&&mirror->Running()?GREEN:
                 item->CtlID==VERIFY_PRIVACY?GREEN:meetingRecorder.Running()?RGB(220,80,72):TEXT;
         DrawCodicon(item->hDC,glyph,button,iconColor,S(16));
@@ -2454,9 +2793,9 @@ void DrawButtonContents(DRAWITEMSTRUCT *item)
     }
     else if(item->CtlID==RECENT_PREV||item->CtlID==RECENT_NEXT||item->CtlID==PDF_PREV||item->CtlID==PDF_NEXT)
         DrawCodicon(item->hDC,item->CtlID==RECENT_PREV||item->CtlID==PDF_PREV?0xea9b:0xea9c,button,disabled?DISABLED:TEXT,S(16));
-    else if(stepper||item->CtlID==WEB_MENU||item->CtlID==WEB_NEW_TAB||item->CtlID==WEB_GO||item->CtlID==WEB_ZOOM_OUT||item->CtlID==WEB_ZOOM_IN||item->CtlID==WEB_AUDIO||item->CtlID==MEETING_RECORD||
+    else if(stepper||item->CtlID==WEB_MENU||item->CtlID==WEB_NEW_TAB||item->CtlID==WEB_GO||item->CtlID==WEB_ZOOM_OUT||item->CtlID==WEB_ZOOM_IN||item->CtlID==WEB_AUDIO||
         (item->CtlID==BROWSER_TOGGLE&&page==Page::Browser&&browser.Enabled())||
-        item->CtlID==QUICK_SWITCH||item->CtlID==THEME_TOGGLE||item->CtlID==PIN_WINDOW||item->CtlID==LAYOUT_MENU||item->CtlID==SHOW_TREE || (strip && (item->CtlID==FOCUS || item->CtlID==MASK || item->CtlID==TOPMOST || item->CtlID==SMALLER || item->CtlID==LARGER || item->CtlID==MODE || item->CtlID==PLAY || item->CtlID==OPEN_FILE || item->CtlID==OVERFLOW || item->CtlID==FIND_CLOSE || item->CtlID==FIND_PREV || item->CtlID==FIND_NEXT)))
+        item->CtlID==PDF_TOOLS||item->CtlID==PDF_GOTO||item->CtlID==CUE_PREV||item->CtlID==CUE_NEXT||item->CtlID==QUICK_SWITCH||item->CtlID==THEME_TOGGLE||item->CtlID==PIN_WINDOW||item->CtlID==LAYOUT_MENU||item->CtlID==SHOW_TREE || (strip && (item->CtlID==FOCUS || item->CtlID==MASK || item->CtlID==TOPMOST || item->CtlID==SMALLER || item->CtlID==LARGER || item->CtlID==MODE || item->CtlID==PLAY || item->CtlID==OPEN_FILE || item->CtlID==OVERFLOW || item->CtlID==FIND_CLOSE || item->CtlID==FIND_PREV || item->CtlID==FIND_NEXT)))
         DrawActionIcon(item->hDC,item->CtlID,button,disabled?DISABLED:
             (item->CtlID==PIN_WINDOW||item->CtlID==TOPMOST)?(topmost?GREEN:MUTED):
             item->CtlID==WEB_AUDIO?(preferences.browserMuted?AMBER:TEXT):
@@ -2629,7 +2968,7 @@ LRESULT CALLBACK MonitorComboProc(HWND control,UINT message,WPARAM wp,LPARAM lp,
 LRESULT CALLBACK EditorProc(HWND control, UINT message, WPARAM wp, LPARAM lp)
 {
     if((message==WM_KEYDOWN||message==WM_SYSKEYDOWN)&&!(lp&(1L<<30))&&DispatchPreferenceShortcut((UINT)wp,ShortcutModifiers()))return 0;
-    if(message==WM_KEYDOWN&&wp==L'S'&&(GetKeyState(VK_CONTROL)&0x8000)){SaveFile();return 0;}
+        if(message==WM_KEYDOWN&&wp==L'S'&&(GetKeyState(VK_CONTROL)&0x8000)){if(page==Page::Meeting)SaveMeeting();else SaveFile();return 0;}
     if(Blocked() && (message==WM_COPY || message==WM_CUT || message==WM_PASTE))return 0;
     if (message == WM_PASTE && (Blocked() || reading || (viewingFile&&!preferences.allowFileEditing))) return 0;
     if (message == WM_PASTE && !reading && (!viewingFile||preferences.allowFileEditing) && !Blocked())
@@ -3177,6 +3516,22 @@ void QaTick()
             treeVisible=false;SetWindowPos(window,nullptr,0,0,S(840),S(560),SWP_NOMOVE|SWP_NOZORDER|SWP_NOACTIVATE);
             qaV04=OpenContentPath(qaDir+L"\\..\\qa-viewers\\unicode.pdf")&&IsPdf()&&qaV04;
             Capture(L"pdf-file.bmp");ToggleFocus();Capture(L"pdf-focus.bmp");ToggleFocus();
+            if(qaVisual){
+                const auto savedScript=scriptDraft;const auto savedReading=readingTools;
+                scriptDraft=L"# Mở đầu\r\nChào mừng mọi người. Hôm nay chúng ta xem kế hoạch quý tới.\r\n# Kết luận\r\nTổng hợp quyết định và các việc cần làm.";cuesDirty=true;
+                readingTools.pagesVisible=readingTools.cuesVisible=true;Layout();Capture(L"pdf-tools.bmp");
+                SetWindowPos(window,nullptr,0,0,S(430),S(320),SWP_NOMOVE|SWP_NOZORDER|SWP_NOACTIVATE);Layout();Capture(L"pdf-tools-minimum.bmp");
+                SendMessageW(window,WM_COMMAND,THEME_TOGGLE,0);Capture(L"pdf-tools-minimum-light.bmp");
+                SetWindowPos(window,nullptr,0,0,S(840),S(560),SWP_NOMOVE|SWP_NOZORDER|SWP_NOACTIVATE);Layout();Capture(L"pdf-tools-light.bmp");
+                SendMessageW(window,WM_COMMAND,THEME_TOGGLE,0);readingTools=savedReading;scriptDraft=savedScript;cuesDirty=true;
+                meetingNotebook.segments={{1000,4200,L"Minh",L"Chúng ta sẽ hoàn thành bản dùng thử vào thứ Sáu.",true,false},{5000,8200,L"An",L"Tôi sẽ gửi tài liệu hướng dẫn cho nhóm.",false,true}};
+                notebookSelection=-1;SelectMeeting(0);page=Page::Meeting;Layout();Capture(L"meeting.bmp");
+                SetWindowPos(window,nullptr,0,0,S(430),S(320),SWP_NOMOVE|SWP_NOZORDER|SWP_NOACTIVATE);
+                for(int view=0;view<3;++view){meetingView=view;Layout();Capture((L"meeting-minimum-"+std::to_wstring(view)+L".bmp").c_str());}
+                SendMessageW(window,WM_COMMAND,THEME_TOGGLE,0);Capture(L"meeting-minimum-light.bmp");
+                SetWindowPos(window,nullptr,0,0,S(840),S(560),SWP_NOMOVE|SWP_NOZORDER|SWP_NOACTIVATE);Layout();Capture(L"meeting-light.bmp");
+                SendMessageW(window,WM_COMMAND,THEME_TOGGLE,0);meetingNotebook.segments.clear();notebookSelection=-1;SelectMeeting(-1);notebookDirty=false;
+            }
             page=Page::Presentation;Layout();Capture(L"presentation.bmp");
             english=true;Layout();Capture(L"presentation-en.bmp");
             english=false;
@@ -3363,6 +3718,13 @@ LRESULT CALLBACK AddressInputProc(HWND control,UINT message,WPARAM wp,LPARAM lp,
     if(message==WM_NCDESTROY)RemovePropW(control,L"QuietShareSelectAll");
     return result;
 }
+LRESULT CALLBACK PrivateReaderInputProc(HWND control,UINT message,WPARAM wp,LPARAM lp,UINT_PTR,DWORD_PTR)
+{
+    if(message==WM_CONTEXTMENU)return 0;
+    if(Blocked()&&(message==WM_COPY||message==WM_CUT||message==WM_PASTE))return 0;
+    if(message==WM_KEYDOWN&&wp==L'S'&&(GetKeyState(VK_CONTROL)&0x8000)&&page==Page::Meeting){if(!Blocked())SaveMeeting();return 0;}
+    return DefSubclassProc(control,message,wp,lp);
+}
 LRESULT CALLBACK OpacityInputProc(HWND control,UINT message,WPARAM wp,LPARAM lp,UINT_PTR,DWORD_PTR)
 {
     const bool icon=control==iconSizeInput;
@@ -3429,7 +3791,8 @@ LRESULT CALLBACK Proc(HWND h, UINT message, WPARAM wp, LPARAM lp)
             {RESET_PREFERENCES,L"Khôi phục mặc định"},{MIRROR_ACTION,L"Bắt đầu trình chiếu"},
             {220,L"F8"},{221,L"Ctrl+Alt+Q"},{222,L"F9"},{223,L"F10"},{224,L"F11"},
             {225,L"Ctrl+O"},{226,L"Ctrl+Shift+O"},{227,L"Ctrl+B"},{228,L"Ctrl+Enter"},{229,L"Space"}};
-        labels.insert(labels.end(),{{QUICK_SWITCH,L"Chuyển nhanh"},{QUICK_OPEN,L"Mở"},{QUICK_BACK,L"Quay lại"},{SET_LIBRARY,L"Bộ thuyết trình"},{SET_SAVE,L"Lưu bộ"},{SET_DELETE,L"Xóa bộ"},
+        labels.insert(labels.end(),{{NAV_MEETING,L"Cuộc họp"},{MEETING_SAVE,L"Lưu đoạn"},{MEETING_DECISION,L"Quyết định"},{MEETING_ACTION,L"Việc cần làm"},{MEETING_EXPORT,L"Xuất"},
+            {MEETING_CHECK,L"Kiểm tra"},{SPEECH_SETUP,L"Cài Whisper"},{SPEECH_MODEL,L"Small"},{MEETING_ADD,L"Thêm đoạn"},{MEETING_DELETE,L"Xóa đoạn"},{MEETING_CANCEL,L"Dừng xử lý"},{MEETING_FILTER,L"Tất cả"},{MEETING_VIEW_LIST,L"Các đoạn"},{MEETING_VIEW_EDIT,L"Nội dung"},{MEETING_VIEW_META,L"Người / giờ"},{PDF_TOOLS,L"PDF"},{PDF_GOTO,L"Đến"},{CUE_PREV,L"Phần trước"},{CUE_NEXT,L"Phần sau"},{CUE_LINK,L"Gắn trang"},{CUE_SYNC,L"Đồng bộ"},{CUE_SMALLER,L"A-"},{CUE_LARGER,L"A+"},{QUICK_SWITCH,L"Chuyển nhanh"},{QUICK_OPEN,L"Mở"},{QUICK_BACK,L"Quay lại"},{SET_LIBRARY,L"Bộ thuyết trình"},{SET_SAVE,L"Lưu bộ"},{SET_DELETE,L"Xóa bộ"},
             {REFRESH_DISPLAYS,L"Làm mới"},{PREVIEW_TOGGLE,L"Xem trước"},{PROJECTION_HELP,L"Hướng xử lý"},{THEME_SELECT,L"Chủ đề màu"},{REMEMBER_SIZE,L"Nhớ kích thước cửa sổ"},{ALLOW_EDIT,L"Cho phép sửa file"},{SAVE_FILE,L"Lưu file"},
             {RECENT_CLEAR,L"Xóa lịch sử"},{RECENT_NEXT,L"Sau"},{RECENT_PREV,L"Trước"},{TRANSCRIPTION_LANGUAGE,L"Ngôn ngữ chép lời"},
             {SCRIPT_TAB_LABELS,L"Nhãn tab Lời nhắc"},{BROWSER_TAB_LABELS,L"Nhãn tab browser"},
@@ -3499,9 +3862,26 @@ LRESULT CALLBACK Proc(HWND h, UINT message, WPARAM wp, LPARAM lp)
         findInput=CreateWindowExW(0,L"EDIT",L"",WS_CHILD|WS_TABSTOP|ES_AUTOHSCROLL,0,0,0,0,h,(HMENU)FIND_INPUT,instance,nullptr);
         quickInput=CreateWindowExW(0,L"EDIT",L"",WS_CHILD|WS_TABSTOP|ES_AUTOHSCROLL,0,0,0,0,h,(HMENU)QUICK_INPUT,instance,nullptr);
         SendMessageW(quickInput,EM_SETLIMITTEXT,256,0);
+        pdfPages=CreateWindowExW(0,L"LISTBOX",L"PDF page thumbnails",WS_CHILD|WS_TABSTOP|WS_VSCROLL|LBS_NOTIFY|LBS_NODATA|LBS_NOINTEGRALHEIGHT|LBS_OWNERDRAWFIXED,0,0,0,0,h,(HMENU)PDF_PAGES,instance,nullptr);
+        pdfGoto=CreateWindowExW(0,L"EDIT",L"1",WS_CHILD|WS_TABSTOP|ES_NUMBER|ES_CENTER|ES_AUTOHSCROLL,0,0,0,0,h,(HMENU)PDF_GOTO_INPUT,instance,nullptr);SendMessageW(pdfGoto,EM_SETLIMITTEXT,5,0);
+        cueList=CreateWindowExW(0,L"LISTBOX",L"Script outline",WS_CHILD|WS_TABSTOP|WS_VSCROLL|LBS_NOTIFY|LBS_NOINTEGRALHEIGHT|LBS_OWNERDRAWFIXED|LBS_HASSTRINGS,0,0,0,0,h,(HMENU)CUE_LIST,instance,nullptr);
+        cueReader=CreateWindowExW(0,MSFTEDIT_CLASS,L"",WS_CHILD|WS_VSCROLL|WS_TABSTOP|ES_MULTILINE|ES_AUTOVSCROLL|ES_READONLY,0,0,0,0,h,(HMENU)CUE_READER,instance,nullptr);
+        SendMessageW(cueReader,EM_EXLIMITTEXT,0,500000);for(HWND child:{pdfPages,pdfGoto,cueList})SetWindowTheme(child,theme.dark?L"DarkMode_Explorer":L"Explorer",nullptr);
+
         quickList=CreateWindowExW(0,L"LISTBOX",L"",WS_CHILD|WS_TABSTOP|WS_VSCROLL|LBS_NOTIFY|LBS_NOINTEGRALHEIGHT|LBS_OWNERDRAWFIXED|LBS_HASSTRINGS,0,0,0,0,h,(HMENU)QUICK_LIST,instance,nullptr);
         setName=CreateWindowExW(0,L"EDIT",L"",WS_CHILD|WS_TABSTOP|ES_AUTOHSCROLL,0,0,0,0,h,(HMENU)SET_NAME,instance,nullptr);
         SendMessageW(setName,EM_SETLIMITTEXT,80,0);
+        meetingList=CreateWindowExW(0,L"LISTBOX",L"Meeting transcript segments",WS_CHILD|WS_TABSTOP|WS_VSCROLL|LBS_NODATA|LBS_NOTIFY|LBS_NOINTEGRALHEIGHT|LBS_OWNERDRAWFIXED,0,0,0,0,h,(HMENU)MEETING_LIST,instance,nullptr);
+        meetingEditor=CreateWindowExW(0,MSFTEDIT_CLASS,L"",WS_CHILD|WS_TABSTOP|WS_VSCROLL|ES_MULTILINE|ES_AUTOVSCROLL,0,0,0,0,h,(HMENU)MEETING_EDITOR,instance,nullptr);
+        SendMessageW(meetingEditor,EM_EXLIMITTEXT,0,MeetingNotebook::SegmentLimit);SendMessageW(meetingEditor,EM_SETEVENTMASK,0,ENM_CHANGE);
+        meetingSpeaker=CreateWindowExW(0,L"EDIT",L"",WS_CHILD|WS_TABSTOP|ES_AUTOHSCROLL,0,0,0,0,h,(HMENU)MEETING_SPEAKER,instance,nullptr);SendMessageW(meetingSpeaker,EM_SETLIMITTEXT,100,0);
+        meetingBegin=CreateWindowExW(0,L"EDIT",L"",WS_CHILD|WS_TABSTOP|ES_AUTOHSCROLL,0,0,0,0,h,(HMENU)MEETING_BEGIN,instance,nullptr);
+        meetingEnd=CreateWindowExW(0,L"EDIT",L"",WS_CHILD|WS_TABSTOP|ES_AUTOHSCROLL,0,0,0,0,h,(HMENU)MEETING_END,instance,nullptr);
+        for(HWND c:{meetingBegin,meetingEnd})SendMessageW(c,EM_SETLIMITTEXT,16,0);
+        meetingSearch=CreateWindowExW(0,L"EDIT",L"",WS_CHILD|WS_TABSTOP|ES_AUTOHSCROLL,0,0,0,0,h,(HMENU)MEETING_SEARCH,instance,nullptr);SendMessageW(meetingSearch,EM_SETLIMITTEXT,256,0);
+        for(HWND c:{pdfPages,pdfGoto,cueList,cueReader,meetingList,meetingEditor,meetingSpeaker,meetingBegin,meetingEnd,meetingSearch})SetWindowSubclass(c,PrivateReaderInputProc,1,0);
+        for(HWND c:{meetingEditor,cueReader})SendMessageW(c,EM_SETTEXTMODE,TM_PLAINTEXT|TM_MULTICODEPAGE,0);
+        for(int id:{MEETING_STATUS,SPEAKER_LABEL,TIME_LABEL})buttons.push_back(CreateWindowExW(0,L"STATIC",L"",WS_CHILD|WS_CLIPSIBLINGS|(id==MEETING_STATUS?SS_LEFT:SS_CENTERIMAGE),0,0,0,0,h,(HMENU)(INT_PTR)id,instance,nullptr));
         projectionPreview=CreateWindowExW(0,L"STATIC",L"Live projection preview",WS_CHILD|WS_CLIPSIBLINGS,0,0,0,0,h,(HMENU)PREVIEW_CANVAS,instance,nullptr);
         SetWindowSubclass(projectionPreview,ProjectionPreviewProc,1,0);
         HWND projectionStatus=CreateWindowExW(0,L"STATIC",L"",WS_CHILD|WS_CLIPSIBLINGS|SS_LEFT,0,0,0,0,h,(HMENU)PROJECTION_STATUS,instance,nullptr);
@@ -3719,10 +4099,37 @@ LRESULT CALLBACK Proc(HWND h, UINT message, WPARAM wp, LPARAM lp)
         auto measure=(MEASUREITEMSTRUCT*)lp;
         if(measure->CtlType==ODT_MENU){measure->itemWidth=S(280);measure->itemHeight=S(28);return TRUE;}
         if(measure->CtlType==ODT_COMBOBOX){measure->itemHeight=S(28);return TRUE;}
+        if(measure->CtlID==MEETING_LIST){measure->itemHeight=S(56);return TRUE;}
+        if(measure->CtlID==CUE_LIST){measure->itemHeight=S(26);return TRUE;}
+        if(measure->CtlID==PDF_PAGES){measure->itemHeight=S(142);return TRUE;}
         if(measure->CtlID==QUICK_LIST){measure->itemHeight=S(48);return TRUE;}
         break;
     }
     case WM_DRAWITEM:
+        if(((DRAWITEMSTRUCT*)lp)->CtlID==CUE_LIST){
+            auto* d=reinterpret_cast<DRAWITEMSTRUCT*>(lp);HBRUSH brush=CreateSolidBrush((d->itemState&ODS_SELECTED)?ACCENT_DARK:CARD);FillRect(d->hDC,&d->rcItem,brush);DeleteObject(brush);
+            if(!Blocked()&&d->itemID<scriptSections.size()){RECT label=d->rcItem;label.left+=S(8);label.right-=S(8);const auto& title=scriptSections[d->itemID].title;
+                DrawTextAt(d->hDC,title.empty()?T(L"Toàn bộ lời nhắc",L"Whole script"):title,label,TEXT,uiFont,DT_LEFT|DT_VCENTER|DT_SINGLELINE|DT_END_ELLIPSIS);
+                if(d->itemState&ODS_FOCUS)DrawFocusRect(d->hDC,&d->rcItem);}return TRUE;
+        }
+        if(((DRAWITEMSTRUCT*)lp)->CtlID==MEETING_LIST){
+            auto* d=reinterpret_cast<DRAWITEMSTRUCT*>(lp);HBRUSH brush=CreateSolidBrush((d->itemState&ODS_SELECTED)?ACCENT_DARK:CARD);FillRect(d->hDC,&d->rcItem,brush);DeleteObject(brush);
+            if(!Blocked()&&d->itemID<meetingRows.size()){const auto& segment=meetingNotebook.segments[meetingRows[d->itemID]];RECT label=d->rcItem;label.left+=S(8);label.right-=S(8);label.top+=S(4);label.bottom=label.top+S(22);
+                std::wstring meta=segment.start>=0?MeetingClock(segment.start):T(L"Chưa có mốc giờ",L"Untimed");if(!segment.speaker.empty())meta+=L" · "+segment.speaker;
+                if(segment.action)meta+=T(L" · Việc cần làm",L" · Action");if(segment.decision)meta+=T(L" · Quyết định",L" · Decision");
+                DrawTextAt(d->hDC,meta,label,MUTED,metaFont,DT_LEFT|DT_VCENTER|DT_SINGLELINE|DT_END_ELLIPSIS);
+                label.top+=S(24);label.bottom+=S(24);DrawTextAt(d->hDC,segment.text,label,TEXT,uiFont,DT_LEFT|DT_VCENTER|DT_SINGLELINE|DT_END_ELLIPSIS);
+            }return TRUE;
+        }
+        if(((DRAWITEMSTRUCT*)lp)->CtlID==PDF_PAGES){
+            auto* d=reinterpret_cast<DRAWITEMSTRUCT*>(lp);const int n=PageFromRow(static_cast<int>(d->itemID));
+            HBRUSH brush=CreateSolidBrush((d->itemState&ODS_SELECTED)?ACCENT_DARK:CARD);FillRect(d->hDC,&d->rcItem,brush);DeleteObject(brush);
+            if(!Blocked()&&IsPdf()&&n>=0&&n<pdfViewer.PageCount()){
+                RECT image=d->rcItem;image.left+=S(8);image.right-=S(8);image.top+=S(6);image.bottom-=S(24);
+                pdfViewer.DrawThumbnail(n,d->hDC,image);RECT caption=d->rcItem;caption.top=caption.bottom-S(22);
+                DrawTextAt(d->hDC,std::to_wstring(n+1),caption,TEXT,metaFont,DT_CENTER|DT_VCENTER|DT_SINGLELINE);
+            }return TRUE;
+        }
         if(((DRAWITEMSTRUCT*)lp)->CtlID==QUICK_LIST){
             auto* d=reinterpret_cast<DRAWITEMSTRUCT*>(lp);const bool selected=d->itemState&ODS_SELECTED;
             HBRUSH brush=CreateSolidBrush(selected?ACCENT_DARK:CARD);FillRect(d->hDC,&d->rcItem,brush);DeleteObject(brush);
@@ -3820,6 +4227,16 @@ LRESULT CALLBACK Proc(HWND h, UINT message, WPARAM wp, LPARAM lp)
         case 67:return mirror&&mirror->PreviewHasFrame();
         case 68:return page==Page::Presentation;
         case 69:return page==Page::Quick||page==Page::Sets;
+        case 70:return previewEnabled;
+        case 71:return mirror?mirror->PreviewSurfaceBytes():0;
+        case 72:return pdfViewer.ThumbnailCachedBytes();
+        case 73:return readingTools.pagesVisible;
+        case 74:return readingTools.cuesVisible;
+        case 75:return selectedCue;
+        case 76:return meetingNotebook.segments.size();
+        case 77:return notebookSelection;
+        case 78:return speechReady;
+        case 79:return page==Page::Meeting;
         case 65:{DWORD affinity=0;return GetWindowDisplayAffinity(window,&affinity)&&affinity==0x11;}
             case 60:return preferences.iconSize;
             case 61:return preferences.browserMuted;
@@ -3829,7 +4246,7 @@ LRESULT CALLBACK Proc(HWND h, UINT message, WPARAM wp, LPARAM lp)
         }
         return 0;
     case WM_APP+16:
-        if(!Blocked()){UpdateButtons();InvalidateRect(h,nullptr,FALSE);}
+        if(!Blocked()){if(IsPdf()){SyncCueToPage();if(readingTools.pagesVisible||readingTools.cuesVisible)RefreshReadingTools();}UpdateButtons();InvalidateRect(h,nullptr,FALSE);}
         return 0;
     case WM_APP+30:
         return MatchShortcut(preferences.Key(PreferenceCommand::Mask),(UINT)wp,ShortcutModifiers())&&!globalHotkeys.Registered(PreferenceCommand::Mask);
@@ -3864,7 +4281,7 @@ LRESULT CALLBACK Proc(HWND h, UINT message, WPARAM wp, LPARAM lp)
     case WM_CTLCOLOREDIT:
     case WM_CTLCOLORLISTBOX:
     case WM_CTLCOLORSTATIC:
-        if(GetDlgCtrlID((HWND)lp)==PROJECTION_STATUS||GetDlgCtrlID((HWND)lp)==WORKSPACE_STATUS||GetDlgCtrlID((HWND)lp)==QUICK_LABEL||GetDlgCtrlID((HWND)lp)==SET_LABEL){SetBkColor((HDC)wp,BG);SetTextColor((HDC)wp,MUTED);return (LRESULT)bgBrush;}
+        if(GetDlgCtrlID((HWND)lp)==PROJECTION_STATUS||GetDlgCtrlID((HWND)lp)==WORKSPACE_STATUS||GetDlgCtrlID((HWND)lp)==QUICK_LABEL||GetDlgCtrlID((HWND)lp)==SET_LABEL||GetDlgCtrlID((HWND)lp)==MEETING_STATUS||GetDlgCtrlID((HWND)lp)==SPEAKER_LABEL||GetDlgCtrlID((HWND)lp)==TIME_LABEL){SetBkColor((HDC)wp,BG);SetTextColor((HDC)wp,MUTED);return (LRESULT)bgBrush;}
         if((HWND)lp==homeVersion){SetBkColor((HDC)wp,page==Page::Home?HOME_BG:BG);SetTextColor((HDC)wp,MUTED);return (LRESULT)bgBrush;}
         if((HWND)lp==sizeInput||(HWND)lp==opacityInput||(HWND)lp==iconSizeInput){
             SetBkColor((HDC)wp,ELEVATED);SetTextColor((HDC)wp,TEXT);return (LRESULT)numberBrush;
@@ -3882,6 +4299,14 @@ LRESULT CALLBACK Proc(HWND h, UINT message, WPARAM wp, LPARAM lp)
         DragFinish(drop);Layout();return 0;
     }
     case WM_COMMAND:
+        if(LOWORD(wp)==MEETING_LIST&&HIWORD(wp)==LBN_DBLCLK&&!Blocked()){meetingView=1;Layout();SetFocus(meetingEditor);return 0;}
+        if(LOWORD(wp)==MEETING_SEARCH&&HIWORD(wp)==EN_CHANGE){FillMeetingList();return 0;}
+        if(LOWORD(wp)==MEETING_LIST&&HIWORD(wp)==LBN_SELCHANGE){if(!Blocked()){const auto row=SendMessageW(meetingList,LB_GETCURSEL,0,0);if(row>=0&&static_cast<size_t>(row)<meetingRows.size())SelectMeeting(static_cast<int>(meetingRows[row]));}return 0;}
+        if((LOWORD(wp)==MEETING_EDITOR||LOWORD(wp)==MEETING_SPEAKER||LOWORD(wp)==MEETING_BEGIN||LOWORD(wp)==MEETING_END)&&HIWORD(wp)==EN_CHANGE&&!updatingNotebook&&notebookSelection>=0&&!notebookUnavailable&&!Blocked()){notebookDirty=true;SetTimer(h,8,1000,nullptr);return 0;}
+        if(LOWORD(wp)==PDF_PAGES&&HIWORD(wp)==LBN_SELCHANGE){if(!Blocked()&&IsPdf()){pdfViewer.GoToPage(PageFromRow(static_cast<int>(SendMessageW(pdfPages,LB_GETCURSEL,0,0))));SyncCueToPage();RefreshReadingTools();}return 0;}
+        if(LOWORD(wp)==CUE_LIST&&HIWORD(wp)==LBN_SELCHANGE&&!updatingCues){if(!Blocked()&&IsPdf()){
+            const int n=static_cast<int>(SendMessageW(cueList,LB_GETCURSEL,0,0));if(n>=0&&n<static_cast<int>(scriptSections.size())){selectedCue=n;
+                if(readingTools.sync){const int linked=readingTools.LinkedPage(documents.Active().canonicalPath,scriptSections[n]);if(linked>=0){lastCuePage=linked;lastCuePath=documents.Active().canonicalPath;pdfViewer.GoToPage(linked);}}RefreshReadingTools();}}return 0;}
         if(LOWORD(wp)==QUICK_INPUT&&HIWORD(wp)==EN_CHANGE){RefreshQuick();return 0;}
         if(LOWORD(wp)==QUICK_LIST&&HIWORD(wp)==LBN_SELCHANGE){UpdateQuickActions();return 0;}
         if(LOWORD(wp)==QUICK_LIST&&HIWORD(wp)==LBN_DBLCLK){OpenQuickSelection();return 0;}
@@ -3901,7 +4326,7 @@ LRESULT CALLBACK Proc(HWND h, UINT message, WPARAM wp, LPARAM lp)
         }
         if (LOWORD(wp) == EDITOR && HIWORD(wp) == EN_CHANGE && !loading && !viewingFile)
         {
-            dirty = true;scriptDraft=TextOf(editor);documents.Get(0)->content.text=scriptDraft;
+            dirty = true;cuesDirty=true;scriptDraft=TextOf(editor);documents.Get(0)->content.text=scriptDraft;
             SetTimer(h, SAVE_TIMER, 900, nullptr);
             InvalidateRect(h, nullptr, FALSE);
         }
@@ -3948,9 +4373,21 @@ LRESULT CALLBACK Proc(HWND h, UINT message, WPARAM wp, LPARAM lp)
             else workspaceNotice=T(L"QS-W005 - Không cập nhật được thư viện. Kiểm tra quyền ghi.",L"QS-W005 - Cannot update the library. Check write access.");Layout();break;
         }
         case REFRESH_DISPLAYS:if(mirror)mirror->HandleDisplayChange();topologyKnown=TryGetDisplayCloned(cloned);UpdateMonitors();Layout();break;
-        case PREVIEW_TOGGLE:if(recoveryVisible){recoveryVisible=false;previewEnabled=true;}else previewEnabled=!previewEnabled;Layout();break;
+        case PREVIEW_TOGGLE:{
+            if(recoveryVisible){recoveryVisible=false;previewEnabled=true;}else previewEnabled=!previewEnabled;
+            DWORD record[]={0x50515357,1,previewEnabled?1u:0u};const auto target=dataDir+L"\\preview.dat",temp=target+L".tmp";
+            if(!qa&&(!WriteBytes(temp,record,sizeof(record))||!MoveFileExW(temp.c_str(),target.c_str(),MOVEFILE_REPLACE_EXISTING|MOVEFILE_WRITE_THROUGH)))
+                preferenceError=T(L"QS-W008 - Chưa lưu được lựa chọn xem trước. Chỉ áp dụng phiên này.",L"QS-W008 - Preview preference was not saved. Applied to this session.");
+            else preferenceError.clear();
+            Layout();break;}
+
         case PROJECTION_HELP:recoveryVisible=!recoveryVisible;Layout();break;
-        case SAVE_FILE:SaveFile();break;
+        case PDF_TOOLS:case PDF_PAGES:case PDF_PAGE:case PDF_GOTO:case PDF_BOOKMARK:case PDF_BOOKMARKS:
+        case CUE_TOGGLE:case CUE_SYNC:case CUE_PREV:case CUE_NEXT:case CUE_LINK:case CUE_SMALLER:case CUE_LARGER:ReadingAction(LOWORD(wp));break;
+        case MEETING_VIEW_LIST:case MEETING_VIEW_EDIT:case MEETING_VIEW_META:if(CommitMeeting()){meetingView=LOWORD(wp)-MEETING_VIEW_LIST;Layout();}break;
+        case NAV_MEETING:case MEETING_SAVE:case MEETING_DECISION:case MEETING_ACTION:case MEETING_EXPORT:case MEETING_CHECK:case SPEECH_SETUP:case SPEECH_MODEL:
+        case MEETING_ADD:case MEETING_DELETE:case MEETING_CANCEL:case MEETING_FILTER:MeetingAction(LOWORD(wp));break;
+        case SAVE_FILE:if(page==Page::Meeting)SaveMeeting();else SaveFile();break;
         case THEME_TOGGLE:{auto candidate=preferences;candidate.themeId=theme.dark?1:0;StorePreferences(candidate);Layout();break;}
         case RECENT_CLEAR:if(!Blocked()){recentWorkspace.entries.clear();recentOffset=0;PersistRecent();Layout();}break;
         case RECENT_NEXT:if(!Blocked()){recentOffset+=recentRows;Layout();}break;
@@ -3976,12 +4413,13 @@ LRESULT CALLBACK Proc(HWND h, UINT message, WPARAM wp, LPARAM lp)
 
         case MEETING_TRANSCRIBE:
             meetingSettings.transcriptionEnabled=!meetingSettings.transcriptionEnabled;
+            if(!meetingSettings.transcriptionEnabled&&meetingTranscriber.Running())meetingTranscriber.Stop();
             if(!SaveMeetingSettings(dataDir,meetingSettings))
                 importError=T(L"Không lưu được thiết lập chép lời.",L"The transcription setting could not be saved.");
             else importError.clear();
             Layout();break;
         case MEETING_PROVIDER:{
-            std::vector<ToolMenuItem> entries{{PROVIDER_LOCAL,T(L"Âm thanh máy / Windows SAPI",L"System audio / Windows SAPI"),true,0xeba7,meetingSettings.provider==MeetingProvider::Generic},
+            std::vector<ToolMenuItem> entries{{PROVIDER_LOCAL,T(L"Âm thanh máy / nhận dạng cục bộ",L"System audio / local recognition"),true,0xeba7,meetingSettings.provider==MeetingProvider::Generic},
                 {PROVIDER_TEAMS,L"Microsoft Teams",true,0xeb51,meetingSettings.provider==MeetingProvider::Teams},
                 {PROVIDER_ZOOM,L"Zoom",true,0xeb51,meetingSettings.provider==MeetingProvider::Zoom},
                 {PROVIDER_MEET,L"Google Meet",true,0xeb51,meetingSettings.provider==MeetingProvider::GoogleMeet}};
@@ -4039,7 +4477,7 @@ LRESULT CALLBACK Proc(HWND h, UINT message, WPARAM wp, LPARAM lp)
                 transcriptionHandled=false;transcriptionNotice.clear();
                 meetingRecordingPath=meetingRecorder.OutputPath();
                 if(meetingRecorder.BytesWritten()>0&&meetingSettings.transcriptionEnabled&&meetingTranscriber.Start(meetingRecordingPath,
-                        preferences.transcriptionLanguage==1?TranscriptionLanguage::English:TranscriptionLanguage::Vietnamese))
+                        preferences.transcriptionLanguage==1?TranscriptionLanguage::English:TranscriptionLanguage::Vietnamese,dataDir,meetingSettings.speechModel))
                     SetTimer(h,MEETING_TIMER,500,nullptr);
                 else if(meetingRecorder.BytesWritten()>0&&meetingSettings.transcriptionEnabled)
                     transcriptionNotice=meetingTranscriber.Status(english);
@@ -4047,11 +4485,17 @@ LRESULT CALLBACK Proc(HWND h, UINT message, WPARAM wp, LPARAM lp)
                     transcriptionNotice=T(L"Đã lưu WAV cuộc họp · chép lời đang tắt",L"Meeting WAV saved · transcription is off");
                 else if(meetingRecorder.ErrorCode()!=0)
                     transcriptionNotice=meetingRecorder.Status(english);
-            } else if(meetingRecorder.Start(dataDir,meetingSettings.outputDirectory)) {
+            } else {
+                MeetingPreflight();
+                if(meetingSettings.transcriptionEnabled&&(!speechReady&&!windowsSpeechReady)){transcriptionNotice=T(L"QS-R004 - Chọn Cài Whisper, hoặc tắt chép lời để chỉ ghi WAV.",L"QS-R004 - Install Whisper, or disable transcription to record WAV only.");OpenMeeting();break;}
+                if(meetingSettings.transcriptionEnabled&&notebookUnavailable){OpenMeeting();break;}
+                if(!SaveMeeting())break;
+                if(meetingRecorder.Start(dataDir,meetingSettings.outputDirectory)) {
                 transcriptionHandled=false;transcriptionNotice.clear();
                 SetTimer(h,MEETING_TIMER,500,nullptr);
+                }
             }
-            Layout();break;
+            UpdateMeetingReadout();Layout();break;
         case NAV_BROWSER:Pause();focusMode=false;page=Page::Browser;Layout();break;
         case BROWSER_TOGGLE:
             if(browser.Enabled())browser.Disable();
@@ -4116,7 +4560,7 @@ LRESULT CALLBACK Proc(HWND h, UINT message, WPARAM wp, LPARAM lp)
         case POINTER:mirrorPointer=!mirrorPointer;UpdateButtons();break;
         case OPEN_FOLDER:ChooseFolder();break;
         case OVERFLOW:OverflowMenu();break;
-        case FIND:if(!Blocked()&&!IsImage()&&!reloadPending){findVisible=true;Layout();SetFocus(findInput);}break;
+        case FIND:if(page==Page::Meeting){if(!Blocked()){meetingView=0;Layout();SetFocus(meetingSearch);}}else if(!Blocked()&&!IsImage()&&!reloadPending){findVisible=true;Layout();SetFocus(findInput);}break;
         case FIND_NEXT:RunFind(true);break;
         case FIND_PREV:RunFind(false);break;
         case FIND_CLOSE:findVisible=false;Layout();SetFocus(ContentWindow());break;
@@ -4230,6 +4674,8 @@ LRESULT CALLBACK Proc(HWND h, UINT message, WPARAM wp, LPARAM lp)
                 lastStatusPaint=GetTickCount64();UpdateProjectionReadout();InvalidateRect(h,nullptr,FALSE);
             }
         }
+        else if(wp==7)SaveReadingTools();
+        else if(wp==8)SaveMeeting();
         else if (wp == SCROLL_TIMER)
             ScrollTick();
         else if (wp == SAVE_TIMER)
@@ -4254,8 +4700,10 @@ LRESULT CALLBACK Proc(HWND h, UINT message, WPARAM wp, LPARAM lp)
                 HandleTranscriptionResult();
                 transcriptionHandled=true;
             }
-            if (!meetingRecorder.Running()&&!meetingTranscriber.Running())
+            if(!speechInstaller.Running()&&!speechInstallSeen){speechInstallSeen=true;MeetingPreflight();transcriptionNotice=speechInstaller.Error()?T(L"QS-R008 - Chưa cài được Whisper. Kiểm tra mạng và dung lượng, rồi thử lại.",L"QS-R008 - Whisper setup failed. Check connection and free space, then retry."):T(L"Đã cài Whisper, xử lý cục bộ khi bật chép lời.",L"Whisper installed. Processing stays local when transcription is enabled.");}
+            if (!meetingRecorder.Running()&&!meetingTranscriber.Running()&&!speechInstaller.Running())
                 KillTimer(h, MEETING_TIMER);
+            if(page==Page::Meeting&&IsWindowVisible(GetDlgItem(h,MEETING_CANCEL))!=(meetingTranscriber.Running()||speechInstaller.Running()))Layout();
             UpdateButtons();
             InvalidateRect(h, nullptr, FALSE);
         }
@@ -4263,6 +4711,8 @@ LRESULT CALLBACK Proc(HWND h, UINT message, WPARAM wp, LPARAM lp)
             QaTick();
         return 0;
     case WM_CLOSE:
+        if(!qa&&!SaveMeeting()){OpenMeeting();return 0;}
+        SaveReadingTools();
         if(!qa&&!ConfirmFiles())return 0;
         if(!qa&&preferences.rememberWindowSize){
             WINDOWPLACEMENT placement{};placement.length=sizeof(placement);
@@ -4286,7 +4736,8 @@ LRESULT CALLBACK Proc(HWND h, UINT message, WPARAM wp, LPARAM lp)
         browser.Disable();
         KillTimer(h, MEETING_TIMER);
         meetingRecorder.Stop();
-        meetingTranscriber.Stop();
+        meetingTranscriber.Stop();speechInstaller.Stop();
+        KillTimer(h,7);KillTimer(h,8);
         for (UINT_PTR timer : {PRIVACY_TIMER, SCROLL_TIMER, SAVE_TIMER, QA_TIMER,(UINT_PTR)5})
             KillTimer(h, timer);
         if(mirror)mirror->Stop();
@@ -4355,6 +4806,11 @@ int WINAPI wWinMain(HINSTANCE inst, HINSTANCE, LPWSTR, int show)
         if(meetingSettings.outputDirectory.empty())meetingSettings.outputDirectory=DefaultMeetingDirectory(dataDir);
         LoadCustomTheme(dataDir,customThemeColors);
         recentWorkspace.Load(dataDir);
+        if(GetFileAttributesW((dataDir+L"\\meeting-notes.dpapi").c_str())!=INVALID_FILE_ATTRIBUTES)notebookUnavailable=!meetingNotebook.Load(dataDir);
+        if(GetFileAttributesW((dataDir+L"\\reading.dpapi").c_str())!=INVALID_FILE_ATTRIBUTES)readingUnavailable=!readingTools.Load(dataDir);
+        {const auto bytes=ReadBytes(dataDir+L"\\preview.dat");DWORD values[3]{};
+            if(bytes.size()==sizeof(values)){CopyMemory(values,bytes.data(),sizeof(values));if(values[0]==0x50515357&&values[1]==1&&values[2]<=1)previewEnabled=values[2]!=0;}}
+
         if(GetFileAttributesW((dataDir+L"\\presentations.dpapi").c_str())!=INVALID_FILE_ATTRIBUTES)setsUnavailable=!presentationSets.Load(dataDir);
     } else {
         meetingSettings.outputDirectory=DefaultMeetingDirectory(dataDir);
@@ -4472,6 +4928,8 @@ int WINAPI wWinMain(HINSTANCE inst, HINSTANCE, LPWSTR, int show)
         }
         if(message.message==WM_KEYDOWN) {
             bool control=(GetKeyState(VK_CONTROL)&0x8000)!=0,shift=(GetKeyState(VK_SHIFT)&0x8000)!=0;
+            if(control&&message.wParam==L'S'&&page==Page::Meeting){if(!Blocked())SaveMeeting();continue;}
+            if(message.hwnd==pdfGoto&&message.wParam==VK_RETURN){ReadingAction(PDF_GOTO);continue;}
             if(control&&message.wParam==L'K'){OpenQuick();continue;}
             if(page==Page::Quick||page==Page::Sets){
                 if(message.wParam==VK_ESCAPE){SendMessageW(window,WM_COMMAND,QUICK_BACK,0);continue;}
@@ -4497,7 +4955,7 @@ int WINAPI wWinMain(HINSTANCE inst, HINSTANCE, LPWSTR, int show)
                 if(documents.Active().id==0&&documents.Count()>1)documents.Cycle(shift?-1:1,importError);
                 viewingFile=documents.Active().id!=0;RenderDocument();continue;
             }
-            if(control && message.wParam==L'C' && IsPdf()) {if(!Blocked())pdfViewer.CopySelection();continue;}
+            if(control && message.wParam==L'C' && page==Page::Content && IsPdf()) {if(!Blocked())pdfViewer.CopySelection();continue;}
             if(control&&page==Page::Browser&&(message.wParam==L'0'||message.wParam==VK_ADD||message.wParam==VK_OEM_PLUS||message.wParam==VK_SUBTRACT||message.wParam==VK_OEM_MINUS)) {
                 const int delta=message.wParam==L'0'?0:message.wParam==VK_SUBTRACT||message.wParam==VK_OEM_MINUS?-10:10;
                 if(!Blocked()&&browser.Ready()) {
@@ -4505,9 +4963,9 @@ int WINAPI wWinMain(HINSTANCE inst, HINSTANCE, LPWSTR, int show)
                 }
                 continue;
             }
-            if(control && message.wParam==L'0'){ResetFont();continue;}
-            if(control && (message.wParam==VK_ADD || message.wParam==VK_OEM_PLUS)){AdjustFont(2);continue;}
-            if(control && (message.wParam==VK_SUBTRACT || message.wParam==VK_OEM_MINUS)){AdjustFont(-2);continue;}
+            if(control && page==Page::Content && message.wParam==L'0'){ResetFont();continue;}
+            if(control && page==Page::Content && (message.wParam==VK_ADD || message.wParam==VK_OEM_PLUS)){AdjustFont(2);continue;}
+            if(control && page==Page::Content && (message.wParam==VK_SUBTRACT || message.wParam==VK_OEM_MINUS)){AdjustFont(-2);continue;}
             if(message.hwnd==findInput && message.wParam==VK_RETURN){RunFind(!shift);continue;}
             if(message.hwnd==webAddress && message.wParam==VK_RETURN){SendMessageW(window,WM_COMMAND,WEB_GO,0);continue;}
             if(control&&message.wParam==L'L'&&page==Page::Browser&&IsWindowVisible(webAddress)){SetFocus(webAddress);SendMessageW(webAddress,EM_SETSEL,0,-1);continue;}

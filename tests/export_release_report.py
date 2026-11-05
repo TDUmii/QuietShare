@@ -8,7 +8,7 @@ import shutil
 import subprocess
 
 ROOT = Path(__file__).resolve().parents[1]
-VERSION = '0.19.0'
+VERSION = '0.20.0'
 
 def sha256(path):
     return hashlib.sha256((ROOT / path).read_bytes()).hexdigest()
@@ -29,6 +29,7 @@ def main():
     production = read('production-integration.json')
     workspace = read('workspace-integration.json')
     presentation = read('presentation-integration.json')
+    reading_meeting = read('reading-meeting-integration.json')
     shutdown = read('capture-shutdown.json')
     life = read('lifecycle-check.json')
     browser = read('qa-browser/browser-regression.json')
@@ -45,6 +46,7 @@ def main():
     assert production['exeSha256'] == life['exeSha256'] == actual_hash
     assert workspace['exeSha256']==actual_hash and not workspace['failure'] and workspace['failed']==0
     assert presentation['exeSha256']==actual_hash and presentation['failed']==0
+    assert reading_meeting['exeSha256']==actual_hash and reading_meeting['failed']==0 and not reading_meeting['failure']
     assert shutdown['exeSha256']==actual_hash and shutdown['failed']==0
     assert not production.get('failure') and not life.get('failure'), 'Incomplete shipping integration evidence'
     assert browser['exeSha256']==actual_hash and not browser['failure']
@@ -78,11 +80,17 @@ def main():
         ('qa-mirror', 'mirror-regression', 'mirror_regression.cpp'),
         ('qa-mirror', 'mirror-render-regression', 'mirror_render_regression.cpp'),
         ('qa-mirror-window-guard', 'mirror-window-guard-regression', 'mirror_window_guard_regression.cpp'),
-        ('qa-projection-notice', 'projection-notice-regression', 'projection_notice_regression.cpp')):
+        ('qa-projection-notice', 'projection-notice-regression', 'projection_notice_regression.cpp'),
+        ('qa-reading-meeting', 'reading-meeting-regression', 'reading_meeting_regression.cpp'),
+        ('qa-speech', 'speech-runtime-regression', 'speech_runtime_regression.cpp')):
         executable = ROOT/'artifacts'/folder/(stem + '.exe')
         report = ROOT/'artifacts'/folder/(stem + '.json')
         sources = [*native_sources, ROOT/'tests'/fixture]
-        assert executable.stat().st_mtime_ns >= max(path.stat().st_mtime_ns for path in sources), fixture
+        # Only the projection notice fixture includes the application entry
+        # point. Other native fixtures do not compile main.cpp. Its shipping
+        # behavior is bound separately to the production EXE and QA EXE hashes.
+        compiled_sources=[path for path in sources if path.name!='main.cpp' or stem=='projection-notice-regression']
+        assert executable.stat().st_mtime_ns >= max(path.stat().st_mtime_ns for path in compiled_sources), fixture
         assert report.stat().st_mtime_ns >= executable.stat().st_mtime_ns, report
         native_bindings[stem] = {'testBinarySha256': sha256(executable),
                                 'reportSha256': sha256(report),
@@ -102,6 +110,9 @@ def main():
         ('Shipping EXE / script lifecycle','lifecycle-check.json'),
         ('Shipping workspace / recent / editing / size','workspace-integration.json'),
         ('Shipping quick switch / encrypted presentation sets / recovery','presentation-integration.json'),
+        ('PDF cues / encrypted notebook / provider VTT / exports','qa-reading-meeting/reading-meeting-regression.json'),
+        ('Optional CPU runtime / integrity / cancellation / speech fixtures','qa-speech/speech-runtime-regression.json'),
+        ('Shipping PDF tools / notebook / preview preference','reading-meeting-integration.json'),
         ('Real WGC / repeated process shutdown','capture-shutdown.json'),
         ('Native scrollbar / separate QA EXE','scrollbar-check.json'),
         ('Shipping EXE / multi-view integration','production-integration.json'),
@@ -139,6 +150,8 @@ def main():
               'nativeSourceBindings':native_bindings,
               'longSession':{'status':'NOT RUN','reason':'No new physical receiver or long session soak requested; historical v0.9.1 soak is excluded from current release evidence and counts'},
               'sourceWindowGuard':guard,
+              'optionalSpeech':read('qa-speech/speech-runtime-regression.json'),
+              'readingMeetingResources':reading_meeting.get('metrics',{}),
               'listedVideoControllers':controllers,
               'pdfCooperativeBudgetMs':750,'pdfStressObservedMs':viewer['renderBudgetTestMilliseconds'],
               'browser':{'metrics':browser['metrics'],'notTested':browser['notTested'],'profile':'Separate local profile; never exported'},
@@ -218,7 +231,8 @@ Detailed sanitized check names and payload metadata: [test-evidence-v{VERSION}.j
 ## Limits
 
 - Projection requires two Extend displays on the same GPU, different source/destination and the whole private window on the verified source. Duplicate, unknown topology, failed or invalidated verification, uncovered private surfaces and capture/device changes lock content and stop output. No override toggle is provided. External cameras and other OS/driver capture paths are outside the verified scope.
-- PDF is deliberately one active page and one in-memory bitmap, capped at 64 MiB source, 10,000 pages and 16 million rendered pixels / 64 MiB bitmap. Password PDFs and rotation are unsupported. Its PDFium viewer uses no browser, OCR, disk thumbnails or persistent file-path history; optional web browsing is a separate on-demand surface.
+- PDF renders one active full page, capped at 64 MiB source, 10,000 pages and 16 million rendered pixels / 64 MiB bitmap. Optional visible-row thumbnails have a separate 12-image / 2 MiB RAM cache released on hide. Bookmarks and script-page links use encrypted local metadata. Password PDFs, rotation and OCR are unsupported.
+- Optional Whisper Small recognition ran locally against one English sample and one Vietnamese Google FLEURS validation clip. The sanitized evidence records observed durations and the single-clip word error rate. These fixtures do not establish accuracy across accents, noisy rooms or real multi-speaker meetings. Recognition uses two background CPU threads, a 2 GiB process memory ceiling, explicit setup and cancellation. No actual meeting participants or microphone input were recorded for this test.
 - The 750 ms PDF budget is **cooperative**, not a hard real-time deadline. The stress fixture took **{viewer['renderBudgetTestMilliseconds']} ms** before rejecting unfinished output and recovering. A PDFium call may overrun a checkpoint.
 - The EXE and Setup are **NotSigned** according to Windows Authenticode inspection. No signing certificate is bundled. Bundled DLLs are pinned AMD64 files and direct PE imports are Windows system libraries; clean-machine compatibility remains unverified.
 

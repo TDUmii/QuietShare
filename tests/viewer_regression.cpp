@@ -275,6 +275,14 @@ int wmain(int argc, wchar_t **argv)
     check("manyPdfLoad", LoadLocalContent(dir + L"\\many.pdf", many, error));
     check("manyPdfOpen", pdf.Open(many, error) && pdf.PageCount() == 120);
     check("manyPdfLazy", pdf.CachedBytes() == 0);
+    ShowWindow(owner,SW_SHOWNOACTIVATE);HDC thumbDC=GetDC(owner);bool thumbs=true;
+    for(int i=0;i<20;++i)thumbs=pdf.DrawThumbnail(i,thumbDC,{0,0,96,128})&&thumbs;
+    check("pdfOnDemandThumbnailsDoNotChangeActivePage",thumbs&&pdf.GetState().page==0);
+    check("pdfThumbnailLRUHasTwoMiBBudget",pdf.ThumbnailCachedBytes()>0&&pdf.ThumbnailCachedBytes()<=2u*1024*1024);
+    check("pdfThumbnailInvalidPageIsRejected",!pdf.DrawThumbnail(120,thumbDC,{0,0,96,128}));
+    pdf.ClearThumbnails();check("pdfClosingThumbnailRailReleasesCache",pdf.ThumbnailCachedBytes()==0);
+    pdf.SetPrivateVisible(false);check("pdfHiddenThumbnailsDoNoWork",!pdf.DrawThumbnail(0,thumbDC,{0,0,96,128})&&pdf.ThumbnailCachedBytes()==0);
+    pdf.SetPrivateVisible(true);ReleaseDC(owner,thumbDC);ShowWindow(owner,SW_HIDE);
     check("pdfKeyboardKeepsArrowFocus", (SendMessageW(pdf.Window(), WM_GETDLGCODE, VK_RIGHT, 0) & DLGC_WANTARROWS) != 0);
     SendMessageW(pdf.Window(), WM_MOUSEWHEEL, MAKEWPARAM(0, -60), 0);
     check("pdfPartialWheelDoesNotSkipPage", pdf.GetState().page == 0);

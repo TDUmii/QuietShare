@@ -1,6 +1,6 @@
 # QuietShare - Hướng dẫn bằng hình ảnh (Tiếng Việt)
 
-> **Phiên bản ảnh:** QuietShare 0.19.0, chụp từ bài kiểm thử UI ngày 2/11/2026. Các **khung đỏ đánh số** được thêm vào sau khi chụp để chỉ vị trí nhấn. Tùy kích thước cửa sổ, ngôn ngữ và phiên bản, vị trí nút có thể thay đổi. Các ảnh không phải giao diện giả lập.
+> **Phiên bản ảnh:** QuietShare 0.20.0, chụp từ bài kiểm thử UI ngày 2/11/2026. Các **khung đỏ đánh số** được thêm vào sau khi chụp để chỉ vị trí nhấn. Tùy kích thước cửa sổ, ngôn ngữ và phiên bản, vị trí nút có thể thay đổi. Các ảnh không phải giao diện giả lập.
 
 **Bắt đầu nhanh:** [Cài đặt](#1-tải-và-cài-đặt) · [Mở file](#2-trang-chủ-và-mở-dữ-liệu) · [Lời nhắc](#4-soạn-lời-nhắc-và-cuộn-tự-động) · [PDF](#5-đọc-pdf-và-tìm-kiếm) · [Trình chiếu](#8-trình-chiếu-smart-mirror-an-toàn) · [Ghi âm](#9-ghi-âm-và-chép-lời-cuộc-họp)
 
@@ -97,13 +97,13 @@ Trang chủ có các thao tác gọn phía trên danh sách gần đây toàn ch
 
 ## 9. Ghi âm và chép lời cuộc họp
 
-![Ảnh 08 - Tab Nội dung với cài đặt chép lời](images/visual/08-recording.png)
+![Ảnh 08 - Cuộc họp với các đoạn sửa được](images/visual/08-recording.png)
 
-1. Mở **Cài đặt**, **khung đỏ 1** chọn tab **Nội dung**.
-2. **Khung đỏ 2 - Ngôn ngữ chép lời:** chọn **Tiếng Việt** hoặc **Tiếng Anh** theo tiếng đang nói.
-3. **Khung đỏ 3 - Nền tảng cuộc họp:** chọn nguồn âm thanh phù hợp, chẳng hạn **Khác / âm thanh máy**.
-4. Quay lại khu vực **Ghi âm** (biểu tượng hình tròn ở thanh trái). Chọn thư mục lưu, tùy chọn giữ WAV, sau đó chủ động bắt đầu và dừng phiên ghi âm.
-5. Ứng dụng sử dụng **âm thanh phát từ Windows**. không mặc định lấy micro, không tự động ghi âm cuộc họp khi chưa kích hoạt. Có thể nhập bản VTT/TXT xuất từ Teams/Zoom/Meet nếu muốn giữ tên người nói do nền tảng cung cấp.
+1. Mở **Cuộc họp** bằng icon tròn ở thanh bên. Trước tiên chọn ngôn ngữ, thư mục xuất và Whisper cục bộ tùy chọn tại **Cài đặt > Nội dung**. Mặc định chọn Small (466 MiB). Chỉ tải khi chủ động Cài.
+2. **Khung đỏ 1:** tự bắt đầu hoặc dừng ghi âm. Nguồn là âm thanh phát Windows. Ứng dụng không mở micro hoặc tự ghi.
+3. **Khung đỏ 2:** mở Xuất / thêm để kiểm tra cài đặt, nhập transcript Teams/Zoom/Meet hoặc xuất TXT, VTT có giờ và biên bản. Dừng xử lý hiện khi đang xử lý.
+4. **Khung đỏ 3:** duyệt và sửa đoạn, người nói và mốc giờ. Đánh dấu quyết định/việc cần làm rồi lưu. Cửa sổ nhỏ chuyển giữa Các đoạn / Nội dung / Người-giờ.
+5. Transcript nền tảng giữ tên người nói có sẵn. Nhận dạng âm thanh trộn không suy đoán tên. Âm thanh nằm trên máy. Hãy xuất ghi chép quan trọng trước khi nhập phiên khác.
 6. Kiểm tra quyền riêng tư, thông báo và sự đồng ý của người tham gia theo quy định áp dụng trước khi ghi.
 
 ## 10. Kiểm tra trước buổi thuyết trình

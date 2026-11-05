@@ -4,6 +4,7 @@
 #include <mutex>
 #include <string>
 #include <thread>
+#include "SpeechRuntime.h"
 
 namespace quietshare {
 
@@ -21,7 +22,8 @@ public:
     MeetingTranscriber(const MeetingTranscriber&) = delete;
     MeetingTranscriber& operator=(const MeetingTranscriber&) = delete;
 
-    bool Start(const std::wstring& wavPath, TranscriptionLanguage language);
+    bool Start(const std::wstring& wavPath, TranscriptionLanguage language,const std::wstring& dataDirectory=L"",int model=1);
+    static bool LanguageAvailable(TranscriptionLanguage language);
     void Stop();
     bool Running() const { return running.load(); }
     bool Completed() const { return completed.load(); }
@@ -33,7 +35,7 @@ public:
     std::wstring OutputPath() const;
 
 private:
-    void Run(const std::wstring& wavPath, TranscriptionLanguage language);
+    void Run(const std::wstring& wavPath, TranscriptionLanguage language,const std::wstring& directory,int model);
     bool Recognize(const std::wstring& wavPath, TranscriptionLanguage language,
                    std::wstring& transcript, int& errorCode);
     bool WriteTranscript(const std::wstring& wavPath, const std::wstring& text,
@@ -49,6 +51,7 @@ private:
     std::wstring outputPath;
     TranscriptionLanguage language = TranscriptionLanguage::Vietnamese;
     std::thread worker;
+    SpeechProcess speechProcess;
 };
 
 }

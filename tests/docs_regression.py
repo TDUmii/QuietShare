@@ -54,9 +54,13 @@ def main():
     current_version = re.search(r'QUIETSHARE_VERSION_TEXT "([^"]+)"', (ROOT/"src/Version.h").read_text()).group(1)
     mirror = (ROOT / "src/Mirror.cpp").read_text(encoding="utf-8-sig")
     workspace_source = (ROOT / "src/main.cpp").read_text(encoding="utf-8-sig")
-    for number in range(1,8):
+    for number in range(1,9):
         code=f"QS-W{number:03d}"
         check(code+": UI and handbook agree",code in workspace_source and code in (ROOT/"docs/BOOK.md").read_text(encoding="utf-8-sig"))
+    notebook_codes=[f'QS-D{n:03d}' for n in range(1,4)]+[f'QS-N{n:03d}' for n in range(1,6)]+['QS-R008','QS-R009']
+    runtime_source=(ROOT/'src/MeetingTranscriber.cpp').read_text(encoding='utf-8-sig')
+    for code in notebook_codes:
+        check(code+': implementation and all books agree',code in workspace_source+runtime_source and all(code in (ROOT/p).read_text(encoding='utf-8-sig') for p in ['docs/BOOK.md',*MANUALS]))
     books = {name: (ROOT / name).read_text(encoding="utf-8-sig") for name in sorted(MANUALS)}
     mapping = re.findall(r'if\(std::strcmp\(reason,"([a-z-]+)"\)==0\)return "(QS-P\d{3})";', mirror)
     check("projection error codes are unique", len(mapping) >= 24 and len({code for _, code in mapping}) == len(mapping))

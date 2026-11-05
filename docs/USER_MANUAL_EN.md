@@ -2,7 +2,7 @@
 
 > **Illustrated walkthrough:** [8 real UI screenshots with numbered red click targets](VISUAL_GUIDE_EN.md).
 
-English edition - QuietShare v0.19.0
+English edition - QuietShare v0.20.0
 
 Read, prepare and present with private notes on Windows.
 
@@ -219,21 +219,9 @@ Scripts autosave locally. The script editor accepts up to 500,000 characters. Th
 
 Imported text and code files use explicit Save instead. Switching documents does not replace the saved script with the file you just opened.
 
-### Record and transcribe a meeting
+### Meeting notebook
 
-1. Open **Settings > Reading > Transcription language**.
-2. Choose **Vietnamese** or **English**. The matching Windows speech recognition component must be installed.
-3. Use **Transcribe after recording** to choose whether the local transcript step runs.
-4. Choose a **Meeting platform** label for imported Teams, Zoom or Google Meet transcripts.
-5. Choose **WAV + transcript** or **Transcript only**. Transcript only uses a temporary WAV and deletes it after the transcript is saved successfully.
-6. Select **Record and transcribe meeting** on the sidebar.
-7. QuietShare records the Windows playback mix only. It never opens a microphone and it does not start by itself.
-8. Select the same control to stop. The chosen folder receives the WAV and, when kept, a UTF-8 `.txt` transcript.
-9. Wait for the footer to show the transcription result. Windows Speech API processes the WAV locally and appends the text to the local Lời nhắc.
-
-Use **Import Teams / Zoom / Meet transcript** for an exported `.vtt` or `.txt`. Provider speaker cues such as `<v Alice>` become `Alice: ...`. The mixed Windows playback stream cannot identify speakers by itself, and QuietShare does not silently connect to provider APIs. See the official [Teams transcript overview](https://learn.microsoft.com/en-us/microsoftteams/platform/graph-api/meeting-transcripts/overview-transcripts), [Google Meet API overview](https://developers.google.com/workspace/meet/api/guides/overview) and [Zoom meeting APIs](https://developers.zoom.us/docs/api/meetings/) when designing a separately authorized integration.
-
-If the selected language component is not installed, the footer reports the missing language. The application does not invent a transcript or upload the audio.
+Open **Meetings** from the sidebar to record, review timed segments and export notes. Set the language, optional local Whisper model and output folder in **Settings > Reading**. Follow chapter 12 for the complete workflow.
 
 ### Scroll while speaking
 
@@ -291,6 +279,18 @@ When code lines are too long, enable wrap. When inspecting indentation or alignm
 4. Use the wheel to change pages when the whole page fits. Tall or zoomed pages pan within their bounds first. At an edge, the next wheel notch changes pages. Going back enters the previous page at its bottom. Ctrl+wheel zooms. You can also drag a blank part of the page to pan.
 5. Drag over text to select it when the PDF provides a text layer.
 6. Use Ctrl+F to search searchable text.
+
+### Page tools and linked script
+
+1. Open the PDF toolbar menu for **Page thumbnails**, **Bookmarked pages** or **Bookmark this page**.
+2. Select a thumbnail to navigate. Select the page counter to enter a page number, then use **Go**. Numbers start at 1.
+3. To prepare cues, separate your script using Markdown headings such as `# Opening` and `## Details`.
+4. Open **Page-linked script** in the PDF menu. Select the script section, navigate to its PDF page and choose **Link page**.
+5. Enable **Sync** only when wanted. PDF navigation selects the nearest linked section. Previous/next script sections navigate to their linked page. Unlinked sections remain readable.
+6. Adjust the cue reader using A- / A+. Its reading position stays stable when changing size or weight.
+7. Wide windows place cues beside the PDF. Small windows move cues below it. Hide either panel whenever unnecessary.
+
+Thumbnails are rendered only for visible rows. Their LRU cache is capped at 12 images and 2 MiB, separate from the active page bitmap. Hiding the rail releases the thumbnail cache. Bookmarks and cue links are encrypted locally, with up to 32 PDFs, 64 bookmarks and 128 section links per PDF. Original PDF files remain unchanged.
 
 Scanned pages without a text layer cannot provide ordinary text search or copy. QuietShare renders one PDF page at a time. It does not edit PDF contents or remove passwords.
 
@@ -571,35 +571,46 @@ Do not interpret a higher FPS preset as a repair for an unverified capture path.
 
 Use the capture controls in the application that actually shares or records. QuietShare's mask and stop controls act on QuietShare. They do not operate another application's live stream.
 
-### Record the meeting audio on this computer
+### Record, transcribe and review on this computer
 
-QuietShare can record the Windows default playback mix while you explicitly enable the recording control. This is useful when the meeting audio, presentation video or remote participants are played through this computer.
+1. Open **Meetings** from the sidebar. Choose **Export / more > Check playback and recognition**.
+2. In **Settings > Reading**, select Vietnamese or English, a local output folder and whether to transcribe after recording.
+3. Select **Small · 466 MiB** for the default accuracy preference. Base · 142 MiB remains available for lighter machines.
+4. Choose **Install optional recognizer**. Only this explicit action downloads the pinned CPU runtime and selected model. Keep the app open until setup finishes. Models stay in `%LOCALAPPDATA%\QuietShare\Speech`.
+5. Choose **WAV + transcript** to retain audio, or **Transcript only** to remove the temporary WAV after the transcript has been saved successfully to the notebook. Recording still uses temporary disk space.
+6. Return to Meetings and select **Record & transcribe**. Confirm the recording state and playback level. Play the intended meeting audio through the Windows default playback device.
+7. Select the recording control again to stop. Recognition runs locally in the background. **Cancel task** stops recognition or model setup and preserves the recording.
+8. Review the timed segments in Meetings. Select a segment to edit its text, speaker and start/end times. Use **Save segment** or Ctrl+S. Edits also save after a short pause.
+9. Mark actual **Decisions** and **Action items** yourself. Use the filter and search to find them. QuietShare does not invent a summary or identify named speakers from mixed audio.
+10. Open **Export / more** and choose TXT, timed VTT or Markdown minutes. Files appear in the selected local output folder. **Open last export in QuietShare** opens the result immediately.
+11. Use **Append transcript to the script** only when you want the reviewed notes in the script. Importing or recognizing audio does not replace the script.
 
-1. Open **Settings > Reading > Transcription language** and choose **Vietnamese** or **English**.
-2. Turn **Transcribe after recording** on or off, choose the output folder and choose **WAV + transcript** or **Transcript only**.
-3. Select **Record and transcribe meeting** on the sidebar.
-4. Confirm the red record icon and the footer status show that recording is active.
-5. Keep the meeting audio on the intended Windows playback device.
-6. Use the script editor to write manual notes while the recording runs.
-7. Select **Stop meeting recording** when the session ends, or close QuietShare to stop and finalize it.
-8. Find the output in the chosen folder. Transcript only deletes the temporary WAV after a successful save.
-9. Wait for Windows Speech API to finish. The UTF-8 transcript is appended to the local Lời nhắc.
+Small is a multilingual Whisper model, not a guarantee of correct wording. Recognition can take longer than the recording on a modest CPU. QuietShare limits it to two background CPU threads and a 2 GiB child-process memory ceiling. It does no recognition while idle. Cancel stops the owned child process. Windows Speech API remains a fallback if a matching installed recognizer is available and the optional Whisper runtime is absent.
 
-To preserve speaker names, choose **Import Teams / Zoom / Meet transcript** and select the provider's exported VTT/TXT file. System-audio capture alone cannot provide reliable speaker attribution.
+### Preserve provider speakers and recover notes
 
-The recorder captures system playback only. It does not open the microphone, start at launch or send the audio to QuietShare's projection path. A playback-device change can stop the recording and leave a finalized partial WAV file. Speech recognition runs locally. If the selected Windows language component is missing, the footer reports the missing language and no fake transcript is created.
+1. Export a VTT or TXT transcript from Teams, Zoom or Google Meet using that provider's controls.
+2. Select the corresponding **Meeting platform** in Settings > Reading.
+3. Choose **Meetings > Export / more > Import Teams / Zoom / Meet transcript**.
+4. Review speaker labels and times. VTT `<v Speaker>` cues are retained. Plain name prefixes are read only for an explicitly selected provider. Whisper audio recognition leaves named attribution for you to assign.
+5. On a small window, use **Segments**, **Content** and **Speaker / time** to switch panels. On a wide window, list and editor appear together.
+6. Export VTT only after every nonempty segment has valid timing. Untimed manual notes can always use TXT or minutes.
+
+The notebook is encrypted for your Windows account in `meeting-notes.dpapi`. Import saves one prior encrypted copy as `meeting-notes-before-import.dpapi`. Export important sessions before importing another. Exports and WAV files are ordinary readable local files. No provider API, OAuth connection, microphone capture or audio upload is enabled by this workflow. A playback-device change can finalize a partial WAV. Closing QuietShare stops recording and processing.
 
 ### Meeting transcription status codes
 
 | Code | Meaning | Action |
 |---|---|---|
 | `QS-R001` | WAV recording is missing | Start a new recording. |
-| `QS-R002` | Windows Speech API could not start | Restart QuietShare and check Windows speech services. |
+| `QS-R002` | Windows Speech API could not start | Restart QuietShare or install the optional Whisper runtime. |
 | `QS-R003` | WAV format is not supported | Record again from the default playback device. |
-| `QS-R004` | Selected language recognizer is missing | Install the matching Windows speech language pack. |
-| `QS-R005` | Windows could not recognize the audio | Confirm audio playback and the selected language. |
-| `QS-R006` | Transcription was stopped | Start a new recording if needed. |
-| `QS-R007` | Transcript could not be saved | Check local storage permission and free space. |
+| `QS-R004` | No recognizer for the selected language | Install optional local Whisper, or a matching Windows recognizer. |
+| `QS-R005` | No usable recognition result | Confirm playback and the selected language. |
+| `QS-R006` | Processing was stopped | The original recording is retained. Start a new recording when ready. |
+| `QS-R007` | Transcript output could not be saved | Check local folder permission and free space. |
+| `QS-R008` | Setup or integrity check failed | Check internet/disk space, then install or repair Whisper. |
+| `QS-R009` | Local model processing failed | Free memory and retry with a shorter recording. Keep the WAV. |
 
 ### Zoom, Meet or Teams on one display
 
@@ -965,3 +976,19 @@ Scripts and recent history use Windows DPAPI encryption for the local user. Pref
 New projection reasons should receive a stable code and ordered recovery instructions in both language editions before release. The catalog covers implemented projection conditions. It does not assign fictional codes to unrelated website or file errors.
 
 [Release downloads](https://github.com/TDUmii/QuietShare/releases/latest) | [Documentation index](README.md) | [Privacy details](PRIVACY.md) | [Troubleshooting](TROUBLESHOOTING.md)
+
+### Reader and notebook recovery codes
+
+| Code | Recovery |
+|---|---|
+| `QS-W008` | Preview preference could not be saved. Check local profile write access. The current session choice still applies. |
+| `QS-D001` | Reading metadata cannot be read. Close QuietShare, back up reading.dpapi, then restore a known-good copy under the same Windows account or rename it to start fresh. |
+| `QS-D002` | Reading metadata cannot be saved, or 64 bookmarks are already present. Check write access/free space, or remove an unneeded bookmark. |
+| `QS-D003` | Page number is outside this PDF. Enter an integer from 1 to the displayed page count. |
+| `QS-N001` | Saved notes cannot be read. Close QuietShare and back up meeting-notes.dpapi. Restore a known-good copy under the same account, or rename it before starting a new notebook. |
+| `QS-N002` | Invalid segment times. Use HH:MM:SS.mmm with end after start, or leave both fields blank. |
+| `QS-N003` | VTT needs valid timing for every nonempty segment. Add times or export TXT instead. |
+| `QS-N004` | Transcript format or size is unsupported. Use UTF-8 VTT/TXT, at most 10,000 segments, 32,000 characters per segment and 2 million characters overall. |
+| `QS-N005` | Notebook backup/save/export failed. Check the selected local output folder, write permission and free space. Preserve the existing notes and retry. |
+
+Use **Hide preview** on Presentation, or **Settings > Projection > Outgoing preview**, to turn preview off. The choice survives restart. Off releases the preview GPU renderer and stops preview drawing. Projection continues. Re-enabling creates the preview only when its panel is visible. Preview shows the outgoing stream, not a certified physical receiver.

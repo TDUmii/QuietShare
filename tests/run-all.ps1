@@ -19,6 +19,8 @@ foreach ($scriptName in @('run-content.ps1','run-documents.ps1','run-viewers.ps1
 & (Join-Path $PSScriptRoot 'run-projection-notice.ps1') -CompilerRoot $CompilerRoot
 & (Join-Path $PSScriptRoot 'run-meeting-recorder.ps1') -CompilerRoot $CompilerRoot
 & (Join-Path $PSScriptRoot 'run-meeting-transcriber.ps1') -CompilerRoot $CompilerRoot
+& (Join-Path $PSScriptRoot 'run-reading-meeting.ps1') -CompilerRoot $CompilerRoot
+& (Join-Path $PSScriptRoot 'run-speech.ps1') -CompilerRoot $CompilerRoot
 & (Join-Path $PSScriptRoot 'run-meeting-settings.ps1') -CompilerRoot $CompilerRoot
 & (Join-Path $PSScriptRoot 'run-meeting-transcript-import.ps1') -CompilerRoot $CompilerRoot
 & (Join-Path $PSScriptRoot 'run-local.ps1') -SkipContent
@@ -27,6 +29,8 @@ python -B (Join-Path $PSScriptRoot 'workspace_integration.py')
 if ($LASTEXITCODE) { throw 'Workspace integration failed.' }
 python -B (Join-Path $PSScriptRoot 'presentation_integration.py')
 if ($LASTEXITCODE) { throw 'Presentation integration failed.' }
+python -B (Join-Path $PSScriptRoot 'reading_meeting_integration.py')
+if ($LASTEXITCODE) { throw 'Reading / meeting integration failed.' }
 python -B (Join-Path $PSScriptRoot 'capture_shutdown_regression.py')
 if ($LASTEXITCODE) { throw 'Capture shutdown regression failed.' }
 python -B (Join-Path $PSScriptRoot 'browser_regression.py')

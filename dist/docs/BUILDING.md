@@ -88,3 +88,19 @@ The SVG records 30 days of main-branch commits and GitHub issues/PRs opened, usi
 3. Xem lại và commit SVG đã cập nhật cùng README.
 
 SVG ghi commit nhánh main và issue/PR được mở trong 30 ngày, theo giờ Việt Nam (UTC+07). Hình có commit nguồn và thời điểm cập nhật. Mở xem hình không cập nhật dữ liệu.
+
+## Optional speech runtime / Bộ nhận dạng tùy chọn
+
+Build the separate CPU add-on with MinGW-w64 GCC 13.1.0, CMake and Ninja:
+
+```powershell
+python -B tools/prepare_speech.py --compiler-root "C:\path\to\mingw64\bin"
+```
+
+`tools/prepare_speech.py` pins the whisper.cpp source ZIP, toolchain flags, stripped EXE digest, licenses and deterministic add-on archive. `src/SpeechAssets.h` pins the shipped archive, CPU executable and official model revision/digests. Rebuilding with another toolchain requires an explicit reviewed pin update. Models stay outside Git and portable packages. The add-on is a separate release asset.
+
+Tạo gói CPU riêng bằng lệnh trên. Script ghim ZIP mã nguồn whisper.cpp, cờ biên dịch, mã băm EXE đã bỏ symbol, giấy phép và ZIP kết quả. Header ghim bộ chạy và mô hình chính thức. Đổi toolchain cần duyệt và cập nhật mã băm. Mô hình không vào Git hoặc gói portable. Bộ nhận dạng là tài sản phát hành riêng.
+
+Optional inference QA uses the English whisper.cpp JFK sample and one Vietnamese [Google FLEURS](https://huggingface.co/datasets/google/fleurs) validation clip (CC BY 4.0, vi_vn row 0). Keep attribution when sharing fixtures. The corpus/model files stay under ignored artifacts. Without them the lightweight process/cancellation checks still run and inference is marked not tested. A single clip is not a general accuracy benchmark.
+
+Kiểm thử nhận dạng tùy chọn dùng mẫu Anh JFK whisper.cpp và một đoạn kiểm định tiếng Việt Google FLEURS (CC BY 4.0, vi_vn dòng 0). Giữ ghi nguồn khi chia sẻ mẫu. Dữ liệu và mô hình chỉ nằm trong artifacts bị bỏ qua. Nếu không có mẫu, vẫn chạy kiểm tra tiến trình/dừng và ghi rõ phần nhận dạng chưa thử. Một đoạn âm thanh không đại diện độ chính xác chung.

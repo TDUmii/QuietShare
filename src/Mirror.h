@@ -87,6 +87,7 @@ public:
     // No capture session, readback, screenshot or disk storage is created.
     void SetPreviewWindow(HWND child);
     bool PreviewHasFrame() const;
+    size_t PreviewSurfaceBytes() const;
     std::wstring ErrorCode() const;
     std::wstring Recovery(bool english = false) const;
     std::wstring Status(bool english = false) const;

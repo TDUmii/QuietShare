@@ -69,6 +69,9 @@ class PdfViewer
     bool CopySelection(); // Only call in response to an explicit copy command.
     std::wstring SelectedText() const;
     size_t CachedBytes() const;
+    bool DrawThumbnail(int zeroBasedPage,HDC dc,RECT bounds);
+    void ClearThumbnails();
+    size_t ThumbnailCachedBytes() const;
     bool RenderCurrentPage(); // Also used by native regression tests.
   private:
     struct Impl;

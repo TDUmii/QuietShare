@@ -686,6 +686,8 @@ struct MirrorController::Impl : std::enable_shared_from_this<MirrorController::I
     Capture capture;
     Renderer renderer,previewRenderer;
     HWND previewWindow=nullptr;
+    HWND requestedPreviewWindow=nullptr;
+    bool previewChangePending=false;
     bool previewHasFrame=false,previewFailed=false;
     ULONGLONG previewAt=0;
     HWND privateWindow=nullptr,projector=nullptr;
@@ -739,6 +741,7 @@ struct MirrorController::Impl : std::enable_shared_from_this<MirrorController::I
             if(verification)owner.busy=false;
             --owner.operations;
             if(!owner.operations&&owner.clearPending)owner.Clear();
+            if(!owner.operations&&owner.previewChangePending)owner.ApplyPreviewChange();
         }
     };
     bool BeginVerification(HWND owner,const std::wstring &id,bool mounted)
@@ -783,6 +786,12 @@ struct MirrorController::Impl : std::enable_shared_from_this<MirrorController::I
     {
         previewHasFrame=false;previewAt=0;
         if(IsWindow(previewWindow)){InvalidateRect(previewWindow,nullptr,FALSE);UpdateWindow(previewWindow);}
+    }
+    void ApplyPreviewChange()
+    {
+        if(operations||busy||clearing||!previewChangePending)return;
+        ResetPreview();previewRenderer.Clear();previewWindow=IsWindow(requestedPreviewWindow)?requestedPreviewWindow:nullptr;
+        previewChangePending=false;previewFailed=false;ResetPreview();
     }
     void PresentPreview(ULONGLONG now)
     {
@@ -1224,11 +1233,11 @@ void MirrorController::SetPreviewWindow(HWND child)
     auto& s=*impl;
     // A preview may only live inside the already-protected control window.
     if(child&&(!IsWindow(child)||!(GetWindowLongPtrW(child,GWL_STYLE)&WS_CHILD)||GetAncestor(child,GA_ROOT)!=s.privateWindow))child=nullptr;
-    if(s.previewWindow==child)return;
-    if(s.operations||s.clearing||s.busy)return;
-    s.ResetPreview();s.previewRenderer.Clear();s.previewWindow=child;s.previewFailed=false;s.ResetPreview();
+    if(s.previewWindow==child&&!s.previewChangePending)return;
+    s.requestedPreviewWindow=child;s.previewChangePending=true;s.ApplyPreviewChange();
 }
 bool MirrorController::PreviewHasFrame() const {return impl->running&&!impl->busy&&impl->previewHasFrame;}
+size_t MirrorController::PreviewSurfaceBytes() const {return impl->previewRenderer.swap?static_cast<size_t>(impl->previewRenderer.width)*impl->previewRenderer.height*8:0;}
 std::wstring MirrorController::ErrorCode() const {
     std::wstring result;if(impl->failureCode)for(const char* c=ProjectionErrorCode(impl->failureCode);*c;++c)result+=static_cast<wchar_t>(*c);return result;
 }

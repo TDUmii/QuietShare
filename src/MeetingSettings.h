@@ -24,11 +24,12 @@ struct MeetingSettings {
     MeetingProvider provider = MeetingProvider::Generic;
     MeetingExportMode exportMode = MeetingExportMode::WavAndTranscript;
     std::wstring outputDirectory;
+    int speechModel=1; // 0 base, 1 small. Models remain optional.
 };
 
 namespace meeting_settings_detail {
 constexpr DWORD Magic = 0x514D5351; // QSMQ
-constexpr DWORD Version = 1;
+constexpr DWORD Version = 2;
 constexpr size_t MaxPathChars = 32768;
 
 inline bool WriteAll(HANDLE file, const void *data, DWORD bytes)
@@ -61,6 +62,7 @@ inline bool IsValid(const MeetingSettings &settings)
 {
     if (settings.outputDirectory.empty() || settings.outputDirectory.size() > MaxPathChars)
         return false;
+    if(settings.speechModel<0||settings.speechModel>1)return false;
     if (static_cast<DWORD>(settings.provider) > static_cast<DWORD>(MeetingProvider::GoogleMeet))
         return false;
     if (static_cast<DWORD>(settings.exportMode) > static_cast<DWORD>(MeetingExportMode::TranscriptOnly))
@@ -82,7 +84,7 @@ inline bool SaveMeetingSettings(const std::wstring &dataDirectory, const Meeting
     if (dataDirectory.empty() || !meeting_settings_detail::IsValid(settings))
         return false;
     const DWORD flags = (settings.transcriptionEnabled ? 1U : 0U) |
-                        (settings.exportMode == MeetingExportMode::TranscriptOnly ? 2U : 0U);
+                        (settings.exportMode == MeetingExportMode::TranscriptOnly ? 2U : 0U) | (settings.speechModel==1?4U:0U);
     const DWORD provider = static_cast<DWORD>(settings.provider);
     const DWORD pathChars = static_cast<DWORD>(settings.outputDirectory.size());
     const DWORD header[] = {meeting_settings_detail::Magic, meeting_settings_detail::Version,
@@ -120,8 +122,8 @@ inline bool LoadMeetingSettings(const std::wstring &dataDirectory, MeetingSettin
     bool ok = GetFileSizeEx(file, &size) && size.QuadPart >= sizeof(header) &&
               size.QuadPart <= static_cast<LONGLONG>(sizeof(header) + meeting_settings_detail::MaxPathChars * sizeof(wchar_t)) &&
               meeting_settings_detail::ReadAll(file, header, sizeof(header));
-    if (!ok || header[0] != meeting_settings_detail::Magic || header[1] != meeting_settings_detail::Version ||
-        header[2] > 3 || header[3] > static_cast<DWORD>(MeetingProvider::GoogleMeet) ||
+    if (!ok || header[0] != meeting_settings_detail::Magic || (header[1] != 1 && header[1] != meeting_settings_detail::Version) ||
+        header[2] > (header[1]==1?3u:7u) || header[3] > static_cast<DWORD>(MeetingProvider::GoogleMeet) ||
         header[4] > meeting_settings_detail::MaxPathChars ||
         size.QuadPart != static_cast<LONGLONG>(sizeof(header) + header[4] * sizeof(wchar_t))) {
         CloseHandle(file);
@@ -135,6 +137,7 @@ inline bool LoadMeetingSettings(const std::wstring &dataDirectory, MeetingSettin
         return false;
     MeetingSettings loaded;
     loaded.transcriptionEnabled = (header[2] & 1U) != 0;
+    loaded.speechModel=header[1]==1?1:(header[2]&4U?1:0);
     loaded.exportMode = (header[2] & 2U) ? MeetingExportMode::TranscriptOnly : MeetingExportMode::WavAndTranscript;
     loaded.provider = static_cast<MeetingProvider>(header[3]);
     loaded.outputDirectory = std::move(directory);

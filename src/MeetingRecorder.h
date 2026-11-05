@@ -28,6 +28,8 @@ public:
     std::wstring Status(bool english) const;
     int ErrorCode() const { return errorCode.load(); }
     unsigned long long BytesWritten() const { return bytesWritten.load(); }
+    int LevelPercent() const {return level.load();}
+    static bool PlaybackAvailable(int* level=nullptr);
 
 private:
     void Capture(const std::wstring& outputPath);
@@ -39,6 +41,7 @@ private:
     std::atomic<bool> ready{false};
     std::atomic<int> errorCode{0};
     std::atomic<unsigned long long> bytesWritten{0};
+    std::atomic<int> level{0};
     ULONGLONG startedTick = 0;
     mutable std::mutex stateMutex;
     std::wstring outputPath;

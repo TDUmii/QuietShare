@@ -26,3 +26,10 @@ The shared [WebView2 Evergreen Runtime](https://developer.microsoft.com/en-us/mi
 The original [FreeType notice](../dependencies/licenses/PDFium-third-party/freetype.txt) accompanies the aggregate notice to preserve its original copyright text and encoding.
 
 [Thông báo FreeType gốc](../dependencies/licenses/PDFium-third-party/freetype.txt) đi kèm thông báo tổng hợp để giữ nguyên nội dung bản quyền và mã hóa gốc.
+
+## Optional local speech / Nhận dạng cục bộ tùy chọn
+
+- [whisper.cpp](https://github.com/ggml-org/whisper.cpp) v1.9.1, commit `f049fff95a089aa9969deb009cdd4892b3e74916`, CPU-only static helper, MIT license.
+- [Whisper models](https://huggingface.co/ggerganov/whisper.cpp), pinned conversion revision `5359861c739e955e79d9a303bcbc70fb988958b1`. Base is 147,951,465 bytes. Small is 487,601,967 bytes. The default is multilingual Small. OpenAI Whisper model license is included in the add-on.
+- These are downloaded only after an explicit install action. All three original license notices accompany the separate speech ZIP. Core portable packages do not include the runtime or models.
+- whisper.cpp và mô hình Whisper là thành phần tùy chọn. Small đa ngôn ngữ được chọn mặc định để ưu tiên độ chính xác. Chỉ tải khi chủ động cài. Giấy phép gốc nằm trong ZIP nhận dạng riêng. Gói portable chính không kèm bộ chạy hoặc mô hình.

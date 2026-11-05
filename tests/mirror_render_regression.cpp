@@ -165,6 +165,10 @@ struct MirrorRegressionAccess
         s.PresentPreview(1050);Check(s.previewAt==1000,"preview updates are capped at ten per second");
         ShowWindow(child,SW_HIDE);s.PresentPreview(1200);Check(s.previewAt==1000,"hidden preview does no rendering work");
         controller.SetPreviewWindow(nullptr);Check(!controller.PreviewHasFrame()&&!s.previewRenderer.swap,"closing preview immediately releases its GPU renderer");
+        ShowWindow(child,SW_SHOW);controller.SetPreviewWindow(child);s.PresentPreview(1300);
+        {MirrorController::Impl::Operation operation(s);controller.SetPreviewWindow(nullptr);
+            Check(s.previewChangePending,"preview off is queued safely during an active operation");}
+        Check(!s.previewRenderer.swap&&controller.PreviewSurfaceBytes()==0,"queued preview off releases resources when the operation unwinds");
         controller.SetPreviewWindow(window);Check(!s.previewWindow,"preview rejects a public top-level window");
         ShowWindow(child,SW_SHOW);controller.SetPreviewWindow(child);s.PresentPreview(1400);controller.Invalidate();
         Check(!controller.PreviewHasFrame()&&!s.previewRenderer.swap&&!controller.Running(),"safety invalidation revokes and releases preview with public output");

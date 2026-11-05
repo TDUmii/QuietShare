@@ -1,4 +1,4 @@
-"""Verify QuietShare 0.19.0 teleprompter GDI captures and export review PNGs.
+"""Verify QuietShare 0.20.0 teleprompter GDI captures and export review PNGs.
 
 This checks one local BitBlt capture path. It cannot establish what Zoom,
 Teams, OBS, another capture API, a remote viewer, or a projector receives.
@@ -28,7 +28,9 @@ REQUIRED_CAPTURES = {
                    "dpi-125.bmp", "dpi-150.bmp", "home.bmp", "home-minimum.bmp", "home-minimum-icons.bmp", "home-reference.bmp", "home-recent.bmp", "settings.bmp", "settings-en.bmp", "settings-appearance.bmp", "settings-shortcuts.bmp", "settings-workspace.bmp", "settings-display.bmp", "settings-minimum.bmp", "focus.bmp", "code-file.bmp",
                    "image-file.bmp", "image-focus.bmp", "file-error.bmp", "tabs-overflow.bmp", "code-focus.bmp",
                    "project-wide.bmp", "project-medium.bmp", "project-minimum.bmp", "layout-minimal.bmp", "pdf-file.bmp", "pdf-focus.bmp",
-                   "presentation.bmp", "presentation-en.bmp", "tabs-masked.bmp","browser-off.bmp","browser-off-en.bmp","browser-minimum.bmp"),
+                   "presentation.bmp", "presentation-en.bmp", "tabs-masked.bmp","browser-off.bmp","browser-off-en.bmp","browser-minimum.bmp",
+                   "pdf-tools.bmp","pdf-tools-minimum.bmp","pdf-tools-minimum-light.bmp","pdf-tools-light.bmp",
+                   "meeting.bmp","meeting-light.bmp","meeting-minimum-0.bmp","meeting-minimum-1.bmp","meeting-minimum-2.bmp","meeting-minimum-light.bmp"),
     "qa-excluded": ("excluded.bmp",),
 }
 
@@ -165,7 +167,7 @@ def main() -> int:
             check(f"{folder}.diagnosticsReadable", False, str(error))
             diagnostic = {}
         expected = {
-            "applicationVersion": "0.19.0",
+            "applicationVersion": "0.20.0",
             "topologyKnown": True,
             "displayCloned": False,
             "privacyApplied": True,
@@ -231,6 +233,12 @@ def main() -> int:
                             check(f"{key}.fixtureImage.{label}", near(actual_color, expected_color, 5),
                                   {"expected": expected_color, "actual": actual_color})
                     else:
+                        if 'light' in file:
+                            check(f"{key}.lightInterfacePresent",metrics['brightPixelFraction']>=0.40,
+                                  {'minimum':0.40,'actual':metrics['brightPixelFraction']})
+                            check(f"{key}.renderedColorVariation",metrics['distinctColorsAtLeast']>=40,
+                                  {'distinctColorsAtLeast':metrics['distinctColorsAtLeast']})
+                            continue
                         # Native PDF pages keep their actual white paper background.
                         minimum_dark = 0.07 if file in ("pdf-file.bmp", "pdf-focus.bmp") else 0.40
                         check(f"{key}.darkInterfacePresent", metrics["darkCardFraction"] >= minimum_dark,
@@ -322,7 +330,7 @@ def main() -> int:
     installer_report = artifacts / "installer-self-test.json"
     try:
         setup = json.loads(installer_report.read_text(encoding="utf-8-sig"))
-        for field, expected in {"selfTestPassed": True, "version": "0.19.0",
+        for field, expected in {"selfTestPassed": True, "version": "0.20.0",
                                 "versionResourceVerified": True, "payloadResourceId": 301,
                                 "payloadPortableExecutable": True, "fixedInstallPathVerified": True,
                                 "installationWrites": False, "error": ""}.items():
@@ -370,7 +378,7 @@ def main() -> int:
     report = {
         "passed": not failed,
         "method": "GDI BitBlt with SRCCOPY | CAPTUREBLT; synthetic purple underlay and exact window crops",
-        "applicationVersion": "0.19.0",
+        "applicationVersion": "0.20.0",
         "scope": "Local native text teleprompter editing, reading, font controls, timer scroll, pause, mask and compact layout",
         "limits": [
             "A separate QA executable uses synthetic fixtures and controlled visual/privacy gates. The shipping executable rejects these switches.",

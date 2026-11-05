@@ -2,7 +2,7 @@
 
 > **Có hướng dẫn bằng ảnh:** [Xem 8 ảnh chụp giao diện có đánh số và khoanh đỏ](VISUAL_GUIDE_VI.md).
 
-Ấn bản tiếng Việt - QuietShare v0.19.0
+Ấn bản tiếng Việt - QuietShare v0.20.0
 
 Đọc, chuẩn bị và thuyết trình với lời nhắc riêng trên Windows.
 
@@ -219,21 +219,9 @@ Lời nhắc tự lưu trên máy. Vùng soạn lời nhắc nhận tối đa 50
 
 Văn bản và code nhập từ file dùng thao tác Lưu chủ động. Chuyển tài liệu không thay lời nhắc đã lưu bằng file vừa mở.
 
-### Ghi âm và chép lời cuộc họp
+### Sổ ghi chép cuộc họp
 
-1. Mở **Cài đặt > Nội dung > Ngôn ngữ chép lời**.
-2. Chọn **Tiếng Việt** hoặc **Tiếng Anh**. Máy phải cài thành phần nhận dạng giọng nói tương ứng.
-3. Dùng **Tự chép lời sau khi ghi âm** để chọn có chạy bước chép lời cục bộ hay không.
-4. Chọn nhãn **Nền tảng cuộc họp** cho transcript nhập từ Teams, Zoom hoặc Google Meet.
-5. Chọn kiểu **WAV + nội dung** hoặc **Chỉ nội dung**. Chỉ nội dung dùng WAV tạm rồi xóa sau khi lưu transcript thành công.
-6. Chọn **Ghi âm và chép lời cuộc họp** ở thanh bên.
-7. QuietShare chỉ ghi âm âm thanh phát ra từ Windows. Ứng dụng không mở micro và không tự bắt đầu.
-8. Chọn lại nút đó để dừng. Thư mục đã chọn nhận WAV và file `.txt` UTF-8 nếu giữ bản ghi.
-9. Đợi thanh trạng thái báo kết quả. Windows Speech API xử lý WAV cục bộ rồi nối chữ vào Lời nhắc.
-
-Dùng **Nhập transcript Teams / Zoom / Meet** cho file `.vtt` hoặc `.txt` đã xuất. Dòng chỉ người nói như `<v Alice>` được đổi thành `Alice: ...`. Âm thanh Windows trộn không tự xác định người nói và QuietShare không tự kết nối API nhà cung cấp. Khi thiết kế tích hợp có cấp quyền riêng, xem [tổng quan transcript Teams](https://learn.microsoft.com/en-us/microsoftteams/platform/graph-api/meeting-transcripts/overview-transcripts), [API Google Meet](https://developers.google.com/workspace/meet/api/guides/overview) và [API cuộc họp Zoom](https://developers.zoom.us/docs/api/meetings/).
-
-Nếu thiếu thành phần của ngôn ngữ đã chọn, thanh trạng thái báo đúng ngôn ngữ còn thiếu. Ứng dụng không tự bịa transcript và không tải âm thanh lên mạng.
+Mở **Cuộc họp** ở thanh bên để ghi âm, duyệt đoạn có giờ và xuất ghi chép. Chọn ngôn ngữ, mô hình Whisper cục bộ tùy chọn và thư mục xuất tại **Cài đặt > Nội dung**. Xem quy trình đầy đủ ở chương 12.
 
 ### Cuộn khi trình bày
 
@@ -291,6 +279,18 @@ Nếu dòng code quá dài, bật xuống dòng. Khi cần xem thụt lề hoặ
 4. Dùng con lăn để đổi trang khi toàn bộ trang vừa khung. Trang dài hoặc phóng to được cuộn trong giới hạn trước. Khi đến mép, nấc cuộn tiếp theo mới đổi trang. Khi lùi, trang trước mở ở cuối trang. Ctrl+con lăn để zoom. Bạn cũng có thể kéo phần trống của trang để di chuyển.
 5. Kéo trên chữ để chọn nếu PDF có lớp văn bản.
 6. Dùng Ctrl+F để tìm trong phần chữ có thể tìm kiếm.
+
+### Công cụ trang và lời nhắc gắn trang
+
+1. Mở menu thanh công cụ PDF để chọn **Ảnh thu nhỏ các trang**, **Các trang đã đánh dấu** hoặc **Đánh dấu trang này**.
+2. Chọn ảnh thu nhỏ để chuyển trang. Chọn bộ đếm trang để nhập số rồi bấm **Đến**. Số trang bắt đầu từ 1.
+3. Chuẩn bị lời nhắc bằng các tiêu đề Markdown như `# Mở đầu` và `## Chi tiết`.
+4. Mở **Lời nhắc theo trang** trong menu PDF. Chọn phần lời nhắc, đến trang PDF tương ứng rồi bấm **Gắn trang**.
+5. Chỉ bật **Đồng bộ** khi cần. Đổi trang PDF chọn phần đã gắn gần nhất. Nút phần trước/sau chuyển đến trang đã gắn. Phần chưa gắn vẫn đọc được.
+6. Chỉnh vùng lời nhắc bằng A- / A+. Vị trí đang đọc được giữ khi đổi cỡ hoặc độ đậm chữ.
+7. Cửa sổ rộng đặt lời nhắc bên cạnh PDF. Cửa sổ nhỏ đưa lời nhắc xuống dưới. Có thể ẩn từng vùng khi không cần.
+
+Ảnh thu nhỏ chỉ dựng cho các dòng đang thấy. Bộ đệm LRU giới hạn 12 ảnh và 2 MiB, tách với bitmap trang chính. Ẩn cột trang sẽ giải phóng bộ đệm ảnh thu nhỏ. Dấu trang và liên kết lời nhắc được mã hóa cục bộ, tối đa 32 PDF, 64 dấu trang và 128 liên kết mỗi PDF. PDF gốc giữ nguyên.
 
 Trang quét không có lớp chữ sẽ không cung cấp tìm hoặc sao chép văn bản thông thường. QuietShare dựng từng trang PDF. Ứng dụng không sửa nội dung PDF hoặc gỡ mật khẩu.
 
@@ -571,35 +571,46 @@ Tăng FPS không sửa đường thu chưa xác minh. Trước tiên sửa đi�
 
 Dùng điều khiển của ứng dụng thực sự chia sẻ hoặc ghi hình. Nút che và dừng của QuietShare tác động QuietShare. Chúng không điều khiển luồng trực tiếp của ứng dụng khác.
 
-### Ghi âm âm thanh cuộc họp trên máy này
+### Ghi âm, chép lời và duyệt lại ngay trên máy
 
-QuietShare có thể ghi âm luồng phát mặc định của Windows khi bạn chủ động bật nút ghi. Tính năng phù hợp khi âm thanh cuộc họp, video thuyết trình hoặc người tham dự từ xa đang phát qua chính máy này.
+1. Mở **Cuộc họp** ở thanh bên. Chọn **Xuất / thêm > Kiểm tra nguồn âm thanh và nhận dạng**.
+2. Trong **Cài đặt > Nội dung**, chọn Tiếng Việt hoặc Tiếng Anh, thư mục xuất cục bộ và có tự chép lời sau khi ghi hay không.
+3. Giữ **Small · 466 MiB** mặc định để ưu tiên độ chính xác. Có thể chọn Base · 142 MiB khi cần nhẹ hơn.
+4. Chọn **Cài bộ nhận dạng tùy chọn**. Chỉ thao tác chủ động này mới tải bộ CPU và mô hình đã chọn. Giữ ứng dụng mở đến khi cài xong. Mô hình nằm tại `%LOCALAPPDATA%\QuietShare\Speech`.
+5. Chọn **WAV + nội dung** để giữ âm thanh hoặc **Chỉ nội dung** để xóa WAV tạm sau khi transcript được lưu thành công vào sổ. Khi đang ghi vẫn cần dung lượng tạm trên ổ đĩa.
+6. Quay lại Cuộc họp và chọn **Ghi âm và chép lời cuộc họp**. Kiểm tra trạng thái đang ghi và mức âm thanh. Cho âm thanh họp phát qua thiết bị phát mặc định của Windows.
+7. Chọn lại nút ghi để dừng. Nhận dạng chạy cục bộ ở nền. **Dừng xử lý** dừng chép lời hoặc cài mô hình và giữ bản ghi.
+8. Duyệt các đoạn có mốc giờ trong Cuộc họp. Chọn đoạn để sửa nội dung, người nói và giờ đầu/cuối. Dùng **Lưu đoạn** hoặc Ctrl+S. Thay đổi cũng được lưu sau một khoảng nghỉ ngắn.
+9. Tự đánh dấu **Quyết định** và **Việc cần làm** thực sự có trong cuộc họp. Dùng bộ lọc và ô tìm kiếm. QuietShare không tự bịa tóm tắt hoặc nhận tên người từ âm thanh trộn.
+10. Mở **Xuất / thêm** và chọn TXT, VTT có thời gian hoặc biên bản Markdown. File xuất nằm ngay trong thư mục đã chọn. **Mở file vừa xuất trong QuietShare** giúp xem kết quả.
+11. Chỉ chọn **Thêm transcript vào lời nhắc** khi muốn đưa ghi chép đã duyệt sang lời nhắc. Nhập transcript và nhận dạng âm thanh không tự thay lời nhắc.
 
-1. Mở **Cài đặt > Nội dung > Ngôn ngữ chép lời** và chọn **Tiếng Việt** hoặc **Tiếng Anh**.
-2. Bật hoặc tắt **Tự chép lời sau khi ghi âm**, chọn thư mục xuất và chọn **WAV + nội dung** hoặc **Chỉ nội dung**.
-3. Chọn **Ghi âm và chép lời cuộc họp** trên thanh bên.
-4. Xác nhận icon ghi màu đỏ và thanh trạng thái cho biết đang ghi.
-5. Giữ âm thanh cuộc họp trên đúng thiết bị phát Windows cần dùng.
-6. Dùng vùng soạn lời nhắc để ghi chú thủ công trong lúc bản ghi đang chạy.
-7. Chọn **Dừng ghi âm** khi kết thúc hoặc đóng QuietShare để dừng và hoàn tất file.
-8. Tìm file trong thư mục đã chọn. Chỉ nội dung xóa WAV tạm sau khi lưu transcript thành công.
-9. Đợi Windows Speech API hoàn tất. Transcript UTF-8 được nối vào Lời nhắc.
+Small là mô hình Whisper đa ngôn ngữ, không bảo đảm mọi từ đều đúng. Trên CPU nhỏ, chép lời có thể lâu hơn thời lượng bản ghi. QuietShare giới hạn hai luồng CPU nền và mức trần 2 GiB bộ nhớ cho tiến trình con. Khi rảnh ứng dụng không chạy nhận dạng. Nút dừng kết thúc đúng tiến trình xử lý của ứng dụng. Windows Speech API vẫn là phương án dự phòng khi máy có bộ nhận dạng đúng ngôn ngữ và chưa cài Whisper tùy chọn.
 
-Để giữ tên người nói, dùng **Nhập transcript Teams / Zoom / Meet** rồi chọn file VTT/TXT do nhà cung cấp xuất. Chỉ thu âm thanh máy không thể tự cung cấp tên người nói đáng tin cậy.
+### Giữ người nói từ nền tảng họp và khôi phục ghi chép
 
-Bộ ghi chỉ lấy âm thanh phát ra từ máy. Nó không mở micro, không tự ghi khi khởi động và không đưa âm thanh vào đường trình chiếu của QuietShare. Nếu thiết bị phát thay đổi, bản ghi có thể dừng và để lại file WAV một phần nhưng đã hoàn tất. Nhận dạng giọng nói chạy cục bộ. Nếu thiếu thành phần ngôn ngữ Windows đã chọn, thanh trạng thái báo ngôn ngữ còn thiếu và không tạo transcript giả.
+1. Xuất transcript VTT hoặc TXT từ Teams, Zoom hoặc Google Meet bằng công cụ của nền tảng đó.
+2. Chọn đúng **Nền tảng cuộc họp** trong Cài đặt > Nội dung.
+3. Chọn **Cuộc họp > Xuất / thêm > Nhập transcript Teams / Zoom / Meet**.
+4. Kiểm tra tên và mốc giờ. Dòng VTT `<v Speaker>` được giữ lại. Tiền tố tên thông thường chỉ được đọc khi đã chọn nền tảng cụ thể. Bản nhận dạng từ âm thanh Whisper để bạn tự gán tên.
+5. Ở cửa sổ nhỏ, dùng **Các đoạn**, **Nội dung** và **Người / giờ** để chuyển vùng. Cửa sổ rộng hiện danh sách cùng vùng sửa.
+6. Chỉ xuất VTT sau khi mọi đoạn có nội dung đều có giờ hợp lệ. Ghi chú thủ công chưa có giờ vẫn xuất TXT hoặc biên bản được.
+
+Sổ ghi chép được mã hóa cho tài khoản Windows tại `meeting-notes.dpapi`. Khi nhập, một bản trước đó được giữ tại `meeting-notes-before-import.dpapi`. Hãy xuất các phiên quan trọng trước khi nhập phiên khác. File xuất và WAV là file cục bộ đọc bình thường. Quy trình này không bật API nền tảng, OAuth, thu micro hoặc tải âm thanh lên mạng. Đổi thiết bị phát có thể kết thúc một WAV chưa đủ phiên. Đóng QuietShare sẽ dừng ghi và xử lý.
 
 ### Mã trạng thái chép lời cuộc họp
 
 | Mã | Ý nghĩa | Cách xử lý |
 |---|---|---|
 | `QS-R001` | Không tìm thấy WAV | Ghi một phiên mới. |
-| `QS-R002` | Windows Speech API không khởi động được | Mở lại QuietShare và kiểm tra dịch vụ giọng nói Windows. |
-| `QS-R003` | Định dạng WAV không được hỗ trợ | Ghi lại từ thiết bị phát mặc định. |
-| `QS-R004` | Thiếu bộ nhận dạng ngôn ngữ đã chọn | Cài gói ngôn ngữ giọng nói Windows tương ứng. |
-| `QS-R005` | Windows không nhận dạng được âm thanh | Kiểm tra âm thanh đang phát và ngôn ngữ đã chọn. |
-| `QS-R006` | Đã dừng chép lời | Ghi phiên mới nếu vẫn cần. |
-| `QS-R007` | Không lưu được transcript | Kiểm tra quyền ghi và dung lượng cục bộ. |
+| `QS-R002` | Windows Speech API không khởi động được | Mở lại QuietShare hoặc cài Whisper tùy chọn. |
+| `QS-R003` | WAV không được hỗ trợ | Ghi lại từ thiết bị phát mặc định. |
+| `QS-R004` | Thiếu bộ nhận dạng đúng ngôn ngữ | Cài Whisper cục bộ hoặc bộ nhận dạng Windows tương ứng. |
+| `QS-R005` | Không có kết quả nhận dạng dùng được | Kiểm tra âm thanh đang phát và ngôn ngữ đã chọn. |
+| `QS-R006` | Đã dừng xử lý | Bản ghi gốc được giữ lại. Ghi phiên mới khi sẵn sàng. |
+| `QS-R007` | Không lưu được transcript | Kiểm tra quyền ghi và dung lượng thư mục cục bộ. |
+| `QS-R008` | Cài đặt hoặc kiểm tra toàn vẹn thất bại | Kiểm tra mạng/dung lượng rồi cài hoặc sửa Whisper. |
+| `QS-R009` | Mô hình cục bộ xử lý thất bại | Giải phóng RAM rồi thử bản ghi ngắn hơn. Giữ WAV. |
 
 ### Zoom, Meet hoặc Teams với một màn
 
@@ -965,3 +976,19 @@ Lời nhắc và lịch sử gần đây được Windows DPAPI mã hóa cho ng�
 Lý do lỗi trình chiếu mới cần có mã ổn định và các bước phục hồi theo thứ tự trong cả hai ấn bản trước khi phát hành. Danh mục dành cho điều kiện trình chiếu đã hiện thực. Không gán mã giả cho lỗi website hoặc file không liên quan.
 
 [Tải bản phát hành](https://github.com/TDUmii/QuietShare/releases/latest) | [Mục lục tài liệu](README.md) | [Chi tiết quyền riêng tư](PRIVACY.md) | [Xử lý sự cố](TROUBLESHOOTING.md)
+
+### Mã phục hồi trình đọc và sổ ghi chép
+
+| Mã | Cách xử lý |
+|---|---|
+| `QS-W008` | Không lưu được lựa chọn xem trước. Kiểm tra quyền ghi thư mục dữ liệu. Lựa chọn vẫn áp dụng trong phiên hiện tại. |
+| `QS-D001` | Không đọc được dữ liệu đọc. Đóng QuietShare, sao lưu reading.dpapi rồi khôi phục bản tốt bằng cùng tài khoản Windows hoặc đổi tên file để tạo mới. |
+| `QS-D002` | Không lưu được dữ liệu đọc hoặc đã đủ 64 dấu trang. Kiểm tra quyền ghi/dung lượng hoặc bỏ dấu trang không cần. |
+| `QS-D003` | Số trang nằm ngoài PDF. Nhập số nguyên từ 1 đến tổng số trang đang hiện. |
+| `QS-N001` | Không đọc được ghi chép cũ. Đóng QuietShare và sao lưu meeting-notes.dpapi. Khôi phục bản tốt bằng cùng tài khoản hoặc đổi tên file trước khi tạo sổ mới. |
+| `QS-N002` | Giờ của đoạn không hợp lệ. Dùng HH:MM:SS.mmm với giờ cuối sau giờ đầu hoặc để trống cả hai ô. |
+| `QS-N003` | VTT cần thời gian hợp lệ cho mọi đoạn có nội dung. Nhập giờ hoặc xuất TXT. |
+| `QS-N004` | Transcript không đúng định dạng hoặc vượt giới hạn. Dùng VTT/TXT UTF-8, tối đa 10.000 đoạn, 32.000 ký tự mỗi đoạn và khoảng 2 triệu ký tự tổng. |
+| `QS-N005` | Không tạo dự phòng/lưu/xuất được ghi chép. Kiểm tra thư mục xuất cục bộ, quyền ghi và dung lượng. Giữ bản cũ rồi thử lại. |
+
+Dùng **Ẩn xem trước** tại Trình chiếu hoặc **Cài đặt > Trình chiếu > Xem trước luồng đang gửi** để tắt xem trước. Lựa chọn được nhớ qua lần mở lại. Tắt sẽ giải phóng bộ dựng GPU và ngừng vẽ xem trước. Trình chiếu vẫn tiếp tục. Bật lại chỉ tạo vùng xem trước khi đang hiện vùng đó. Đây là luồng đang gửi, không phải xác nhận đầu nhận vật lý.

@@ -1,4 +1,5 @@
 #include "MeetingTranscriber.h"
+#include "MeetingNotebook.h"
 
 #include <windows.h>
 #include <sapi.h>
@@ -70,10 +71,13 @@ bool TokenHasLanguage(ISpObjectToken *token,const wchar_t *language)
 {
     if(!token||!language)return false;
     LPWSTR raw=nullptr;
-    if(FAILED(token->GetStringValue(L"Language",&raw))||!raw)return false;
+    ISpDataKey* attributes=nullptr;
+    if(FAILED(token->OpenKey(L"Attributes",&attributes))||!attributes)return false;
+    const auto hr=attributes->GetStringValue(L"Language",&raw);attributes->Release();
+    if(FAILED(hr)||!raw)return false;
     std::wstring value(raw);CoTaskMemFree(raw);
     for(auto &character:value)character=static_cast<wchar_t>(towlower(character));
-    std::wstring wanted(language);for(auto &character:wanted)character=static_cast<wchar_t>(towlower(character));
+    std::wstring wanted(language);if(wanted.rfind(L"Language=",0)==0)wanted.erase(0,9);for(auto &character:wanted)character=static_cast<wchar_t>(towlower(character));
     return value.find(wanted)!=std::wstring::npos;
 }
 
@@ -104,7 +108,14 @@ MeetingTranscriber::~MeetingTranscriber()
     Stop();
 }
 
-bool MeetingTranscriber::Start(const std::wstring& wavPath,TranscriptionLanguage nextLanguage)
+bool MeetingTranscriber::LanguageAvailable(TranscriptionLanguage language)
+{
+    const HRESULT initialized=CoInitializeEx(nullptr,COINIT_APARTMENTTHREADED);
+    if(FAILED(initialized))return false;
+    ISpObjectToken* token=nullptr;const bool ok=FindRecognizerToken(language==TranscriptionLanguage::English?L"Language=409":L"Language=42A",&token);
+    ReleaseCom(token);CoUninitialize();return ok;
+}
+bool MeetingTranscriber::Start(const std::wstring& wavPath,TranscriptionLanguage nextLanguage,const std::wstring& directory,int model)
 {
     Stop();
     if(wavPath.empty()||GetFileAttributesW(wavPath.c_str())==INVALID_FILE_ATTRIBUTES){errorCode.store(1);return false;}
@@ -113,26 +124,28 @@ bool MeetingTranscriber::Start(const std::wstring& wavPath,TranscriptionLanguage
         transcript.clear();outputPath.clear();language=nextLanguage;
     }
     errorCode.store(0);stopRequested.store(false);completed.store(false);consumed.store(false);running.store(true);
-    worker=std::thread([this,wavPath,nextLanguage]{Run(wavPath,nextLanguage);});
+    worker=std::thread([this,wavPath,nextLanguage,directory,model]{Run(wavPath,nextLanguage,directory,model);});
     return true;
 }
 
 void MeetingTranscriber::Stop()
 {
     stopRequested.store(true);
+    speechProcess.Cancel();
     if(worker.joinable())worker.join();
     running.store(false);
 }
 
-void MeetingTranscriber::Run(const std::wstring& wavPath,TranscriptionLanguage nextLanguage)
+void MeetingTranscriber::Run(const std::wstring& wavPath,TranscriptionLanguage nextLanguage,const std::wstring& directory,int model)
 {
-    std::wstring text;int code=0;const bool recognized=Recognize(wavPath,nextLanguage,text,code);
-    std::wstring textPath;
-    if(recognized&&!WriteTranscript(wavPath,text,textPath))code=7;
+    std::wstring text,textPath;int code=0;
+    const bool whisper=SpeechRuntimeReady(directory,model);
+    const bool recognized=whisper?RunWhisper(directory,model,wavPath,nextLanguage==TranscriptionLanguage::English,stopRequested,speechProcess,text,textPath,code):Recognize(wavPath,nextLanguage,text,code);
+    if(!whisper&&recognized&&!WriteTranscript(wavPath,text,textPath))code=7;
     if(stopRequested.load()&&code==0)code=6;
     {
         std::lock_guard<std::mutex> lock(stateMutex);
-        transcript=std::move(text);outputPath=std::move(textPath);language=nextLanguage;
+        transcript=std::move(text);outputPath=std::move(textPath);
     }
     errorCode.store(code);completed.store(true);running.store(false);
 }
@@ -170,14 +183,19 @@ bool MeetingTranscriber::Recognize(const std::wstring& wavPath,TranscriptionLang
             const auto& event=events[index];
             if(event.eEventId==SPEI_RECOGNITION&&event.lParam){
                 auto* phrase=reinterpret_cast<ISpRecoResult*>(event.lParam);LPWSTR text=nullptr;
-                if(SUCCEEDED(phrase->GetText(0,SP_GETWHOLEPHRASE,TRUE,&text,nullptr))&&text){AppendPhrase(result,text);CoTaskMemFree(text);}
+                if(SUCCEEDED(phrase->GetText(0,SP_GETWHOLEPHRASE,TRUE,&text,nullptr))&&text){
+                    SPRECORESULTTIMES times{};
+                    if(SUCCEEDED(phrase->GetResultTimes(&times))&&times.ullStart/10000<604799999&&times.ullLength/10000<604799999){
+                        const int begin=static_cast<int>(times.ullStart/10000),end=std::min(604799999,begin+std::max(1,static_cast<int>(times.ullLength/10000)));
+                        AppendPhrase(result,L"["+MeetingClock(begin)+L" --> "+MeetingClock(end)+L"] "+text);
+                    }else AppendPhrase(result,text);CoTaskMemFree(text);}
                 phrase->Release();
             } else if(event.eEventId==SPEI_END_INPUT_STREAM)ended=true;
         }
     }
     if(stopRequested.load()){code=6;goto finish;}
     if(!ended){code=5;goto finish;}
-    ok=true;
+    ok=!result.empty();if(!ok)code=5;
 finish:
     if(recognizer)recognizer->SetRecoState(SPRST_INACTIVE);
     if(stream)stream->Close();
@@ -214,9 +232,11 @@ std::wstring MeetingTranscriber::Status(bool english) const
     case 3:return (english?L"QS-R003 · The WAV format is not supported by the recognizer.":L"QS-R003 · Bộ nhận dạng không hỗ trợ định dạng WAV này.");
     case 4:return english?(language==TranscriptionLanguage::English?L"QS-R004 · English speech recognition is not installed.":L"QS-R004 · Vietnamese speech recognition is not installed."):
         (language==TranscriptionLanguage::English?L"QS-R004 · Chưa cài bộ nhận dạng giọng nói tiếng Anh.":L"QS-R004 · Chưa cài bộ nhận dạng giọng nói tiếng Việt.");
-    case 5:return english?L"QS-R005 · Windows could not recognize the meeting audio.":L"QS-R005 · Windows không thể nhận dạng âm thanh cuộc họp.";
+    case 5:return english?L"QS-R005 - No usable speech was recognized. Check playback and language.":L"QS-R005 - Chưa nhận dạng được lời nói. Kiểm tra âm thanh và ngôn ngữ.";
     case 6:return english?L"QS-R006 · Transcription was stopped.":L"QS-R006 · Đã dừng chép lời.";
     case 7:return english?L"QS-R007 · The transcript could not be saved next to the recording.":L"QS-R007 · Không lưu được file chép lời cạnh bản ghi.";
+    case 8:return english?L"QS-R008 - Install or repair the optional local Whisper runtime.":L"QS-R008 - Cài hoặc sửa bộ Whisper cục bộ tùy chọn.";
+    case 9:return english?L"QS-R009 - Whisper could not finish. Check the model, memory and recording.":L"QS-R009 - Whisper chưa xử lý được. Kiểm tra mô hình, bộ nhớ và bản ghi.";
     default:return {};
     }
 }

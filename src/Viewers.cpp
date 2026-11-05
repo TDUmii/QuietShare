@@ -648,6 +648,11 @@ std::wstring CodeViewer::Language() const
 
 struct PdfViewer::Impl
 {
+    struct Thumbnail {int page,width,height;FPDF_BITMAP image;ULONGLONG used;};
+    std::vector<Thumbnail> thumbnails;
+    unsigned thumbnailEpoch=0;
+    size_t ThumbnailBytes()const{size_t n=0;for(const auto& t:thumbnails)if(t.image)n+=static_cast<size_t>(t.width)*t.height*4;return n;}
+    void ClearThumbnails(){++thumbnailEpoch;for(auto& t:thumbnails)if(t.image)API().FPDFBitmap_Destroy(t.image);thumbnails.clear();}
     HWND window = nullptr;
     bool safe = false, dragging = false;
     FPDF_DOCUMENT document = nullptr;
@@ -738,6 +743,7 @@ struct PdfViewer::Impl
     void Mask()
     {
         safe = false;
+        ClearThumbnails();
         wheelRemainder = 0;
         if (GetCapture() == window)
             ReleaseCapture();
@@ -910,6 +916,44 @@ struct PdfViewer::Impl
             return false;
         }
         return true;
+    }
+    bool ThumbnailPage(int number,HDC dc,RECT bounds)
+    {
+        if(!safe||operationDepth||!document||number<0||number>=pages||!IsWindowVisible(window))return false;
+        Operation operation(*this);SafetyMessages();if(!safe)return false;
+        const unsigned epoch=thumbnailEpoch;
+        int width=std::clamp<int>(bounds.right-bounds.left,1,256),height=std::clamp<int>(bounds.bottom-bounds.top,1,360);
+        auto found=std::find_if(thumbnails.begin(),thumbnails.end(),[&](const auto& t){return t.page==number&&t.width==width&&t.height==height;});
+        if(found==thumbnails.end()){
+            // Only visible rows ask for images. Bound both failed-page entries
+            // and GPU-independent bitmap memory; never scan the whole PDF.
+            while(thumbnails.size()>=12||ThumbnailBytes()+static_cast<size_t>(width)*height*4>2*1024*1024){
+                auto oldest=std::min_element(thumbnails.begin(),thumbnails.end(),[](const auto& a,const auto& b){return a.used<b.used;});
+                if(oldest==thumbnails.end())break;
+                if(oldest->image)API().FPDFBitmap_Destroy(oldest->image);thumbnails.erase(oldest);
+            }
+            FPDF_PAGE thumbPage=API().FPDF_LoadPage(document,number);FPDF_BITMAP image=nullptr;
+            if(thumbPage){const double w=API().FPDF_GetPageWidth(thumbPage),h=API().FPDF_GetPageHeight(thumbPage);
+                if(std::isfinite(w)&&std::isfinite(h)&&w>0&&h>0&&w<=144000&&h<=144000){
+                    image=API().FPDFBitmap_Create(width,height,0);
+                    if(image){API().FPDFBitmap_FillRect(image,0,0,width,height,0xffffffff);const double scale=std::min(width/w,height/h);
+                        int rw=std::max(1,static_cast<int>(w*scale)),rh=std::max(1,static_cast<int>(h*scale));
+                        IFSDK_PAUSE pause{1,NeedPause,this};rendering=true;const auto deadline=GetTickCount64()+150;renderDeadline=std::min(deadline,GetTickCount64()+16);
+                        int status=API().FPDF_RenderPageBitmap_Start(image,thumbPage,(width-rw)/2,(height-rh)/2,rw,rh,0,FPDF_ANNOT,&pause);
+                        while(status==FPDF_RENDER_TOBECONTINUED&&safe&&GetTickCount64()<deadline){SafetyMessages();renderDeadline=std::min(deadline,GetTickCount64()+16);status=API().FPDF_RenderPage_Continue(thumbPage,&pause);}
+                        API().FPDF_RenderPage_Close(thumbPage);rendering=false;SafetyMessages();
+                        if(!safe||status!=FPDF_RENDER_DONE||GetTickCount64()>=deadline){API().FPDFBitmap_Destroy(image);image=nullptr;}
+                    }}
+                API().FPDF_ClosePage(thumbPage);
+            }
+            if(!safe||epoch!=thumbnailEpoch){if(image)API().FPDFBitmap_Destroy(image);if(!safe)DiscardBitmap();return false;}
+            thumbnails.push_back({number,width,height,image,GetTickCount64()});found=thumbnails.end()-1;
+        }
+        found->used=GetTickCount64();if(!found->image)return false;
+        BITMAPINFO info{};info.bmiHeader.biSize=sizeof(BITMAPINFOHEADER);info.bmiHeader.biWidth=width;info.bmiHeader.biHeight=-height;
+        info.bmiHeader.biPlanes=1;info.bmiHeader.biBitCount=32;info.bmiHeader.biCompression=BI_RGB;
+        return StretchDIBits(dc,bounds.left,bounds.top,bounds.right-bounds.left,bounds.bottom-bounds.top,0,0,width,height,
+            API().FPDFBitmap_GetBuffer(found->image),&info,DIB_RGB_COLORS,SRCCOPY)!=GDI_ERROR;
     }
     RECT PageRect() const
     {
@@ -1389,8 +1433,11 @@ std::wstring PdfViewer::SelectedText() const
 }
 size_t PdfViewer::CachedBytes() const
 {
-    return static_cast<size_t>(impl->renderWidth) * impl->renderHeight * 4;
+    return static_cast<size_t>(impl->renderWidth) * impl->renderHeight * 4+impl->ThumbnailBytes();
 }
+bool PdfViewer::DrawThumbnail(int page,HDC dc,RECT bounds){return impl->ThumbnailPage(page,dc,bounds);}
+void PdfViewer::ClearThumbnails(){impl->ClearThumbnails();}
+size_t PdfViewer::ThumbnailCachedBytes()const{return impl->ThumbnailBytes();}
 bool PdfViewer::RenderCurrentPage()
 {
     return impl->Render();

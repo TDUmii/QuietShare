@@ -1,4 +1,5 @@
 #include "MeetingRecorder.h"
+#include <cmath>
 
 #include <audioclient.h>
 #include <mmdeviceapi.h>
@@ -140,6 +141,7 @@ void MeetingRecorder::Stop()
         worker.join();
     ready.store(false);
     running.store(false);
+    level.store(0);
 }
 
 void MeetingRecorder::Fail(int code)
@@ -149,6 +151,15 @@ void MeetingRecorder::Fail(int code)
     ready.store(false);
 }
 
+bool MeetingRecorder::PlaybackAvailable(int* peak)
+{
+    if(peak)*peak=0;
+    const HRESULT initialized=CoInitializeEx(nullptr,COINIT_APARTMENTTHREADED);if(FAILED(initialized)&&initialized!=RPC_E_CHANGED_MODE)return false;
+    IMMDeviceEnumerator* enumerator=nullptr;IMMDevice* device=nullptr;DWORD state=0;
+    bool ok=SUCCEEDED(CoCreateInstance(__uuidof(MMDeviceEnumerator),nullptr,CLSCTX_ALL,__uuidof(IMMDeviceEnumerator),reinterpret_cast<void**>(&enumerator)))&&
+        SUCCEEDED(enumerator->GetDefaultAudioEndpoint(eRender,eConsole,&device))&&SUCCEEDED(device->GetState(&state))&&(state&DEVICE_STATE_ACTIVE);
+    if(device)device->Release();if(enumerator)enumerator->Release();if(SUCCEEDED(initialized))CoUninitialize();return ok;
+}
 void MeetingRecorder::Capture(const std::wstring& path)
 {
     HRESULT hr = CoInitializeEx(nullptr, COINIT_MULTITHREADED);
@@ -240,6 +251,13 @@ void MeetingRecorder::Capture(const std::wstring& path)
                 break;
             }
             const unsigned long long bytes = static_cast<unsigned long long>(frames) * format->nBlockAlign;
+            float peak=0;WORD kind=format->wFormatTag;
+            if(kind==WAVE_FORMAT_EXTENSIBLE&&formatBytes>=sizeof(WAVEFORMATEXTENSIBLE))kind=static_cast<WORD>(reinterpret_cast<WAVEFORMATEXTENSIBLE*>(format)->SubFormat.Data1);
+            if(buffer&&!(flags&AUDCLNT_BUFFERFLAGS_SILENT))for(unsigned long long sample=0;sample<static_cast<unsigned long long>(frames)*format->nChannels;sample+=16){
+                float value=0;if(kind==WAVE_FORMAT_IEEE_FLOAT&&format->wBitsPerSample==32){memcpy(&value,buffer+sample*4,4);if(!std::isfinite(value))value=0;}
+                else if(kind==WAVE_FORMAT_PCM&&format->wBitsPerSample==16){short x;memcpy(&x,buffer+sample*2,2);value=x/32768.0f;}
+                peak=std::max(peak,std::abs(value));}
+            level.store(std::clamp(static_cast<int>(peak*100),0,100));
             const bool written = (flags & AUDCLNT_BUFFERFLAGS_SILENT) ? WriteSilence(file, bytes)
                                                                         : WriteExact(file, buffer, static_cast<DWORD>(bytes));
             capture->ReleaseBuffer(frames);

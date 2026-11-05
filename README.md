@@ -24,15 +24,15 @@ A Windows presentation companion for scripts, documents and optional web browsin
 
    Chờ xác minh rồi mở file bằng **Ctrl+O** hoặc thư mục bằng **Ctrl+Shift+O**. Dùng thanh bên để chuyển file hoặc chuẩn bị lời nhắc.
 
-3. Set Windows to **Extend**, choose source and destination in **Settings > Projection**, then select **Verify WGC** before **Start projection**. Preview the outgoing stream and inspect the real audience output.
+3. Set Windows to **Extend**, choose source and destination in **Settings > Projection**, then select **Verify WGC** before **Start projection**. Preview can be disabled and remembers the choice. Inspect the real audience output.
 
-   Đặt Windows ở **Extend**, chọn nguồn và đích trong **Cài đặt > Trình chiếu**, rồi **Kiểm tra WGC** trước khi **Bắt đầu trình chiếu**. Xem trước luồng đang gửi và quan sát đúng đầu nhận.
+   Đặt Windows ở **Extend**, chọn nguồn và đích trong **Cài đặt > Trình chiếu**, rồi **Kiểm tra WGC** trước khi **Bắt đầu trình chiếu**. Có thể tắt xem trước và nhớ lựa chọn. Quan sát đúng đầu nhận.
 
 ## 🎨 What you can do / Chức năng chính
 
-- **Read and prepare:** compact Home, quick switch (Ctrl+K), saved presentation sets, scripts, editable text/code, PDFs and images.
+- **Read and prepare:** compact Home, quick switch (Ctrl+K), saved presentation sets, scripts, editable text/code, PDF thumbnails/bookmarks and linked page cues.
 
-  **Đọc và chuẩn bị:** Home gọn, chuyển nhanh (Ctrl+K), bộ thuyết trình đã lưu, lời nhắc, sửa văn bản/code và xem ảnh/PDF.
+  **Đọc và chuẩn bị:** Home gọn, chuyển nhanh (Ctrl+K), bộ thuyết trình đã lưu, lời nhắc, sửa văn bản/code, ảnh thu nhỏ/dấu trang PDF và lời nhắc gắn trang.
 
 - **Make it readable:** ten presets include Monochrome dark/light, plus custom colors. Adjust wrapping, text size/weight, focus and layout in **Settings > Appearance** or the viewer toolbar.
 
@@ -42,9 +42,9 @@ A Windows presentation companion for scripts, documents and optional web browsin
 
   **Duyệt web khi cần:** trình duyệt WebView2 tùy chọn, tối đa 8 tab. Trình đọc file dùng offline. Trình duyệt luôn tắt khi mới mở ứng dụng.
 
-- **Record and transcribe:** choose Vietnamese or English, an output folder and whether to keep WAV files. The local recorder uses Windows playback only. Import exported VTT/TXT from Teams, Zoom or Meet to keep provider speaker names.
+- **Record and transcribe:** optional offline Whisper (Small by default), English/Vietnamese, editable timed notes and TXT/VTT/minutes export. Import Teams/Zoom/Meet transcripts for speaker names.
 
-  **Ghi âm và chép lời:** lưu âm thanh Windows thành WAV rồi chạy Speech API cục bộ. Có thể nhập VTT/TXT Teams, Zoom hoặc Meet để giữ tên người nói. Không micro, không tự ghi.
+  **Ghi âm và chép lời:** Whisper offline tùy chọn (mặc định Small), Anh/Việt, sửa đoạn có giờ và xuất TXT/VTT/biên bản. Nhập transcript nền tảng để giữ tên người nói.
 
 - **Shorten tab labels:** choose numbered labels independently for Lời nhắc/file tabs and Browser tabs. Tooltips keep the full path or address.
 

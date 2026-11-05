@@ -74,17 +74,17 @@ Tra mã lỗi trình chiếu và quy trình riêng cho HDMI, TV không dây, cu�
 
 ## Meeting recording or transcription issues / Sự cố ghi âm hoặc chép lời cuộc họp
 
-- Select the language before recording in **Settings > Reading > Transcription language**.
-- The recording control captures Windows playback only. Confirm the meeting audio is audible on the intended playback device.
-- After stopping, wait for the footer to finish transcription. The WAV and UTF-8 TXT stay under `%LOCALAPPDATA%\QuietShare\Meetings`.
-- If the footer shows `QS-R004`, install the matching English or Vietnamese Windows speech recognition component.
-- Use the exact `QS-R001` through `QS-R007` code in the [sharing handbook](BOOK.md) when reporting a failure.
+1. Open Meetings and check playback/recognition. Confirm the meeting is audible through the default Windows playback device.
+2. Choose English/Vietnamese and Small/Base in Settings > Reading. Install optional local Whisper if Windows has no matching recognizer (`QS-R004`).
+3. Setup requires internet and sufficient disk space. Recognition itself runs offline. Use Cancel task to stop heavy processing and retain the WAV.
+4. Review the status in Meetings. Use the exact `QS-R001` through `QS-R009` or `QS-N001` through `QS-N005` code in the [book](BOOK.md).
+5. Check the selected output folder. VTT export requires valid times. Untimed notes can use TXT.
 
-- Chọn ngôn ngữ trước khi ghi tại **Cài đặt > Nội dung > Ngôn ngữ chép lời**.
-- Nút ghi chỉ lấy âm thanh phát ra từ Windows. Xác nhận âm thanh cuộc họp đang phát đúng thiết bị cần dùng.
-- Sau khi dừng, đợi thanh trạng thái chép lời xong. WAV và TXT UTF-8 nằm tại `%LOCALAPPDATA%\QuietShare\Meetings`.
-- Nếu thanh trạng thái hiện `QS-R004`, cài thành phần nhận dạng giọng nói Windows tương ứng với tiếng Anh hoặc tiếng Việt.
-- Khi báo lỗi, ghi đúng mã `QS-R001` đến `QS-R007` trong [cuốn book](BOOK.md).
+1. Mở Cuộc họp và kiểm tra âm thanh/nhận dạng. Xác nhận âm thanh họp phát qua thiết bị mặc định Windows.
+2. Chọn Anh/Việt và Small/Base tại Cài đặt > Nội dung. Cài Whisper cục bộ tùy chọn nếu Windows thiếu bộ đúng ngôn ngữ (`QS-R004`).
+3. Cài cần mạng và đủ dung lượng. Nhận dạng chạy offline. Dừng xử lý giúp ngừng công việc nặng và giữ WAV.
+4. Đọc trạng thái trong Cuộc họp. Tra đúng mã `QS-R001` đến `QS-R009` hoặc `QS-N001` đến `QS-N005` trong [book](BOOK.md).
+5. Kiểm tra thư mục xuất đã chọn. VTT cần giờ hợp lệ. Ghi chép chưa có giờ dùng TXT.
 
 ## A file will not open or save / Không mở hoặc lưu được file
 

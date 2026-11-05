@@ -153,25 +153,19 @@ Lời nhắc tự lưu trên máy, tách biệt với file đã mở.
 - Separate-popup sign-in flows may not work.
 - Microphone/camera access is off by default. See [privacy](PRIVACY.md) for grant conditions.
 
-## Local meeting recording / Ghi âm cuộc họp cục bộ
+## Meeting notebook / Sổ ghi chép cuộc họp
 
-- **English:** Select **Record and transcribe meeting** on the sidebar. QuietShare captures the Windows playback mix only. It does not open the microphone, start automatically or continue after the app closes.
-- Select the same control to stop. **Settings > Reading** lets you turn transcription off, choose Vietnamese or English, select a Teams/Zoom/Google Meet label for imported files, and choose a custom output folder.
-- **WAV + transcript** keeps both files. **Transcript only** uses a temporary WAV and deletes it after a successful transcript save.
-- A UTF-8 `.txt` is written beside the WAV when it is kept. The recognized text is appended to the local Lời nhắc without moving the reading anchor.
-- **Import Teams / Zoom / Meet transcript** accepts exported `.vtt` or `.txt` files. Speaker cues such as `<v Alice>` become `Alice: ...`, so provider names remain visible. This offline path does not enable live APIs, OAuth or network capture.
-- The matching Windows speech recognition component must be installed. If it is missing, the footer reports that exact language requirement instead of creating a fake transcript. See [Microsoft Teams transcripts](https://learn.microsoft.com/en-us/microsoftteams/platform/graph-api/meeting-transcripts/overview-transcripts), [Google Meet API](https://developers.google.com/workspace/meet/api/guides/overview) and [Zoom meeting APIs](https://developers.zoom.us/docs/api/meetings/) before planning a live provider integration.
+- Open **Meetings**, then **Export / more > Check playback and recognition**. Set language, output folder and optional Whisper model in **Settings > Reading**. Small (466 MiB) prioritizes accuracy. Base (142 MiB) is lighter. Downloads require explicit Install.
+- Start and stop recording yourself. Windows playback is the only audio source. No microphone or audio upload. Transcription runs locally with two background threads and a Cancel control.
+- Review/edit segments, speakers and times. Mark decisions/action items, search and export TXT, timed VTT or Markdown minutes. Import provider VTT/TXT to preserve real speaker cues. Named speakers are not inferred from mixed audio.
+- The notebook saves encrypted locally. Transcript only removes its temporary WAV after successful notebook save. Exports are ordinary readable files in the chosen folder. Use **Append transcript to the script** when wanted.
+- Follow [chapter 12](USER_MANUAL_EN.md) for installation, review, exports and recovery.
 
-- **Tiếng Việt:** Chọn **Ghi âm và chép lời cuộc họp** ở thanh bên. QuietShare chỉ lấy âm thanh phát ra từ Windows. Ứng dụng không mở micro, không tự bắt đầu và không tiếp tục sau khi đóng.
-- Chọn lại nút đó để dừng. Trong **Cài đặt > Nội dung**, có thể tắt chép lời, chọn Tiếng Việt/Tiếng Anh, chọn nhãn Teams/Zoom/Google Meet cho file nhập và chọn thư mục xuất riêng.
-- **WAV + nội dung** giữ cả hai file. **Chỉ nội dung** dùng WAV tạm rồi xóa sau khi lưu transcript thành công.
-- File `.txt` UTF-8 được lưu cạnh WAV nếu chọn giữ WAV. Phần chữ nhận dạng được nối vào Lời nhắc cục bộ mà không làm mất điểm đang đọc.
-- **Nhập transcript Teams / Zoom / Meet** nhận file `.vtt` hoặc `.txt` đã xuất. Dòng `<v Alice>` thành `Alice: ...`, giữ tên người nói. Đây là đường nhập offline. API trực tiếp, OAuth và capture mạng chưa bật.
-- Máy phải cài thành phần nhận dạng giọng nói tương ứng. Nếu thiếu, thanh trạng thái báo đúng ngôn ngữ còn thiếu và không tạo transcript giả. Xem [transcript Teams](https://learn.microsoft.com/en-us/microsoftteams/platform/graph-api/meeting-transcripts/overview-transcripts), [API Google Meet](https://developers.google.com/workspace/meet/api/guides/overview) và [API cuộc họp Zoom](https://developers.zoom.us/docs/api/meetings/) trước khi triển khai tích hợp trực tiếp.
-
-Meeting audio mixed from Teams, Zoom or Google Meet cannot identify speakers by itself. Use the provider's exported transcript when attribution matters.
-
-Âm thanh trộn từ Teams, Zoom hoặc Google Meet không tự xác định được ai nói. Khi cần tên người nói, hãy dùng transcript do nhà cung cấp xuất.
+- Mở **Cuộc họp**, chọn **Xuất / thêm > Kiểm tra nguồn âm thanh và nhận dạng**. Chọn ngôn ngữ, thư mục xuất và mô hình Whisper tùy chọn tại **Cài đặt > Nội dung**. Small (466 MiB) ưu tiên chính xác. Base (142 MiB) nhẹ hơn. Chỉ tải khi chủ động Cài.
+- Tự bật/tắt ghi. Chỉ thu âm thanh phát Windows, không micro hoặc tải âm thanh lên mạng. Chép lời cục bộ dùng hai luồng nền và có nút Dừng xử lý.
+- Duyệt/sửa đoạn, người nói và giờ. Đánh dấu quyết định/việc cần làm, tìm kiếm và xuất TXT, VTT có giờ hoặc biên bản Markdown. Nhập VTT/TXT nền tảng để giữ người nói thật. Không suy đoán tên từ âm thanh trộn.
+- Sổ tự lưu mã hóa trên máy. Chỉ nội dung xóa WAV tạm sau khi lưu sổ thành công. File xuất đọc bình thường tại thư mục đã chọn. Chủ động **Thêm transcript vào lời nhắc** khi cần.
+- Xem [chương 12](USER_MANUAL_VI.md) để biết cách cài, duyệt, xuất và phục hồi.
 
 - Người dùng có thể chủ động **Ctrl+V** ảnh raster vào ô nhập web tương thích.
 - Hộp chọn file web, thả file, tải xuống, chia sẻ màn hình, thông báo, DevTools và menu native bị chặn.
@@ -220,3 +214,11 @@ Meeting audio mixed from Teams, Zoom or Google Meet cannot identify speakers by 
 - Chọn **Bộ thuyết trình** để lưu tối đa tám bộ có tên, gồm lời nhắc, đường dẫn file và vị trí đọc. Lưu file đang sửa trước.
 - Mở bộ cần xác nhận thay tab và giữ lời nhắc trước đó trong bản dự phòng mã hóa. Ứng dụng không tự bật chiếu hay trình duyệt.
 - **Trình chiếu** có chọn nguồn/đích, Làm mới, Hướng xử lý theo mã lỗi và xem trước luồng đang gửi, tối đa 10 FPS. Đầu nhận vật lý vẫn chưa được xác minh.
+
+## Optional reading panels / Vùng đọc tùy chọn
+
+- The PDF menu offers visible-row thumbnails, bookmarks, go-to-page and a page-linked script reader. Use Markdown headings for sections and **Link page**, then enable **Sync** if wanted. Hide panels to reclaim space and thumbnail memory.
+- Turn outgoing preview off in Presentation or Settings > Projection. The choice persists. Off frees preview GPU resources.
+
+- Menu PDF có ảnh thu nhỏ theo dòng đang thấy, dấu trang, đến trang và vùng lời nhắc gắn trang. Dùng tiêu đề Markdown để chia phần rồi **Gắn trang**, bật **Đồng bộ** khi cần. Ẩn vùng để lấy lại diện tích và bộ nhớ ảnh thu nhỏ.
+- Tắt xem trước tại Trình chiếu hoặc Cài đặt > Trình chiếu. Lựa chọn được nhớ. Tắt giải phóng tài nguyên GPU của xem trước.

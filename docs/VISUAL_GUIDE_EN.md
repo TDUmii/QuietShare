@@ -1,6 +1,6 @@
 # QuietShare - Illustrated step-by-step guide (English)
 
-> **Screenshot version:** QuietShare 0.19.0, real local UI test captures dated November 2, 2026. **Numbered red outlines** were added to point out controls. Locations may change with display scale, window size, language or release. The screenshots are not synthetic mockups.
+> **Screenshot version:** QuietShare 0.20.0, real local UI test captures dated November 2, 2026. **Numbered red outlines** were added to point out controls. Locations may change with display scale, window size, language or release. The screenshots are not synthetic mockups.
 
 **Jump to:** [Install](#1-download-and-install) · [Home and files](#2-home-and-opening-content) · [Script](#4-write-a-script-and-auto-scroll) · [PDF](#5-view-and-search-pdfs) · [Mirror](#8-safe-smart-mirror-projection) · [Recording](#9-record-and-transcribe-meetings)
 
@@ -95,13 +95,13 @@ Home has compact actions above a full-width recent list and a separate protectio
 
 ## 9. Record and transcribe meetings
 
-![Figure 08 - Content settings for transcription](images/visual/08-recording.png)
+![Figure 08 - Meetings with editable segments](images/visual/08-recording.png)
 
-1. Open **Settings** and select **red 1 - Content / Nội dung**.
-2. **Red 2 - Transcription language:** select Vietnamese or English according to the speaker.
-3. **Red 3 - Meeting platform:** choose the appropriate source, such as **Other / system audio**.
-4. Return to **Recording** (circular sidebar icon), choose an output folder, optionally keep WAV files, then explicitly start and stop recording.
-5. Recording uses **Windows playback audio** rather than automatically opening the microphone. It does not automatically record without user action. Import provider-exported VTT/TXT for Teams, Zoom or Meet if you want their speaker labels preserved.
+1. Open **Meetings** using the circular sidebar icon. Configure language, output folder and optional local Whisper in **Settings > Reading** first. Small (466 MiB) is selected by default. Install requires an explicit action.
+2. **Red 1:** start or stop recording. Audio comes from Windows playback. The app does not open the microphone or start by itself.
+3. **Red 2:** open Export / more to check setup, import a Teams/Zoom/Meet transcript, or export TXT, timed VTT and minutes. Cancel task appears during processing.
+4. **Red 3:** review and edit the selected segment, speaker and times. Mark decisions/action items and save. On small windows, switch Segments / Content / Speaker-time.
+5. Provider transcripts retain actual speaker cues. Mixed audio recognition does not infer people's names. Audio remains local. Export important notes before importing another session.
 6. Obtain any required participant notice/consent before recording and follow applicable privacy rules.
 
 ## 10. Before every session
