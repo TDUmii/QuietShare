@@ -1,6 +1,6 @@
 # QuietShare - Hướng dẫn bằng hình ảnh (Tiếng Việt)
 
-> **Phiên bản ảnh:** QuietShare 0.20.0, chụp từ bài kiểm thử UI ngày 2/11/2026. Các **khung đỏ đánh số** được thêm vào sau khi chụp để chỉ vị trí nhấn. Tùy kích thước cửa sổ, ngôn ngữ và phiên bản, vị trí nút có thể thay đổi. Các ảnh không phải giao diện giả lập.
+> **Phiên bản ảnh:** QuietShare 0.21.0, chụp từ bài kiểm thử UI ngày 2/11/2026. Các **khung đỏ đánh số** được thêm vào sau khi chụp để chỉ vị trí nhấn. Tùy kích thước cửa sổ, ngôn ngữ và phiên bản, vị trí nút có thể thay đổi. Các ảnh không phải giao diện giả lập.
 
 **Bắt đầu nhanh:** [Cài đặt](#1-tải-và-cài-đặt) · [Mở file](#2-trang-chủ-và-mở-dữ-liệu) · [Lời nhắc](#4-soạn-lời-nhắc-và-cuộn-tự-động) · [PDF](#5-đọc-pdf-và-tìm-kiếm) · [Trình chiếu](#8-trình-chiếu-smart-mirror-an-toàn) · [Ghi âm](#9-ghi-âm-và-chép-lời-cuộc-họp)
 
@@ -65,11 +65,12 @@ Trang chủ có các thao tác gọn phía trên danh sách gần đây toàn ch
 
 ![Ảnh 05 - Thiết lập giao diện, ngôn ngữ và chủ đề](images/visual/05-settings.png)
 
-1. Mở biểu tượng bánh răng ở thanh trái. **khung đỏ 1** chọn tab **Giao diện**.
-2. **Khung đỏ 2 - Ngôn ngữ:** chọn tiếng Việt hoặc tiếng Anh cho nhãn điều khiển.
-3. **Khung đỏ 3 - Chủ đề màu:** chọn theme có sẵn hoặc tùy chỉnh màu. Nếu chữ khó đọc, đổi sang theme có tương phản cao.
-4. Bên dưới còn có ghim cửa sổ trên cùng, nhớ kích thước, độ mờ và kích thước biểu tượng. Độ mờ ảnh hưởng đến **cửa sổ điều khiển**. không dùng độ mờ làm biện pháp bảo mật.
-5. Tab **Nội dung** cho phép bật/tắt sửa file, chỉnh cỡ chữ và tốc độ lời nhắc. Tab **Bố cục** điều chỉnh các thanh điều khiển.
+1. Mở biểu tượng bánh răng ở thanh trái. **Khung đỏ 1** chọn nhóm **Giao diện**.
+2. **Khung đỏ 2 - Chủ đề màu:** chọn theme có sẵn. Hai nút Tối/Sáng đổi nhanh.
+3. **Khung đỏ 3 - Ngôn ngữ:** chọn tiếng Việt hoặc tiếng Anh cho giao diện.
+4. Bên dưới có ghim và nhớ kích thước. Mở **Nâng cao** để chỉnh độ mờ, cỡ icon và màu riêng. Độ mờ tác động cửa sổ điều khiển và không phải biện pháp bảo mật.
+5. **Đọc & tệp** chỉnh sửa file, chữ và cuộn. **Cuộc họp** chứa nhận dạng và thư mục xuất. **Bố cục** chứa các thanh và ba hồ sơ sử dụng. **Dữ liệu** chứa Xóa lịch sử.
+6. Cửa sổ nhỏ dùng nút chọn nhóm ở đầu biểu mẫu. Trình chiếu và Trình duyệt có **Chẩn đoán lần dừng**, nút sao chép và mã phục hồi.
 
 ## 7. Bật trình duyệt tùy chọn
 

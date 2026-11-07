@@ -231,6 +231,14 @@ struct MirrorRegressionAccess
             Check(record.find("\"path\"")==std::string::npos&&record.find("\"source\"")==std::string::npos&&
                   record.find("\"destination\"")==std::string::npos&&record.find("\"url\"")==std::string::npos,
                   "projection diagnostic excludes private paths, URLs and display identifiers");
+            const auto readable=controller.LastFailureDiagnostic();
+            Check(readable.find(L"QS-P015")!=std::wstring::npos&&readable.find(L"Reason: display-topology")!=std::wstring::npos&&readable.find(L"UTC:")!=std::wstring::npos,
+                  "last stop is readable through the bounded production diagnostic parser");
+            MirrorController afterRestart;afterRestart.SetDiagnosticPath(diagnostic);
+            Check(afterRestart.LastFailureDiagnostic()==readable,"last stop remains available after a new controller without starting capture");
+            {std::ofstream corrupted(diagnostic.c_str(),std::ios::binary|std::ios::trunc);corrupted<<record<<"private-injected-content";}
+            Check(controller.LastFailureDiagnostic().empty(),"diagnostic parser rejects appended arbitrary content instead of displaying or copying it");
+            {std::ofstream restored(diagnostic.c_str(),std::ios::binary|std::ios::trunc);restored<<record;}
             Check(controller.Status(true).find(L"[display-topology]")!=std::wstring::npos,
                   "presenter status identifies the exact unexpected-stop reason code");
         }

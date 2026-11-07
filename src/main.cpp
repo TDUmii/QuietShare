@@ -18,6 +18,7 @@
 #include "Workspace.h"
 #include "PresentationSets.h"
 #include "ReadingTools.h"
+#include "WorkspaceProfiles.h"
 #include "FileIcons.h"
 #include "LocalPicker.h"
 #include "Browser.h"
@@ -104,6 +105,18 @@ constexpr int MEETING_LIST=320,MEETING_EDITOR=321,MEETING_SPEAKER=322,MEETING_BE
     SPEECH_SETUP=330,SPEECH_MODEL=331,MEETING_STATUS=332,SPEAKER_LABEL=333,TIME_LABEL=334,
     MEETING_ADD=335,MEETING_DELETE=336,MEETING_CANCEL=337,MEETING_SEARCH=338,MEETING_FILTER=339,
     MEETING_VIEW_LIST=340,MEETING_VIEW_EDIT=341,MEETING_VIEW_META=342;
+constexpr int SETTINGS_MEETING=345,SETTINGS_DATA=346,SETTINGS_CATEGORY=347,SETTINGS_ADVANCED=348,
+    THEME_DARK=349,THEME_LIGHT=350,PROFILE_SELECT=360,PROFILE_SAVE=361,PROFILE_APPLY=362,
+    DIAGNOSTICS_OPEN=370,DIAGNOSTICS_COPY=371,DIAGNOSTICS_BACK=372,DIAGNOSTICS_TEXT=373,BROWSER_DIAGNOSTICS=374,BROWSER_RETRY=375,BROWSER_ERROR=376;
+const int SettingsCategoryIds[]={SETTINGS_APPEARANCE,SETTINGS_READING,SETTINGS_WORKSPACE,SETTINGS_PROJECTION,SETTINGS_KEYS,SETTINGS_BROWSER,SETTINGS_MEETING,SETTINGS_DATA};
+const int SettingsCategoryOrder[]={0,1,3,5,6,2,4,7};
+const wchar_t* SettingsCategoryVi[]={L"Giao diện",L"Đọc & tệp",L"Bố cục",L"Trình chiếu",L"Phím tắt",L"Trình duyệt",L"Cuộc họp",L"Dữ liệu"};
+const wchar_t* SettingsCategoryEn[]={L"Appearance",L"Reading & files",L"Workspace",L"Projection",L"Shortcuts",L"Browser",L"Meetings",L"Data"};
+int SettingsCategoryIndex(int id){for(int i=0;i<8;++i)if(SettingsCategoryIds[i]==id)return i;return -1;}
+bool SettingsSwitch(int id){for(int n:{REMEMBER_SIZE,ALLOW_EDIT,TOPMOST,SHOW_ACTIVITY,SHOW_TREE,SHOW_TABS,SHOW_TOOLBAR,SHOW_STATUS,INCLUDE_IGNORED,BROWSER_TOGGLE,POINTER,WRAP,BROWSER_MUTED,BROWSER_CAMERA,BROWSER_MICROPHONE,MEETING_TRANSCRIBE,SCRIPT_TAB_LABELS,BROWSER_TAB_LABELS,PREVIEW_TOGGLE})if(n==id)return true;return false;}
+bool settingsAdvanced=false,settingsWide=false;
+WorkspaceProfiles workspaceProfiles;
+int selectedProfile=0;bool profilesUnavailable=false;
 constexpr int NORMAL_SIDEBAR = 48, COMPACT_SIDEBAR = 48;
 constexpr UINT_PTR PRIVACY_TIMER = 1, SCROLL_TIMER = 2, SAVE_TIMER = 3, QA_TIMER = 4, MEETING_TIMER = 6;
 HINSTANCE instance;
@@ -189,7 +202,9 @@ int fontPoints = DefaultTextPoints, speed = 1;
 double scrollRemainder = 0;
 ULONGLONG lastScrollTick = 0;
 std::wstring dataDir;
-enum class Page { Home, Content, Settings, Presentation, Browser, Quick, Sets, Meeting };
+enum class Page { Home, Content, Settings, Presentation, Browser, Quick, Sets, Meeting, Diagnostics };
+Page diagnosticReturn=Page::Presentation;
+HWND diagnosticsText=nullptr;
 Page page = Page::Content;
 Page quickReturn=Page::Home;
 LoadedContent &ActiveContent() { return documents.Active().content; }
@@ -733,6 +748,40 @@ void UpdateProjectionReadout()
     if(recoveryVisible&&mirror)projectionText=mirror->ErrorCode()+L"\r\n"+mirror->Recovery(english);
     if(TextOf(GetDlgItem(window,PROJECTION_STATUS))!=projectionText)SetWindowTextW(GetDlgItem(window,PROJECTION_STATUS),projectionText.c_str());
 }
+std::wstring DiagnosticReport(){
+    std::wstring report=L"QuietShare v" QUIETSHARE_VERSION_WIDE L"\r\n";
+    report+=T(L"Báo cáo mã lỗi cục bộ. Không chứa URL, tên tab, nội dung hoặc định danh màn hình.",L"Local fixed-code report. No URLs, tab titles, content or display identifiers.");
+    const auto projection=mirror?mirror->LastFailureDiagnostic():L"",web=browser.LastFailureDiagnostic();
+    report+=T(L"\r\n\r\nLẦN DỪNG TRÌNH CHIẾU\r\n",L"\r\n\r\nLAST PROJECTION FAILURE\r\n")+(projection.empty()?T(L"Chưa có bản ghi hợp lệ.",L"No valid record yet."):projection);
+    report+=T(L"\r\n\r\nSỰ CỐ TRÌNH DUYỆT GẦN NHẤT\r\n",L"\r\n\r\nLAST BROWSER PROCESS EVENT\r\n")+(web.empty()?T(L"Chưa ghi nhận.",L"No event recorded."):web);
+    report+=T(L"\r\n\r\nLỗi tiến trình web và lỗi bảo vệ là hai sự kiện riêng. Đối chiếu thời gian UTC trước khi kết luận nguyên nhân.",L"Browser process events and protection failures are separate. Compare UTC timestamps before assigning a cause.");
+    return report;
+}
+void OpenDiagnostics(){Pause();focusMode=false;diagnosticReturn=page;page=Page::Diagnostics;SetWindowTextW(diagnosticsText,DiagnosticReport().c_str());Layout();}
+void CopyDiagnosticReport(){const auto text=DiagnosticReport();if(!OpenClipboard(window))return;
+    HGLOBAL memory=GlobalAlloc(GMEM_MOVEABLE,(text.size()+1)*sizeof(wchar_t));
+    if(memory){auto target=GlobalLock(memory);if(target){memcpy(target,text.c_str(),(text.size()+1)*sizeof(wchar_t));GlobalUnlock(memory);EmptyClipboard();if(!SetClipboardData(CF_UNICODETEXT,memory))GlobalFree(memory);}else GlobalFree(memory);}CloseClipboard();}
+const wchar_t* ProfileName(int index){const wchar_t* vi[]={L"Đọc trên laptop",L"Thuyết trình",L"Ghi chép cuộc họp"};const wchar_t* en[]={L"Laptop reading",L"Presentation",L"Meeting notes"};return english?en[index]:vi[index];}
+bool PersistPreviewChoice(){DWORD record[]={0x50515357,1,previewEnabled?1u:0u};const auto target=dataDir+L"\\preview.dat",temp=target+L".tmp";
+    return qa||(WriteBytes(temp,record,sizeof(record))&&MoveFileExW(temp.c_str(),target.c_str(),MOVEFILE_REPLACE_EXISTING|MOVEFILE_WRITE_THROUGH));}
+void SaveWorkspaceProfile(){if(Blocked()||profilesUnavailable||!SaveActiveState())return;WorkspaceProfile p;p.saved=true;
+    p.theme=preferences.themeId;p.points=fontPoints;p.weight=preferences.textWeight;p.opacity=preferences.opacityPercent;p.icons=preferences.iconSize;p.zoom=IsPdf()?pdfViewer.GetState().zoom:IsCode()?codeViewer.GetState().zoom:IsImage()?imageZoom:DefaultZoomPercent;
+    p.speed=speed;p.resource=resourceMode;p.explorer=explorerWidth;p.colors=customThemeColors;
+    p.flags=(activityVisible?1u:0u)|(tabsVisible?2u:0u)|(toolbarVisible?4u:0u)|(statusVisible?8u:0u)|(treeVisible?16u:0u)|(previewEnabled?32u:0u)|(topmost?64u:0u)|((IsCode()?codeViewer.GetState().wrap:documents.Active().state.wrap)?128u:0u);
+    auto next=workspaceProfiles;next.slots[selectedProfile]=p;
+    if(next.Save(dataDir)){workspaceProfiles=next;preferenceError=T(L"Đã lưu hồ sơ hiện tại.",L"Current profile saved.");}
+    else preferenceError=T(L"QS-W010 - Không lưu được hồ sơ. Kiểm tra quyền ghi và dung lượng.",L"QS-W010 - Profile save failed. Check write access and free space.");Layout();}
+void ApplyWorkspaceProfile(){if(Blocked()||profilesUnavailable||!workspaceProfiles.slots[selectedProfile].saved||!SaveActiveState())return;
+    const auto p=workspaceProfiles.slots[selectedProfile];auto candidate=preferences;candidate.themeId=p.theme;candidate.textWeight=p.weight;candidate.opacityPercent=p.opacity;candidate.iconSize=p.icons;
+    if(p.theme==CustomThemeId&&!SaveCustomTheme(dataDir,p.colors)){preferenceError=T(L"QS-W010 - Chưa lưu được màu của hồ sơ.",L"QS-W010 - Profile colors could not be saved.");Layout();return;}
+    const auto previousColors=customThemeColors;customThemeColors=p.colors;if(!StorePreferences(candidate)){customThemeColors=previousColors;if(p.theme==CustomThemeId)SaveCustomTheme(dataDir,previousColors);return;}
+    activityVisible=p.flags&1;tabsVisible=p.flags&2;toolbarVisible=p.flags&4;statusVisible=p.flags&8;treeVisible=p.flags&16;previewEnabled=p.flags&32;SetTopmost(p.flags&64);
+    speed=p.speed;resourceMode=p.resource;explorerWidth=p.explorer;fontPoints=p.points;documents.Active().state.textPoints=p.points;documents.Active().state.wrap=p.flags&128;
+    if(IsCode()){auto state=codeViewer.GetState();state.wrap=p.flags&128;state.zoom=p.zoom;codeViewer.SetState(state);}
+    else if(IsPdf())pdfViewer.SetZoom(p.zoom);else if(IsImage())imageZoom=p.zoom;
+    if(mirror)mirror->SetResourceMode(resourceMode);ApplyTextFormat();ApplyTextWrap();SaveLayoutPreferences();
+    if(!PersistPreviewChoice())preferenceError=T(L"QS-W008 - Lựa chọn xem trước chỉ áp dụng trong phiên này.",L"QS-W008 - Preview choice applies only to this session.");
+    else preferenceError=T(L"Đã áp dụng hồ sơ. Không tự bắt đầu chiếu, trình duyệt hoặc ghi âm.",L"Profile applied. Projection, browsing and recording remain manually controlled.");Layout();}
 void UpdateQuickActions()
 {
     const auto n=SendMessageW(quickList,LB_GETCURSEL,0,0);
@@ -793,11 +842,14 @@ void UpdateButtons()
     SetTip(ICON_SMALLER,T(L"Giảm kích thước icon 1 px",L"Decrease icon size by 1 px"));SetTip(ICON_LARGER,T(L"Tăng kích thước icon 1 px",L"Increase icon size by 1 px"));
     SetWindowTextW(GetDlgItem(window,NAV_BROWSER),T(L"Trình duyệt",L"Browser"));
     for(int id:{WEB_ADDRESS,WEB_GO,WEB_RELOAD,WEB_AUDIO,WEB_MENU})EnableWindow(GetDlgItem(window,id),browser.Ready()&&!Blocked());
+    EnableWindow(GetDlgItem(window,WEB_RELOAD),(browser.Ready()||browser.CanRetry())&&!Blocked());
     EnableWindow(GetDlgItem(window,WEB_BACK),browser.Ready()&&!Blocked()&&browser.CanBack());
     EnableWindow(GetDlgItem(window,WEB_FORWARD),browser.Ready()&&!Blocked()&&browser.CanForward());
     EnableWindow(GetDlgItem(window,BROWSER_TOGGLE),browser.Enabled()||!Blocked());
     SetTip(NAV_BROWSER,T(L"Trình duyệt tùy chọn",L"Optional browser"));
     SetTip(WEB_BACK,T(L"Quay lại",L"Back"));SetTip(WEB_FORWARD,T(L"Tiến tới",L"Forward"));SetTip(WEB_RELOAD,T(L"Tải lại trang",L"Reload page"));
+    for(const auto& item:std::vector<std::pair<int,const wchar_t*>>{{DIAGNOSTICS_OPEN,page==Page::Presentation?T(L"Chẩn đoán",L"Diagnostics"):T(L"Chẩn đoán lần dừng",L"Last-stop diagnostics")},{BROWSER_DIAGNOSTICS,T(L"Chẩn đoán trình duyệt",L"Browser diagnostics")},
+        {DIAGNOSTICS_COPY,T(L"Sao chép báo cáo",L"Copy report")},{DIAGNOSTICS_BACK,T(L"Quay lại",L"Back")},{BROWSER_RETRY,T(L"Tải lại tab",L"Reload tab")}})SetWindowTextW(GetDlgItem(window,item.first),item.second);
     SendMessageW(webAddress,EM_SETCUEBANNER,TRUE,(LPARAM)T(L"Tìm trên Google hoặc nhập địa chỉ web",L"Search Google or enter a web address"));
     SetWindowTextW(GetDlgItem(window,LAYOUT_MENU),T(L"Bố cục",L"Layout"));
     SetTip(LAYOUT_MENU,T(L"Bố cục: thanh bên, tab, công cụ, trạng thái",L"Layout: activity bar, tabs, toolbar and status bar"));
@@ -896,9 +948,13 @@ void UpdateButtons()
     SetTip(TEXT_WEIGHT,T(L"Độ đậm chữ: thường / vừa / đậm",L"Text weight: regular / semibold / bold"));
     SetTip(WRAP,T(L"Bật / tắt tự xuống dòng",L"Toggle word wrap"));
     if(page==Page::Settings) {
-        const wchar_t* vn[]={L"Giao diện",L"Nội dung",L"Bố cục",L"Trình chiếu",L"Phím tắt",L"Trình duyệt"};
-        const wchar_t* en[]={L"Appearance",L"Reading",L"Workspace",L"Projection",L"Shortcuts",L"Browser"};
-        for(int i=0;i<6;++i)SetWindowTextW(GetDlgItem(window,i==5?SETTINGS_BROWSER:SETTINGS_APPEARANCE+i),T(vn[i],en[i]));
+        for(int i=0;i<8;++i)SetWindowTextW(GetDlgItem(window,SettingsCategoryIds[i]),T(SettingsCategoryVi[i],SettingsCategoryEn[i]));
+        SetWindowTextW(GetDlgItem(window,SETTINGS_CATEGORY),T(SettingsCategoryVi[settingsCategory],SettingsCategoryEn[settingsCategory]));
+        SetWindowTextW(GetDlgItem(window,SETTINGS_ADVANCED),T(settingsAdvanced?L"Thu gọn nâng cao":L"Nâng cao",settingsAdvanced?L"Hide advanced":L"Advanced"));
+        SetWindowTextW(GetDlgItem(window,THEME_DARK),T(L"Tối",L"Dark"));SetWindowTextW(GetDlgItem(window,THEME_LIGHT),T(L"Sáng",L"Light"));
+        SetWindowTextW(GetDlgItem(window,PROFILE_SELECT),ProfileName(selectedProfile));
+        SetWindowTextW(GetDlgItem(window,PROFILE_SAVE),T(L"Lưu hiện tại",L"Save current"));SetWindowTextW(GetDlgItem(window,PROFILE_APPLY),T(L"Áp dụng",L"Apply"));
+        EnableWindow(GetDlgItem(window,PROFILE_SAVE),!Blocked()&&!profilesUnavailable);EnableWindow(GetDlgItem(window,PROFILE_APPLY),!Blocked()&&!profilesUnavailable&&workspaceProfiles.slots[selectedProfile].saved);
         if(opacityInput&&GetFocus()!=opacityInput){updatingOpacity=true;SetWindowTextW(opacityInput,std::to_wstring(preferences.opacityPercent).c_str());updatingOpacity=false;}
         if(iconSizeInput&&GetFocus()!=iconSizeInput){updatingIconSize=true;SetWindowTextW(iconSizeInput,std::to_wstring(preferences.iconSize).c_str());updatingIconSize=false;}
         EnableWindow(GetDlgItem(window,OPACITY_LESS),preferences.opacityPercent>40);
@@ -1154,21 +1210,28 @@ void Layout()
         if(!activityVisible&&!homeCompact)move(VERIFY_PRIVACY,contentRight-150,10,150,24);
     }
     else if(page==Page::Settings) {
-        const int formWidth=std::min(760,contentRight-contentLeft),formLeft=contentLeft+(contentRight-contentLeft-formWidth)/2;
-        const int columns=formWidth<680?3:6,tabWidth=(formWidth-8*(columns-1))/columns;
-        for(int i=0;i<6;++i)move(i==5?SETTINGS_BROWSER:SETTINGS_APPEARANCE+i,formLeft+(i%columns)*(tabWidth+8),48+(i/columns)*32,tabWidth,28);
-        const int formTop=48+((6+columns-1)/columns)*32+8;
-        settingsViewport={S(formLeft),S(formTop),S(formLeft+formWidth-20),S(bottom)};
+        settingsWide=contentRight-contentLeft>=700&&height>=440;
+        const int navWidth=158;
+        if(settingsWide){for(int i=0;i<8;++i)move(SettingsCategoryIds[SettingsCategoryOrder[i]],contentLeft,48+i*38,navWidth,34);}
+        else move(SETTINGS_CATEGORY,contentLeft,48,contentRight-contentLeft,32);
+        const int available=contentRight-contentLeft-(settingsWide?navWidth+26:0);
+        const int formWidth=std::min(660,available),formLeft=contentLeft+(settingsWide?navWidth+26:0)+(available-formWidth)/2;
+        const int formTop=settingsWide?48:92;
+        settingsViewport={S(formLeft),S(formTop),S(formLeft+formWidth-18),S(bottom)};
         settingsCardRect=settingsViewport;
-        const int left=formLeft+16,right=formLeft+formWidth-36;
-        int y=formTop+16-settingsOffset;
+        const int left=formLeft,right=formLeft+formWidth-26;
+        const bool stacked=right-left<420;
+        int y=formTop+4-settingsOffset;
         auto heading=[&](const wchar_t* vn,const wchar_t* en){
-            settingsLines.push_back({T(vn,en),{S(left),S(y),S(right),S(y+24)},true});y+=36;
+            settingsLines.push_back({T(vn,en),{S(left),S(y),S(right),S(y+24)},true});y+=34;
         };
-        auto row=[&](const wchar_t* vn,const wchar_t* en,int id,int valueWidth=112,int height=48){
-            settingsLines.push_back({T(vn,en),{S(left),S(y),S(right-valueWidth-16),S(y+32)},false,id});
-            move(id,right-valueWidth,y,valueWidth,id==SOURCE_MONITOR||id==DEST_MONITOR?160:32);
-            clippedSettingsControls.push_back(GetDlgItem(window,id));y+=height;
+        auto row=[&](const wchar_t* vn,const wchar_t* en,int id,int valueWidth=112,int height=44){
+            const bool below=stacked&&!SettingsSwitch(id)&&vn[0];
+            valueWidth=std::min(valueWidth,SettingsSwitch(id)?90:below?right-left:std::max(96,(right-left)/2));
+            settingsLines.push_back({T(vn,en),{S(left),S(y),S(below?right:right-valueWidth-16),S(y+(below?26:32))},false,id});
+            move(id,below?left:right-valueWidth,y+(below?30:0),valueWidth,id==SOURCE_MONITOR||id==DEST_MONITOR?160:32);
+            clippedSettingsControls.push_back(GetDlgItem(window,id));y+=std::max(height,below?72:44);
+            settingsLines.push_back({L"",{S(left),S(y-8),S(right),S(y-7)},false,-4});
         };
         auto number=[&](int id,int minus,int plus,int x){
             numericSettings.push_back({GetDlgItem(window,id),minus,plus,{S(x),S(y),S(x+128),S(y+32)}});
@@ -1176,18 +1239,24 @@ void Layout()
             for(int child:{minus,id,plus})clippedSettingsControls.push_back(GetDlgItem(window,child));
         };
         auto numberRow=[&](const wchar_t* vn,const wchar_t* en,int id,int minus,int plus){
-            settingsLines.push_back({T(vn,en),{S(left),S(y),S(right-144),S(y+32)},false,id});
-            number(id,minus,plus,right-128);y+=48;
+            settingsLines.push_back({T(vn,en),{S(left),S(y),S(stacked?right:right-144),S(y+(stacked?26:32))},false,id});
+            if(stacked)y+=30;number(id,minus,plus,stacked?left:right-128);y+=56;
+            settingsLines.push_back({L"",{S(left),S(y-8),S(right),S(y-7)},false,-4});
         };
         if(settingsCategory==0) {
         heading(L"Giao diện",L"Appearance");
-        row(L"Ngôn ngữ",L"Language",LANGUAGE,128);
+        if(height>=400){settingsLines.push_back({L"",{S(left),S(y),S(right),S(y+60)},false,-3});y+=72;}
         row(L"Chủ đề màu",L"Color theme",THEME_SELECT,180);
+        move(THEME_DARK,left,y,72,28);move(THEME_LIGHT,left+80,y,72,28);y+=36;
+        for(int id:{THEME_DARK,THEME_LIGHT})clippedSettingsControls.push_back(GetDlgItem(window,id));
+        row(L"Ngôn ngữ",L"Language",LANGUAGE,128);
+        y+=8;heading(L"Cửa sổ",L"Window");
         row(L"Ghim cửa sổ",L"Always on top",TOPMOST);
         row(L"Nhớ kích thước cửa sổ",L"Remember window size",REMEMBER_SIZE);
+        row(L"",L"",SETTINGS_ADVANCED,180);
+        if(settingsAdvanced){
         numberRow(L"Độ mờ cửa sổ (%)",L"Window opacity (%)",OPACITY_INPUT,OPACITY_LESS,OPACITY_MORE);
         numberRow(L"Kích thước icon (px)",L"Icon size (px)",ICON_SIZE_INPUT,ICON_SMALLER,ICON_LARGER);
-        row(L"Độ đậm chữ",L"Text weight",TEXT_WEIGHT);
         settingsLines.push_back({T(L"40-100%. Áp dụng cho cửa sổ điều khiển, kể cả chữ. Màn hình chiếu không đổi.",L"40-100%. Applies to the control window, including text. Projection stays opaque."),{S(left),S(y),S(right),S(y+56)},false});y+=64;
         heading(L"Theme tự thiết kế",L"Custom theme");
         row(L"Màu nền",L"Background color",CUSTOM_BACKGROUND,128);
@@ -1195,18 +1264,25 @@ void Layout()
         row(L"Màu chữ",L"Text color",CUSTOM_TEXT,128);
         row(L"Màu nhấn",L"Accent color",CUSTOM_ACCENT,128);
         row(L"Khôi phục màu theme mặc định",L"Reset custom colors",CUSTOM_RESET,180);
+        row(L"",L"",RESET_PREFERENCES,180);
+        }
         }
         if(settingsCategory==1) {
         heading(L"Đọc nội dung",L"Reading");
         row(L"Cho phép sửa file văn bản / code",L"Allow text / code editing",ALLOW_EDIT);
-        const int valueLeft=right-204;
+        const int valueLeft=stacked?left:right-204;
         settingsLines.push_back({IsCode()||IsImage()||IsPdf()?T(L"Thu/phóng (%)",L"Zoom (%)"):T(L"Cỡ chữ (pt)",L"Text size (pt)"),
-            {S(left),S(y),S(valueLeft-12),S(y+32)},false,SIZE_INPUT});
+            {S(left),S(y),S(stacked?right:valueLeft-12),S(y+(stacked?26:32))},false,SIZE_INPUT});
+        if(stacked)y+=30;
         number(SIZE_INPUT,SMALLER,LARGER,valueLeft);move(RESET_ZOOM,right-68,y,68,32);
         clippedSettingsControls.push_back(GetDlgItem(window,RESET_ZOOM));
         settingsSizeHint={S(left),S(y+36),S(right),S(y+60)};y+=72;
         row(L"Độ đậm chữ",L"Text weight",TEXT_WEIGHT);
         row(L"Tốc độ lời nhắc",L"Script scrolling",SPEED);
+        row(L"Tự xuống dòng",L"Word wrap",WRAP);
+        }
+        if(settingsCategory==6) {
+        heading(L"Cuộc họp",L"Meetings");
         row(L"Tự chép lời sau khi ghi âm",L"Transcribe after recording",MEETING_TRANSCRIBE);
         row(L"Ngôn ngữ chép lời",L"Transcription language",TRANSCRIPTION_LANGUAGE,180);
         row(L"Mô hình Whisper cục bộ",L"Local Whisper model",SPEECH_MODEL,180);
@@ -1215,9 +1291,14 @@ void Layout()
         row(L"Kiểu xuất cuộc họp",L"Meeting export",MEETING_OUTPUT,250);
         row(L"Thư mục lưu WAV / transcript",L"WAV / transcript folder",MEETING_DIRECTORY,260);
         row(L"Transcript có sẵn từ Teams / Zoom / Meet",L"Existing Teams / Zoom / Meet transcript",MEETING_IMPORT,260);
-        row(L"Tự xuống dòng",L"Word wrap",WRAP);
         }
         if(settingsCategory==2) {
+        heading(L"Hồ sơ sử dụng",L"Usage profiles");
+        row(L"Hồ sơ",L"Profile",PROFILE_SELECT,210);
+        move(PROFILE_SAVE,left,y,140,30);move(PROFILE_APPLY,left+148,y,100,30);y+=44;
+        for(int id:{PROFILE_SAVE,PROFILE_APPLY})clippedSettingsControls.push_back(GetDlgItem(window,id));
+        if(profilesUnavailable){settingsLines.push_back({T(L"QS-W009 - Không đọc được hồ sơ cũ. File lưu được giữ nguyên.",L"QS-W009 - Previous profiles unreadable. Existing file preserved."),{S(left),S(y),S(right),S(y+64)},false});y+=72;}
+        else if(!workspaceProfiles.slots[selectedProfile].saved){settingsLines.push_back({T(L"Chưa lưu. Chỉnh giao diện và bố cục rồi chọn Lưu hiện tại.",L"Not saved yet. Adjust the workspace, then choose Save current."),{S(left),S(y),S(right),S(y+56)},false});y+=64;}
         heading(L"Bố cục",L"Workspace");
         row(L"Thanh điều hướng",L"Activity bar",SHOW_ACTIVITY);
         row(L"Explorer",L"Explorer",SHOW_TREE);
@@ -1228,9 +1309,8 @@ void Layout()
         row(L"Thanh công cụ",L"Toolbar",SHOW_TOOLBAR);
         row(L"Thanh trạng thái",L"Status bar",SHOW_STATUS);
         row(L"Khôi phục bố cục",L"Reset layout",RESET_LAYOUT);
-        y+=12;heading(L"Tiện ích",L"Tools");
+        y+=12;heading(L"Explorer",L"Explorer");
         row(L"Thư mục nặng / ẩn",L"Heavy / hidden folders",INCLUDE_IGNORED);
-        row(L"Xóa lịch sử (kể cả ghim)",L"Clear history (including pins)",RECENT_CLEAR);
         }
         if(settingsCategory==3) {
         settingsDisplayAnchor=0;heading(L"Màn hình trình chiếu",L"Projection displays");
@@ -1240,7 +1320,8 @@ void Layout()
         row(L"Con trỏ khi chiếu",L"Presentation pointer",POINTER);
         row(L"Xem trước luồng đang gửi",L"Outgoing preview",PREVIEW_TOGGLE,132);
         row(L"Tài nguyên",L"Resources",RESOURCE_MODE,std::min(188,right-left-100));
-        y+=8;settingsLines.push_back({L"",{S(left),S(y),S(right),S(y+104)},false,-1});y+=112;
+        y+=8;settingsLines.push_back({L"",{S(left),S(y),S(right),S(y+112)},false,-1});y+=122;
+        row(L"",L"",DIAGNOSTICS_OPEN,200);
         }
         if(settingsCategory==4) {
         heading(L"Phím tắt",L"Keyboard shortcuts");
@@ -1253,6 +1334,7 @@ void Layout()
         heading(L"Trình duyệt",L"Browser");
         row(L"Bật trình duyệt",L"Enable browser",BROWSER_TOGGLE);
         row(L"Tắt âm thanh",L"Mute audio",BROWSER_MUTED);
+        row(L"",L"",BROWSER_DIAGNOSTICS,210);
         y+=12;heading(L"Quyền truy cập",L"Site permissions");
         row(L"Cho phép camera",L"Allow camera",BROWSER_CAMERA);
         row(L"Cho phép micro",L"Allow microphone",BROWSER_MICROPHONE);
@@ -1260,7 +1342,11 @@ void Layout()
             L"Camera and microphone are off by default. When enabled, eligible HTTPS pages may use them, subject to Windows permissions. Turning access off stops active streams and may reload a tab."),
             {S(left),S(y),S(right),S(y+104)},false});y+=112;
         }
-        if(settingsCategory==0||settingsCategory==4)row(L"",L"",RESET_PREFERENCES,std::min(188,right-left));
+        if(settingsCategory==7){heading(L"Dữ liệu trên máy",L"Local data");
+            row(L"Lịch sử gần đây",L"Recent history",RECENT_CLEAR,std::min(180,right-left));
+            settingsLines.push_back({T(L"Xóa lịch sử và ghim không xóa file gốc. Lời nhắc, bộ thuyết trình và ghi chép được lưu riêng.",L"Clearing history and pins does not delete originals. Scripts, sets and meeting notes are stored separately."),{S(left),S(y),S(right),S(y+80)},false});y+=88;
+        }
+        if(settingsCategory==4)row(L"",L"",RESET_PREFERENCES,std::min(188,right-left));
         if(!preferenceError.empty()){settingsLines.push_back({preferenceError,{S(left),S(y),S(right),S(y+64)},false});y+=72;}
         settingsMaximum=std::max(0,y+settingsOffset+8-bottom);
         if(settingsOffset>settingsMaximum){settingsOffset=settingsMaximum;Layout();return;}
@@ -1269,6 +1355,11 @@ void Layout()
             SCROLLINFO info{sizeof(info),SIF_RANGE|SIF_PAGE|SIF_POS};info.nMax=settingsMaximum+bottom-formTop-1;info.nPage=bottom-formTop;info.nPos=settingsOffset;
             SetScrollInfo(settingsScroll,SB_CTL,&info,FALSE);
         }
+    }
+    else if(page==Page::Diagnostics){
+        move(DIAGNOSTICS_BACK,contentLeft,48,100,30);move(DIAGNOSTICS_COPY,contentRight-170,48,170,30);
+        MoveWindow(diagnosticsText,S(contentLeft),S(90),S(contentRight-contentLeft),S(std::max(40,bottom-90)),FALSE);reveal(diagnosticsText);
+        contentCardRect={S(contentLeft),S(90),S(contentRight),S(bottom)};
     }
     else if(page==Page::Browser) {
         // Keep the address centred between navigation and the browser menu.
@@ -1289,6 +1380,11 @@ void Layout()
                 move(WEB_MENU,contentRight-24,30,24,26);
             }
             contentCardRect={S(contentLeft),S(60),S(contentRight),S(bottom)};
+            if(browser.State()==3&&!Blocked()){
+                move(BROWSER_ERROR,contentLeft+12,88,contentRight-contentLeft-24,72);
+                move(BROWSER_RETRY,contentLeft+12,168,120,30);move(BROWSER_DIAGNOSTICS,contentLeft+12,206,std::min(210,contentRight-contentLeft-24),30);
+                SetWindowTextW(GetDlgItem(window,BROWSER_ERROR),browser.Status(english).c_str());EnableWindow(GetDlgItem(window,BROWSER_RETRY),browser.CanRetry());
+            }
         } else {
             move(BROWSER_TOGGLE,contentLeft,48,std::min(164,contentRight-contentLeft),28);
             contentCardRect={S(contentLeft),S(84),S(contentRight),S(bottom)};
@@ -1330,6 +1426,7 @@ void Layout()
         move(MIRROR_START,contentLeft+200,startY,68,28);move(MIRROR_STOP,contentLeft+272,startY,60,28);
         const int actionsY=shortWindow?116:154;
         move(PREVIEW_TOGGLE,contentLeft,actionsY,132,26);move(PROJECTION_HELP,contentLeft+136,actionsY,96,26);
+        move(DIAGNOSTICS_OPEN,contentLeft+236,actionsY,96,26);
         projectionStepsBounds={S(contentLeft),S(actionsY+30),S(contentRight),S(actionsY+(shortWindow?70:82))};
         const int previewTop=shortWindow?188:actionsY+88;
         const int maxHeight=std::max(0,bottom-previewTop-(shortWindow?20:height<500?32:80));
@@ -1393,7 +1490,7 @@ void Layout()
         } else pdfViewer.ClearThumbnails();
     } else pdfViewer.ClearThumbnails();
     std::vector<HWND> shellControls=buttons;
-    for(HWND control:{settingsScroll,sizeInput,opacityInput,iconSizeInput,findInput,webAddress,sourceMonitor,destinationMonitor,documentBar.Window(),browserTabBar.Window(),homeVersion,projectTree.Handle(),quickInput,quickList,setName,projectionPreview,pdfPages,pdfGoto,cueList,cueReader,meetingList,meetingEditor,meetingSpeaker,meetingBegin,meetingEnd,meetingSearch})shellControls.push_back(control);
+    for(HWND control:{settingsScroll,sizeInput,opacityInput,iconSizeInput,findInput,webAddress,sourceMonitor,destinationMonitor,documentBar.Window(),browserTabBar.Window(),homeVersion,projectTree.Handle(),quickInput,quickList,setName,projectionPreview,pdfPages,pdfGoto,cueList,cueReader,meetingList,meetingEditor,meetingSpeaker,meetingBegin,meetingEnd,meetingSearch,diagnosticsText})shellControls.push_back(control);
     for(HWND control:shellControls)if(control) {
         const bool visible=std::find(visibleControls.begin(),visibleControls.end(),control)!=visibleControls.end();
         const bool wasVisible=(GetWindowLongPtrW(control,GWL_STYLE)&WS_VISIBLE)!=0;
@@ -1522,7 +1619,7 @@ void RefreshFonts()
                            CLEARTYPE_QUALITY, 0, L"Segoe UI");
     for (HWND button : buttons)
         SendMessageW(button, WM_SETFONT, (WPARAM)uiFont, TRUE);
-    for(HWND control:{findInput,sizeInput,opacityInput,iconSizeInput,webAddress,sourceMonitor,destinationMonitor,projectTree.Handle(),quickInput,quickList,setName,pdfPages,pdfGoto,cueList,meetingList,meetingEditor,meetingSpeaker,meetingBegin,meetingEnd,meetingSearch})if(control)SendMessageW(control,WM_SETFONT,(WPARAM)uiFont,TRUE);
+    for(HWND control:{findInput,sizeInput,opacityInput,iconSizeInput,webAddress,sourceMonitor,destinationMonitor,projectTree.Handle(),quickInput,quickList,setName,pdfPages,pdfGoto,cueList,meetingList,meetingEditor,meetingSpeaker,meetingBegin,meetingEnd,meetingSearch,diagnosticsText})if(control)SendMessageW(control,WM_SETFONT,(WPARAM)uiFont,TRUE);
     if(quickList)SendMessageW(quickList,LB_SETITEMHEIGHT,0,S(48));
     if(pdfPages)SendMessageW(pdfPages,LB_SETITEMHEIGHT,0,S(142));
     if(cueList)SendMessageW(cueList,LB_SETITEMHEIGHT,0,S(26));
@@ -2140,7 +2237,7 @@ void MeetingAction(int command)
         else if(chosen==5)OpenContentPath(lastMeetingExport);
         else if(chosen==6||chosen==7)MeetingAction(chosen==6?MEETING_ADD:MEETING_DELETE);
         else if(chosen==8)ImportMeetingFile();else if(chosen==9)MeetingPreflight();else if(chosen==10)MeetingAction(SPEECH_SETUP);
-        else if(chosen==11){settingsCategory=1;settingsOffset=0;page=Page::Settings;Layout();}
+        else if(chosen==11){settingsCategory=6;settingsOffset=0;page=Page::Settings;Layout();}
         return;
     }
     if(Blocked()||notebookUnavailable)return;
@@ -2500,10 +2597,10 @@ void Paint(HDC dc)
     if(page==Page::Home){HBRUSH home=CreateSolidBrush(HOME_BG);FillRect(dc,&client,home);DeleteObject(home);}else FillRect(dc,&client,bgBrush);
     if(!focusMode&&activityVisible)DrawSidebar(dc,railWidth,client.bottom,true);
     RECT title{S(contentLeft),S(12),S(contentRight),S(40)};
-    if(page==Page::Settings){title.left=settingsViewport.left+S(16);title.right=settingsViewport.right-S(16);}
+    if(page==Page::Settings){title.left=S(contentLeft);title.right=S(contentRight-140);}
     if(page==Page::Home){title.right=S(contentRight-132);title.top=S(homeCompact?8:28);title.bottom=S(homeCompact?36:62);}
     if(!focusMode && page!=Page::Content && !(page==Page::Browser&&browser.Enabled()))DrawTextAt(dc,page==Page::Home?T(L"Trang chủ",L"Home"):
-        page==Page::Settings?T(L"Cài đặt",L"Settings"):page==Page::Meeting?T(L"Cuộc họp",L"Meetings"):page==Page::Browser?T(L"Trình duyệt",L"Browser"):page==Page::Quick?T(L"Chuyển nhanh",L"Quick switch"):
+        page==Page::Settings?T(L"Cài đặt",L"Settings"):page==Page::Diagnostics?T(L"Chẩn đoán",L"Diagnostics"):page==Page::Meeting?T(L"Cuộc họp",L"Meetings"):page==Page::Browser?T(L"Trình duyệt",L"Browser"):page==Page::Quick?T(L"Chuyển nhanh",L"Quick switch"):
         page==Page::Sets?T(L"Bộ thuyết trình",L"Presentation sets"):T(L"Trình chiếu",L"Presentation"),title,TEXT,page==Page::Home&&homeCompact?brandFont:titleFont,DT_LEFT|DT_VCENTER|DT_SINGLELINE|DT_END_ELLIPSIS);
     if(page==Page::Content || focusMode) {
         FillRoundRect(dc,contentCardRect,CARD,S(2));
@@ -2538,7 +2635,7 @@ void Paint(HDC dc)
             RoundRect(dc,input.left,input.top,input.right,input.bottom,S(6),S(6));SelectObject(dc,brush);SelectObject(dc,old);DeleteObject(border);
         }
         const auto browserPrivacyHint=ShortcutLabel(preferences.Key(PreferenceCommand::Mask))+T(L" để mở lại hoặc kiểm tra WGC.",L" to reveal, or verify WGC.");
-        if(Blocked()||!browser.Ready())DrawCenteredMessage(dc,contentCardRect,
+        if(Blocked()||(!browser.Ready()&&browser.State()!=3))DrawCenteredMessage(dc,contentCardRect,
             Blocked()?T(L"Nội dung đang che",L"Content hidden"):T(L"Web",L"Web"),
             Blocked()?browserPrivacyHint.c_str():browser.Status(english).c_str());
     }
@@ -2570,12 +2667,17 @@ void Paint(HDC dc)
 
     }
     else if(page==Page::Settings) {
-        FillRoundRect(dc,settingsCardRect,CARD,S(2));
+        FillRect(dc,&settingsCardRect,bgBrush);
         const int saved=SaveDC(dc);IntersectClipRect(dc,settingsViewport.left,settingsViewport.top,settingsViewport.right,settingsViewport.bottom);
         for(const auto& line:settingsLines) {
+            if(line.control==-4){HBRUSH rule=CreateSolidBrush(DIVIDER);FillRect(dc,&line.bounds,rule);DeleteObject(rule);continue;}
+            if(line.control==-3){FillRoundRect(dc,line.bounds,CARD,S(8));RECT sample=line.bounds;InflateRect(&sample,-S(14),-S(8));
+                sample.bottom=sample.top+S(24);DrawTextAt(dc,T(L"Đọc rõ, tập trung hơn.",L"Clear text. Fewer distractions."),sample,TEXT,brandFont,DT_LEFT|DT_VCENTER|DT_SINGLELINE|DT_END_ELLIPSIS);
+                sample.top+=S(28);sample.bottom+=S(28);DrawTextAt(dc,T(L"Xem trước màu và chữ của giao diện.",L"Preview the interface colors and text."),sample,MUTED,metaFont,DT_LEFT|DT_SINGLELINE|DT_END_ELLIPSIS);continue;}
             if(line.control==-1) {
-                std::wstring status=mirror?mirror->Status(english):L"";
-                if(mirror&&mirror->Running())status+=L"\nFPS: "+std::to_wstring((int)mirror->Fps());
+                std::wstring status=(privacy.applied?T(L"Windows: đã nhận loại trừ capture",L"Windows: capture exclusion accepted"):T(L"Windows: chưa nhận loại trừ capture",L"Windows: capture exclusion not accepted"))+
+                    std::wstring(L"\n")+(mirror&&mirror->IsVerified()?T(L"WGC: đã xác minh cục bộ",L"WGC: verified locally"):T(L"WGC: chưa xác minh",L"WGC: unverified"))+
+                    L"\n"+T(L"Người xem: chưa được xác minh",L"Viewer: unverified");
                 DrawTextAt(dc,status,line.bounds,MUTED,uiFont,DT_LEFT|DT_WORDBREAK);
                 continue;
             }
@@ -2623,6 +2725,7 @@ void Paint(HDC dc)
     RECT footer{S(contentLeft),client.bottom-S(20),S(contentRight),client.bottom-S(2)};
     std::wstring label=projectionStoppedNotice?T(L"Trình chiếu đã dừng - xem Cài đặt > Trình chiếu.",L"Projection stopped - see Settings > Projection."):
         Blocked()?T(L"Nội dung đang khóa",L"Content locked"):
+        page==Page::Settings&&!preferenceError.empty()?preferenceError:
         page==Page::Meeting?std::to_wstring(meetingNotebook.segments.size())+T(L" đoạn ghi chép",L" notes segments"):
         meetingTranscriber.Running()?meetingTranscriber.Status(english):!transcriptionNotice.empty()?transcriptionNotice:
         (meetingRecorder.Running()||meetingRecorder.ErrorCode()!=0)?meetingRecorder.Status(english):page==Page::Browser?(browser.Ready()?browser.Status(english):L""):
@@ -2694,15 +2797,24 @@ void DrawButtonContents(DRAWITEMSTRUCT *item)
         }
         if(GetFocus()==item->hwndItem){RECT focus=r;InflateRect(&focus,-3,-3);DrawFocusRect(item->hDC,&focus);}return;
     }
-    if(page==Page::Settings && (item->CtlID==REMEMBER_SIZE||item->CtlID==ALLOW_EDIT||item->CtlID==TOPMOST||item->CtlID==SHOW_ACTIVITY||item->CtlID==SHOW_TREE||item->CtlID==SHOW_TABS||
-        item->CtlID==SHOW_TOOLBAR||item->CtlID==SHOW_STATUS||item->CtlID==INCLUDE_IGNORED||item->CtlID==BROWSER_TOGGLE||item->CtlID==POINTER||item->CtlID==WRAP||
-        item->CtlID==BROWSER_MUTED||item->CtlID==BROWSER_CAMERA||item->CtlID==BROWSER_MICROPHONE||item->CtlID==MEETING_TRANSCRIBE)) {
+    if(page==Page::Settings&&(SettingsCategoryIndex(item->CtlID)>=0||item->CtlID==SETTINGS_CATEGORY)){
+        const bool selected=SettingsCategoryIndex(item->CtlID)==settingsCategory;const bool hover=hoveredButton==item->hwndItem;RECT r=item->rcItem;
+        FillRect(item->hDC,&r,bgBrush);if(selected||hover)FillRoundRect(item->hDC,r,selected?ACCENT_DARK:HOVER,S(7));
+        const int category=item->CtlID==SETTINGS_CATEGORY?settingsCategory:SettingsCategoryIndex(item->CtlID);
+        const unsigned icons[]={0xeb51,0xeaf0,0xeb7f,0xea7a,0xea65,0xeb01,0xeba7,0xea83};
+        RECT icon=r;icon.left+=S(10);icon.right=icon.left+S(18);DrawCodicon(item->hDC,icons[category],icon,MUTED,S(16));
+        r.left+=S(38);r.right-=S(item->CtlID==SETTINGS_CATEGORY?30:8);DrawTextAt(item->hDC,TextOf(item->hwndItem),r,TEXT,uiFont,DT_LEFT|DT_VCENTER|DT_SINGLELINE|DT_END_ELLIPSIS|DT_NOPREFIX);
+        if(item->CtlID==SETTINGS_CATEGORY){RECT arrow=item->rcItem;arrow.left=arrow.right-S(28);DrawCodicon(item->hDC,0xeab4,arrow,MUTED,S(16));}
+        if(item->itemState&ODS_FOCUS)DrawFocusRect(item->hDC,&item->rcItem);return;
+    }
+    if(page==Page::Settings && SettingsSwitch(item->CtlID)) {
         const int id=item->CtlID;const bool value=id==REMEMBER_SIZE?preferences.rememberWindowSize:id==ALLOW_EDIT?preferences.allowFileEditing:id==TOPMOST?topmost:id==SHOW_ACTIVITY?activityVisible:id==SHOW_TREE?treeVisible:
             id==SHOW_TABS?tabsVisible:id==SHOW_TOOLBAR?toolbarVisible:id==SHOW_STATUS?statusVisible:id==INCLUDE_IGNORED?projectTree.IncludeIgnored():
             id==BROWSER_TOGGLE?browser.Enabled():id==POINTER?mirrorPointer:id==BROWSER_MUTED?preferences.browserMuted:
-            id==BROWSER_CAMERA?preferences.browserAllowCamera:id==BROWSER_MICROPHONE?preferences.browserAllowMicrophone:id==MEETING_TRANSCRIBE?meetingSettings.transcriptionEnabled:IsCode()?codeViewer.GetState().wrap:documents.Active().state.wrap;
+            id==BROWSER_CAMERA?preferences.browserAllowCamera:id==BROWSER_MICROPHONE?preferences.browserAllowMicrophone:id==MEETING_TRANSCRIBE?meetingSettings.transcriptionEnabled:
+            id==SCRIPT_TAB_LABELS?preferences.numberedDocumentTabs:id==BROWSER_TAB_LABELS?preferences.numberedBrowserTabs:id==PREVIEW_TOGGLE?previewEnabled:IsCode()?codeViewer.GetState().wrap:documents.Active().state.wrap;
         const bool disabled=item->itemState&ODS_DISABLED,hover=hoveredButton==item->hwndItem;
-        FillRect(item->hDC,&item->rcItem,cardBrush);
+        FillRect(item->hDC,&item->rcItem,bgBrush);
         RECT button=item->rcItem;InflateRect(&button,-1,-1);
         if(hover&&!disabled)FillRoundRect(item->hDC,button,HOVER,S(8));
         RECT track{button.right-S(44),button.top+S(6),button.right-S(8),button.top+S(24)};
@@ -2735,13 +2847,13 @@ void DrawButtonContents(DRAWITEMSTRUCT *item)
     }
     bool disabled = (item->itemState & ODS_DISABLED) != 0;
     const bool railAction=(item->CtlID==VERIFY_PRIVACY||item->CtlID==MIRROR_ACTION||item->CtlID==NAV_MEETING)&&item->rcItem.right<=S(48);
-    const bool category=(item->CtlID>=SETTINGS_APPEARANCE&&item->CtlID<=SETTINGS_KEYS)||item->CtlID==SETTINGS_BROWSER;
+    const bool category=SettingsCategoryIndex(item->CtlID)>=0;
     bool nav = railAction||item->CtlID == NAV_SCRIPT || item->CtlID == NAV_READ || item->CtlID == NAV_HOME || item->CtlID == NAV_SETTINGS || item->CtlID==NAV_PRESENTATION || item->CtlID==NAV_BROWSER;
     bool activeNav = (item->CtlID == NAV_SCRIPT && page == Page::Content) ||
                      (item->CtlID == NAV_READ && page == Page::Content && reading) ||
                      (item->CtlID == NAV_HOME && page == Page::Home) ||
                      (item->CtlID == NAV_SETTINGS && page == Page::Settings) || (item->CtlID==NAV_PRESENTATION && page==Page::Presentation) || (item->CtlID==NAV_BROWSER&&page==Page::Browser) ||
-                     (category&&settingsCategory==(item->CtlID==SETTINGS_BROWSER?5:item->CtlID-SETTINGS_APPEARANCE))||(item->CtlID==MIRROR_ACTION&&mirror&&mirror->Running())||
+                     (category&&settingsCategory==SettingsCategoryIndex(item->CtlID))||(item->CtlID==MIRROR_ACTION&&mirror&&mirror->Running())||
                      (item->CtlID==NAV_MEETING&&(meetingRecorder.Running()||page==Page::Meeting))||
                      (page==Page::Meeting&&item->CtlID==MEETING_VIEW_LIST+meetingView);
     bool primary = item->CtlID == PLAY || item->CtlID == OPEN_FILE || (item->CtlID==BROWSER_TOGGLE&&!browser.Enabled());
@@ -3296,7 +3408,7 @@ void QaTick()
                         {
                             page = surface; Layout(); qaLayoutMatrix = CompactFits() && qaLayoutMatrix;
                             if(surface==Page::Settings) {
-                                for(int category=0;category<6;++category){settingsCategory=category;settingsOffset=0;Layout();
+                                for(int category=0;category<8;++category){settingsCategory=category;settingsOffset=0;Layout();
                                     qaLayoutMatrix=CompactFits()&&qaLayoutMatrix;ScrollSettings(settingsMaximum);qaLayoutMatrix=CompactFits()&&qaLayoutMatrix;ScrollSettings(0);}
                                 settingsCategory=0;
                             }
@@ -3392,7 +3504,13 @@ void QaTick()
         SendMessageW(window,WM_COMMAND,SETTINGS_WORKSPACE,0);Capture(L"settings-workspace.bmp");
         SendMessageW(window,WM_COMMAND,SETTINGS_PROJECTION,0);Capture(L"settings-display.bmp");
         SendMessageW(window,WM_COMMAND,SETTINGS_KEYS,0);Capture(L"settings-shortcuts.bmp");
+        SendMessageW(window,WM_COMMAND,SETTINGS_MEETING,0);Capture(L"settings-meetings.bmp");
+        SendMessageW(window,WM_COMMAND,SETTINGS_DATA,0);Capture(L"settings-data.bmp");
+        SendMessageW(window,WM_COMMAND,DIAGNOSTICS_OPEN,0);Capture(L"diagnostics.bmp");
+        SendMessageW(window,WM_COMMAND,DIAGNOSTICS_BACK,0);
         SendMessageW(window,WM_COMMAND,SETTINGS_APPEARANCE,0);
+        SendMessageW(window,WM_COMMAND,SETTINGS_ADVANCED,0);Capture(L"settings-advanced.bmp");
+        SendMessageW(window,WM_COMMAND,SETTINGS_ADVANCED,0);
         RECT settingsSize{};GetWindowRect(window,&settingsSize);
         SetWindowPos(window,nullptr,0,0,S(430),S(320),SWP_NOMOVE|SWP_NOZORDER|SWP_NOACTIVATE);Layout();Capture(L"settings-minimum.bmp");
         SetWindowPos(window,nullptr,0,0,settingsSize.right-settingsSize.left,settingsSize.bottom-settingsSize.top,SWP_NOMOVE|SWP_NOZORDER|SWP_NOACTIVATE);
@@ -3761,7 +3879,7 @@ LRESULT CALLBACK Proc(HWND h, UINT message, WPARAM wp, LPARAM lp)
         if(!LoadCodicons(instance))return -1;
         window = h;
         mirror=std::make_unique<MirrorController>();mirror->SetResourceMode(resourceMode);
-        if(!qa)mirror->SetDiagnosticPath(dataDir+L"\\projection-stop.json");
+        if(!qa){mirror->SetDiagnosticPath(dataDir+L"\\projection-stop.json");browser.SetDiagnosticPath(dataDir+L"\\browser-fault.dat");}
         privacy = ApplyPrivacy(h);
         topologyKnown = TryGetDisplayCloned(cloned);
         if (qaVisual)
@@ -3791,7 +3909,10 @@ LRESULT CALLBACK Proc(HWND h, UINT message, WPARAM wp, LPARAM lp)
             {RESET_PREFERENCES,L"Khôi phục mặc định"},{MIRROR_ACTION,L"Bắt đầu trình chiếu"},
             {220,L"F8"},{221,L"Ctrl+Alt+Q"},{222,L"F9"},{223,L"F10"},{224,L"F11"},
             {225,L"Ctrl+O"},{226,L"Ctrl+Shift+O"},{227,L"Ctrl+B"},{228,L"Ctrl+Enter"},{229,L"Space"}};
-        labels.insert(labels.end(),{{NAV_MEETING,L"Cuộc họp"},{MEETING_SAVE,L"Lưu đoạn"},{MEETING_DECISION,L"Quyết định"},{MEETING_ACTION,L"Việc cần làm"},{MEETING_EXPORT,L"Xuất"},
+        labels.insert(labels.end(),{{SETTINGS_MEETING,L"Cuộc họp"},{SETTINGS_DATA,L"Dữ liệu"},{SETTINGS_CATEGORY,L"Giao diện"},{SETTINGS_ADVANCED,L"Nâng cao"},
+            {THEME_DARK,L"Tối"},{THEME_LIGHT,L"Sáng"},{PROFILE_SELECT,L"Hồ sơ"},{PROFILE_SAVE,L"Lưu hồ sơ"},{PROFILE_APPLY,L"Áp dụng"},
+            {DIAGNOSTICS_OPEN,L"Chẩn đoán lần dừng"},{DIAGNOSTICS_COPY,L"Sao chép báo cáo"},{DIAGNOSTICS_BACK,L"Quay lại"},{BROWSER_DIAGNOSTICS,L"Chẩn đoán trình duyệt"},{BROWSER_RETRY,L"Tải lại tab"},
+            {NAV_MEETING,L"Cuộc họp"},{MEETING_SAVE,L"Lưu đoạn"},{MEETING_DECISION,L"Quyết định"},{MEETING_ACTION,L"Việc cần làm"},{MEETING_EXPORT,L"Xuất"},
             {MEETING_CHECK,L"Kiểm tra"},{SPEECH_SETUP,L"Cài Whisper"},{SPEECH_MODEL,L"Small"},{MEETING_ADD,L"Thêm đoạn"},{MEETING_DELETE,L"Xóa đoạn"},{MEETING_CANCEL,L"Dừng xử lý"},{MEETING_FILTER,L"Tất cả"},{MEETING_VIEW_LIST,L"Các đoạn"},{MEETING_VIEW_EDIT,L"Nội dung"},{MEETING_VIEW_META,L"Người / giờ"},{PDF_TOOLS,L"PDF"},{PDF_GOTO,L"Đến"},{CUE_PREV,L"Phần trước"},{CUE_NEXT,L"Phần sau"},{CUE_LINK,L"Gắn trang"},{CUE_SYNC,L"Đồng bộ"},{CUE_SMALLER,L"A-"},{CUE_LARGER,L"A+"},{QUICK_SWITCH,L"Chuyển nhanh"},{QUICK_OPEN,L"Mở"},{QUICK_BACK,L"Quay lại"},{SET_LIBRARY,L"Bộ thuyết trình"},{SET_SAVE,L"Lưu bộ"},{SET_DELETE,L"Xóa bộ"},
             {REFRESH_DISPLAYS,L"Làm mới"},{PREVIEW_TOGGLE,L"Xem trước"},{PROJECTION_HELP,L"Hướng xử lý"},{THEME_SELECT,L"Chủ đề màu"},{REMEMBER_SIZE,L"Nhớ kích thước cửa sổ"},{ALLOW_EDIT,L"Cho phép sửa file"},{SAVE_FILE,L"Lưu file"},
             {RECENT_CLEAR,L"Xóa lịch sử"},{RECENT_NEXT,L"Sau"},{RECENT_PREV,L"Trước"},{TRANSCRIPTION_LANGUAGE,L"Ngôn ngữ chép lời"},
@@ -3891,6 +4012,9 @@ LRESULT CALLBACK Proc(HWND h, UINT message, WPARAM wp, LPARAM lp)
         webAddress=CreateWindowExW(0,L"EDIT",L"",WS_CHILD|WS_TABSTOP|WS_CLIPSIBLINGS|ES_AUTOHSCROLL|ES_MULTILINE,0,0,0,0,h,(HMENU)WEB_ADDRESS,instance,nullptr);
         SendMessageW(webAddress,EM_SETLIMITTEXT,4096,0);SetWindowTheme(webAddress,theme.dark?L"DarkMode_Explorer":L"Explorer",nullptr);
         SetWindowSubclass(webAddress,AddressInputProc,1,0);
+        diagnosticsText=CreateWindowExW(0,L"EDIT",L"",WS_CHILD|WS_TABSTOP|WS_VSCROLL|ES_MULTILINE|ES_AUTOVSCROLL|ES_READONLY,0,0,0,0,h,(HMENU)DIAGNOSTICS_TEXT,instance,nullptr);
+        SendMessageW(diagnosticsText,EM_SETLIMITTEXT,8000,0);SetWindowSubclass(diagnosticsText,PrivateReaderInputProc,1,0);
+        buttons.push_back(CreateWindowExW(0,L"STATIC",L"",WS_CHILD|SS_LEFT,0,0,0,0,h,(HMENU)BROWSER_ERROR,instance,nullptr));
         sourceMonitor=CreateWindowExW(0,L"COMBOBOX",L"",WS_CHILD|WS_TABSTOP|CBS_DROPDOWNLIST|CBS_OWNERDRAWFIXED|CBS_HASSTRINGS|WS_VSCROLL,0,0,0,0,h,(HMENU)SOURCE_MONITOR,instance,nullptr);
         destinationMonitor=CreateWindowExW(0,L"COMBOBOX",L"",WS_CHILD|WS_TABSTOP|CBS_DROPDOWNLIST|CBS_OWNERDRAWFIXED|CBS_HASSTRINGS|WS_VSCROLL,0,0,0,0,h,(HMENU)DEST_MONITOR,instance,nullptr);
         for(HWND combo:{sourceMonitor,destinationMonitor})SetWindowSubclass(combo,MonitorComboProc,1,0);
@@ -3966,6 +4090,7 @@ LRESULT CALLBACK Proc(HWND h, UINT message, WPARAM wp, LPARAM lp)
     }
     case BrowserChangedMessage:
         if(wp!=browser.Generation())return 0;
+        browser.AcknowledgeChanged();
         Layout();return 0;
     case BrowserCommandMessage:
         if(wp==browser.Generation()&&page==Page::Browser&&!Blocked()) {
@@ -4237,6 +4362,11 @@ LRESULT CALLBACK Proc(HWND h, UINT message, WPARAM wp, LPARAM lp)
         case 77:return notebookSelection;
         case 78:return speechReady;
         case 79:return page==Page::Meeting;
+        case 80:return page==Page::Settings&&settingsWide;
+        case 81:{unsigned count=0;for(const auto& p:workspaceProfiles.slots)if(p.saved)++count;return count;}
+        case 82:return selectedProfile;
+        case 83:return page==Page::Diagnostics;
+        case 84:return settingsAdvanced;
         case 65:{DWORD affinity=0;return GetWindowDisplayAffinity(window,&affinity)&&affinity==0x11;}
             case 60:return preferences.iconSize;
             case 61:return preferences.browserMuted;
@@ -4335,9 +4465,9 @@ LRESULT CALLBACK Proc(HWND h, UINT message, WPARAM wp, LPARAM lp)
         if(LOWORD(wp)>=1000&&LOWORD(wp)<=1000+CustomThemeId) {
             auto candidate=preferences;candidate.themeId=LOWORD(wp)-1000;StorePreferences(candidate);Layout();return 0;
         }
-        if((LOWORD(wp)>=SETTINGS_APPEARANCE&&LOWORD(wp)<=SETTINGS_KEYS)||LOWORD(wp)==SETTINGS_BROWSER) {
-            capturingShortcut=-1;preferenceError.clear();settingsCategory=LOWORD(wp)==SETTINGS_BROWSER?5:LOWORD(wp)-SETTINGS_APPEARANCE;
-            if(LOWORD(wp)==SETTINGS_BROWSER){Pause();focusMode=false;page=Page::Settings;}
+        if(SettingsCategoryIndex(LOWORD(wp))>=0) {
+            capturingShortcut=-1;preferenceError.clear();settingsCategory=SettingsCategoryIndex(LOWORD(wp));
+            Pause();focusMode=false;page=Page::Settings;
             settingsOffset=0;settingsWheelRemainder=0;Layout();return 0;
         }
         if(LOWORD(wp)>=SHORTCUT_FIRST&&LOWORD(wp)<SHORTCUT_FIRST+PreferenceCommandCount) {
@@ -4357,6 +4487,20 @@ LRESULT CALLBACK Proc(HWND h, UINT message, WPARAM wp, LPARAM lp)
         }
         switch (LOWORD(wp))
         {
+        case PROFILE_SELECT:{RECT anchor{};GetWindowRect(GetDlgItem(window,PROFILE_SELECT),&anchor);ToolMenu menu;std::vector<ToolMenuItem> entries;
+            for(int i=0;i<3;++i)entries.push_back({i+1,ProfileName(i),true,0xeb51,selectedProfile==i});
+            const int chosen=menu.Show(window,anchor,dpi,uiFont,std::move(entries));if(chosen){selectedProfile=chosen-1;preferenceError.clear();Layout();}break;}
+        case PROFILE_SAVE:SaveWorkspaceProfile();break;
+        case PROFILE_APPLY:ApplyWorkspaceProfile();break;
+        case SETTINGS_CATEGORY:{RECT anchor{};GetWindowRect(GetDlgItem(window,SETTINGS_CATEGORY),&anchor);ToolMenu menu;std::vector<ToolMenuItem> entries;
+            for(int i:SettingsCategoryOrder)entries.push_back({SettingsCategoryIds[i],T(SettingsCategoryVi[i],SettingsCategoryEn[i]),true,0xeb51,settingsCategory==i});
+            const int selected=menu.Show(window,anchor,dpi,uiFont,std::move(entries));if(selected)SendMessageW(window,WM_COMMAND,selected,0);break;}
+        case SETTINGS_ADVANCED:settingsAdvanced=!settingsAdvanced;Layout();EnsureSettingsVisible(GetDlgItem(window,SETTINGS_ADVANCED));break;
+        case THEME_DARK:case THEME_LIGHT:{auto candidate=preferences;candidate.themeId=LOWORD(wp)==THEME_DARK?0:1;StorePreferences(candidate);Layout();break;}
+        case DIAGNOSTICS_OPEN:case BROWSER_DIAGNOSTICS:OpenDiagnostics();break;
+        case DIAGNOSTICS_COPY:CopyDiagnosticReport();break;
+        case DIAGNOSTICS_BACK:page=diagnosticReturn;Layout();break;
+        case BROWSER_RETRY:if(!Blocked()){browser.Reload();Layout();}break;
         case QUICK_SWITCH:OpenQuick();break;
         case SET_LIBRARY:OpenQuick(true);break;
         case QUICK_OPEN:OpenQuickSelection();break;
@@ -4374,9 +4518,8 @@ LRESULT CALLBACK Proc(HWND h, UINT message, WPARAM wp, LPARAM lp)
         }
         case REFRESH_DISPLAYS:if(mirror)mirror->HandleDisplayChange();topologyKnown=TryGetDisplayCloned(cloned);UpdateMonitors();Layout();break;
         case PREVIEW_TOGGLE:{
-            if(recoveryVisible){recoveryVisible=false;previewEnabled=true;}else previewEnabled=!previewEnabled;
-            DWORD record[]={0x50515357,1,previewEnabled?1u:0u};const auto target=dataDir+L"\\preview.dat",temp=target+L".tmp";
-            if(!qa&&(!WriteBytes(temp,record,sizeof(record))||!MoveFileExW(temp.c_str(),target.c_str(),MOVEFILE_REPLACE_EXISTING|MOVEFILE_WRITE_THROUGH)))
+            if(recoveryVisible&&page==Page::Presentation){recoveryVisible=false;previewEnabled=true;}else previewEnabled=!previewEnabled;
+            if(!PersistPreviewChoice())
                 preferenceError=T(L"QS-W008 - Chưa lưu được lựa chọn xem trước. Chỉ áp dụng phiên này.",L"QS-W008 - Preview preference was not saved. Applied to this session.");
             else preferenceError.clear();
             Layout();break;}
@@ -4507,6 +4650,7 @@ LRESULT CALLBACK Proc(HWND h, UINT message, WPARAM wp, LPARAM lp)
                 {BROWSER_MUTED,T(preferences.browserMuted?L"Bật âm thanh":L"Tắt âm thanh",
                     preferences.browserMuted?L"Unmute audio":L"Mute audio"),true,
                     static_cast<wchar_t>(preferences.browserMuted?0xeb75:0xeb24),preferences.browserMuted},
+                {BROWSER_DIAGNOSTICS,T(L"Chẩn đoán trình duyệt",L"Browser diagnostics"),true,0xea6d},
                 {SETTINGS_BROWSER,T(L"Thiết lập trình duyệt",L"Browser settings"),true,0xeb51},
                 {BROWSER_TOGGLE,T(L"Tắt trình duyệt",L"Disable browser"),true,0xea76}};
             RECT anchor{};GetWindowRect(GetDlgItem(h,WEB_MENU),&anchor);ToolMenu menu;
@@ -4800,6 +4944,7 @@ int WINAPI wWinMain(HINSTANCE inst, HINSTANCE, LPWSTR, int show)
     CreateDirectoryW(dataDir.c_str(), nullptr);
     LoadLayoutPreferences();
     if(!qa){
+        if(GetFileAttributesW((dataDir+L"\\workspace-profiles.dpapi").c_str())!=INVALID_FILE_ATTRIBUTES)profilesUnavailable=!workspaceProfiles.Load(dataDir);
         LoadPreferences(dataDir,preferences);
         meetingSettings.outputDirectory=DefaultMeetingDirectory(dataDir);
         LoadMeetingSettings(dataDir,meetingSettings);

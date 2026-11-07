@@ -2,7 +2,7 @@
 
 > **Có hướng dẫn bằng ảnh:** [Xem 8 ảnh chụp giao diện có đánh số và khoanh đỏ](VISUAL_GUIDE_VI.md).
 
-Ấn bản tiếng Việt - QuietShare v0.20.0
+Ấn bản tiếng Việt - QuietShare v0.21.0
 
 Đọc, chuẩn bị và thuyết trình với lời nhắc riêng trên Windows.
 
@@ -129,7 +129,7 @@ Các thao tác này không xóa file hoặc thư mục gốc. Xóa lịch sử k
 - Nhấp phải **Tệp đang mở** để chọn file khác hoặc soạn lời nhắc.
 - **Trình duyệt** mở không gian duyệt web tùy chọn.
 - **Kiểm tra WGC** xác minh capture. Nút Play hoặc Dừng trình chiếu bắt đầu hoặc dừng Smart Mirror.
-- **Cài đặt** chia thành giao diện, nội dung, bố cục, trình chiếu, phím tắt và trình duyệt.
+- **Cài đặt** có giao diện, đọc/tệp, trình chiếu, trình duyệt, cuộc họp, bố cục, phím tắt và dữ liệu.
 
 Di chuột để đọc chú giải các nút biểu tượng nhỏ. Với màn hình laptop nhỏ, ẩn thanh không cần thiết trong Bố cục hoặc dùng F11 để tập trung.
 
@@ -190,7 +190,7 @@ Mặc định cho phép chỉnh sửa. Ảnh và PDF vẫn chỉ đọc. Code đ
 
 Khi lưu, ứng dụng giữ mã hóa và dấu thứ tự byte được hỗ trợ. Cỡ chữ, độ đậm và xuống dòng khi đọc không ghi định dạng vào file văn bản thuần.
 
-Để chỉ xem, tắt **Cài đặt > Nội dung > Cho phép sửa file**. Lưu các thay đổi đang có trước khi đổi chế độ.
+Để chỉ xem, tắt **Cài đặt > Đọc & tệp > Cho phép sửa file**. Lưu các thay đổi đang có trước khi đổi chế độ.
 
 ### File thay đổi bên ngoài và đóng tài liệu
 
@@ -221,7 +221,7 @@ Văn bản và code nhập từ file dùng thao tác Lưu chủ động. Chuyể
 
 ### Sổ ghi chép cuộc họp
 
-Mở **Cuộc họp** ở thanh bên để ghi âm, duyệt đoạn có giờ và xuất ghi chép. Chọn ngôn ngữ, mô hình Whisper cục bộ tùy chọn và thư mục xuất tại **Cài đặt > Nội dung**. Xem quy trình đầy đủ ở chương 12.
+Mở **Cuộc họp** ở thanh bên để ghi âm, duyệt đoạn có giờ và xuất ghi chép. Chọn ngôn ngữ, mô hình Whisper cục bộ tùy chọn và thư mục xuất tại **Cài đặt > Cuộc họp**. Xem quy trình đầy đủ ở chương 12.
 
 ### Cuộn khi trình bày
 
@@ -327,7 +327,18 @@ Nếu chữ nhạt, tăng độ mờ cửa sổ về gần 100%, sau đó chỉn
 
 ## 7. Cài đặt, bố cục và phím tắt
 
-Cài đặt chia thành **Giao diện**, **Nội dung**, **Bố cục**, **Trình chiếu**, **Phím tắt** và **Trình duyệt**. Cuộn trong từng nhóm nếu cửa sổ nhỏ không hiện đủ điều khiển.
+Cài đặt có tám nhóm: **Giao diện**, **Đọc & tệp**, **Trình chiếu**, **Trình duyệt**, **Cuộc họp**, **Bố cục**, **Phím tắt** và **Dữ liệu**. Cửa sổ rộng có danh mục bên trái. Cửa sổ nhỏ hoặc thấp dùng một nút chọn nhóm ở đầu biểu mẫu. Cuộn trong nhóm đang mở. **Giao diện > Nâng cao** chứa độ mờ, cỡ icon và màu tự chọn.
+
+### Lưu hồ sơ sử dụng
+
+1. Chỉnh theme, cỡ/độ đậm/xuống dòng, các thanh hiển thị, chiều rộng Explorer và xem trước.
+2. Mở **Cài đặt > Bố cục**, chọn **Đọc trên laptop**, **Thuyết trình** hoặc **Ghi chép cuộc họp**.
+3. Chọn **Lưu hiện tại**. Ban đầu cả ba ô đều trống. Lưu sẽ thay riêng ô đang chọn.
+4. Khi cần, chọn lại ô đó và nhấn **Áp dụng**.
+
+Hồ sơ giữ theme/màu riêng, cách đọc chữ, zoom tài liệu, tốc độ cuộn, độ mờ, cỡ icon, bố cục, ghim, xem trước và chế độ tài nguyên. Dữ liệu được mã hóa cho tài khoản Windows hiện tại. Áp dụng tác động trình đọc đang mở. Thao tác không bật trình duyệt, ghi âm hoặc trình chiếu, không đổi quyền thiết bị và không thay lời nhắc/file. Hồ sơ khác với bộ thuyết trình lưu tài liệu và vị trí đọc.
+
+Dùng **Dữ liệu > Xóa lịch sử** để bỏ các mục gần đây và ghim. File gốc và bộ thuyết trình đã lưu vẫn được giữ.
 
 ### Chỉnh cửa sổ cho thuận tiện
 
@@ -413,6 +424,18 @@ Từ khóa được gửi tới Google. Website bạn mở nhận các yêu cầ
 Tab mới phải qua xác minh capture. Tab nền nhận yêu cầu tạm ngưng. Trang hoặc bộ máy trình duyệt vẫn có thể tiếp tục một số hoạt động dù đã có yêu cầu đó.
 
 Nếu bật trình duyệt khi đang chiếu, QuietShare giữ khung hình công khai gần nhất trong lúc xác minh. Thời gian này có thể tới khoảng năm giây. Thất bại hoặc hủy sẽ dừng chiếu. Kiểm tra kết quả trình chiếu trước khi tiếp tục.
+
+### Khi trang hoặc tiến trình web gặp lỗi
+
+Sự kiện GPU, tiện ích hoặc khung con có thể phục hồi sẽ giữ controller đã xác minh. Với trang chưa phản hồi, có thể đợi hoặc tải lại. Quy tắc này không bỏ qua lỗi WGC, màn hình hoặc bảo vệ thực tế.
+
+1. Khi trang dừng, đọc mã **QS-B** và mở **Chẩn đoán**. Tab và địa chỉ hiện tại vẫn giữ trong phiên.
+2. Với **QS-B001** hoặc **QS-B002**, chọn **Tải lại tab**. Tiến trình web thoát có thể cần đợi ít giây rồi thử lại.
+3. QuietShare tạo lại controller/môi trường cần thiết và kiểm tra vùng render đang gắn vào cửa sổ trước khi hiện trang.
+4. Nếu nội dung riêng bị khóa, đọc bản ghi **QS-P** riêng, khắc phục nguyên nhân rồi nhấn F9. Nếu vẫn không xác minh được, giữ khóa và mở lại QuietShare.
+5. Chỉ chủ động nhấn F10 sau khi bảo vệ thành công. Kiểm tra lại đúng đầu nhận.
+
+Sự kiện tiến trình web và lỗi chiếu là hai bản ghi riêng. So thời gian UTC trước khi kết luận nguyên nhân. Một sự kiện không tự chứng minh website cụ thể gây lỗi bảo vệ. Threads đã đăng nhập và HDMI/máy chiếu cần được thử trên đúng thiết bị gặp lỗi.
 
 ### Dán ảnh vào ô soạn web
 
@@ -574,7 +597,7 @@ Dùng điều khiển của ứng dụng thực sự chia sẻ hoặc ghi hình.
 ### Ghi âm, chép lời và duyệt lại ngay trên máy
 
 1. Mở **Cuộc họp** ở thanh bên. Chọn **Xuất / thêm > Kiểm tra nguồn âm thanh và nhận dạng**.
-2. Trong **Cài đặt > Nội dung**, chọn Tiếng Việt hoặc Tiếng Anh, thư mục xuất cục bộ và có tự chép lời sau khi ghi hay không.
+2. Trong **Cài đặt > Cuộc họp**, chọn Tiếng Việt hoặc Tiếng Anh, thư mục xuất cục bộ và có tự chép lời sau khi ghi hay không.
 3. Giữ **Small · 466 MiB** mặc định để ưu tiên độ chính xác. Có thể chọn Base · 142 MiB khi cần nhẹ hơn.
 4. Chọn **Cài bộ nhận dạng tùy chọn**. Chỉ thao tác chủ động này mới tải bộ CPU và mô hình đã chọn. Giữ ứng dụng mở đến khi cài xong. Mô hình nằm tại `%LOCALAPPDATA%\QuietShare\Speech`.
 5. Chọn **WAV + nội dung** để giữ âm thanh hoặc **Chỉ nội dung** để xóa WAV tạm sau khi transcript được lưu thành công vào sổ. Khi đang ghi vẫn cần dung lượng tạm trên ổ đĩa.
@@ -590,7 +613,7 @@ Small là mô hình Whisper đa ngôn ngữ, không bảo đảm mọi từ đ�
 ### Giữ người nói từ nền tảng họp và khôi phục ghi chép
 
 1. Xuất transcript VTT hoặc TXT từ Teams, Zoom hoặc Google Meet bằng công cụ của nền tảng đó.
-2. Chọn đúng **Nền tảng cuộc họp** trong Cài đặt > Nội dung.
+2. Chọn đúng **Nền tảng cuộc họp** trong Cài đặt > Cuộc họp.
 3. Chọn **Cuộc họp > Xuất / thêm > Nhập transcript Teams / Zoom / Meet**.
 4. Kiểm tra tên và mốc giờ. Dòng VTT `<v Speaker>` được giữ lại. Tiền tố tên thông thường chỉ được đọc khi đã chọn nền tảng cụ thể. Bản nhận dạng từ âm thanh Whisper để bạn tự gán tên.
 5. Ở cửa sổ nhỏ, dùng **Các đoạn**, **Nội dung** và **Người / giờ** để chuyển vùng. Cửa sổ rộng hiện danh sách cùng vùng sửa.
@@ -922,7 +945,11 @@ Tìm lại file đã di chuyển hoặc tạm không truy cập được. Mở b
 
 ### Tìm bản ghi trình chiếu gần nhất
 
-Sau lần bắt đầu thất bại, đọc **Cài đặt > Trình chiếu**. Từ v0.14.4, QuietShare mở nhóm này khi khởi động trình chiếu thất bại.
+Mở **Cài đặt > Trình chiếu > Chẩn đoán lần dừng** hoặc **Cài đặt > Trình duyệt > Chẩn đoán lần dừng**. Trang Trình chiếu cũng có **Chẩn đoán**. **Sao chép báo cáo** chỉ sao chép các trường cố định đang hiện khi bạn chủ động nhấn. Trang vẫn xem được lúc nội dung riêng bị che và không tự khởi động chiếu.
+
+Báo cáo ghép lỗi chiếu gần nhất với sự kiện tiến trình web gần nhất. Phần web có mã QS-B, UTC, loại tiến trình cố định, reason/exit dạng số và số sự kiện. File cục bộ là `browser-fault.dat`. Không có URL, tiêu đề, chữ riêng hoặc nội dung trang. Một sự kiện web có thể phục hồi vẫn có bản ghi dù trình chiếu không dừng.
+
+Sau khi bắt đầu chiếu thất bại, xem **Cài đặt > Trình chiếu**. QuietShare tự mở nhóm này khi khởi động chiếu lỗi.
 
 Nếu cần, mở `%LOCALAPPDATA%\QuietShare\projection-stop.json` bằng trình soạn thảo. Đây là một bản ghi lỗi cục bộ gần nhất, bị ghi đè khi có lỗi sau. Không có file không chứng minh chưa từng có lỗi. Bản cũ có thể chỉ ghi lỗi trong phiên đang chạy.
 
@@ -992,3 +1019,27 @@ Lý do lỗi trình chiếu mới cần có mã ổn định và các bước ph
 | `QS-N005` | Không tạo dự phòng/lưu/xuất được ghi chép. Kiểm tra thư mục xuất cục bộ, quyền ghi và dung lượng. Giữ bản cũ rồi thử lại. |
 
 Dùng **Ẩn xem trước** tại Trình chiếu hoặc **Cài đặt > Trình chiếu > Xem trước luồng đang gửi** để tắt xem trước. Lựa chọn được nhớ qua lần mở lại. Tắt sẽ giải phóng bộ dựng GPU và ngừng vẽ xem trước. Trình chiếu vẫn tiếp tục. Bật lại chỉ tạo vùng xem trước khi đang hiện vùng đó. Đây là luồng đang gửi, không phải xác nhận đầu nhận vật lý.
+
+
+### Mã phục hồi tiến trình trình duyệt
+
+| Mã | Sự kiện phát hiện và cách xử lý |
+|---|---|
+| `QS-B001` | Tiến trình trình duyệt đã thoát. Đợi thoát xong rồi Tải lại tab. Tab vẫn giữ trong phiên. |
+| `QS-B002` | Tiến trình render chính đã thoát. Tải lại tab để tạo và xác minh lại. |
+| `QS-B003` | Trang chưa phản hồi. Đợi hoặc tải lại. Có thể đóng tab nặng không dùng. |
+| `QS-B004` | Render khung con thoát. Controller được giữ. Tải lại nếu khung vẫn trắng. |
+| `QS-B005` | Tiến trình tiện ích thoát. WebView2 có thể phục hồi. Tải lại nếu chức năng trang vẫn lỗi. |
+| `QS-B006` | Tiến trình hỗ trợ sandbox thoát. Đợi phục hồi rồi tải lại nếu cần. |
+| `QS-B007` | Tiến trình GPU thoát. WebView2 có thể tạo lại. Nếu lặp lại, cập nhật driver đồ họa và runtime. |
+| `QS-B008` | Tiến trình plugin thoát. Tải lại trang. Một số chức năng cũ có thể không được hỗ trợ. |
+| `QS-B009` | Tiến trình môi giới plugin thoát. Tải lại trang và cập nhật WebView2 nếu lặp lại. |
+| `QS-B010` | Tiến trình WebView2 khác thoát. Kiểm tra trang và tải lại nếu cần. |
+| `QS-B099` | Sự kiện tiến trình chưa nhận dạng. Tải lại để tạo và xác minh. Giữ mã reason/exit dạng số. |
+
+Mã mô tả sự kiện tiến trình. QS-B004 đến QS-B010 giữ controller trong khi WebView2 phục hồi. Lỗi bảo vệ độc lập vẫn khóa nội dung riêng.
+
+### Mã phục hồi hồ sơ sử dụng
+
+- **QS-W009:** không đọc được hồ sơ cũ. Đóng QuietShare và sao lưu `workspace-profiles.dpapi`. Khôi phục bản tốt bằng cùng tài khoản Windows hoặc đổi tên file trước khi tạo mới. File lỗi được giữ nguyên.
+- **QS-W010:** không lưu được hồ sơ hoặc màu. Kiểm tra quyền ghi và dung lượng trống. Giữ hồ sơ cũ rồi thử lại.

@@ -1,4 +1,4 @@
-"""Verify QuietShare 0.20.0 teleprompter GDI captures and export review PNGs.
+"""Verify QuietShare 0.21.0 teleprompter GDI captures and export review PNGs.
 
 This checks one local BitBlt capture path. It cannot establish what Zoom,
 Teams, OBS, another capture API, a remote viewer, or a projector receives.
@@ -30,7 +30,8 @@ REQUIRED_CAPTURES = {
                    "project-wide.bmp", "project-medium.bmp", "project-minimum.bmp", "layout-minimal.bmp", "pdf-file.bmp", "pdf-focus.bmp",
                    "presentation.bmp", "presentation-en.bmp", "tabs-masked.bmp","browser-off.bmp","browser-off-en.bmp","browser-minimum.bmp",
                    "pdf-tools.bmp","pdf-tools-minimum.bmp","pdf-tools-minimum-light.bmp","pdf-tools-light.bmp",
-                   "meeting.bmp","meeting-light.bmp","meeting-minimum-0.bmp","meeting-minimum-1.bmp","meeting-minimum-2.bmp","meeting-minimum-light.bmp"),
+                   "meeting.bmp","meeting-light.bmp","meeting-minimum-0.bmp","meeting-minimum-1.bmp","meeting-minimum-2.bmp","meeting-minimum-light.bmp",
+                   "settings-meetings.bmp","settings-data.bmp","settings-advanced.bmp","diagnostics.bmp"),
     "qa-excluded": ("excluded.bmp",),
 }
 
@@ -167,7 +168,7 @@ def main() -> int:
             check(f"{folder}.diagnosticsReadable", False, str(error))
             diagnostic = {}
         expected = {
-            "applicationVersion": "0.20.0",
+            "applicationVersion": "0.21.0",
             "topologyKnown": True,
             "displayCloned": False,
             "privacyApplied": True,
@@ -330,7 +331,7 @@ def main() -> int:
     installer_report = artifacts / "installer-self-test.json"
     try:
         setup = json.loads(installer_report.read_text(encoding="utf-8-sig"))
-        for field, expected in {"selfTestPassed": True, "version": "0.20.0",
+        for field, expected in {"selfTestPassed": True, "version": "0.21.0",
                                 "versionResourceVerified": True, "payloadResourceId": 301,
                                 "payloadPortableExecutable": True, "fixedInstallPathVerified": True,
                                 "installationWrites": False, "error": ""}.items():
@@ -378,7 +379,7 @@ def main() -> int:
     report = {
         "passed": not failed,
         "method": "GDI BitBlt with SRCCOPY | CAPTUREBLT; synthetic purple underlay and exact window crops",
-        "applicationVersion": "0.20.0",
+        "applicationVersion": "0.21.0",
         "scope": "Local native text teleprompter editing, reading, font controls, timer scroll, pause, mask and compact layout",
         "limits": [
             "A separate QA executable uses synthetic fixtures and controlled visual/privacy gates. The shipping executable rejects these switches.",

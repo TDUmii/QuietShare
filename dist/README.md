@@ -1,8 +1,8 @@
 # QuietShare
 
-A Windows presentation companion for scripts, documents and optional web browsing. Smart Mirror sends your public source display to a second Extend display while excluding QuietShare from the verified capture path.
+A Windows companion for scripts, documents and web browsing. Smart Mirror sends public content to a second Extend display while excluding QuietShare from the verified capture path.
 
-Ứng dụng Windows hỗ trợ đọc lời nhắc, tài liệu và nội dung web khi thuyết trình. Smart Mirror chiếu màn hình nguồn công khai sang màn hình Extend thứ hai, đồng thời loại QuietShare khỏi đường capture đã xác minh.
+Ứng dụng Windows đọc lời nhắc, tài liệu và web. Smart Mirror chiếu nguồn công khai sang màn hình Extend thứ hai, loại QuietShare khỏi đường capture đã xác minh.
 
 **Visual guides / Hướng dẫn bằng ảnh:** [English](docs/VISUAL_GUIDE_EN.md) · [Tiếng Việt](docs/VISUAL_GUIDE_VI.md).
 
@@ -30,34 +30,34 @@ A Windows presentation companion for scripts, documents and optional web browsin
 
 ## 🎨 What you can do / Chức năng chính
 
-- **Read and prepare:** compact Home, quick switch (Ctrl+K), saved presentation sets, scripts, editable text/code, PDF thumbnails/bookmarks and linked page cues.
+- **Read and prepare:** quick switch (Ctrl+K), presentation sets, scripts, editable text/code, PDF thumbnails/bookmarks and page cues.
 
   **Đọc và chuẩn bị:** Home gọn, chuyển nhanh (Ctrl+K), bộ thuyết trình đã lưu, lời nhắc, sửa văn bản/code, ảnh thu nhỏ/dấu trang PDF và lời nhắc gắn trang.
 
-- **Make it readable:** ten presets include Monochrome dark/light, plus custom colors. Adjust wrapping, text size/weight, focus and layout in **Settings > Appearance** or the viewer toolbar.
+- **Make it readable:** ten themes, custom colors and three usage profiles. Settings uses left categories or a compact picker. Reading tools stay beside content.
 
-  **Dễ đọc hơn:** mười theme có Đơn sắc tối/sáng và màu tự chọn. Chỉnh xuống dòng, cỡ/độ đậm chữ, tập trung và bố cục trong **Cài đặt > Giao diện** hoặc thanh công cụ.
+  **Dễ đọc hơn:** mười theme, màu riêng và ba hồ sơ. Cài đặt có danh mục trái hoặc nút chọn gọn. Công cụ đọc nằm cạnh nội dung.
 
-- **Browse when needed:** optional WebView2 browser with up to 8 tabs. File readers work offline. Browsing starts disabled.
+- **Browse when needed:** optional WebView2 browser, up to 8 tabs, recoverable process-event handling and explicit retry after crashes. Last-stop diagnostics has stable codes. Browsing starts disabled.
 
-  **Duyệt web khi cần:** trình duyệt WebView2 tùy chọn, tối đa 8 tab. Trình đọc file dùng offline. Trình duyệt luôn tắt khi mới mở ứng dụng.
+  **Duyệt web khi cần:** WebView2 tùy chọn, tối đa 8 tab, xử lý sự kiện tiến trình có thể phục hồi và tải lại chủ động sau crash. Chẩn đoán lần dừng có mã lỗi cố định. Mở ứng dụng luôn tắt trình duyệt.
 
 - **Record and transcribe:** optional offline Whisper (Small by default), English/Vietnamese, editable timed notes and TXT/VTT/minutes export. Import Teams/Zoom/Meet transcripts for speaker names.
 
   **Ghi âm và chép lời:** Whisper offline tùy chọn (mặc định Small), Anh/Việt, sửa đoạn có giờ và xuất TXT/VTT/biên bản. Nhập transcript nền tảng để giữ tên người nói.
 
-- **Shorten tab labels:** choose numbered labels independently for Lời nhắc/file tabs and Browser tabs. Tooltips keep the full path or address.
+- **Compact tabs:** independently use Tab 1, Tab 2 for documents and Browser. Hover for details.
 
-  **Rút gọn nhãn tab:** chọn riêng nhãn Tab 1, Tab 2 cho tab Lời nhắc/file và Browser. Tooltip vẫn giữ đường dẫn hoặc địa chỉ.
+  **Tab gọn:** bật riêng Tab 1, Tab 2 cho tài liệu và Trình duyệt. Di chuột để xem đầy đủ.
 
 
 ## 📊 Project Status / Tình trạng dự án
 
-![QuietShare Project Status: 38 main commits, 0 PRs and 0 issues opened in 30 days / Thống kê 30 ngày](docs/project-status.svg)
+![QuietShare Project Status: 51 main commits, 0 PRs and 0 issues opened in 30 days / Thống kê 30 ngày](docs/project-status.svg)
 
-30 days: **38 commits · 0 PRs · 0 issues**. Updated **19 Oct 2026**.
+30 days: **51 commits · 0 PRs · 0 issues**. Updated **7 Nov 2026**.
 
-30 ngày: **38 commit · 0 PR · 0 issue**. Cập nhật **19/10/2026**.
+30 ngày: **51 commit · 0 PR · 0 issue**. Cập nhật **07/11/2026**.
 
 ## 🛡️ Requirements and protection / Yêu cầu và bảo vệ
 

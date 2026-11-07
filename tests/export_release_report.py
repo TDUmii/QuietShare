@@ -8,7 +8,7 @@ import shutil
 import subprocess
 
 ROOT = Path(__file__).resolve().parents[1]
-VERSION = '0.20.0'
+VERSION = '0.21.0'
 
 def sha256(path):
     return hashlib.sha256((ROOT / path).read_bytes()).hexdigest()
@@ -34,6 +34,9 @@ def main():
     life = read('lifecycle-check.json')
     browser = read('qa-browser/browser-regression.json')
     settings = read('qa-settings/settings-regression.json')
+    upgrade = read('settings-browser-upgrade.json')
+    documentation = read('docs-regression.json')
+    manuals = read('manuals-regression.json')
     scrollbar = read('scrollbar-check.json')
     local_ui = read('local-qa-report.json')
     guard = read('qa-mirror-window-guard/mirror-window-guard-regression.json')
@@ -50,6 +53,12 @@ def main():
     assert shutdown['exeSha256']==actual_hash and shutdown['failed']==0
     assert not production.get('failure') and not life.get('failure'), 'Incomplete shipping integration evidence'
     assert browser['exeSha256']==actual_hash and not browser['failure']
+    assert upgrade['exeSha256']==actual_hash and upgrade['failed']==0 and not upgrade['failure']
+    assert documentation['failed']==manuals['failed']==0 and manuals['version']==VERSION
+    for path, expected in documentation['sourceSha256'].items():
+        assert sha256(path)==expected, path
+    for name, details in manuals['files'].items():
+        assert sha256('docs/'+name)==details['sha256'], name
     assert settings['testedBinarySha256'] == scrollbar['testedBinarySha256'] == qa_hash and not settings['failure']
     assert local_ui['passed'] and local_ui['applicationVersion'] == VERSION
     local_binary = next(item for item in local_ui['checks'] if item.get('check') == 'binary.x64PE')
@@ -82,7 +91,8 @@ def main():
         ('qa-mirror-window-guard', 'mirror-window-guard-regression', 'mirror_window_guard_regression.cpp'),
         ('qa-projection-notice', 'projection-notice-regression', 'projection_notice_regression.cpp'),
         ('qa-reading-meeting', 'reading-meeting-regression', 'reading_meeting_regression.cpp'),
-        ('qa-speech', 'speech-runtime-regression', 'speech_runtime_regression.cpp')):
+        ('qa-speech', 'speech-runtime-regression', 'speech_runtime_regression.cpp'),
+        ('qa-workspace-profiles','workspace-profiles-regression','workspace_profiles_regression.cpp')):
         executable = ROOT/'artifacts'/folder/(stem + '.exe')
         report = ROOT/'artifacts'/folder/(stem + '.json')
         sources = [*native_sources, ROOT/'tests'/fixture]
@@ -99,6 +109,7 @@ def main():
         ('Content / file policy','qa-content/content-regression.json'),
         ('Workspace / encrypted history / editing','qa-workspace/workspace-regression.json'),
         ('Preferences / atomic shortcuts / validation','qa-preferences/preferences-regression.json'),
+        ('Workspace profiles / encrypted bounds / atomic recovery','qa-workspace-profiles/workspace-profiles-regression.json'),
         ('Tabs / lazy project tree','qa-documents/documents-regression.json'),
         ('Scintilla / Lexilla / PDFium','qa-viewers/viewer-regression.json'),
         ('WGC / canary / cancellation','qa-mirror/mirror-regression.json'),
@@ -119,7 +130,10 @@ def main():
         ('Optional browser / rendered WGC surface / lifecycle','qa-browser/browser-regression.json'),
         ('New tab / synthetic DOM and rendering only','qa-browser-newtab/browser-newtab-fixture.json'),
         ('Tabbed Settings / validation / shortcuts / opacity / scrolling','qa-settings/settings-regression.json'),
-        ('Installer / upgrade / uninstall / rollback','qa-installer-smoke/installer-smoke.json')]
+        ('Settings categories / encrypted profiles / real browser crash recovery','settings-browser-upgrade.json'),
+        ('Installer / upgrade / uninstall / rollback','qa-installer-smoke/installer-smoke.json'),
+        ('Bilingual guides / recovery code coverage / source links','docs-regression.json'),
+        ('PDF manuals / Unicode / source fingerprints / page structure','manuals-regression.json')]
     suites=[]
     for name,path in reports:
         data=read(path)

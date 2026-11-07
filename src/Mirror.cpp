@@ -1,4 +1,5 @@
 #include "Mirror.h"
+#include "ProjectionDiagnostic.h"
 #include "Privacy.h"
 #include "Version.h"
 #include <d3d11.h>
@@ -1241,6 +1242,7 @@ size_t MirrorController::PreviewSurfaceBytes() const {return impl->previewRender
 std::wstring MirrorController::ErrorCode() const {
     std::wstring result;if(impl->failureCode)for(const char* c=ProjectionErrorCode(impl->failureCode);*c;++c)result+=static_cast<wchar_t>(*c);return result;
 }
+std::wstring MirrorController::LastFailureDiagnostic() const {return ReadProjectionDiagnostic(impl->diagnosticPath);}
 std::wstring MirrorController::Recovery(bool english) const {
     const auto code=ErrorCode();
     const wchar_t *vi=L"Chọn nguồn và đích, kiểm tra WGC rồi bấm Bắt đầu.",*en=L"Choose source and destination, verify WGC, then select Start.";

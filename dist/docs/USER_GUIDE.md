@@ -50,13 +50,13 @@ Trang chủ đặt hai nút gọn **Mở file** và **Mở dự án** trên danh
 - **Chuyển tài liệu:** nhấp phải **Tệp đang mở** ở thanh bên.
 - Có thể mở tối đa 32 tài liệu tính cả lời nhắc tùy chọn. Vị trí xem được giữ trong phiên.
 
-- **Edit:** text/code editing is enabled by default. Disable editing in **Settings > Reading** for viewing only.
+- **Edit:** text/code editing is enabled by default. Disable editing in **Settings > Reading & files** for viewing only.
 - **Save:** use **Save / Ctrl+S**. Saving preserves supported encoding/BOM.
 - **External changes:** saving refuses to overwrite a file changed externally. Reload or keep your current draft when prompted.
 - **Close a modified file:** choose save, discard or cancel.
 - Images and PDFs remain read-only. Source code is never executed.
 
-- **Sửa:** văn bản/code mặc định cho phép sửa. Tắt sửa tại **Cài đặt > Nội dung** để chỉ xem.
+- **Sửa:** văn bản/code mặc định cho phép sửa. Tắt sửa tại **Cài đặt > Đọc & tệp** để chỉ xem.
 - **Lưu:** dùng **Lưu / Ctrl+S**. Ứng dụng giữ mã hóa/BOM được hỗ trợ.
 - **Thay đổi bên ngoài:** ứng dụng chặn ghi đè nếu file đã đổi trong ứng dụng khác. Chọn tải lại hoặc giữ bản sửa khi được hỏi.
 - **Đóng file đang sửa:** chọn lưu, bỏ thay đổi hoặc hủy.
@@ -155,13 +155,13 @@ Lời nhắc tự lưu trên máy, tách biệt với file đã mở.
 
 ## Meeting notebook / Sổ ghi chép cuộc họp
 
-- Open **Meetings**, then **Export / more > Check playback and recognition**. Set language, output folder and optional Whisper model in **Settings > Reading**. Small (466 MiB) prioritizes accuracy. Base (142 MiB) is lighter. Downloads require explicit Install.
+- Open **Meetings**, then **Export / more > Check playback and recognition**. Set language, output folder and optional Whisper model in **Settings > Meetings**. Small (466 MiB) prioritizes accuracy. Base (142 MiB) is lighter. Downloads require explicit Install.
 - Start and stop recording yourself. Windows playback is the only audio source. No microphone or audio upload. Transcription runs locally with two background threads and a Cancel control.
 - Review/edit segments, speakers and times. Mark decisions/action items, search and export TXT, timed VTT or Markdown minutes. Import provider VTT/TXT to preserve real speaker cues. Named speakers are not inferred from mixed audio.
 - The notebook saves encrypted locally. Transcript only removes its temporary WAV after successful notebook save. Exports are ordinary readable files in the chosen folder. Use **Append transcript to the script** when wanted.
 - Follow [chapter 12](USER_MANUAL_EN.md) for installation, review, exports and recovery.
 
-- Mở **Cuộc họp**, chọn **Xuất / thêm > Kiểm tra nguồn âm thanh và nhận dạng**. Chọn ngôn ngữ, thư mục xuất và mô hình Whisper tùy chọn tại **Cài đặt > Nội dung**. Small (466 MiB) ưu tiên chính xác. Base (142 MiB) nhẹ hơn. Chỉ tải khi chủ động Cài.
+- Mở **Cuộc họp**, chọn **Xuất / thêm > Kiểm tra nguồn âm thanh và nhận dạng**. Chọn ngôn ngữ, thư mục xuất và mô hình Whisper tùy chọn tại **Cài đặt > Cuộc họp**. Small (466 MiB) ưu tiên chính xác. Base (142 MiB) nhẹ hơn. Chỉ tải khi chủ động Cài.
 - Tự bật/tắt ghi. Chỉ thu âm thanh phát Windows, không micro hoặc tải âm thanh lên mạng. Chép lời cục bộ dùng hai luồng nền và có nút Dừng xử lý.
 - Duyệt/sửa đoạn, người nói và giờ. Đánh dấu quyết định/việc cần làm, tìm kiếm và xuất TXT, VTT có giờ hoặc biên bản Markdown. Nhập VTT/TXT nền tảng để giữ người nói thật. Không suy đoán tên từ âm thanh trộn.
 - Sổ tự lưu mã hóa trên máy. Chỉ nội dung xóa WAV tạm sau khi lưu sổ thành công. File xuất đọc bình thường tại thư mục đã chọn. Chủ động **Thêm transcript vào lời nhắc** khi cần.
@@ -222,3 +222,13 @@ Lời nhắc tự lưu trên máy, tách biệt với file đã mở.
 
 - Menu PDF có ảnh thu nhỏ theo dòng đang thấy, dấu trang, đến trang và vùng lời nhắc gắn trang. Dùng tiêu đề Markdown để chia phần rồi **Gắn trang**, bật **Đồng bộ** khi cần. Ẩn vùng để lấy lại diện tích và bộ nhớ ảnh thu nhỏ.
 - Tắt xem trước tại Trình chiếu hoặc Cài đặt > Trình chiếu. Lựa chọn được nhớ. Tắt giải phóng tài nguyên GPU của xem trước.
+
+## Settings and recovery / Cài đặt và phục hồi
+
+Settings has eight left categories, a compact picker in small windows and collapsed Appearance > Advanced options. Save/apply three personal profiles in Workspace. Data holds Clear history. Meetings holds recording and recognition settings.
+
+Cài đặt có tám nhóm bên trái, nút chọn khi cửa sổ nhỏ và Giao diện > Nâng cao có thể mở gọn. Lưu/áp dụng ba hồ sơ riêng trong Bố cục. Dữ liệu chứa Xóa lịch sử. Cuộc họp chứa thiết lập ghi và nhận dạng.
+
+Open Last-stop diagnostics from Projection or Browser. For a stopped browser tab, use Reload tab to recreate and reverify. QS-P protection failures still require repair, F9 and explicit F10. See the [error book](BOOK.md).
+
+Mở Chẩn đoán lần dừng từ Trình chiếu hoặc Trình duyệt. Tab web dừng có nút Tải lại tab để tạo và xác minh lại. Lỗi bảo vệ QS-P vẫn cần khắc phục, F9 rồi chủ động F10. Xem [book mã lỗi](BOOK.md).

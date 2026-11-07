@@ -82,13 +82,13 @@ Kiểm tra WGC trong phiên khỏe mạnh không tự kết thúc phiên.
 - **Preferences, layout and optional window size:** stored locally.
 - **File drafts:** stay in memory until explicitly saved. Imported file content is not autosaved over the script.
 - **Clear history:** removes entries and pins without deleting original files.
-- **Meeting recordings and transcripts:** are written locally under the folder selected in **Settings > Reading** only after recording is enabled. WAV + transcript keeps the capture. Transcript only removes the temporary WAV after a successful save. The recorder uses Windows playback, no microphone, and stops when QuietShare closes. The optional Whisper runtime or installed Windows Speech API processes audio locally. Audio and transcripts are not uploaded.
+- **Meeting recordings and transcripts:** are written locally under the folder selected in **Settings > Meetings** only after recording is enabled. WAV + transcript keeps the capture. Transcript only removes the temporary WAV after a successful save. The recorder uses Windows playback, no microphone, and stops when QuietShare closes. The optional Whisper runtime or installed Windows Speech API processes audio locally. Audio and transcripts are not uploaded.
 
 - **Lời nhắc, lịch sử file và bộ thuyết trình:** được Windows DPAPI mã hóa cho người dùng cục bộ. Bộ chứa bản chụp lời nhắc, đường dẫn và vị trí đọc. Mở bộ giữ một bản dự phòng mã hóa của lời nhắc trước đó. Xóa lịch sử gần đây không xóa bộ đã lưu.
 - **Cấu hình, bố cục và kích thước cửa sổ tùy chọn:** được lưu trên máy.
 - **Bản sửa file:** giữ trong bộ nhớ đến khi chủ động lưu. Nội dung file đã mở không tự ghi đè lời nhắc.
 - **Xóa lịch sử:** xóa mục và ghim mà không xóa file gốc.
-- **Bản ghi và transcript cuộc họp:** được lưu cục bộ trong thư mục tại **Cài đặt > Nội dung** sau khi bật nút ghi. WAV + nội dung giữ bản ghi. Chỉ nội dung xóa WAV tạm sau khi lưu thành công. Bộ ghi lấy âm thanh Windows, không mở micro và dừng khi QuietShare đóng. Whisper tùy chọn hoặc Windows Speech API đã cài xử lý cục bộ. QuietShare không tải âm thanh hoặc transcript lên mạng.
+- **Bản ghi và transcript cuộc họp:** được lưu cục bộ trong thư mục tại **Cài đặt > Cuộc họp** sau khi bật nút ghi. WAV + nội dung giữ bản ghi. Chỉ nội dung xóa WAV tạm sau khi lưu thành công. Bộ ghi lấy âm thanh Windows, không mở micro và dừng khi QuietShare đóng. Whisper tùy chọn hoặc Windows Speech API đã cài xử lý cục bộ. QuietShare không tải âm thanh hoặc transcript lên mạng.
 
 - The optional browser uses a separate local WebView2 profile for site data, including cookies/sign-ins and saved shortcuts.
 - These records do not imply the script's DPAPI storage format.
@@ -144,3 +144,7 @@ Kiểm tra WGC trong phiên khỏe mạnh không tự kết thúc phiên.
 - Installing optional recognition contacts the pinned GitHub release and Hugging Face model host. This only downloads runtime/model assets and checks SHA256. It does not upload audio, notes or meeting credentials. Offline recognition needs no connection after installation.
 - Dấu trang PDF, liên kết lời nhắc-trang và sổ sửa được dùng Windows DPAPI cho tài khoản cục bộ. Nhập giữ một bản sổ cũ mã hóa. TXT/VTT/Markdown xuất và WAV là file cục bộ đọc bình thường.
 - Cài nhận dạng tùy chọn kết nối bản phát hành GitHub và máy chủ mô hình Hugging Face đã ghim. Chỉ tải bộ chạy/mô hình và kiểm tra SHA256. Không gửi âm thanh, ghi chép hoặc thông tin đăng nhập họp. Sau cài, nhận dạng offline không cần mạng.
+
+Usage profiles are DPAPI-encrypted in workspace-profiles.dpapi. The fixed browser-fault.dat record stores process type, time, count and numeric reason/exit only. Diagnostics copying is explicit.
+
+Hồ sơ sử dụng được DPAPI mã hóa trong workspace-profiles.dpapi. browser-fault.dat chỉ giữ loại tiến trình, thời gian, số sự kiện và reason/exit dạng số. Chỉ sao chép chẩn đoán khi chủ động chọn.

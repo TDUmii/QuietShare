@@ -69,3 +69,48 @@ Bộ ghi và bộ chép lời chỉ dùng âm thanh phát ra từ Windows. Chún
 | `QS-N005` | Notebook backup/save/export failed. Check the selected local output folder, write permission and free space. Preserve the existing notes and retry. | Không tạo dự phòng/lưu/xuất được ghi chép. Kiểm tra thư mục xuất cục bộ, quyền ghi và dung lượng. Giữ bản cũ rồi thử lại. |
 | `QS-R008` | Optional speech setup or integrity check failed. Check internet access and disk space, then use Install / repair local Whisper again. Existing audio remains local. | Cài bộ nhận dạng hoặc kiểm tra toàn vẹn thất bại. Kiểm tra mạng và dung lượng rồi chọn Cài / sửa Whisper cục bộ. Âm thanh cũ vẫn nằm trên máy. |
 | `QS-R009` | Whisper could not complete processing. Close memory-heavy apps, verify the selected model is installed, and retry with a shorter recording. Keep the original WAV. | Whisper chưa xử lý xong. Đóng ứng dụng dùng nhiều RAM, kiểm tra mô hình đã cài rồi thử bản ghi ngắn hơn. Giữ WAV gốc. |
+
+
+## Browser process recovery / Phục hồi tiến trình trình duyệt
+
+Recoverable GPU, utility and subframe events retain the verified controller. A nonresponding page can be waited on or reloaded. This does not override a real WGC, display or privacy failure.
+
+1. If a page stops, read its **QS-B** code and open **Diagnostics**. The current tabs and addresses stay in the session.
+2. For **QS-B001** or **QS-B002**, select **Reload tab**. A browser-process exit may need a short wait before retry.
+3. QuietShare recreates the required controller/environment and verifies its mounted rendered surface before showing the page.
+4. If private content is locked, read the separate **QS-P** record, repair that condition and run F9. If verification still fails, keep content locked and restart QuietShare.
+5. Start projection explicitly with F10 only after protection succeeds. Inspect the actual receiver again.
+
+Web process events and projection failures are separate records. Compare their UTC times. An event does not by itself prove that a particular website caused the protection failure. Authenticated Threads and physical HDMI/projector operation require checking on the affected setup.
+
+Sự kiện GPU, tiện ích hoặc khung con có thể phục hồi sẽ giữ controller đã xác minh. Với trang chưa phản hồi, có thể đợi hoặc tải lại. Quy tắc này không bỏ qua lỗi WGC, màn hình hoặc bảo vệ thực tế.
+
+1. Khi trang dừng, đọc mã **QS-B** và mở **Chẩn đoán**. Tab và địa chỉ hiện tại vẫn giữ trong phiên.
+2. Với **QS-B001** hoặc **QS-B002**, chọn **Tải lại tab**. Tiến trình web thoát có thể cần đợi ít giây rồi thử lại.
+3. QuietShare tạo lại controller/môi trường cần thiết và kiểm tra vùng render đang gắn vào cửa sổ trước khi hiện trang.
+4. Nếu nội dung riêng bị khóa, đọc bản ghi **QS-P** riêng, khắc phục nguyên nhân rồi nhấn F9. Nếu vẫn không xác minh được, giữ khóa và mở lại QuietShare.
+5. Chỉ chủ động nhấn F10 sau khi bảo vệ thành công. Kiểm tra lại đúng đầu nhận.
+
+Sự kiện tiến trình web và lỗi chiếu là hai bản ghi riêng. So thời gian UTC trước khi kết luận nguyên nhân. Một sự kiện không tự chứng minh website cụ thể gây lỗi bảo vệ. Threads đã đăng nhập và HDMI/máy chiếu cần được thử trên đúng thiết bị gặp lỗi.
+
+| Code / Mã | English | Tiếng Việt |
+|---|---|---|
+| `QS-B001` | Browser process exited. Wait for exit, then Reload tab. Tabs stay in this session. | Tiến trình trình duyệt đã thoát. Đợi thoát xong rồi Tải lại tab. Tab vẫn giữ trong phiên. |
+| `QS-B002` | Main renderer exited. Reload tab to recreate and verify it. | Tiến trình render chính đã thoát. Tải lại tab để tạo và xác minh lại. |
+| `QS-B003` | Renderer is unresponsive. Wait or reload the page. Close an unused heavy tab if needed. | Trang chưa phản hồi. Đợi hoặc tải lại. Có thể đóng tab nặng không dùng. |
+| `QS-B004` | Subframe renderer exited. The controller is retained. Reload if a frame remains blank. | Render khung con thoát. Controller được giữ. Tải lại nếu khung vẫn trắng. |
+| `QS-B005` | Utility process exited. WebView2 can recover. Reload if page features remain broken. | Tiến trình tiện ích thoát. WebView2 có thể phục hồi. Tải lại nếu chức năng trang vẫn lỗi. |
+| `QS-B006` | Sandbox helper exited. Wait for recovery, then reload if needed. | Tiến trình hỗ trợ sandbox thoát. Đợi phục hồi rồi tải lại nếu cần. |
+| `QS-B007` | GPU process exited. WebView2 can recreate it. If repeated, update graphics drivers and the runtime. | Tiến trình GPU thoát. WebView2 có thể tạo lại. Nếu lặp lại, cập nhật driver đồ họa và runtime. |
+| `QS-B008` | Plugin process exited. Reload the affected page. Some legacy page features may be unsupported. | Tiến trình plugin thoát. Tải lại trang. Một số chức năng cũ có thể không được hỗ trợ. |
+| `QS-B009` | Plugin broker exited. Reload the affected page and update WebView2 if repeated. | Tiến trình môi giới plugin thoát. Tải lại trang và cập nhật WebView2 nếu lặp lại. |
+| `QS-B010` | Another WebView2 process exited. Inspect the page and reload if needed. | Tiến trình WebView2 khác thoát. Kiểm tra trang và tải lại nếu cần. |
+| `QS-B099` | Unrecognized process event. Reload to recreate and verify. Preserve the numeric reason/exit code. | Sự kiện tiến trình chưa nhận dạng. Tải lại để tạo và xác minh. Giữ mã reason/exit dạng số. |
+
+## Usage profile recovery / Phục hồi hồ sơ sử dụng
+
+- **QS-W009:** saved profiles unreadable. Close the app, back up workspace-profiles.dpapi, restore under the same Windows account or rename it to start fresh.
+- **QS-W010:** profile/color save failed. Check local write access and free space, preserve the existing file and retry.
+
+- **QS-W009:** không đọc được hồ sơ. Đóng ứng dụng, sao lưu workspace-profiles.dpapi, khôi phục bằng cùng tài khoản Windows hoặc đổi tên để tạo mới.
+- **QS-W010:** không lưu được hồ sơ/màu. Kiểm tra quyền ghi và dung lượng, giữ file cũ rồi thử lại.

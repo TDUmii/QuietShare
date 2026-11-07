@@ -33,6 +33,7 @@ bool Pump(const std::function<bool()>& ready,DWORD timeout=12000){
     return ready();
 }
 LRESULT CALLBACK WindowProc(HWND window,UINT message,WPARAM wp,LPARAM lp){
+    if(currentBrowser&&message==quietshare::BrowserChangedMessage&&wp==currentBrowser->Generation()){currentBrowser->AcknowledgeChanged();return 0;}
     if(currentBrowser&&message==quietshare::BrowserProbeMessage&&wp==currentBrowser->Generation()){
         const unsigned token=static_cast<unsigned>(lp);
         // Only host-generated New Tab HTML and synthetic saved shortcut labels
@@ -172,6 +173,36 @@ int wmain(int argc,wchar_t** argv){
             Check("compactEnglishNewTabHasNoHorizontalOverflow",Script(browser,L"innerWidth>250&&innerHeight>130&&document.documentElement.scrollWidth<=innerWidth")==L"true");
             Check("compactEnglishNewTabPreviewSaved",Preview(browser,output+L"\\newtab-en-358x197.png"));
             CheckPastePolicy(browser);
+            const auto stableTab=browser.ActiveTabId();auto stable=browser.impl->Active();const auto stableController=stable->controller.p;const auto stableGeneration=stable->generation;
+            const auto countBefore=browser.Tabs().size();
+            browser.SetDiagnosticPath(output+L"\\browser-fault.dat");
+            for(const auto kind:{COREWEBVIEW2_PROCESS_FAILED_KIND_RENDER_PROCESS_UNRESPONSIVE,COREWEBVIEW2_PROCESS_FAILED_KIND_FRAME_RENDER_PROCESS_EXITED,
+                COREWEBVIEW2_PROCESS_FAILED_KIND_UTILITY_PROCESS_EXITED,COREWEBVIEW2_PROCESS_FAILED_KIND_SANDBOX_HELPER_PROCESS_EXITED,COREWEBVIEW2_PROCESS_FAILED_KIND_GPU_PROCESS_EXITED,
+                COREWEBVIEW2_PROCESS_FAILED_KIND_PPAPI_PLUGIN_PROCESS_EXITED,COREWEBVIEW2_PROCESS_FAILED_KIND_PPAPI_BROKER_PROCESS_EXITED,COREWEBVIEW2_PROCESS_FAILED_KIND_UNKNOWN_PROCESS_EXITED}){
+                stable->ProcessFailure(kind,0,0);
+                Check(("nonfatalProcessKeepsVerifiedController:"+std::to_string(kind)).c_str(),browser.Ready()&&browser.Verified()&&stable->controller.p==stableController&&stable->generation==stableGeneration&&browser.ActiveTabId()==stableTab&&browser.Tabs().size()==countBefore);
+            }
+            const auto diagnostic=browser.LastFailureDiagnostic();quietshare::Browser afterRestart;afterRestart.SetDiagnosticPath(output+L"\\browser-fault.dat");
+            Check("browserDiagnosticSurvivesRestartWithoutStartingEngine",afterRestart.LastFailureDiagnostic()==diagnostic&&!afterRestart.Enabled());
+            Check("browserDiagnosticContainsNoTitleAddressOrContent",diagnostic.find(L"QS-B010")!=std::wstring::npos&&diagnostic.find(L"https")==std::wstring::npos&&diagnostic.find(L"Documentation")==std::wstring::npos);
+            browser.AcknowledgeChanged();MSG queued{};while(PeekMessageW(&queued,window,quietshare::BrowserChangedMessage,quietshare::BrowserChangedMessage,PM_REMOVE)){}
+            for(int i=0;i<100;++i)stable->Notify();int notifications=0;
+            while(PeekMessageW(&queued,window,quietshare::BrowserChangedMessage,quietshare::BrowserChangedMessage,PM_REMOVE))++notifications;
+            Check("oneHundredBrowserUpdatesCoalesceIntoOneLayoutMessage",notifications==1);
+            browser.AcknowledgeChanged();stable->Notify();Check("newBrowserUpdateCanNotifyAfterAcknowledgment",PeekMessageW(&queued,window,quietshare::BrowserChangedMessage,quietshare::BrowserChangedMessage,PM_REMOVE));browser.AcknowledgeChanged();
+            stable->ProcessFailure(COREWEBVIEW2_PROCESS_FAILED_KIND_RENDER_PROCESS_EXITED,1,-1);
+            Check("rendererFailureRetainsTabAndOffersExplicitRetry",!browser.Ready()&&!browser.Verified()&&browser.CanRetry()&&browser.ActiveTabId()==stableTab&&browser.Tabs().size()==countBefore&&!stable->controller);
+            browser.Reload();Check("retryCreatesANewControllerAndPassesFixtureProof",Pump([&](){return browser.Ready()&&browser.Loaded();},20000)&&browser.ActiveTabId()==stableTab&&browser.Tabs().size()==countBefore);
+            // An actual isolated renderer crash drives the production event
+            // handler. This bypass is fixture-only, never a shipping URL.
+            stable=browser.impl->Active();stable->web->Navigate(L"edge://crash");
+            Check("actualRendererCrashIsHandledWithoutLosingTab",Pump([&](){return browser.CanRetry();},20000)&&browser.ActiveTabId()==stableTab&&browser.Tabs().size()==countBefore);
+            browser.Reload();Check("actualRendererCrashCanBeRecreatedAndReverified",Pump([&](){return browser.Ready()&&browser.Loaded();},20000)&&browser.ActiveTabId()==stableTab);
+            const auto ownBrowserPid=browser.BrowserProcessId();HANDLE ownBrowser=ownBrowserPid&&ownBrowserPid!=GetCurrentProcessId()?OpenProcess(PROCESS_TERMINATE|SYNCHRONIZE,FALSE,ownBrowserPid):nullptr;
+            Check("isolatedBrowserProcessIsIdentifiedByItsOwnController",ownBrowser!=nullptr);
+            if(ownBrowser){Check("isolatedBrowserCrashIsTriggered",TerminateProcess(ownBrowser,42));CloseHandle(ownBrowser);
+                Check("actualBrowserExitRetainsAllTabsAndWaitsForExitedEvent",Pump([&](){return browser.CanRetry()&&browser.impl->environmentExited;},15000)&&!browser.Ready()&&browser.Tabs().size()==countBefore);
+                browser.Reload();Check("browserExitRecreatesEnvironmentAndVerifiesActiveTab",Pump([&](){return browser.Ready()&&browser.Loaded();},20000)&&browser.ActiveTabId()==stableTab&&browser.Tabs().size()==countBefore);}
             browser.Disable();
             Check("browserMediaPreferencesSurviveDisable",browser.impl->muted&&browser.impl->allowCamera&&browser.impl->allowMicrophone&&!browser.Enabled());
             browser.Enable(window,profile);browser.Show(true);

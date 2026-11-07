@@ -64,9 +64,13 @@ public:
     bool Loaded()const;
     bool Suspended()const;
     int ErrorCode()const;
+    void SetDiagnosticPath(const std::wstring& path);
+    std::wstring LastFailureDiagnostic()const;
+    bool CanRetry()const;
     int State()const; // 0 off, 1 loading/probe, 2 ready, 3 error, 4 locked
     unsigned BrowserProcessId()const;
     unsigned Generation()const;
+    void AcknowledgeChanged();
     std::wstring Address()const;
     std::wstring Status(bool english)const;
 private:

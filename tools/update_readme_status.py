@@ -93,8 +93,8 @@ def main():
     text = readme.read_text(encoding="utf-8")
     alt = f"QuietShare Project Status: {sum(commits.values())} main commits, {sum(pulls.values())} PRs and {sum(issues.values())} issues opened in 30 days / Thống kê 30 ngày"
     text = re.sub(r"!\[QuietShare Project Status:[^\]]*\]", "![" + alt + "]", text)
-    text = re.sub(r"30 days: .*?live dashboard\.", f"30 days: **{sum(commits.values())} commits · {sum(pulls.values())} PRs · {sum(issues.values())} issues opened**. Updated **{now:%d %b %Y}**; this is a snapshot, not a live dashboard.", text)
-    text = re.sub(r"30 ngày: .*?dữ liệu trực tiếp\.", f"30 ngày: **{sum(commits.values())} commit · {sum(pulls.values())} PR · {sum(issues.values())} issue được mở**. Cập nhật **{now:%d/%m/%Y}**; đây là bản thống kê tại một thời điểm, không phải dữ liệu trực tiếp.", text)
+    text = re.sub(r"^30 days: .*$", f"30 days: **{sum(commits.values())} commits · {sum(pulls.values())} PRs · {sum(issues.values())} issues**. Updated **{now:%d %b %Y}**.", text, flags=re.M)
+    text = re.sub(r"^30 ngày: .*$", f"30 ngày: **{sum(commits.values())} commit · {sum(pulls.values())} PR · {sum(issues.values())} issue**. Cập nhật **{now:%d/%m/%Y}**.", text, flags=re.M)
     readme.write_text(text, encoding="utf-8")
     print(f"Updated {target.name}: {sum(commits.values())} commits, {sum(pulls.values())} PRs, {sum(issues.values())} issues")
 

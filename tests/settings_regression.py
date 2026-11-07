@@ -234,7 +234,7 @@ def main():
         posted_key(163, 0x0D)
 
     def category(index):
-        command(240 if index == 5 else 200 + index)
+        command([200,201,202,203,204,240,345,346][index])
         if query(40) != index:
             raise AssertionError("Requested Settings category did not activate")
 
@@ -335,6 +335,8 @@ def main():
         check("appearanceHidesOtherCategoryControls", not region_visible(control(163)) and not region_visible(control(160))
               and not region_visible(control(220)))
         check("customThemeControlsAreAvailable", all(control(identifier) for identifier in (264, 265, 266, 267, 268)))
+        command(348)
+        check("advancedSettingsAreExplicitlyExpanded",query(84)==1)
         check("opacityStartsOpaque", query(41) == 100 and native.control_text(control(205)) == "100")
         edit_alignment(205, "opacity", caret=True)
         check("ownerDrawButtonSuppressesSystemErase", native.send(control(200), 0x14) == 1)
@@ -384,12 +386,13 @@ def main():
         real_focus(241)
         native.set_control_text(control(241), "16")
         posted_key(241, 0x0D)
+        category(1)
         check("scriptWeightStartsRegular", query(42) == 400)
         for weight in (600, 700, 400):
             command(206)
             check("scriptWeightCycles:" + str(weight), query(42) == weight and bool(native.control_text(control(206))))
         category(1)
-        check("readingHidesAppearanceControls", not region_visible(control(205)) and not region_visible(control(206)))
+        check("readingHidesAppearanceControls", not region_visible(control(205)) and not region_visible(control(241)))
         check("transcriptionLanguageControlAvailable", bool(control(256)) and native.control_text(control(256)) in ("Tiếng Việt", "Tiếng Anh", "Vietnamese", "English"))
         check("transcriptionToggleAvailable", bool(control(259)) and any(label in native.control_text(control(259)) for label in ("Bật", "Tắt", "On", "Off")))
         check("meetingProviderControlAvailable", bool(control(260)) and bool(native.control_text(control(260))))

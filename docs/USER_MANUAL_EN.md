@@ -2,7 +2,7 @@
 
 > **Illustrated walkthrough:** [8 real UI screenshots with numbered red click targets](VISUAL_GUIDE_EN.md).
 
-English edition - QuietShare v0.20.0
+English edition - QuietShare v0.21.0
 
 Read, prepare and present with private notes on Windows.
 
@@ -129,7 +129,7 @@ These actions do not delete the original files or folders. Removing history does
 - Right-click **Open files** to switch to another open file or compose a script.
 - **Browser** opens the optional browsing workspace.
 - **Verify WGC** runs capture verification. The projection Play or Stop control starts or stops Smart Mirror.
-- **Settings** groups appearance, reading, workspace, projection, shortcuts and browser options.
+- **Settings** groups appearance, reading/files, projection, browser, meetings, workspace, shortcuts and data.
 
 Use tooltips to identify compact icon controls. For a small laptop display, hide unneeded bars through Layout or use F11 focus mode.
 
@@ -190,7 +190,7 @@ Editing is enabled by default. Images and PDFs remain read-only. Source code is 
 
 Saving preserves supported encoding and byte-order marks. Reading controls such as size, weight and wrap do not insert formatting into plain-text files.
 
-To view files without editing, turn off **Settings > Reading > Allow file editing**. Save existing changes before changing modes.
+To view files without editing, turn off **Settings > Reading & files > Allow file editing**. Save existing changes before changing modes.
 
 ### External changes and closing
 
@@ -221,7 +221,7 @@ Imported text and code files use explicit Save instead. Switching documents does
 
 ### Meeting notebook
 
-Open **Meetings** from the sidebar to record, review timed segments and export notes. Set the language, optional local Whisper model and output folder in **Settings > Reading**. Follow chapter 12 for the complete workflow.
+Open **Meetings** from the sidebar to record, review timed segments and export notes. Set the language, optional local Whisper model and output folder in **Settings > Meetings**. Follow chapter 12 for the complete workflow.
 
 ### Scroll while speaking
 
@@ -327,7 +327,18 @@ If text looks faint, increase window opacity toward 100%, then adjust size and w
 
 ## 7. Settings, layout and shortcuts
 
-Settings separates controls into **Appearance**, **Reading**, **Workspace**, **Projection**, **Shortcuts** and **Browser**. Scroll within a category when controls do not fit in a small window.
+Settings has eight categories: **Appearance**, **Reading & files**, **Projection**, **Browser**, **Meetings**, **Workspace**, **Shortcuts** and **Data**. A left list stays visible in a wide window. Small or short windows use one category picker above the form. Scroll inside the selected category. **Appearance > Advanced** reveals opacity, icon size and custom colors.
+
+### Save a usage profile
+
+1. Adjust the theme, reading size/weight/wrapping, visible bars, Explorer width and outgoing preview.
+2. Open **Settings > Workspace** and select **Laptop reading**, **Presentation** or **Meeting notes**.
+3. Select **Save current**. All three slots start empty. Saving replaces only the selected slot.
+4. Later, select the same slot and choose **Apply**.
+
+Profiles retain theme/custom colors, font settings, document zoom, scrolling speed, opacity, icon size, layout, pinning, preview and resource mode. They are encrypted for the current Windows account. Applying one updates the current reader. It does not start browsing, recording or projection, change media permissions or replace notes/files. It is separate from a presentation set, which stores documents and reading positions.
+
+Use **Data > Clear history** to remove recent entries and pins. Original files and saved presentation sets are retained.
 
 ### Make the window usable
 
@@ -413,6 +424,18 @@ Search words are submitted to Google. Websites you open receive normal network r
 New tabs must pass capture verification. Background tabs receive suspension requests. A page or runtime may continue some activity despite that request.
 
 If you enable browsing during projection, QuietShare holds the last public frame while verifying. This can last up to about five seconds. Failure or cancellation stops projection. Check the projection result before continuing.
+
+### When a page or browser process fails
+
+Recoverable GPU, utility and subframe events retain the verified controller. A nonresponding page can be waited on or reloaded. This does not override a real WGC, display or privacy failure.
+
+1. If a page stops, read its **QS-B** code and open **Diagnostics**. The current tabs and addresses stay in the session.
+2. For **QS-B001** or **QS-B002**, select **Reload tab**. A browser-process exit may need a short wait before retry.
+3. QuietShare recreates the required controller/environment and verifies its mounted rendered surface before showing the page.
+4. If private content is locked, read the separate **QS-P** record, repair that condition and run F9. If verification still fails, keep content locked and restart QuietShare.
+5. Start projection explicitly with F10 only after protection succeeds. Inspect the actual receiver again.
+
+Web process events and projection failures are separate records. Compare their UTC times. An event does not by itself prove that a particular website caused the protection failure. Authenticated Threads and physical HDMI/projector operation require checking on the affected setup.
 
 ### Paste an image into a web editor
 
@@ -574,7 +597,7 @@ Use the capture controls in the application that actually shares or records. Qui
 ### Record, transcribe and review on this computer
 
 1. Open **Meetings** from the sidebar. Choose **Export / more > Check playback and recognition**.
-2. In **Settings > Reading**, select Vietnamese or English, a local output folder and whether to transcribe after recording.
+2. In **Settings > Meetings**, select Vietnamese or English, a local output folder and whether to transcribe after recording.
 3. Select **Small · 466 MiB** for the default accuracy preference. Base · 142 MiB remains available for lighter machines.
 4. Choose **Install optional recognizer**. Only this explicit action downloads the pinned CPU runtime and selected model. Keep the app open until setup finishes. Models stay in `%LOCALAPPDATA%\QuietShare\Speech`.
 5. Choose **WAV + transcript** to retain audio, or **Transcript only** to remove the temporary WAV after the transcript has been saved successfully to the notebook. Recording still uses temporary disk space.
@@ -590,7 +613,7 @@ Small is a multilingual Whisper model, not a guarantee of correct wording. Recog
 ### Preserve provider speakers and recover notes
 
 1. Export a VTT or TXT transcript from Teams, Zoom or Google Meet using that provider's controls.
-2. Select the corresponding **Meeting platform** in Settings > Reading.
+2. Select the corresponding **Meeting platform** in Settings > Meetings.
 3. Choose **Meetings > Export / more > Import Teams / Zoom / Meet transcript**.
 4. Review speaker labels and times. VTT `<v Speaker>` cues are retained. Plain name prefixes are read only for an explicitly selected provider. Whisper audio recognition leaves named attribution for you to assign.
 5. On a small window, use **Segments**, **Content** and **Speaker / time** to switch panels. On a wide window, list and editor appear together.
@@ -922,7 +945,11 @@ Locate the moved or unavailable files. Open them with Ctrl+O, then save the corr
 
 ### Find the latest projection record
 
-After a failed start, read **Settings > Projection**. From v0.14.4 onward, QuietShare opens this category when a projection start fails.
+Open **Settings > Projection > Last-stop diagnostics** or **Settings > Browser > Last-stop diagnostics**. The Projection board also has **Diagnostics**. **Copy report** copies only the displayed fixed fields when you select it. This page remains available while private content is masked. It never restarts projection.
+
+The report combines the latest projection record and the latest browser process event. Browser details include a QS-B code, UTC, fixed process type, numeric reason/exit and event count. The local file is `browser-fault.dat`. It excludes URLs, titles, private text and page contents. A recoverable browser event can appear without a projection stop.
+
+After a failed start, read **Settings > Projection**. QuietShare opens this category when projection start fails.
 
 If needed, open `%LOCALAPPDATA%\QuietShare\projection-stop.json` in a text editor. This is one local last-failure record, overwritten by a later failure. An absent record does not prove that no error occurred. Older releases may record only failures during an active session.
 
@@ -992,3 +1019,27 @@ New projection reasons should receive a stable code and ordered recovery instruc
 | `QS-N005` | Notebook backup/save/export failed. Check the selected local output folder, write permission and free space. Preserve the existing notes and retry. |
 
 Use **Hide preview** on Presentation, or **Settings > Projection > Outgoing preview**, to turn preview off. The choice survives restart. Off releases the preview GPU renderer and stops preview drawing. Projection continues. Re-enabling creates the preview only when its panel is visible. Preview shows the outgoing stream, not a certified physical receiver.
+
+
+### Browser process recovery codes
+
+| Code | Detected event and recovery |
+|---|---|
+| `QS-B001` | Browser process exited. Wait for exit, then Reload tab. Tabs stay in this session. |
+| `QS-B002` | Main renderer exited. Reload tab to recreate and verify it. |
+| `QS-B003` | Renderer is unresponsive. Wait or reload the page. Close an unused heavy tab if needed. |
+| `QS-B004` | Subframe renderer exited. The controller is retained. Reload if a frame remains blank. |
+| `QS-B005` | Utility process exited. WebView2 can recover. Reload if page features remain broken. |
+| `QS-B006` | Sandbox helper exited. Wait for recovery, then reload if needed. |
+| `QS-B007` | GPU process exited. WebView2 can recreate it. If repeated, update graphics drivers and the runtime. |
+| `QS-B008` | Plugin process exited. Reload the affected page. Some legacy page features may be unsupported. |
+| `QS-B009` | Plugin broker exited. Reload the affected page and update WebView2 if repeated. |
+| `QS-B010` | Another WebView2 process exited. Inspect the page and reload if needed. |
+| `QS-B099` | Unrecognized process event. Reload to recreate and verify. Preserve the numeric reason/exit code. |
+
+These codes describe process events. QS-B004 through QS-B010 preserve the controller while WebView2 recovers. An independent protection failure still locks private content.
+
+### Usage profile recovery codes
+
+- **QS-W009:** saved profiles cannot be read. Close QuietShare and back up `workspace-profiles.dpapi`. Restore a known-good copy under the same Windows account, or rename it before starting fresh. The unreadable file is preserved.
+- **QS-W010:** a profile or its colors could not be saved. Check local write access and free space. Keep the existing profile and retry.

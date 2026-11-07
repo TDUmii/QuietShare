@@ -15,7 +15,7 @@ OUTPUT.mkdir(parents=True, exist_ok=True)
 VERSION = re.search(r'^#define QUIETSHARE_VERSION_TEXT "([^"]+)"',
                     (ROOT / "src" / "Version.h").read_text(encoding="utf-8-sig"), re.M).group(1)
 
-# Coordinates are relative to the unscaled 2026-11-05 real UI captures.
+# Coordinates are relative to the unscaled v0.21 real UI captures.
 CAPTURES = {
     "01-home.png": ("home.bmp", [
         (89, 113, 217, 152), (227, 113, 371, 152), (7, 504, 43, 534)
@@ -30,7 +30,7 @@ CAPTURES = {
         (58, 60, 198, 88), (202, 60, 301, 88), (540, 31, 672, 59)
     ]),
     "05-settings.png": ("settings-appearance.bmp", [
-        (58, 80, 177, 107), (652, 171, 781, 203), (601, 218, 782, 252)
+        (58, 80, 216, 114), (610, 188, 791, 222), (662, 268, 791, 302)
     ]),
     "06-browser.png": ("browser-off.bmp", [
         (7, 118, 43, 154), (58, 79, 222, 108), (7, 504, 43, 534)

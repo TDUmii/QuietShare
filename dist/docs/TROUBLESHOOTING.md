@@ -72,16 +72,30 @@ Tra mã lỗi trình chiếu và quy trình riêng cho HDMI, TV không dây, cu�
 - Ctrl+V ảnh chủ động còn tùy ô nhập của website.
 - Camera/micro cần bật cài đặt, tab HTTPS đang hiện đã xác minh, cùng origin và quyền Windows.
 
+Open **Settings > Projection > Last-stop diagnostics** or **Settings > Browser > Last-stop diagnostics**. The Projection board also has **Diagnostics**. **Copy report** copies only the displayed fixed fields when you select it. This page remains available while private content is masked. It never restarts projection.
+
+The report combines the latest projection record and the latest browser process event. Browser details include a QS-B code, UTC, fixed process type, numeric reason/exit and event count. The local file is `browser-fault.dat`. It excludes URLs, titles, private text and page contents. A recoverable browser event can appear without a projection stop.
+
+After a failed start, read **Settings > Projection**. QuietShare opens this category when projection start fails.
+
+Mở **Cài đặt > Trình chiếu > Chẩn đoán lần dừng** hoặc **Cài đặt > Trình duyệt > Chẩn đoán lần dừng**. Trang Trình chiếu cũng có **Chẩn đoán**. **Sao chép báo cáo** chỉ sao chép các trường cố định đang hiện khi bạn chủ động nhấn. Trang vẫn xem được lúc nội dung riêng bị che và không tự khởi động chiếu.
+
+Báo cáo ghép lỗi chiếu gần nhất với sự kiện tiến trình web gần nhất. Phần web có mã QS-B, UTC, loại tiến trình cố định, reason/exit dạng số và số sự kiện. File cục bộ là `browser-fault.dat`. Không có URL, tiêu đề, chữ riêng hoặc nội dung trang. Một sự kiện web có thể phục hồi vẫn có bản ghi dù trình chiếu không dừng.
+
+Sau khi bắt đầu chiếu thất bại, xem **Cài đặt > Trình chiếu**. QuietShare tự mở nhóm này khi khởi động chiếu lỗi.
+
+[Browser recovery codes / Mã phục hồi trình duyệt](BOOK.md#browser-process-recovery--phục-hồi-tiến-trình-trình-duyệt)
+
 ## Meeting recording or transcription issues / Sự cố ghi âm hoặc chép lời cuộc họp
 
 1. Open Meetings and check playback/recognition. Confirm the meeting is audible through the default Windows playback device.
-2. Choose English/Vietnamese and Small/Base in Settings > Reading. Install optional local Whisper if Windows has no matching recognizer (`QS-R004`).
+2. Choose English/Vietnamese and Small/Base in Settings > Meetings. Install optional local Whisper if Windows has no matching recognizer (`QS-R004`).
 3. Setup requires internet and sufficient disk space. Recognition itself runs offline. Use Cancel task to stop heavy processing and retain the WAV.
 4. Review the status in Meetings. Use the exact `QS-R001` through `QS-R009` or `QS-N001` through `QS-N005` code in the [book](BOOK.md).
 5. Check the selected output folder. VTT export requires valid times. Untimed notes can use TXT.
 
 1. Mở Cuộc họp và kiểm tra âm thanh/nhận dạng. Xác nhận âm thanh họp phát qua thiết bị mặc định Windows.
-2. Chọn Anh/Việt và Small/Base tại Cài đặt > Nội dung. Cài Whisper cục bộ tùy chọn nếu Windows thiếu bộ đúng ngôn ngữ (`QS-R004`).
+2. Chọn Anh/Việt và Small/Base tại Cài đặt > Cuộc họp. Cài Whisper cục bộ tùy chọn nếu Windows thiếu bộ đúng ngôn ngữ (`QS-R004`).
 3. Cài cần mạng và đủ dung lượng. Nhận dạng chạy offline. Dừng xử lý giúp ngừng công việc nặng và giữ WAV.
 4. Đọc trạng thái trong Cuộc họp. Tra đúng mã `QS-R001` đến `QS-R009` hoặc `QS-N001` đến `QS-N005` trong [book](BOOK.md).
 5. Kiểm tra thư mục xuất đã chọn. VTT cần giờ hợp lệ. Ghi chép chưa có giờ dùng TXT.
