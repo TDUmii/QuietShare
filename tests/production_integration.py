@@ -236,11 +236,11 @@ def main() -> int:
         check("productionWindowOwned", bool(window) and native.window_pid(window) == app.pid)
         check("productionControlsInitialized", bool(wait_for(lambda: USER32.GetDlgItem(window,110),8)))
         version_label=wait_for(lambda:USER32.GetDlgItem(window,192),8)
-        check("homeVersionLabelExistsBeforePrivacyGate",bool(version_label) and native.control_text(version_label)=="v0.23.1")
+        check("homeVersionLabelExistsBeforePrivacyGate",bool(version_label) and native.control_text(version_label)=="v0.24.0")
         check("actualProductionPrivacyPreflight", bool(wait_for(lambda: send(window, GATE, timeout=6000), 20)),
               "Real production WGC gate; no QA bypass")
         USER32.ShowWindow(window, 4)
-        check("homeVersionAvailableInNativeControl",native.control_text(version_label)=="v0.23.1" and query(39)==2301)
+        check("homeVersionAvailableInNativeControl",native.control_text(version_label)=="v0.24.0" and query(39)==2400)
         affinity = wintypes.DWORD()
         check("productionAffinityReadback", USER32.GetWindowDisplayAffinity(window, ctypes.byref(affinity)) and affinity.value == 0x11)
         all_children = children(window, app.pid)
@@ -557,8 +557,10 @@ def main() -> int:
         picker_scale=USER32.GetDpiForWindow(picker)/96
         USER32.SetWindowPos(picker,None,0,0,round(640*picker_scale),round(420*picker_scale),0x16)
         time.sleep(0.1)
-        check("explorerPickerCompactLayout",rect(listing,picker)[0]>=170*picker_scale
-              and rect(listing,picker)[2]-rect(listing,picker)[0]>400*picker_scale
+        check("explorerPickerCompactLayout",rect(listing,picker)[0]>=140*picker_scale
+              and rect(listing,picker)[2]-rect(listing,picker)[0]>450*picker_scale
+              and visible(USER32.GetDlgItem(picker,28))
+              and not any(visible(USER32.GetDlgItem(picker,i)) for i in (26,27,31))
               and rect(USER32.GetDlgItem(picker,24),picker)[3]<rect(USER32.GetDlgItem(picker,2),picker)[1])
         nested=next(p for p in fixtures.iterdir() if p.is_dir())
         native.set_control_text(address,str(nested))

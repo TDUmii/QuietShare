@@ -1,6 +1,6 @@
 # QuietShare - Hướng dẫn bằng hình ảnh (Tiếng Việt)
 
-> **Phiên bản ảnh:** QuietShare 0.23.1, chụp từ bài kiểm thử UI ngày 2/11/2026. Các **khung đỏ đánh số** được thêm vào sau khi chụp để chỉ vị trí nhấn. Tùy kích thước cửa sổ, ngôn ngữ và phiên bản, vị trí nút có thể thay đổi. Các ảnh không phải giao diện giả lập.
+> **Phiên bản ảnh:** QuietShare 0.24.0, chụp từ bài kiểm thử UI ngày 9/11/2026. Các **khung đỏ đánh số** được thêm vào sau khi chụp để chỉ vị trí nhấn. Tùy kích thước cửa sổ, ngôn ngữ và phiên bản, vị trí nút có thể thay đổi. Các ảnh không phải giao diện giả lập.
 
 **Bắt đầu nhanh:** [Cài đặt](#1-tải-và-cài-đặt) · [Mở file](#2-trang-chủ-và-mở-dữ-liệu) · [Lời nhắc](#4-soạn-lời-nhắc-và-cuộn-tự-động) · [PDF](#5-đọc-pdf-và-tìm-kiếm) · [Trình chiếu](#8-trình-chiếu-smart-mirror-an-toàn) · [Ghi âm](#9-ghi-âm-và-chép-lời-cuộc-họp)
 
@@ -70,7 +70,7 @@ Trang chủ có các thao tác gọn phía trên danh sách gần đây toàn ch
 3. **Khung đỏ 3 - Ngôn ngữ:** chọn tiếng Việt hoặc tiếng Anh cho giao diện.
 4. Bên dưới có ghim và nhớ kích thước. Mở **Nâng cao** để chỉnh độ mờ, cỡ icon và màu riêng. Độ mờ tác động cửa sổ điều khiển và không phải biện pháp bảo mật.
 5. **Đọc & tệp** chỉnh sửa file, chữ và cuộn. **Cuộc họp** chứa nhận dạng và thư mục xuất. **Bố cục** chứa các thanh và ba hồ sơ sử dụng. **Dữ liệu** chứa Xóa lịch sử.
-6. Cửa sổ nhỏ dùng nút chọn nhóm ở đầu biểu mẫu. Trình chiếu và Trình duyệt có **Chẩn đoán lần dừng**, nút sao chép và mã phục hồi.
+6. Cửa sổ nhỏ hiện trực tiếp các nút nhóm ở đầu biểu mẫu. Trình chiếu và Trình duyệt có **Chẩn đoán lần dừng**, nút sao chép và mã phục hồi.
 
 ## 7. Bật trình duyệt tùy chọn
 
@@ -90,7 +90,7 @@ Trang chủ có các thao tác gọn phía trên danh sách gần đây toàn ch
 
 1. **Khung đỏ 1 - Nguồn và đích:** chọn hai màn khác nhau. Bấm **Làm mới** sau khi cắm lại HDMI hoặc đổi chế độ màn hình.
 2. **Khung đỏ 2 - Kiểm tra và bắt đầu:** bấm **Kiểm tra WGC**, rồi **Bắt đầu**. Ứng dụng kiểm tra bảo vệ trước khi tạo đầu ra. Nếu lỗi, đọc mã trong book và bấm **Hướng xử lý**.
-3. **Khung đỏ 3 - Xem trước luồng đang gửi:** vùng này hiển thị các hình QuietShare đã gửi thành công, tối đa 10 FPS. Ảnh QA chưa có hình vì máy kiểm thử chỉ có một màn. **Ẩn xem trước** dừng bộ dựng hình của khung.
+3. **Khung đỏ 3 - Xem trước luồng đang gửi:** vùng này hiển thị các hình QuietShare đã gửi thành công, tối đa 10 FPS. Ảnh QA chưa có hình vì máy kiểm thử chỉ có một màn. **Ẩn xem trước** dừng bộ dựng hình, giữ khung tĩnh báo đang tắt. Mở bảng này từ Home > Mở xem trước hoặc biểu tượng mắt ở thanh bên.
 4. Quan sát máy chiếu, TV hoặc phía người nhận cuộc họp. Khung xem trước cục bộ và Windows nhận loại trừ capture không xác minh được hình ảnh thực tế bên ngoài.
 5. Bấm **Dừng** khi kết thúc. Sau thay đổi màn hình hay lỗi bảo vệ, khôi phục cấu hình, kiểm tra lại và chủ động bắt đầu.
 

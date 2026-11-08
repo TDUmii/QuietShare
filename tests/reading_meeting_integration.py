@@ -69,8 +69,8 @@ def main():
     try:
         check('personal app session untouched',not api.native.app_windows());launch()
         cmd(139);check('preview starts enabled',query(70)==1);cmd(290)
-        check('preview off hides canvas and releases surface',query(70)==0 and query(71)==0 and not api.visible(ctl(295)))
-        close();launch();cmd(139);check('preview off persists across restart',query(70)==0 and not api.visible(ctl(295)))
+        check('preview off retains its placeholder and releases the live surface',query(70)==0 and query(71)==0 and api.visible(ctl(295)))
+        close();launch();cmd(139);check('preview off persists across restart',query(70)==0 and api.visible(ctl(295)))
         cmd(127);text(110,'# Opening\n'+'first section line\n'*150+'# Details\nSecond section notes')
         api.multi_drop(window,[api.ROOT/'artifacts/qa-viewers/many.pdf'])
         check('long PDF opens all pages',query(6)==120)

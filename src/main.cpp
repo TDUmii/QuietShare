@@ -108,7 +108,7 @@ constexpr int MEETING_LIST=320,MEETING_EDITOR=321,MEETING_SPEAKER=322,MEETING_BE
     MEETING_VIEW_LIST=340,MEETING_VIEW_EDIT=341,MEETING_VIEW_META=342;
 constexpr int SETTINGS_MEETING=345,SETTINGS_DATA=346,SETTINGS_CATEGORY=347,SETTINGS_ADVANCED=348,
     THEME_DARK=349,THEME_LIGHT=350,PROFILE_SELECT=360,PROFILE_SAVE=361,PROFILE_APPLY=362,
-    DIAGNOSTICS_OPEN=370,DIAGNOSTICS_COPY=371,DIAGNOSTICS_BACK=372,DIAGNOSTICS_TEXT=373,BROWSER_DIAGNOSTICS=374,BROWSER_RETRY=375,BROWSER_ERROR=376,BROWSER_SLEEP=377,DIAGNOSTICS_EXPORT=378,DIAGNOSTICS_FOLDER=379;
+    DIAGNOSTICS_OPEN=370,DIAGNOSTICS_COPY=371,DIAGNOSTICS_BACK=372,DIAGNOSTICS_TEXT=373,BROWSER_DIAGNOSTICS=374,BROWSER_RETRY=375,BROWSER_ERROR=376,BROWSER_SLEEP=377,DIAGNOSTICS_EXPORT=378,DIAGNOSTICS_FOLDER=379,HOME_PREVIEW=380;
 const int SettingsCategoryIds[]={SETTINGS_APPEARANCE,SETTINGS_READING,SETTINGS_WORKSPACE,SETTINGS_PROJECTION,SETTINGS_KEYS,SETTINGS_BROWSER,SETTINGS_MEETING,SETTINGS_DATA};
 const int SettingsCategoryOrder[]={0,1,3,5,6,2,4,7};
 const wchar_t* SettingsCategoryVi[]={L"Giao diện",L"Đọc & tệp",L"Bố cục",L"Trình chiếu",L"Phím tắt",L"Trình duyệt",L"Cuộc họp",L"Dữ liệu"};
@@ -917,7 +917,7 @@ void UpdateButtons()
     SetWindowTextW(GetDlgItem(window, NAV_READ), T(L"Đọc", L"Read"));
     SetWindowTextW(GetDlgItem(window, NAV_HOME), T(L"Tổng quan", L"Overview"));
     SetWindowTextW(GetDlgItem(window, NAV_SETTINGS), T(L"Cài đặt", L"Settings"));
-    SetWindowTextW(GetDlgItem(window, NAV_PRESENTATION),T(L"Trình chiếu",L"Presentation"));
+    SetWindowTextW(GetDlgItem(window, NAV_PRESENTATION),T(L"Xem trước",L"Preview"));SetWindowTextW(GetDlgItem(window,HOME_PREVIEW),T(L"Mở xem trước",L"Open preview"));
     SetWindowTextW(GetDlgItem(window, OPEN_FILE), T(L"Mở file", L"Open file"));
     SetWindowTextW(GetDlgItem(window, OPEN_DROP), T(L"Mở hoặc thả file", L"Open or drop a file"));
     SetWindowTextW(GetDlgItem(window, HOME_SCRIPT), T(L"Lời nhắc", L"Script"));
@@ -1005,7 +1005,9 @@ void UpdateButtons()
     SetTip(TEXT_WEIGHT,T(L"Độ đậm chữ: thường / vừa / đậm",L"Text weight: regular / semibold / bold"));
     SetTip(WRAP,T(L"Bật / tắt tự xuống dòng",L"Toggle word wrap"));
     if(page==Page::Settings) {
-        for(int i=0;i<8;++i)SetWindowTextW(GetDlgItem(window,SettingsCategoryIds[i]),T(SettingsCategoryVi[i],SettingsCategoryEn[i]));
+        const wchar_t* compactVi[]={L"Giao diện",L"Đọc / tệp",L"Bố cục",L"Chiếu",L"Phím tắt",L"Web",L"Họp",L"Dữ liệu"};
+    const wchar_t* compactEn[]={L"Appearance",L"Reading",L"Workspace",L"Projection",L"Shortcuts",L"Browser",L"Meetings",L"Data"};
+    for(int i=0;i<8;++i){SetWindowTextW(GetDlgItem(window,SettingsCategoryIds[i]),settingsWide?T(SettingsCategoryVi[i],SettingsCategoryEn[i]):T(compactVi[i],compactEn[i]));SetTip(SettingsCategoryIds[i],T(SettingsCategoryVi[i],SettingsCategoryEn[i]));}
         SetWindowTextW(GetDlgItem(window,SETTINGS_CATEGORY),T(SettingsCategoryVi[settingsCategory],SettingsCategoryEn[settingsCategory]));
         SetWindowTextW(GetDlgItem(window,SETTINGS_ADVANCED),T(settingsAdvanced?L"Thu gọn nâng cao":L"Nâng cao",settingsAdvanced?L"Hide advanced":L"Advanced"));
         SetWindowTextW(GetDlgItem(window,THEME_DARK),T(L"Tối",L"Dark"));SetWindowTextW(GetDlgItem(window,THEME_LIGHT),T(L"Sáng",L"Light"));
@@ -1061,7 +1063,7 @@ void UpdateButtons()
     SetTip(LANGUAGE, english ? L"Chuyển sang tiếng Việt" : L"Switch to English");
     SetTip(NAV_HOME, T(L"Chuẩn bị nội dung", L"Prepare content"));
     SetTip(NAV_SETTINGS, T(L"Tùy chỉnh hiển thị", L"Display settings"));
-    SetTip(NAV_PRESENTATION,T(L"Trình chiếu Smart Mirror",L"Smart Mirror presentation"));
+    SetTip(NAV_PRESENTATION,T(L"Xem trước màn đang chiếu",L"Outgoing screen preview"));SetTip(HOME_PREVIEW,T(L"Mở trình chiếu và xem trước",L"Open presentation and preview"));
     SetTip(NAV_SCRIPT,T(L"Tệp đang mở. Nhấp phải để chọn tệp hoặc soạn lời nhắc",L"Open files. Right-click to switch files or compose a script"));
     SetTip(OVERFLOW,T(L"Các lệnh và tab khác",L"More commands and tab actions"));
     SetTip(FIND_PREV,T(L"Kết quả trước",L"Previous match"));
@@ -1169,13 +1171,11 @@ void Layout()
         HWND child=GetDlgItem(window,id);MoveWindow(child,S(left),S(top),S(w),S(h),FALSE);reveal(child);
     };
     if(!focusMode&&activityVisible) {
-        const int navHeight=height<360?28:34,navStep=navHeight+4;
-        int y=12;for(int id:{NAV_HOME,NAV_SCRIPT,NAV_BROWSER}){
-            move(id,6,y,railWidth-12,navHeight);y+=navStep;
+        const int step=std::min(38,std::max(24,(height-64)/7)),itemHeight=std::min(34,step-4);
+        int y=12;for(int id:{NAV_HOME,NAV_SCRIPT,NAV_BROWSER,NAV_PRESENTATION,VERIFY_PRIVACY,MIRROR_ACTION,NAV_MEETING}){
+            move(id,6,y,railWidth-12,itemHeight);y+=step;
         }
-        move(VERIFY_PRIVACY,6,y+12,railWidth-12,navHeight);move(MIRROR_ACTION,6,y+12+navStep,railWidth-12,navHeight);
-        move(NAV_MEETING,6,y+12+navStep*2,railWidth-12,navHeight);
-        move(NAV_SETTINGS,6,std::max(y+12+navStep*3+8,height-48),railWidth-12,28);
+        move(NAV_SETTINGS,6,height-48,railWidth-12,28);
     }
     contentCardRect={S(contentLeft),S(48),S(contentRight),S(bottom)};
     if(page==Page::Content || focusMode) {
@@ -1263,17 +1263,18 @@ void Layout()
             move(RECENT_FIRST+i*3+1,contentRight-74,y+(homeRowHeight-28)/2,32,28);
             move(RECENT_FIRST+i*3+2,contentRight-38,y+(homeRowHeight-28)/2,32,28);
         }
-        move(HOME_SETTINGS,contentRight-68,protectionTop,68,22);
+        move(HOME_SETTINGS,contentRight-68,protectionTop,68,22);move(HOME_PREVIEW,contentRight-188,protectionTop,112,22);
         if(!activityVisible&&!homeCompact)move(VERIFY_PRIVACY,contentRight-150,10,150,24);
     }
     else if(page==Page::Settings) {
         settingsWide=contentRight-contentLeft>=700&&height>=440;
-        const int navWidth=158;
+        const int navWidth=158,compactColumns=contentRight-contentLeft>=680?8:4;
         if(settingsWide){for(int i=0;i<8;++i)move(SettingsCategoryIds[SettingsCategoryOrder[i]],contentLeft,48+i*38,navWidth,34);}
-        else move(SETTINGS_CATEGORY,contentLeft,48,contentRight-contentLeft,32);
+        else {const int columns=compactColumns,gap=4,cell=(contentRight-contentLeft-gap*(columns-1))/columns;
+            for(int i=0;i<8;++i)move(SettingsCategoryIds[SettingsCategoryOrder[i]],contentLeft+(i%columns)*(cell+gap),48+(i/columns)*32,cell,28);}
         const int available=contentRight-contentLeft-(settingsWide?navWidth+26:0);
         const int formWidth=std::min(660,available),formLeft=contentLeft+(settingsWide?navWidth+26:0)+(available-formWidth)/2;
-        const int formTop=settingsWide?48:92;
+        const int formTop=settingsWide?48:56+((8+compactColumns-1)/compactColumns)*32;
         settingsViewport={S(formLeft),S(formTop),S(formLeft+formWidth-18),S(bottom)};
         settingsCardRect=settingsViewport;
         const int left=formLeft,right=formLeft+formWidth-26;
@@ -1283,11 +1284,10 @@ void Layout()
             settingsLines.push_back({T(vn,en),{S(left),S(y),S(right),S(y+24)},true});y+=34;
         };
         auto row=[&](const wchar_t* vn,const wchar_t* en,int id,int valueWidth=112,int height=44){
-            const bool below=stacked&&!SettingsSwitch(id)&&vn[0];
-            valueWidth=std::min(valueWidth,SettingsSwitch(id)?90:below?right-left:std::max(96,(right-left)/2));
-            settingsLines.push_back({T(vn,en),{S(left),S(y),S(below?right:right-valueWidth-16),S(y+(below?26:32))},false,id});
-            move(id,below?left:right-valueWidth,y+(below?30:0),valueWidth,id==SOURCE_MONITOR||id==DEST_MONITOR?160:32);
-            clippedSettingsControls.push_back(GetDlgItem(window,id));y+=std::max(height,below?72:44);
+            valueWidth=std::min(valueWidth,SettingsSwitch(id)?90:std::max(96,stacked?(right-left)*3/5:(right-left)/2));
+            settingsLines.push_back({T(vn,en),{S(left),S(y),S(right-valueWidth-16),S(y+32)},false,id});
+            move(id,right-valueWidth,y,valueWidth,id==SOURCE_MONITOR||id==DEST_MONITOR?160:32);
+            clippedSettingsControls.push_back(GetDlgItem(window,id));y+=std::max(height,44);
             settingsLines.push_back({L"",{S(left),S(y-8),S(right),S(y-7)},false,-4});
         };
         auto number=[&](int id,int minus,int plus,int x){
@@ -1296,8 +1296,8 @@ void Layout()
             for(int child:{minus,id,plus})clippedSettingsControls.push_back(GetDlgItem(window,child));
         };
         auto numberRow=[&](const wchar_t* vn,const wchar_t* en,int id,int minus,int plus){
-            settingsLines.push_back({T(vn,en),{S(left),S(y),S(stacked?right:right-144),S(y+(stacked?26:32))},false,id});
-            if(stacked)y+=30;number(id,minus,plus,stacked?left:right-128);y+=56;
+            settingsLines.push_back({T(vn,en),{S(left),S(y),S(right-144),S(y+32)},false,id});
+            number(id,minus,plus,right-128);y+=56;
             settingsLines.push_back({L"",{S(left),S(y-8),S(right),S(y-7)},false,-4});
         };
         if(settingsCategory==0) {
@@ -1502,8 +1502,8 @@ void Layout()
         if(dst>=0&&dst<static_cast<int>(monitors.size())){const auto& r=monitors[dst].bounds;aspect=double(r.right-r.left)/std::max(1L,r.bottom-r.top);}
         int pw=w,ph=static_cast<int>(pw/aspect);if(ph>maxHeight){ph=maxHeight;pw=static_cast<int>(ph*aspect);}
         previewBounds={S(contentLeft+(w-pw)/2),S(previewTop),S(contentLeft+(w+pw)/2),S(previewTop+ph)};
-        if(previewEnabled&&!recoveryVisible&&ph>=48&&!masked&&!verifying){MoveWindow(projectionPreview,previewBounds.left,previewBounds.top,previewBounds.right-previewBounds.left,previewBounds.bottom-previewBounds.top,FALSE);reveal(projectionPreview);}
-        projectionStatusBounds={S(contentLeft),S(previewEnabled&&!recoveryVisible&&ph>=48?previewTop+ph+6:previewTop),S(contentRight),S(bottom)};
+        if(!recoveryVisible&&ph>=48&&!Blocked()){MoveWindow(projectionPreview,previewBounds.left,previewBounds.top,previewBounds.right-previewBounds.left,previewBounds.bottom-previewBounds.top,FALSE);reveal(projectionPreview);}
+        projectionStatusBounds={S(contentLeft),S(!recoveryVisible&&ph>=48?previewTop+ph+6:previewTop),S(contentRight),S(bottom)};
         MoveWindow(GetDlgItem(window,PROJECTION_STATUS),projectionStatusBounds.left,projectionStatusBounds.top,projectionStatusBounds.right-projectionStatusBounds.left,projectionStatusBounds.bottom-projectionStatusBounds.top,FALSE);
         reveal(GetDlgItem(window,PROJECTION_STATUS));
     }
@@ -1579,7 +1579,7 @@ void Layout()
     documentHost.Show(displayType,renderedSafe,page==Page::Content);
     if(Blocked())for(HWND control:{pdfPages,pdfGoto,cueList,cueReader})ShowWindow(control,SW_HIDE);
     browser.SetBounds(body);browser.Show(page==Page::Browser&&renderedSafe&&!IsIconic(window));
-    if(mirror)mirror->SetPreviewWindow(page==Page::Presentation&&previewEnabled&&!masked&&!verifying&&IsWindowVisible(projectionPreview)?projectionPreview:nullptr);
+    if(mirror)mirror->SetPreviewWindow(page==Page::Presentation&&previewEnabled&&!Blocked()&&IsWindowVisible(projectionPreview)?projectionPreview:nullptr);
     for(HWND control:{quickInput,quickList,setName,meetingList,meetingEditor,meetingSpeaker,meetingBegin,meetingEnd,meetingSearch})if(control&&Blocked()){ShowWindow(control,SW_HIDE);}
     for(int id:{QUICK_OPEN,SET_SAVE,SET_DELETE,SET_LIBRARY,QUICK_SWITCH})EnableWindow(GetDlgItem(window,id),!Blocked());
     UpdateButtons();UpdateDocumentBar();
@@ -2421,7 +2421,8 @@ LRESULT CALLBACK ProjectionPreviewProc(HWND h,UINT msg,WPARAM wp,LPARAM lp,UINT_
     if(msg==WM_ERASEBKGND)return 1;
     if(msg==WM_PAINT){PAINTSTRUCT ps{};auto dc=BeginPaint(h,&ps);
         if(!mirror||!mirror->PreviewHasFrame()){RECT r{};GetClientRect(h,&r);FillRect(dc,&r,static_cast<HBRUSH>(GetStockObject(BLACK_BRUSH)));
-            const bool small=r.right<S(180);InflateRect(&r,-S(6),-S(4));DrawTextAt(dc,T(small?L"Chưa phát":L"Chưa có hình xem trước",small?L"No preview":L"No preview frame"),r,RGB(190,190,190),metaFont,DT_CENTER|DT_VCENTER|DT_SINGLELINE|DT_END_ELLIPSIS);}
+            const bool small=r.right<S(240)||r.bottom<S(72);InflateRect(&r,-S(10),-S(6));const auto label=small?T(previewEnabled?L"Chưa phát":L"Xem trước: tắt",previewEnabled?L"Not sending":L"Preview off"):!previewEnabled?T(L"Xem trước đang tắt. Bấm Hiện xem trước để bật.",L"Preview is off. Select Show preview to enable it."):T(L"Chưa có khung hình gửi đi. Bắt đầu trình chiếu để xem nội dung đang phát.",L"No outgoing frame yet. Start projection to preview what is being sent.");
+            DrawTextAt(dc,label,r,RGB(190,190,190),metaFont,DT_CENTER|DT_WORDBREAK);}
         EndPaint(h,&ps);return 0;}
     return DefSubclassProc(h,msg,wp,lp);
 }
@@ -2871,8 +2872,9 @@ void DrawButtonContents(DRAWITEMSTRUCT *item)
         FillRect(item->hDC,&r,bgBrush);if(selected||hover)FillRoundRect(item->hDC,r,selected?ACCENT_DARK:HOVER,S(7));
         const int category=item->CtlID==SETTINGS_CATEGORY?settingsCategory:SettingsCategoryIndex(item->CtlID);
         const unsigned icons[]={0xeb51,0xeaf0,0xeb7f,0xea7a,0xea65,0xeb01,0xeba7,0xea83};
-        RECT icon=r;icon.left+=S(10);icon.right=icon.left+S(18);DrawCodicon(item->hDC,icons[category],icon,MUTED,S(16));
-        r.left+=S(38);r.right-=S(item->CtlID==SETTINGS_CATEGORY?30:8);DrawTextAt(item->hDC,TextOf(item->hwndItem),r,TEXT,uiFont,DT_LEFT|DT_VCENTER|DT_SINGLELINE|DT_END_ELLIPSIS|DT_NOPREFIX);
+        if(settingsWide||item->CtlID==SETTINGS_CATEGORY){RECT icon=r;icon.left+=S(10);icon.right=icon.left+S(18);DrawCodicon(item->hDC,icons[category],icon,MUTED,S(16));
+            r.left+=S(38);r.right-=S(item->CtlID==SETTINGS_CATEGORY?30:8);DrawTextAt(item->hDC,TextOf(item->hwndItem),r,TEXT,uiFont,DT_LEFT|DT_VCENTER|DT_SINGLELINE|DT_END_ELLIPSIS|DT_NOPREFIX);
+        }else {InflateRect(&r,-S(3),0);DrawTextAt(item->hDC,TextOf(item->hwndItem),r,TEXT,uiFont,DT_CENTER|DT_VCENTER|DT_SINGLELINE|DT_END_ELLIPSIS|DT_NOPREFIX);}
         if(item->CtlID==SETTINGS_CATEGORY){RECT arrow=item->rcItem;arrow.left=arrow.right-S(28);DrawCodicon(item->hDC,0xeab4,arrow,MUTED,S(16));}
         if(item->itemState&ODS_FOCUS)DrawFocusRect(item->hDC,&item->rcItem);return;
     }
@@ -2961,7 +2963,7 @@ void DrawButtonContents(DRAWITEMSTRUCT *item)
     {
         COLORREF iconColor = disabled ? DISABLED : (activeNav ? TEXT : MUTED);
         wchar_t glyph=item->CtlID==NAV_HOME?0xeb06:item->CtlID==NAV_SCRIPT?0xeaf0:
-            item->CtlID==NAV_SETTINGS?0xeb51:item->CtlID==NAV_BROWSER?0xeb01:item->CtlID==VERIFY_PRIVACY?0xeab2:
+            item->CtlID==NAV_SETTINGS?0xeb51:item->CtlID==NAV_PRESENTATION?0xea70:item->CtlID==NAV_BROWSER?0xeb01:item->CtlID==VERIFY_PRIVACY?0xeab2:
             item->CtlID==MIRROR_ACTION?(mirror&&mirror->Running()?0xead1:0xeb2c):
             item->CtlID==NAV_MEETING?(meetingRecorder.Running()?0xeba5:0xeba7):0xea7a;
         if(railAction&&!disabled&&((mirror&&mirror->IsVerified())||item->CtlID==NAV_MEETING))
@@ -3059,6 +3061,11 @@ LRESULT CALLBACK ButtonProc(HWND control, UINT message, WPARAM wp, LPARAM lp, UI
 }
 LRESULT CALLBACK SettingsScrollProc(HWND control,UINT message,WPARAM wp,LPARAM lp,UINT_PTR,DWORD_PTR)
 {
+#ifdef QUIETSHARE_QA
+    // Isolated message-driven fixtures must not consume cursor moves generated
+    // by SetCapture at the host's unrelated physical pointer position.
+    if(qaInteractive&&message==WM_MOUSEMOVE&&!(InSendMessageEx(nullptr)&ISMEX_SEND))return 0;
+#endif
     if(message==WM_ERASEBKGND)return 1;
     if(message==WM_MOUSEWHEEL)return SendMessageW(window,message,wp,lp);
     auto parts=[&](){SCROLLBARINFO info{};info.cbSize=sizeof(info);GetScrollBarInfo(control,OBJID_CLIENT,&info);return info;};
@@ -3967,7 +3974,7 @@ LRESULT CALLBACK Proc(HWND h, UINT message, WPARAM wp, LPARAM lp)
             {HOME_SETTINGS, L"Cài đặt"}, {VIEW_FILE, L"Xem file"},
             {OPEN_FOLDER,L"Mở dự án"},{OVERFLOW,L"Thêm"},{FIND,L"Tìm"},{FIND_PREV,L"Trước"},
             {FIND_NEXT,L"Sau"},{FIND_CLOSE,L"Đóng"},{PDF_PREV,L"Trang trước"},{PDF_NEXT,L"Trang sau"},{PDF_PAGE,L""},
-            {NAV_PRESENTATION,L"Trình chiếu"},{VERIFY_PRIVACY,L"Kiểm tra WGC"},{MIRROR_START,L"Bắt đầu"},
+            {HOME_PREVIEW,L"Mở xem trước"},{NAV_PRESENTATION,L"Xem trước"},{VERIFY_PRIVACY,L"Kiểm tra WGC"},{MIRROR_START,L"Bắt đầu"},
             {MIRROR_STOP,L"Dừng"},{POINTER,L"Con trỏ"},{RELOAD_FILE,L"Tải lại"},{KEEP_FILE,L"Giữ bản đang xem"},
             {INCLUDE_IGNORED,L"Hiện thư mục đang bỏ qua"},{NAV_BROWSER,L"Trình duyệt"},{BROWSER_TOGGLE,L"Bật trình duyệt"},
             {WEB_BACK,L"Quay lại"},{WEB_FORWARD,L"Tiến tới"},{WEB_RELOAD,L"Tải lại"},{WEB_AUDIO,L"Âm thanh web"},{WEB_GO,L"Mở"},{WEB_MENU,L"Menu trình duyệt"},
@@ -4760,7 +4767,7 @@ LRESULT CALLBACK Proc(HWND h, UINT message, WPARAM wp, LPARAM lp)
         case CLOSE_APPLICATION:PostMessageW(h,WM_CLOSE,0,0);break;
         case NAV_HOME:
             Pause(); focusMode = false; page = Page::Home; Layout(); break;
-        case NAV_PRESENTATION:
+        case HOME_PREVIEW:case NAV_PRESENTATION:
             Pause();focusMode=false;page=Page::Presentation;Layout();break;
         case HOME_SETTINGS:
             settingsCategory=3;

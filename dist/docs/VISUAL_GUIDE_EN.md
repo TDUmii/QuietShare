@@ -1,6 +1,6 @@
 # QuietShare - Illustrated step-by-step guide (English)
 
-> **Screenshot version:** QuietShare 0.23.1, real local UI test captures dated November 2, 2026. **Numbered red outlines** were added to point out controls. Locations may change with display scale, window size, language or release. The screenshots are not synthetic mockups.
+> **Screenshot version:** QuietShare 0.24.0, real local UI test captures dated November 9, 2026. **Numbered red outlines** were added to point out controls. Locations may change with display scale, window size, language or release. The screenshots are not synthetic mockups.
 
 **Jump to:** [Install](#1-download-and-install) · [Home and files](#2-home-and-opening-content) · [Script](#4-write-a-script-and-auto-scroll) · [PDF](#5-view-and-search-pdfs) · [Mirror](#8-safe-smart-mirror-projection) · [Recording](#9-record-and-transcribe-meetings)
 
@@ -68,7 +68,7 @@ Home has compact actions above a full-width recent list and a separate protectio
 3. **Red 3 - Language:** choose Vietnamese or English for the interface.
 4. Always-on-top and remember-window-size are below. Expand **Advanced** for opacity, icon size and custom colors. Opacity affects the controller and is not a privacy guarantee.
 5. **Reading & files** configures editing, text and scrolling. **Meetings** holds recognition and output settings. **Workspace** holds visible bars and three saved usage profiles. **Data** holds Clear history.
-6. Small windows use a category picker above the form. Projection and Browser include **Last-stop diagnostics** with a copy action and recovery codes.
+6. Small windows show direct category buttons above the form. Projection and Browser include **Last-stop diagnostics** with a copy action and recovery codes.
 
 ## 7. Optional embedded browser
 
@@ -88,7 +88,7 @@ Home has compact actions above a full-width recent list and a separate protectio
 
 1. **Red 1 - Source and target:** select two different displays. Use **Refresh** after reconnecting HDMI or changing display mode.
 2. **Red 2 - Verify and start:** select **Verify WGC**, then **Start**. The app checks protection before creating output. Failed starts show a handbook code. Select **Recovery** for the next action.
-3. **Red 3 - Outgoing preview:** this area shows frames successfully sent by QuietShare, up to 10 FPS. The QA screenshot has no outgoing frame because this host has one display. **Hide preview** stops its renderer.
+3. **Red 3 - Outgoing preview:** this area shows frames successfully sent by QuietShare, up to 10 FPS. The QA screenshot has no outgoing frame because this host has one display. **Hide preview** stops its renderer and retains a static off placeholder. Open this panel through Home > Open preview or the sidebar eye icon.
 4. Inspect the actual projector, TV or meeting receiver. A local preview and Windows capture exclusion do not verify the physical audience output.
 5. Select **Stop** when finished. After a display or safety change, restore the setup, verify again and explicitly start output.
 

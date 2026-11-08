@@ -57,8 +57,8 @@ def main():
         cmd(345);check('Meetings has a separate category',q(40)==6 and api.visible(ctl(259)) and not api.visible(ctl(163)))
         cmd(201);check('reading category has no meeting model controls',not api.visible(ctl(331)) and api.visible(ctl(163)))
         for w,h in ((430,320),(840,320)):
-            resize(w,h);check(f'short Settings uses a single category picker {w}x{h}',q(80)==0 and api.visible(ctl(347)) and not api.visible(ctl(200)))
-            menu(347,4);check('category picker selects Meetings',q(40)==6)
+            resize(w,h);check(f'short Settings exposes all categories without a dropdown {w}x{h}',q(80)==0 and not api.visible(ctl(347)) and all(api.visible(ctl(n)) for n in (200,201,202,203,204,240,345,346)))
+            cmd(345);check('direct category button selects Meetings',q(40)==6)
         resize(840,560);cmd(127);text(110,'PRIVATE_PROFILE_SCRIPT');cmd(123);cmd(201);text(163,'37');send(ctl(163),api.WM_KEYDOWN,0x0D)
         cmd(349);cmd(203);cmd(290);check('preview preference can be disabled from Settings',q(70)==0)
         cmd(202);check('profiles start empty and cannot apply fabricated defaults',q(81)==0 and not U.IsWindowEnabled(ctl(362)))

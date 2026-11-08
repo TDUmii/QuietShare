@@ -2,7 +2,7 @@
 
 > **Illustrated walkthrough:** [8 real UI screenshots with numbered red click targets](VISUAL_GUIDE_EN.md).
 
-English edition - QuietShare v0.23.1
+English edition - QuietShare v0.24.0
 
 Read, prepare and present with private notes on Windows.
 
@@ -203,6 +203,15 @@ QuietShare refuses to overwrite a file that changed outside the application.
 
 Closing a modified file offers save, discard or cancel. File drafts stay in memory until you explicitly save. They are not automatically written over the script or original file.
 
+### Sort and scroll the protected file picker
+
+- **Find name** filters loaded names in this folder, ignoring case. Press Enter to open a single matching file.
+- Click **Name**, **Type**, **Modified** or **Size**. Click again to reverse. Names use natural numeric order. Folders stay first.
+- **Sort** offers the same criteria and ascending/descending choices. Sorting preserves selected files.
+- **Details** shows metadata. **Compact list** shows more names. Narrow windows use Compact, then restore Details when widened. Preferences last for this session.
+- Wheel input, including partial deltas, works without list focus. Desktop/Downloads shortcuts and keyboard navigation remain available.
+- Filtering covers up to 1,000 loaded names in this folder. It does not scan subfolders.
+
 ## 5. Prepare scripts and read comfortably
 
 The script is an optional local draft for speaking notes. It is separate from imported files and does not need to occupy a permanent document tab.
@@ -327,7 +336,7 @@ If text looks faint, increase window opacity toward 100%, then adjust size and w
 
 ## 7. Settings, layout and shortcuts
 
-Settings has eight categories: **Appearance**, **Reading & files**, **Projection**, **Browser**, **Meetings**, **Workspace**, **Shortcuts** and **Data**. A left list stays visible in a wide window. Small or short windows use one category picker above the form. Scroll inside the selected category. **Appearance > Advanced** reveals opacity, icon size and custom colors.
+Settings has eight categories: **Appearance**, **Reading & files**, **Projection**, **Browser**, **Meetings**, **Workspace**, **Shortcuts** and **Data**. A left list stays visible in a wide window. Small or short windows show all eight categories as direct buttons in one or two rows above the form. Scroll inside the selected category. **Appearance > Advanced** reveals opacity, icon size and custom colors.
 
 ### Save a usage profile
 
@@ -561,6 +570,13 @@ These conditions do not prove that a cable or projector is defective. Use the ex
 6. Hidden or minimized preview does no rendering work. A stop, safety failure or new verification clears the old preview. A preview renderer failure leaves public projection independent and does not retry continuously.
 
 Windows capture exclusion, WGC verification and physical receiver verification remain distinct. This local preview shows QuietShare's outgoing stream. It cannot confirm a physical projector, a TV or a meeting participant's display.
+
+### Find the outgoing preview
+
+1. Choose **Open preview** on Home, or the **Preview** eye icon on the sidebar.
+2. Select source and destination displays and follow the existing protection checks before starting projection.
+3. The preview shows frames actually sent by QuietShare. Before projection starts, the frame displays an explanatory placeholder. No demonstration stream is inserted.
+4. **Hide preview** releases its GPU renderer and remembers the choice. A static off placeholder keeps this section findable. **Show preview** enables the live renderer again when wanted.
 
 ## 11. Present to a wireless television
 

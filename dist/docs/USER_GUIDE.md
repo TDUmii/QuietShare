@@ -233,9 +233,9 @@ Muốn giải phóng thêm RAM, chọn **Trình duyệt > menu thêm > Cho tab n
 
 ## Settings and recovery / Cài đặt và phục hồi
 
-Settings has eight left categories, a compact picker in small windows and collapsed Appearance > Advanced options. Save/apply three personal profiles in Workspace. Data holds Clear history. Meetings holds recording and recognition settings.
+Settings has eight left categories, direct category buttons in one or two rows in small windows and collapsed Appearance > Advanced options. Save/apply three personal profiles in Workspace. Data holds Clear history. Meetings holds recording and recognition settings.
 
-Cài đặt có tám nhóm bên trái, nút chọn khi cửa sổ nhỏ và Giao diện > Nâng cao có thể mở gọn. Lưu/áp dụng ba hồ sơ riêng trong Bố cục. Dữ liệu chứa Xóa lịch sử. Cuộc họp chứa thiết lập ghi và nhận dạng.
+Cài đặt có tám nhóm bên trái, các nút nhóm trực tiếp khi cửa sổ nhỏ và Giao diện > Nâng cao có thể mở gọn. Lưu/áp dụng ba hồ sơ riêng trong Bố cục. Dữ liệu chứa Xóa lịch sử. Cuộc họp chứa thiết lập ghi và nhận dạng.
 
 Open Last-stop diagnostics from Projection or Browser. For a stopped browser tab, use Recover tab to recreate and reverify. QS-P protection failures still require repair, F9 and explicit F10. See the [error book](BOOK.md).
 
@@ -252,3 +252,13 @@ Mở **Cài đặt > Trình chiếu hoặc Trình duyệt > Chẩn đoán lần 
 If native controls work but the page freezes, use its **Recover tab** action or **Browser diagnostics**. QS-B003 means unresponsive. QS-B002/QS-B004 with reason 5 means out-of-memory. QS-B011 warns of low Windows committed-memory headroom even if physical RAM remains free. QuietShare requests lower web memory, pauses additional tabs and restores normal operation after recovery. Save forms before explicit reload or background-tab deep sleep. Windows paging settings stay unchanged.
 
 Nếu nút của ứng dụng vẫn bấm được nhưng trang đứng, dùng **Khôi phục tab** hoặc **Chẩn đoán trình duyệt**. QS-B003 là không phản hồi. QS-B002/QS-B004 có reason 5 là hết bộ nhớ. QS-B011 cảnh báo khoảng trống bộ nhớ cam kết Windows thấp dù vẫn còn RAM vật lý. QuietShare yêu cầu web giảm bộ nhớ, ngừng thêm tab và phục hồi mức bình thường khi đủ khoảng trống. Lưu ô nhập trước khi tải lại hoặc cho tab nền nghỉ sâu. Cấu hình pagefile Windows được giữ nguyên.
+
+## Preview and file selection / Xem trước và chọn tệp
+
+Home has **Open preview**, and the sidebar has a Preview eye icon. The panel shows real outgoing frames once projection starts. Turning preview off releases its live GPU renderer and retains a static off placeholder.
+
+Home có **Mở xem trước**, thanh bên có biểu tượng mắt Xem trước. Bảng hiện khung thực đã gửi khi bắt đầu chiếu. Tắt xem trước giải phóng bộ dựng GPU trực tiếp và giữ khung báo đang tắt.
+
+The protected picker filters names in the current folder, sorts by name/type/modified date/size, reverses direction through headings or Sort, and offers Details/Compact list. Sorting preserves selected files. Wheel input works without focusing the list.
+
+Hộp chọn được bảo vệ lọc tên trong thư mục hiện tại, sắp theo tên/loại/ngày sửa/kích thước, đảo chiều bằng tiêu đề hoặc Sắp xếp, có Chi tiết/Danh sách gọn. Đổi thứ tự giữ đúng file đang chọn. Lăn chuột dùng được khi danh sách chưa nhận focus.

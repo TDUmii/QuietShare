@@ -16,17 +16,17 @@ A Windows companion for scripts, documents and web browsing. Smart Mirror sends 
 
 ## 🚀 Get started / Bắt đầu
 
-1. Run **QuietShare-Setup.exe** or extract the complete portable ZIP. Uses local per-user data.
+1. Run **QuietShare-Setup.exe** or extract the complete portable ZIP.
 
-   Chạy **QuietShare-Setup.exe** hoặc giải nén toàn bộ ZIP portable. Dữ liệu lưu cục bộ theo tài khoản.
+   Chạy **QuietShare-Setup.exe** hoặc giải nén toàn bộ ZIP portable.
 
 2. Wait for verification, then open files with **Ctrl+O** or folders with **Ctrl+Shift+O**. Use the sidebar to switch files or prepare a script.
 
    Chờ xác minh rồi mở file bằng **Ctrl+O** hoặc thư mục bằng **Ctrl+Shift+O**. Dùng thanh bên để chuyển file hoặc chuẩn bị lời nhắc.
 
-3. Set Windows to **Extend**, choose source and destination in **Settings > Projection**, then select **Verify WGC** before **Start projection**. Preview can be disabled and remembers the choice. Inspect the real audience output.
+3. Set Windows to **Extend**, choose source and destination in **Settings > Projection**, then select **Verify WGC** before **Start projection**. Open preview from Home or the sidebar eye icon. Preview can be disabled. Inspect the real audience output.
 
-   Đặt Windows ở **Extend**, chọn nguồn và đích trong **Cài đặt > Trình chiếu**, rồi **Kiểm tra WGC** trước khi **Bắt đầu trình chiếu**. Có thể tắt xem trước và nhớ lựa chọn. Quan sát đúng đầu nhận.
+   Đặt Windows ở **Extend**, chọn nguồn và đích trong **Cài đặt > Trình chiếu**, rồi **Kiểm tra WGC** trước khi **Bắt đầu trình chiếu**. Mở xem trước từ Home hoặc biểu tượng mắt. Có thể tắt xem trước. Quan sát đúng đầu nhận.
 
 ## 🎨 What you can do / Chức năng chính
 
@@ -34,9 +34,9 @@ A Windows companion for scripts, documents and web browsing. Smart Mirror sends 
 
   **Đọc và chuẩn bị:** chuyển nhanh (Ctrl+K), bộ thuyết trình, lời nhắc, sửa văn bản/code, PDF cuộn liên tục và lời nhắc gắn trang.
 
-- **Make it readable:** ten themes, custom colors and three usage profiles. Settings uses left categories or a compact picker. Reading tools stay beside content.
+- **Make it readable:** ten themes, custom colors and three usage profiles. Settings has direct category buttons. File selection supports name search, four sort criteria and compact/details views.
 
-  **Dễ đọc hơn:** mười theme, màu riêng và ba hồ sơ. Cài đặt có danh mục trái hoặc nút chọn gọn. Công cụ đọc nằm cạnh nội dung.
+  **Dễ đọc hơn:** mười theme, màu riêng và ba hồ sơ. Cài đặt có nút nhóm trực tiếp. Hộp mở tệp có tìm tên, bốn kiểu sắp xếp và danh sách gọn/chi tiết.
 
 - **Browse when needed:** optional WebView2, 8 tabs and manual deep sleep to release background RAM. Reopen a sleeping tab to reload it. Diagnostics exports 100 recent error codes as JSON. Browsing starts disabled.
 

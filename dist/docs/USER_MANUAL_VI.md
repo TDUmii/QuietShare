@@ -2,7 +2,7 @@
 
 > **Có hướng dẫn bằng ảnh:** [Xem 8 ảnh chụp giao diện có đánh số và khoanh đỏ](VISUAL_GUIDE_VI.md).
 
-Ấn bản tiếng Việt - QuietShare v0.23.1
+Ấn bản tiếng Việt - QuietShare v0.24.0
 
 Đọc, chuẩn bị và thuyết trình với lời nhắc riêng trên Windows.
 
@@ -203,6 +203,15 @@ QuietShare từ chối ghi đè khi file đã thay đổi trong ứng dụng kh�
 
 Đóng file đang sửa có lựa chọn lưu, bỏ thay đổi hoặc hủy. Bản sửa file giữ trong bộ nhớ đến khi bạn chủ động lưu. Nó không tự ghi đè lời nhắc hoặc file gốc.
 
+### Sắp xếp và cuộn trong hộp mở tệp được bảo vệ
+
+- **Tìm tên** lọc tên đã tải trong thư mục, không phân biệt hoa thường. Nhấn Enter để mở file khớp duy nhất.
+- Bấm **Tên**, **Loại**, **Ngày sửa** hoặc **Kích thước**. Bấm lại để đảo chiều. Tên có số xếp tự nhiên. Thư mục luôn trước.
+- **Sắp xếp** có cùng tiêu chí và lựa chọn tăng/giảm dần. Đổi thứ tự giữ đúng tệp đã chọn.
+- **Chi tiết** hiện thông tin. **Danh sách gọn** dành chỗ cho tên. Cửa sổ hẹp tự dùng danh sách, mở rộng phục hồi Chi tiết. Lựa chọn giữ trong phiên chạy.
+- Con lăn nhận cả nấc nhỏ khi danh sách chưa có focus. Lối tắt Desktop/Downloads và điều hướng bàn phím vẫn dùng được.
+- Bộ lọc chỉ xét tối đa 1.000 tên đã tải trong thư mục, không quét thư mục con.
+
 ## 5. Chuẩn bị lời nhắc và đọc dễ hơn
 
 Lời nhắc là bản nháp cục bộ tùy chọn để chuẩn bị lời nói. Nó tách biệt với file nhập vào và không cần chiếm một tab tài liệu thường trực.
@@ -327,7 +336,7 @@ Nếu chữ nhạt, tăng độ mờ cửa sổ về gần 100%, sau đó chỉn
 
 ## 7. Cài đặt, bố cục và phím tắt
 
-Cài đặt có tám nhóm: **Giao diện**, **Đọc & tệp**, **Trình chiếu**, **Trình duyệt**, **Cuộc họp**, **Bố cục**, **Phím tắt** và **Dữ liệu**. Cửa sổ rộng có danh mục bên trái. Cửa sổ nhỏ hoặc thấp dùng một nút chọn nhóm ở đầu biểu mẫu. Cuộn trong nhóm đang mở. **Giao diện > Nâng cao** chứa độ mờ, cỡ icon và màu tự chọn.
+Cài đặt có tám nhóm: **Giao diện**, **Đọc & tệp**, **Trình chiếu**, **Trình duyệt**, **Cuộc họp**, **Bố cục**, **Phím tắt** và **Dữ liệu**. Cửa sổ rộng có danh mục bên trái. Cửa sổ nhỏ hoặc thấp hiện đủ tám nhóm thành một hoặc hai hàng nút để bấm trực tiếp. Cuộn trong nhóm đang mở. **Giao diện > Nâng cao** chứa độ mờ, cỡ icon và màu tự chọn.
 
 ### Lưu hồ sơ sử dụng
 
@@ -561,6 +570,13 @@ Các điều kiện này không chứng minh dây hoặc máy chiếu bị hỏn
 6. Khi ẩn hoặc thu nhỏ cửa sổ, khung không tiếp tục dựng hình. Dừng chiếu, lỗi bảo vệ hoặc xác minh mới sẽ xóa hình cũ. Nếu bộ dựng xem trước lỗi, luồng chiếu công khai vẫn hoạt động độc lập và không thử lại liên tục.
 
 Windows nhận loại trừ capture, WGC đạt xác minh và đầu nhận vật lý được xác minh là ba trạng thái riêng. Khung này cho thấy luồng QuietShare đang gửi. Nó không xác nhận hình ảnh thực tế trên máy chiếu, TV hay máy của người dự họp.
+
+### Tìm phần xem trước luồng đang gửi
+
+1. Chọn **Mở xem trước** trên Home hoặc biểu tượng mắt **Xem trước** ở thanh bên.
+2. Chọn màn nguồn và màn đích, thực hiện kiểm tra bảo vệ hiện có trước khi bắt đầu chiếu.
+3. Xem trước hiển thị khung hình QuietShare thực sự đã gửi. Trước khi chiếu, khung có lời giải thích, không chèn luồng minh họa.
+4. **Ẩn xem trước** giải phóng bộ dựng GPU và nhớ lựa chọn. Khung tĩnh báo đang tắt giúp vẫn tìm thấy mục này. Chọn **Hiện xem trước** khi muốn dùng lại bộ dựng trực tiếp.
 
 ## 11. Chiếu qua TV không dây
 

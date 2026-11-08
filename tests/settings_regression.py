@@ -461,13 +461,20 @@ def main():
         scrollbar_pointer(0x201, pointer_x, pointer_y, 1)
         try:
             check("settingsThumbDragCapturesOwnedScrollbar", owned_capture() == control(187))
+            metrics["thumbPress"] = {"before": before_position, "after": query(19),
+                "pointer": [pointer_x, pointer_y], "thumb": [drag_bar.xyThumbTop, drag_bar.xyThumbBottom],
+                "maximum": maximum}
             check("settingsThumbPressPreservesOffset", query(19) == before_position)
             scrollbar_pointer(0x200, pointer_x, pointer_y + 20, 1)
+            metrics["thumbMove"] = {"position": query(19), "maximum": query(20),
+                "hasCapture": owned_capture() == control(187)}
             check("settingsThumbDragMovesSettings", before_position < query(19) < maximum)
             _, moved_bar = scroll_geometry()
             check("settingsThumbDragPreservesGeometry", abs(moved_bar.xyThumbBottom - moved_bar.xyThumbTop - thumb_height) <= 1
                   and moved_bar.rcScrollBar.right - moved_bar.rcScrollBar.left == bar_width)
             scrollbar_pointer(0x200, pointer_x, bar_height + 40, 1)
+            metrics["thumbBeyondBottom"] = {"position": query(19), "maximum": query(20),
+                "hasCapture": owned_capture() == control(187)}
             check("settingsThumbDragClampsBeyondBottom", query(19) == maximum)
             scrollbar_pointer(0x200, pointer_x, -40, 1)
             check("settingsThumbDragClampsBeyondTop", query(19) == 0)

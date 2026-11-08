@@ -35,6 +35,8 @@ python -B (Join-Path $PSScriptRoot 'reading_meeting_integration.py')
 if ($LASTEXITCODE) { throw 'Reading / meeting integration failed.' }
 python -B (Join-Path $PSScriptRoot 'ram_pdf_history_integration.py')
 if ($LASTEXITCODE) { throw 'Continuous PDF / diagnostic history integration failed.' }
+python -B (Join-Path $PSScriptRoot 'navigation_picker_integration.py')
+if ($LASTEXITCODE) { throw 'Preview / direct Settings / protected picker integration failed.' }
 python -B (Join-Path $PSScriptRoot 'capture_shutdown_regression.py')
 if ($LASTEXITCODE) { throw 'Capture shutdown regression failed.' }
 python -B (Join-Path $PSScriptRoot 'browser_regression.py')
