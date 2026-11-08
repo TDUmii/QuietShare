@@ -269,14 +269,14 @@ void Run()
 
     WriteText(Path(L"sample.pdf"), "%PDF-1.7\n% Native PDF loader fixture; full validation is PDFium's responsibility\n%%EOF\n");
     LoadedContent content;
-    Check("pdf_bytes_retained_without_text_or_bitmap", LoadLocalContent(Path(L"sample.pdf"), content, error) && content.kind == ContentKind::Pdf && content.bytes.size() > 8 && content.text.empty() && !content.image);
+    Check("pdf_bytes_retained_without_text_or_bitmap", LoadLocalContent(Path(L"sample.pdf"), content, error) && content.kind == ContentKind::Pdf && content.bytes->size() > 8 && content.text.empty() && !content.image);
     const auto savedBytes = content.bytes;
     WriteText(Path(L"invalid.pdf"), "invalid pdf");
     Check("invalid_pdf_header_transactional", !LoadLocalContent(Path(L"invalid.pdf"), content, error) && content.bytes == savedBytes);
     LoadedContent moved(std::move(content));
-    Check("pdf_move_transfers_buffer", moved.bytes == savedBytes && content.bytes.empty());
+    Check("pdf_move_transfers_buffer", moved.bytes == savedBytes && !content.bytes);
     moved.Clear();
-    Check("pdf_clear_releases_buffer", moved.bytes.empty() && moved.bytes.capacity() == 0);
+    Check("pdf_clear_releases_buffer", !moved.bytes);
     std::vector<BYTE> large(64 * 1024 * 1024 + 1, 0);
     std::copy_n(reinterpret_cast<const BYTE *>("%PDF-1.7"), 8, large.begin());
     Write(Path(L"oversized.pdf"), large);
@@ -286,13 +286,13 @@ void Run()
     tabs.Get(pdf.id)->state = {0, 25, 175, 7, -42, 83, 24, true};
     tabs.Activate(0, error);
     tabs.EvictInactiveHeavy();
-    Check("inactive_pdf_buffer_evicted", tabs.Get(pdf.id)->loadingState == LoadingState::Unloaded && tabs.Get(pdf.id)->content.bytes.empty());
-    Check("lazy_pdf_reload_keeps_page_zoom", tabs.Activate(pdf.id, error) && tabs.Active().state.page == 7 && tabs.Active().state.zoom == 175 && tabs.Active().content.bytes == savedBytes);
+    Check("inactive_pdf_buffer_evicted", tabs.Get(pdf.id)->loadingState == LoadingState::Unloaded && !tabs.Get(pdf.id)->content.bytes);
+    Check("lazy_pdf_reload_keeps_page_zoom", tabs.Activate(pdf.id, error) && tabs.Active().state.page == 7 && tabs.Active().state.zoom == 175 && *tabs.Active().content.bytes == *savedBytes);
     tabs.Activate(0, error);
     tabs.EvictInactiveHeavy();
     WriteText(Path(L"sample.pdf"), "%PDF-1.7\nchanged PDF bytes\n%%EOF\n");
-    Check("evicted_modified_document_requires_explicit_reload", !tabs.Activate(pdf.id, error) && tabs.Active().id == 0 && tabs.Get(pdf.id)->content.bytes.empty());
-    Check("explicit_reload_of_evicted_document", tabs.Reload(pdf.id, error) && tabs.Active().content.bytes != savedBytes);
+    Check("evicted_modified_document_requires_explicit_reload", !tabs.Activate(pdf.id, error) && tabs.Active().id == 0 && !tabs.Get(pdf.id)->content.bytes);
+    Check("explicit_reload_of_evicted_document", tabs.Reload(pdf.id, error) && *tabs.Active().content.bytes != *savedBytes);
     auto image = tabs.Open(Path(L"..\\qa-content\\transparent.png"), error);
     Check("image_tab_loaded", image && tabs.Active().type == DocumentType::Image && tabs.Active().content.image);
     tabs.Get(image.id)->state.panX = 123;

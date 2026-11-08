@@ -236,11 +236,11 @@ def main() -> int:
         check("productionWindowOwned", bool(window) and native.window_pid(window) == app.pid)
         check("productionControlsInitialized", bool(wait_for(lambda: USER32.GetDlgItem(window,110),8)))
         version_label=wait_for(lambda:USER32.GetDlgItem(window,192),8)
-        check("homeVersionLabelExistsBeforePrivacyGate",bool(version_label) and native.control_text(version_label)=="v0.22.0")
+        check("homeVersionLabelExistsBeforePrivacyGate",bool(version_label) and native.control_text(version_label)=="v0.23.0")
         check("actualProductionPrivacyPreflight", bool(wait_for(lambda: send(window, GATE, timeout=6000), 20)),
               "Real production WGC gate; no QA bypass")
         USER32.ShowWindow(window, 4)
-        check("homeVersionAvailableInNativeControl",native.control_text(version_label)=="v0.22.0" and query(39)==2200)
+        check("homeVersionAvailableInNativeControl",native.control_text(version_label)=="v0.23.0" and query(39)==2300)
         affinity = wintypes.DWORD()
         check("productionAffinityReadback", USER32.GetWindowDisplayAffinity(window, ctypes.byref(affinity)) and affinity.value == 0x11)
         all_children = children(window, app.pid)
@@ -346,10 +346,12 @@ def main() -> int:
         send(code, 2613, 80)
         check("codeScrollPositionSet", send(code, 2152) == 80)
         reader_state=(query(2),query(4),send(code,2152),send(code,2008),send(code,2009))
+        def current_reader_state():return (query(2),query(4),send(code,2152),send(code,2008),send(code,2009))
         for destination,label in ((154,"Browser"),(122,"Home"),(123,"Settings")):
             command(destination);command(120)
             check("returnFrom"+label+"KeepsFileZoomScrollAndSelection",
-                  (query(2),query(4),send(code,2152),send(code,2008),send(code,2009))==reader_state and visible(code))
+                  bool(wait_for(lambda:current_reader_state()==reader_state and visible(code),5)),
+                  {"expected":reader_state,"actual":current_reader_state(),"visible":visible(code)})
         wrap_before=send(code,2269)
         command(146)
         check("productionWrapToggle", send(code, 2269) != wrap_before)
@@ -377,10 +379,17 @@ def main() -> int:
         check("pdfVisibleButtonReadsNextPage", wait_for(lambda: query(5)==2 and native.control_text(pdf_page)=="2 / 120"))
         focus_info = GuiThreadInfo();focus_info.cbSize = ctypes.sizeof(focus_info)
         check("pdfButtonReturnsReadingFocus", USER32.GetGUIThreadInfo(USER32.GetWindowThreadProcessId(window,None),ctypes.byref(focus_info)) and focus_info.hwndFocus==pdf)
+        prior=(query(5),query(88))
         send(pdf, 0x20A, ((120 & 0xFFFF) << 16), 0)
-        check("pdfWheelReadsPreviousPage", wait_for(lambda: query(5)==1 and native.control_text(pdf_page)=="1 / 120"))
-        send(pdf, 0x20A, ((-120 & 0xFFFF) << 16), 0)
-        check("pdfWheelReadsNextPage", wait_for(lambda: query(5)==2 and native.control_text(pdf_page)=="2 / 120"))
+        check("pdfWheelMovesViewportContinuously", wait_for(lambda: (query(5),query(88))!=prior))
+        for _ in range(10):
+            if query(5)==1:break
+            send(pdf, 0x20A, ((120 & 0xFFFF) << 16), 0)
+        check("pdfWheelReadsPreviousPage", query(5)==1)
+        for _ in range(10):
+            if query(5)==2:break
+            send(pdf, 0x20A, ((-120 & 0xFFFF) << 16), 0)
+        check("pdfWheelReadsNextPageWithoutTopReset",query(5)==2 and query(88)!=0)
         USER32.PostMessageW(focus_info.hwndFocus, 0x100, 0x27, 0)
         check("pdfPostedArrowReadsNextPage", wait_for(lambda: query(5)==3 and native.control_text(pdf_page)=="3 / 120"))
         command(137);command(137)
@@ -400,8 +409,10 @@ def main() -> int:
         check("perTabImageZoomPreserved", query(4) == 60)
         activate(8)
         check("perTabPdfPageZoomPreserved", query(4) == 110 and query(5) == 3)
-        send(pdf, 0x20A, (120 << 16), 0)
-        check("productionPdfWheelAboveTopReadsPreviousPage", query(5) == 2 and query(4) == 110)
+        for _ in range(20):
+            if query(5)==2:break
+            send(pdf, 0x20A, (120 << 16), 0)
+        check("productionPdfWheelAboveTopReadsPreviousPage", query(5) == 2 and query(4) == 110 and query(88)!=0)
         command(138)
 
         activate(1)

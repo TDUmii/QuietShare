@@ -30,17 +30,17 @@ A Windows companion for scripts, documents and web browsing. Smart Mirror sends 
 
 ## 🎨 What you can do / Chức năng chính
 
-- **Read and prepare:** quick switch (Ctrl+K), presentation sets, scripts, editable text/code, PDF thumbnails/bookmarks and page cues.
+- **Read and prepare:** quick switch (Ctrl+K), presentation sets, scripts, editable text/code, continuous PDF scrolling and page cues.
 
-  **Đọc và chuẩn bị:** Home gọn, chuyển nhanh (Ctrl+K), bộ thuyết trình đã lưu, lời nhắc, sửa văn bản/code, ảnh thu nhỏ/dấu trang PDF và lời nhắc gắn trang.
+  **Đọc và chuẩn bị:** chuyển nhanh (Ctrl+K), bộ thuyết trình, lời nhắc, sửa văn bản/code, PDF cuộn liên tục và lời nhắc gắn trang.
 
 - **Make it readable:** ten themes, custom colors and three usage profiles. Settings uses left categories or a compact picker. Reading tools stay beside content.
 
   **Dễ đọc hơn:** mười theme, màu riêng và ba hồ sơ. Cài đặt có danh mục trái hoặc nút chọn gọn. Công cụ đọc nằm cạnh nội dung.
 
-- **Browse when needed:** optional WebView2, 8 tabs, grouped UI updates and background memory requests. Retained tabs support retry after crashes. Diagnostics has stable codes. Browsing starts disabled.
+- **Browse when needed:** optional WebView2, 8 tabs and manual deep sleep to release background RAM. Reopen a sleeping tab to reload it. Diagnostics exports 100 recent error codes as JSON. Browsing starts disabled.
 
-  **Duyệt web khi cần:** WebView2 tùy chọn, tối đa 8 tab, gom cập nhật giao diện và yêu cầu giảm bộ nhớ tab nền. Tab crash có thể tải lại. Chẩn đoán có mã lỗi cố định. Mở ứng dụng luôn tắt trình duyệt.
+  **Duyệt web khi cần:** WebView2 tùy chọn, 8 tab và nghỉ sâu chủ động để giải phóng RAM tab nền. Chọn lại để tải trang. Chẩn đoán xuất 100 mã lỗi gần nhất ra JSON. Mở ứng dụng luôn tắt trình duyệt.
 
 - **Record and transcribe:** optional offline Whisper (Small by default), English/Vietnamese, editable timed notes and TXT/VTT/minutes export. Import Teams/Zoom/Meet transcripts for speaker names.
 

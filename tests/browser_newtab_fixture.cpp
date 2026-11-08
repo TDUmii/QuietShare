@@ -143,6 +143,14 @@ int wmain(int argc,wchar_t** argv){
             Check("nativeUnmuteUpdatesEveryExistingTab",allMuted(false));
             browser.SetMediaPreferences(true,true,true);
             Check("nativeMuteUpdatesEveryExistingTab",allMuted(true));
+            const auto secondTab=browser.ActiveTabId();auto firstState=browser.impl->Find(originalTab);firstState->cameraOrigin=L"https://example.com";
+            Check("deepSleepKeepsDeviceGrantedTabs",browser.SleepBackgroundTabs()==0&&browser.ControllerCount()==2);
+            firstState->cameraOrigin.clear();
+            Check("explicitDeepSleepReleasesOnlyBackgroundController",browser.SleepBackgroundTabs()==1&&browser.ControllerCount()==1&&browser.DormantCount()==1&&browser.Ready()&&browser.Verified()&&browser.ActiveTabId()==secondTab);
+            Check("deepSleepPreservesTabMetadataWithoutLoadingSpinner",browser.Tabs().size()==2&&!browser.Tabs().front().loading&&browser.Tabs().front().id==originalTab);
+            Check("openingDormantTabRequiresANewProof",browser.ActivateTab(originalTab)&&!browser.Ready()&&!browser.Verified()&&browser.PendingTabCount()==1);
+            Check("dormantTabRestoresAfterFixtureProof",Pump([&](){return browser.Ready()&&browser.Loaded();},25000)&&browser.DormantCount()==0&&browser.ControllerCount()==2&&browser.ActiveTabId()==originalTab);
+            browser.CloseTab(secondTab);
             if(browser.ActiveTabId()!=originalTab){browser.CloseTab(browser.ActiveTabId());Pump([&](){return browser.ActiveTabId()==originalTab&&browser.Loaded();});}
             auto tab=browser.impl->Active();auto profile4=tab->MediaProfile();auto permissionComplete=std::make_shared<bool>(false);
             auto remembered=new quietshare::PermissionCompletion([permissionComplete](HRESULT hr){*permissionComplete=SUCCEEDED(hr);});

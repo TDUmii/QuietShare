@@ -259,7 +259,7 @@ int Run()
     const auto fallbackCase = [&](const wchar_t *name, std::vector<BYTE> bytes, const char *check) {
         Write(Path(name), bytes);
         Check(check, LoadLocalContent(Path(name), content, error) && content.kind == ContentKind::Code &&
-                         content.text == sample && !content.image && content.bytes.empty() && error.empty());
+                         content.text == sample && !content.image && !content.bytes && error.empty());
     };
     fallbackCase(L"text.custom", Utf8(sample), "unknown_utf8_plain_monochrome_preserves_unicode_indentation");
     fallbackCase(L"bom.custom", Utf8(sample, true), "unknown_utf8_bom_plain_fallback");

@@ -148,3 +148,13 @@ Kiểm tra WGC trong phiên khỏe mạnh không tự kết thúc phiên.
 Usage profiles are DPAPI-encrypted in workspace-profiles.dpapi. The fixed browser-fault.dat record stores process type, time, count and numeric reason/exit only. Diagnostics copying is explicit.
 
 Hồ sơ sử dụng được DPAPI mã hóa trong workspace-profiles.dpapi. browser-fault.dat chỉ giữ loại tiến trình, thời gian, số sự kiện và reason/exit dạng số. Chỉ sao chép chẩn đoán khi chủ động chọn.
+
+## Fixed-field diagnostic history / Lịch sử chẩn đoán trường cố định
+
+The local `error-history.dat` keeps at most 100 mapped events (6,012 bytes). It contains UTC, version, fixed QS codes, phases and numeric results only. Explicit JSON export also includes Windows build, current display/protection flags, resource mode, tab counts and private-memory measurements with completeness flags. No notes, paths, URLs, tab titles, audio, screenshots or screen identifiers are included. QuietShare does not upload these files. Default exports use Downloads / QuietShare-Diagnostics. The chosen folder preference is encrypted with Windows DPAPI.
+
+File cục bộ `error-history.dat` giữ tối đa 100 sự kiện có mã (6.012 byte). Chỉ có UTC, phiên bản, mã QS cố định, giai đoạn và kết quả dạng số. JSON do bạn chủ động xuất thêm bản Windows, cờ màn hình/bảo vệ hiện tại, chế độ tài nguyên, số tab và bộ nhớ riêng kèm cờ đo đầy đủ. Không chứa lời nhắc, đường dẫn, URL, tên tab, âm thanh, ảnh chụp hoặc định danh màn hình. QuietShare không tải các file này lên mạng. Mặc định xuất vào Downloads / QuietShare-Diagnostics. Lựa chọn thư mục được mã hóa bằng Windows DPAPI.
+
+Manual background-tab deep sleep discards eligible running pages after confirmation. Addresses, titles and zoom remain in memory for this session. Reopening reloads and verifies the page. Unsent forms, scroll and page navigation history may be lost. Active, audible and microphone/camera-granted tabs are retained.
+
+Nghỉ sâu tab nền bỏ trang đang chạy đủ điều kiện sau khi xác nhận. Địa chỉ, tiêu đề và zoom giữ trong RAM của phiên. Mở lại sẽ tải và xác minh trang. Ô nhập chưa gửi, vị trí cuộn và lịch sử điều hướng có thể mất. Tab đang xem, phát âm thanh hoặc được cấp micro/camera được giữ.

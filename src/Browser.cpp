@@ -1,4 +1,5 @@
 #include "Browser.h"
+#include "DiagnosticHistory.h"
 #include "Privacy.h"
 #include <WebView2.h>
 #include "../vendor/webview2/WebGuids.h"
@@ -9,6 +10,7 @@
 #include <sstream>
 #include <deque>
 #include <cstdio>
+#include <psapi.h>
 namespace quietshare {
 namespace {
 template<class T> struct Com {
@@ -233,6 +235,7 @@ struct Browser::Impl:std::enable_shared_from_this<Browser::Impl> {
     bool processRetry=false,environmentFailed=false,environmentExited=false;
     bool changedPending=false;
     bool reducedMemory=false;
+    bool dormant=false;
     int faultKind=-1,faultReason=-1,faultExit=0;DWORD faultCount=0;SYSTEMTIME faultUtc{};
     std::wstring diagnosticPath;
     bool StartEnvironment();
@@ -256,6 +259,7 @@ struct Browser::Impl:std::enable_shared_from_this<Browser::Impl> {
         manager->faultKind=static_cast<int>(kind);manager->faultReason=reason;manager->faultExit=exit;
         if(manager->faultCount<0xffffffffu)++manager->faultCount;GetSystemTime(&manager->faultUtc);
         const auto& utc=manager->faultUtc;
+        RecordDiagnostic(manager->diagnosticPath,'B',static_cast<int>(kind)>=0&&static_cast<int>(kind)<=9?static_cast<DWORD>(kind)+1:99,0,static_cast<DWORD>(reason),static_cast<DWORD>(exit));
         const DWORD record[]={0x42515351,1,manager->faultCount,static_cast<DWORD>(kind),static_cast<DWORD>(reason),static_cast<DWORD>(exit),
             utc.wYear,utc.wMonth,utc.wDay,utc.wHour,utc.wMinute,utc.wSecond};
         if(!manager->diagnosticPath.empty()){const auto temporary=manager->diagnosticPath+L".tmp";DWORD written=0;
@@ -264,7 +268,7 @@ struct Browser::Impl:std::enable_shared_from_this<Browser::Impl> {
                 if(ok)MoveFileExW(temporary.c_str(),manager->diagnosticPath.c_str(),MOVEFILE_REPLACE_EXISTING|MOVEFILE_WRITE_THROUGH);else DeleteFileW(temporary.c_str());}}
         if(kind==COREWEBVIEW2_PROCESS_FAILED_KIND_BROWSER_PROCESS_EXITED){
             manager->environmentFailed=true;const auto snapshot=manager->tabs;const auto epoch=manager->generation;
-            for(const auto& tab:snapshot){if(!manager->Current(tab,epoch))break;tab->processRetry=true;tab->Fail(200+static_cast<int>(kind));}
+            for(const auto& tab:snapshot){if(!manager->Current(tab,epoch))break;if(!tab->dormant){tab->processRetry=true;tab->Fail(200+static_cast<int>(kind));}}
         }else if(kind==COREWEBVIEW2_PROCESS_FAILED_KIND_RENDER_PROCESS_EXITED||static_cast<int>(kind)<0||static_cast<int>(kind)>9){
             processRetry=true;Fail(200+static_cast<int>(kind));
         }else{
@@ -306,6 +310,19 @@ struct Browser::Impl:std::enable_shared_from_this<Browser::Impl> {
         Com<ICoreWebView2Controller> closingController;closingController.reset(controller.detach());
         Com<ICoreWebView2> closingWeb;closingWeb.reset(web.detach());
         if(closingController){closingController->put_IsVisible(FALSE);closingController->Close();}Notify();}
+    void SleepDeep(){
+        ++generation;dormant=true;ready=verified=visible=probing=navigating=loaded=suspendPending=reducedMemory=false;pid=0;error=0;pending.clear();notice.clear();
+        Com<ICoreWebView2Controller> closing;closing.reset(controller.detach());Com<ICoreWebView2> oldWeb;oldWeb.reset(web.detach());
+        if(closing){closing->put_IsVisible(FALSE);closing->Close();}Notify();
+    }
+    bool Recreate(const std::shared_ptr<Impl>& tab){
+        if(!enabled||locked||pendingId||!tab||(tab->locked&&!tab->dormant)||(environmentFailed&&!environmentExited))return false;
+        if(tab->dormant)tab->locked=false;
+        tab->pending=tab->address;tab->error=0;tab->dormant=false;tab->processRetry=false;tab->enabled=true;tab->notice.clear();pendingId=tab->id;
+        if(environmentFailed){++generation;changedPending=false;environment.reset();environmentFailed=environmentExited=false;StartEnvironment();}
+        else CreateController(tab);
+        Notify();return true;
+    }
     template<class I> bool Query(Com<I>& out){Com<ICoreWebView2> source;source.hold(web.p);return source&&SUCCEEDED(source->QueryInterface(WebGuid<I>(),reinterpret_cast<void**>(out.put())));}
     bool ApplyMute(){
         auto manager=owner.lock();if(!manager||!web)return false;
@@ -687,7 +704,7 @@ void Browser::FinishProbe(bool passed,unsigned token){auto s=impl;auto tab=s->Fi
     s->UpdateVisible();tab->Notify();
 }
 std::vector<BrowserTab> Browser::Tabs()const{std::vector<BrowserTab> result;
-    for(const auto& tab:impl->tabs)result.push_back({tab->id,tab->title,tab->address,(!tab->error&&!tab->ready)||tab->navigating,tab->ready,impl->activeId==tab->id,tab->zoomPercent});
+    for(const auto& tab:impl->tabs)result.push_back({tab->id,tab->title,tab->address,(!tab->error&&!tab->ready&&!tab->dormant)||tab->navigating,tab->ready,impl->activeId==tab->id,tab->zoomPercent});
     return result;}
 int Browser::ActiveTab()const{for(size_t i=0;i<impl->tabs.size();++i)if(impl->tabs[i]->id==impl->activeId)return static_cast<int>(i);return -1;}
 unsigned Browser::ActiveTabId()const{return impl->activeId;}
@@ -700,9 +717,11 @@ bool Browser::CloseTab(unsigned id){auto s=impl;auto found=std::find_if(s->tabs.
     s->actions.erase(std::remove_if(s->actions.begin(),s->actions.end(),[&](const auto& item){return item.id==id;}),s->actions.end());
     if(s->tabs.empty()){s->Close();closing->Close();return true;}
     if(active)s->activeId=s->tabs[std::min(index,s->tabs.size()-1)]->id;
-    closing->Close();if(!s->enabled||s->generation!=epoch)return true;s->UpdateVisible();s->Notify();return true;}
+    closing->Close();if(!s->enabled||s->generation!=epoch)return true;
+    if(auto next=s->Active();next&&next->dormant&&!s->Recreate(next)){next->error=200;next->processRetry=true;next->notice=L"waiting-exit";}s->UpdateVisible();s->Notify();return true;}
 bool Browser::ActivateTab(unsigned id){auto s=impl;auto tab=s->Find(id);if(!s->enabled||s->locked||!tab)return false;if(s->activeId==id)return true;
-    s->actions.clear();s->activeId=id;s->UpdateVisible();if(tab->localPage)tab->LoadNewTab();s->Notify();s->NotifyZoom();return true;}
+    if(tab->dormant&&(s->pendingId||(s->environmentFailed&&!s->environmentExited)))return false;
+    s->actions.clear();s->activeId=id;s->UpdateVisible();if(tab->dormant)s->Recreate(tab);else if(tab->localPage)tab->LoadNewTab();s->Notify();s->NotifyZoom();return true;}
 bool Browser::CycleTab(bool previous){const int active=ActiveTab(),count=static_cast<int>(impl->tabs.size());if(active<0||!count)return false;return ActivateTab(impl->tabs[(active+count+(previous?-1:1))%count]->id);}
 bool Browser::ProcessTabAction(int action){auto s=impl;int value=0;std::wstring address;
     if(action==BrowserTabQueued){if(s->actions.empty())return false;auto queued=std::move(s->actions.front());s->actions.pop_front();auto source=s->Find(queued.id);
@@ -752,6 +771,25 @@ unsigned Browser::BackgroundSuspendedCount()const{auto s=impl;unsigned count=0;c
         if(tab->Query(control)&&SUCCEEDED(control->get_IsSuspended(&suspended))&&suspended&&s->Current(tab,epoch)&&tab->id!=s->activeId)++count;}}return count;}
 unsigned Browser::PendingTabCount()const{return impl->pendingId?1:0;}
 unsigned Browser::ControllerCount()const{unsigned count=0;for(const auto& tab:impl->tabs)if(tab->controller)++count;return count;}
+unsigned Browser::DormantCount()const{unsigned count=0;for(const auto& tab:impl->tabs)if(tab->dormant)++count;return count;}
+bool Browser::PrivateMemoryBytes(unsigned long long& bytes)const{bytes=0;auto s=impl;if(!s->enabled)return true;
+    Com<ICoreWebView2Environment8> env;if(!s->environment||FAILED(s->environment->QueryInterface(WebGuid<ICoreWebView2Environment8>(),reinterpret_cast<void**>(env.put()))))return false;
+    Com<ICoreWebView2ProcessInfoCollection> entries;if(FAILED(env->GetProcessInfos(entries.put())))return false;UINT count=0;if(FAILED(entries->get_Count(&count))||count>256)return false;
+    bool complete=true;std::vector<UINT> seen;
+    for(UINT i=0;i<count;++i){Com<ICoreWebView2ProcessInfo> entry;INT32 pid=0;if(FAILED(entries->GetValueAtIndex(i,entry.put()))||FAILED(entry->get_ProcessId(&pid))||pid<=0){complete=false;continue;}
+        if(std::find(seen.begin(),seen.end(),static_cast<UINT>(pid))!=seen.end())continue;seen.push_back(pid);HANDLE process=OpenProcess(PROCESS_QUERY_INFORMATION|PROCESS_VM_READ,FALSE,pid);unsigned long long value=0;
+        if(process){if(DiagnosticPrivateMemory(process,value))bytes+=value;else complete=false;CloseHandle(process);}else complete=false;}
+    return complete;
+}
+unsigned Browser::SleepBackgroundTabs(){auto s=impl;if(!s->enabled||s->locked||s->pendingId)return 0;unsigned count=0;
+    const auto snapshot=s->tabs;const unsigned epoch=s->generation;
+    for(const auto& tab:snapshot){if(!s->Current(tab,epoch)||s->locked)break;
+        if(tab->id==s->activeId||!tab->ready||tab->probing||!tab->cameraOrigin.empty()||!tab->microphoneOrigin.empty())continue;
+        Com<ICoreWebView2_8> audio;BOOL playing=TRUE;
+        if(!tab->Query(audio)||FAILED(audio->get_IsDocumentPlayingAudio(&playing))||playing)continue;
+        if(s->Current(tab,epoch)&&tab->id!=s->activeId){tab->SleepDeep();++count;}}
+    if(auto current=s->Active())current->notice=L"deep-sleep";s->Notify();return count;
+}
 void Browser::Navigate(const std::wstring& value){auto s=impl;auto tab=s->Active();std::wstring address;if(!tab||!tab->ready||tab->locked||s->locked||!tab->web)return;
     if(value.empty()){tab->newTabError.clear();tab->LoadNewTab();return;}
     if(!ResolveWebInput(value,address)){tab->notice=L"address";tab->Notify();return;}tab->loaded=false;tab->navigating=true;tab->notice.clear();if(FAILED(tab->web->Navigate(address.c_str()))){tab->navigating=false;tab->notice=L"navigation";tab->Notify();}}
@@ -762,10 +800,7 @@ void Browser::Reload(){auto s=impl;auto tab=s->Active();if(!tab||s->locked||tab-
     if(Ready()){tab->notice.clear();if(tab->localPage)tab->LoadNewTab();else tab->web->Reload();return;}
     if(!CanRetry())return;
     if(s->environmentFailed&&!s->environmentExited){tab->notice=L"waiting-exit";s->Notify();return;}
-    tab->pending=tab->address;tab->error=0;tab->processRetry=false;tab->enabled=true;tab->notice.clear();s->pendingId=tab->id;
-    if(s->environmentFailed){++s->generation;s->changedPending=false;s->environment.reset();s->environmentFailed=s->environmentExited=false;s->StartEnvironment();}
-    else s->CreateController(tab);
-    s->Notify();
+    s->Recreate(tab);
 }
 void Browser::SetDiagnosticPath(const std::wstring& path){auto s=impl;s->diagnosticPath=path;DWORD record[12]{};DWORD read=0;LARGE_INTEGER size{};
     HANDLE f=CreateFileW(path.c_str(),GENERIC_READ,FILE_SHARE_READ,nullptr,OPEN_EXISTING,FILE_ATTRIBUTE_NORMAL,nullptr);if(f==INVALID_HANDLE_VALUE)return;
@@ -812,6 +847,7 @@ std::wstring Browser::Status(bool en)const{
     if(tab&&tab->notice==L"process-recovered")return en?L"A browser process restarted. The verified tab is retained. Details are available in diagnostics.":L"Một tiến trình web vừa khởi động lại. Giữ tab đã kiểm tra. Có chi tiết trong chẩn đoán.";
     if(tab&&tab->notice==L"address")return en?L"Enter search terms or an HTTP / HTTPS web address.":L"Nhập từ khóa tìm kiếm hoặc địa chỉ web HTTP / HTTPS.";
     if(tab&&tab->notice==L"navigation")return en?L"Page could not load. Check the connection or reload.":L"Không tải được trang. Kiểm tra kết nối hoặc tải lại.";
+    if(DormantCount()||(tab&&tab->notice==L"deep-sleep"))return std::to_wstring(DormantCount())+(en?L" tabs in deep sleep. They reload when opened.":L" tab nghỉ sâu. Tab sẽ tải lại khi mở.");
     return en?L"Web · Separate profile":L"Web · Hồ sơ riêng";
 }
 }

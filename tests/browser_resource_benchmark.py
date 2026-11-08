@@ -51,11 +51,11 @@ class Feed(http.server.BaseHTTPRequestHandler):
         </script>'''
         self.send_response(200);self.send_header('Content-Type','text/html');self.send_header('Content-Length',str(len(html)));self.end_headers();self.wfile.write(html)
     def log_message(self,*args):pass
-def run(exe,seconds,verify=False):
+def run(exe,seconds,verify=False,deep_sleep=False):
     root=api.ROOT/'artifacts/qa-browser-resources'/uuid.uuid4().hex;root.mkdir(parents=True)
     profile=root/'User';profile.mkdir();env=os.environ.copy();env['LOCALAPPDATA']=str(profile)
     server=http.server.ThreadingHTTPServer(('127.0.0.1',0),Feed);threading.Thread(target=server.serve_forever,daemon=True).start()
-    app=None;stages={};quick_selection_kept=None
+    app=None;stages={};quick_selection_kept=None;discard_checks={}
     try:
         assert not api.native.app_windows(),'A personal QuietShare session is open'
         app=subprocess.Popen([str(exe)],cwd=str(exe.parent),env=env)
@@ -75,6 +75,7 @@ def run(exe,seconds,verify=False):
                 'workingSetMiB':statistics.median(sum(v[2] for v in s.values())/1048576 for s in samples),
                 'hostPrivateMiB':statistics.median(s.get(app.pid,(0,0,0))[1]/1048576 for s in samples),
                 'processCount':len(last),'tabs':q(34),'backgroundSuspended':q(36),'activeSuspended':q(15),
+                'controllers':q(38),'dormantTabs':q(86),
                 'nativeLayoutsPerSecond':(q(85)-layouts)/elapsed,
                 'readerVisible':api.visible(api.USER32.GetDlgItem(h,110)),
                 'wgcVerified':bool(api.send(h,api.GATE,timeout=6000))}
@@ -92,6 +93,19 @@ def run(exe,seconds,verify=False):
         measure('fourFeeds')
         cmd(127);measure('fourFeedsHiddenByReader')
         cmd(154);assert api.wait_for(lambda:q(10)==2,10);measure('fourFeedsResumed')
+        if deep_sleep:
+            selected=q(35);cmd(377)
+            menu=api.wait_for(lambda:api.owned_popup(app.pid),5);assert menu,'Deep sleep confirmation missing'
+            api.USER32.PostMessageW(menu,0x100,0x0D,0)
+            assert api.wait_for(lambda:not api.USER32.IsWindow(menu),5)
+            assert api.wait_for(lambda:q(86)==3 and q(38)==1,15),'Background controllers were not released'
+            measure('backgroundDeepSleep')
+            discard_checks['deep sleep retains all tab identities and active controller']=q(34)==4 and q(35)==selected and q(13)==1
+            # Stable IDs are sequential in this isolated fresh profile. Restore
+            # the first tab and require actual mounted-surface verification.
+            api.send(h,0x8000+25,1)
+            discard_checks['reopening a dormant tab restores its address after fresh proof']=bool(api.wait_for(lambda:q(35)==1 and q(10)==2 and q(13)==1 and q(86)==2 and q(38)==2 and api.native.control_text(api.USER32.GetDlgItem(h,164)).endswith('/1'),25))
+            assert all(discard_checks.values())
         if verify:
             cmd(280);lst=api.USER32.GetDlgItem(h,282)
             assert api.wait_for(lambda:api.visible(lst),5)
@@ -105,11 +119,11 @@ def run(exe,seconds,verify=False):
             for h in api.native.app_windows(app.pid):api.USER32.PostMessageW(h,0x10,0,0)
             try:app.wait(timeout=10)
             except subprocess.TimeoutExpired:app.terminate();app.wait(timeout=5)
-    return {'exeSha256':hashlib.sha256(exe.read_bytes()).hexdigest(),'secondsPerStage':seconds,'stages':stages,'quickSelectionKept':quick_selection_kept,'syntheticLocalFeed':True,'physicalProjection':False}
+    return {'exeSha256':hashlib.sha256(exe.read_bytes()).hexdigest(),'secondsPerStage':seconds,'stages':stages,'quickSelectionKept':quick_selection_kept,'discardChecks':discard_checks,'syntheticLocalFeed':True,'physicalProjection':False}
 if __name__=='__main__':
-    ap=argparse.ArgumentParser();ap.add_argument('--exe',type=Path,default=api.EXE);ap.add_argument('--seconds',type=float,default=6);ap.add_argument('--output',type=Path,required=True);ap.add_argument('--check',action='store_true');args=ap.parse_args()
+    ap=argparse.ArgumentParser();ap.add_argument('--exe',type=Path,default=api.EXE);ap.add_argument('--seconds',type=float,default=6);ap.add_argument('--output',type=Path,required=True);ap.add_argument('--check',action='store_true');ap.add_argument('--deep-sleep',action='store_true');args=ap.parse_args()
     assert 3<=args.seconds<=30
-    result=run(args.exe.resolve(),args.seconds,args.check)
+    result=run(args.exe.resolve(),args.seconds,args.check,args.deep_sleep)
     if args.check:
         s=result['stages'];checks={
             'actual WGC remains verified in every workload':all(v['wgcVerified'] for v in s.values()),
@@ -121,6 +135,9 @@ if __name__=='__main__':
             'busy web updates preserve quick switch selection':result['quickSelectionKept'] is True,
             'disabling browsing releases every tab and owned child process':s['browserDisabled']['tabs']==0 and s['browserDisabled']['processCount']==1,
             'offline Home starts with no web processes':s['home']['tabs']==0 and s['home']['processCount']==1}
+        checks.update(result['discardChecks'])
+        if args.deep_sleep:
+            checks['deep sleep releases three background controllers']=s['backgroundDeepSleep']['controllers']==1 and s['backgroundDeepSleep']['dormantTabs']==3
         result.update(checks=checks,passed=sum(checks.values()),failed=sum(not v for v in checks.values()))
     args.output.parent.mkdir(parents=True,exist_ok=True);args.output.write_text(json.dumps(result,indent=2),encoding='utf-8')
     if args.check:

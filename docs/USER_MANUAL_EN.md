@@ -2,7 +2,7 @@
 
 > **Illustrated walkthrough:** [8 real UI screenshots with numbered red click targets](VISUAL_GUIDE_EN.md).
 
-English edition - QuietShare v0.22.0
+English edition - QuietShare v0.23.0
 
 Read, prepare and present with private notes on Windows.
 
@@ -275,8 +275,8 @@ When code lines are too long, enable wrap. When inspecting indentation or alignm
 
 1. Open a supported local PDF.
 2. Use Previous and Next beside the page number / total in the PDF toolbar. These controls remain visible in focus mode and when the main toolbar is hidden.
-3. With the PDF focused, use Page Up/Page Down or Left/Right to change pages. Up/Down scroll within and across pages. The overflow menu also offers Fit Width.
-4. Use the wheel to change pages when the whole page fits. Tall or zoomed pages pan within their bounds first. At an edge, the next wheel notch changes pages. Going back enters the previous page at its bottom. Ctrl+wheel zooms. You can also drag a blank part of the page to pan.
+3. Scroll continuously through adjacent pages with the wheel, scrollbar, Up/Down or Page Up/Page Down. Left/Right and the page buttons jump to a selected page. The overflow menu also offers Fit Width.
+4. A wheel movement keeps its offset across page boundaries, without resetting each page to its top. Fine wheel input also moves the viewport. Ctrl+wheel zooms. Drag blank space to pan. Switching workspaces preserves the reading position.
 5. Drag over text to select it when the PDF provides a text layer.
 6. Use Ctrl+F to search searchable text.
 
@@ -290,9 +290,9 @@ When code lines are too long, enable wrap. When inspecting indentation or alignm
 6. Adjust the cue reader using A- / A+. Its reading position stays stable when changing size or weight.
 7. Wide windows place cues beside the PDF. Small windows move cues below it. Hide either panel whenever unnecessary.
 
-Thumbnails are rendered only for visible rows. Their LRU cache is capped at 12 images and 2 MiB, separate from the active page bitmap. Hiding the rail releases the thumbnail cache. Bookmarks and cue links are encrypted locally, with up to 32 PDFs, 64 bookmarks and 128 section links per PDF. Original PDF files remain unchanged.
+Thumbnails are rendered only for visible rows. Their LRU cache is capped at 12 images and 2 MiB, separate from the visible-page tile cache. Hiding the rail releases the thumbnail cache. Bookmarks and cue links are encrypted locally, with up to 32 PDFs, 64 bookmarks and 128 section links per PDF. Original PDF files remain unchanged.
 
-Scanned pages without a text layer cannot provide ordinary text search or copy. QuietShare renders one PDF page at a time. It does not edit PDF contents or remove passwords.
+Scanned pages without a text layer cannot provide ordinary text search or copy. QuietShare renders visible portions of adjacent pages. Up to eight clipped bitmap tiles share a 48 MiB budget. The original PDF buffer is shared rather than copied by the viewer. It does not edit PDF contents or remove passwords.
 
 ### Find text
 
@@ -423,9 +423,17 @@ Search words are submitted to Google. Websites you open receive normal network r
 
 New tabs must pass capture verification. Background tabs receive suspension requests. A page or runtime may continue some activity despite that request.
 
-Busy page metadata updates are grouped so they do not repeatedly rebuild the whole interface. Hidden web pages do not trigger layout work in the active file/script reader. If WebView2 refuses a background sleep request, QuietShare requests a lower memory target when the runtime supports it, then restores the normal target on return. This preserves the controller and unsent page state. It does not discard or reload tabs. Memory reduction is best effort and depends on the site and runtime.
+Busy page metadata updates are grouped so they do not repeatedly rebuild the whole interface. Hidden web pages do not trigger layout work in the active file/script reader. If WebView2 refuses a background sleep request, QuietShare requests a lower memory target when the runtime supports it, then restores the normal target on return. This preserves the controller and unsent page state. This automatic mode does not discard or reload tabs. Memory reduction is best effort and depends on the site and runtime.
 
 If you enable browsing during projection, QuietShare holds the last public frame while verifying. This can last up to about five seconds. Failure or cancellation stops projection. Check the projection result before continuing.
+
+### Release background-tab memory
+
+1. Open the Browser overflow menu and select **Deep sleep background tabs to release RAM**.
+2. Save unsent forms first. Confirm the warning to discard the running pages of eligible background tabs.
+3. The active tab, audible tabs and tabs with microphone/camera grants are kept.
+4. Dormant tabs retain their address, title and zoom in this session. Select one to reload it and run fresh capture verification before display. Unsent forms, scroll position and page navigation history may be lost.
+5. This action is manual. To release all web resources, disable browsing. Website memory needs still vary.
 
 ### When a page or browser process fails
 
@@ -967,6 +975,28 @@ The record contains:
 - `resourceMode`: the selected processing mode.
 
 `0x00000000` means no failing HRESULT was attached. It does not mean projection succeeded. The record excludes screenshots, private text, file paths, URLs and display identifiers. Diagnostic write failure never permits projection.
+
+### Export recent error history
+
+1. Open **Last-stop diagnostics** from Projection or Browser settings.
+2. Select **Export error history** (JSON), or press Ctrl+S on this page. The report can be exported while private content is masked.
+3. Find the new file in **Downloads / QuietShare-Diagnostics**. To choose another existing local folder, use **Settings > Data > Export folder** before exporting.
+4. Send this JSON with the steps that caused the problem. QuietShare never uploads it automatically.
+
+The local journal `error-history.dat` retains the newest 100 mapped events across restarts, using at most 6,012 bytes. It records UTC, version, QS code, phase, numeric detail and HRESULT or browser exit code. The export adds Windows build, display topology/protection flags, resource mode, tab counts and a current private-memory snapshot with completeness flags. These values describe this computer at export time. Receiver verification is not inferred.
+
+The journal does not contain notes, file paths, URLs, tab titles, audio or screenshots. It is a fixed-field diagnostic file, not a full crash dump. It starts collecting in v0.23.0 and cannot reconstruct earlier failures. Unmapped errors and events that could not be written may be absent.
+
+| Code | Recovery |
+|---|---|
+| `QS-D004` | PDF rendering reached its memory/time budget. Reduce zoom or close another PDF, then retry. A complex page may need a simpler copy. |
+| `QS-D005` | PDF page or bitmap could not be loaded. Reopen the file and check it in another reader. Keep the original. |
+| `QS-F001` | Local file/path/format was rejected. Check chapter 4 limits and open a supported local copy. |
+| `QS-F002` | File could not be saved. Preserve your draft, check write access, free space and external changes before retrying. |
+| `QS-F003` | The viewer could not open the file. Check that the file is valid, supported and not password-protected. |
+| `QS-J001` | History is unreadable. Close QuietShare and back up error-history.dat. Restore a good copy or rename it before reopening to start a new journal. The app preserves the bad file. |
+| `QS-J002` | Some events were not saved. Check local data-folder write access and free space. Missing events cannot be recreated. |
+| `QS-J003` | JSON export or its folder preference failed. Select an existing writable local folder, check free space and retry. |
 
 ### Report a reproducible problem
 

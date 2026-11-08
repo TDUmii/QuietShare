@@ -8,7 +8,7 @@ import shutil
 import subprocess
 
 ROOT = Path(__file__).resolve().parents[1]
-VERSION = '0.22.0'
+VERSION = '0.23.0'
 
 def sha256(path):
     return hashlib.sha256((ROOT / path).read_bytes()).hexdigest()
@@ -36,6 +36,7 @@ def main():
     settings = read('qa-settings/settings-regression.json')
     upgrade = read('settings-browser-upgrade.json')
     resources = read('browser-resource-regression.json')
+    ram_pdf_history = read('ram-pdf-history-integration.json')
     documentation = read('docs-regression.json')
     manuals = read('manuals-regression.json')
     scrollbar = read('scrollbar-check.json')
@@ -56,6 +57,7 @@ def main():
     assert browser['exeSha256']==actual_hash and not browser['failure']
     assert upgrade['exeSha256']==actual_hash and upgrade['failed']==0 and not upgrade['failure']
     assert resources['exeSha256']==actual_hash and resources['failed']==0
+    assert ram_pdf_history['exeSha256']==actual_hash and ram_pdf_history['failed']==0 and not ram_pdf_history['failure']
     assert documentation['failed']==manuals['failed']==0 and manuals['version']==VERSION
     for path, expected in documentation['sourceSha256'].items():
         assert sha256(path)==expected, path
@@ -87,6 +89,7 @@ def main():
     native_sources = sorted([*ROOT.glob('src/*.cpp'), *ROOT.glob('src/*.h')])
     for folder, stem, fixture in (
         ('qa-preferences', 'preferences-regression', 'preferences_regression.cpp'),
+        ('qa-diagnostic-history', 'diagnostic-history-regression', 'diagnostic_history_regression.cpp'),
         ('qa-workspace', 'workspace-regression', 'workspace_regression.cpp'),
         ('qa-mirror', 'mirror-regression', 'mirror_regression.cpp'),
         ('qa-mirror', 'mirror-render-regression', 'mirror_render_regression.cpp'),
@@ -109,6 +112,8 @@ def main():
                                 'sourceSha256': {path.relative_to(ROOT).as_posix(): sha256(path) for path in sources}}
     reports = [
         ('Content / file policy','qa-content/content-regression.json'),
+        ('Bounded fixed-field diagnostic journal / restart / corruption','qa-diagnostic-history/diagnostic-history-regression.json'),
+        ('Shipping continuous PDF / private JSON error export','ram-pdf-history-integration.json'),
         ('Workspace / encrypted history / editing','qa-workspace/workspace-regression.json'),
         ('Preferences / atomic shortcuts / validation','qa-preferences/preferences-regression.json'),
         ('Workspace profiles / encrypted bounds / atomic recovery','qa-workspace-profiles/workspace-profiles-regression.json'),

@@ -10,6 +10,7 @@
 
 #include <string>
 #include <vector>
+#include <memory>
 
 namespace quietshare
 {
@@ -30,7 +31,7 @@ struct LoadedContent
     std::wstring displayName;
     std::wstring text;
     // Retained PDF bytes keep PDFium's memory document alive. Other types leave this empty.
-    std::vector<unsigned char> bytes;
+    std::shared_ptr<const std::vector<unsigned char>> bytes;
     HBITMAP image = nullptr;
     int width = 0;
     int height = 0;

@@ -114,3 +114,24 @@ Sự kiện tiến trình web và lỗi chiếu là hai bản ghi riêng. So th�
 
 - **QS-W009:** không đọc được hồ sơ. Đóng ứng dụng, sao lưu workspace-profiles.dpapi, khôi phục bằng cùng tài khoản Windows hoặc đổi tên để tạo mới.
 - **QS-W010:** không lưu được hồ sơ/màu. Kiểm tra quyền ghi và dung lượng, giữ file cũ rồi thử lại.
+
+## Export error history / Xuất lịch sử lỗi
+
+Open **Settings > Projection or Browser > Last-stop diagnostics > Export error history** (JSON). The newest 100 mapped events survive restarts. Default output is **Downloads / QuietShare-Diagnostics**. Choose another existing local folder in **Settings > Data**. Send the JSON with reproduction steps. Nothing is uploaded automatically.
+
+Mở **Cài đặt > Trình chiếu hoặc Trình duyệt > Chẩn đoán lần dừng > Xuất lịch sử lỗi** (JSON). 100 sự kiện có mã gần nhất được giữ qua lần mở lại. Mặc định lưu ở **Downloads / QuietShare-Diagnostics**. Đổi thư mục cục bộ có sẵn tại **Cài đặt > Dữ liệu**. Gửi JSON kèm các bước gây lỗi. Ứng dụng không tự tải báo cáo lên mạng.
+
+The report includes UTC, version, fixed codes/numeric results, Windows build, display/protection flags and a current memory/tab snapshot. It excludes content, paths, URLs, titles and recordings. It starts in v0.23.0 and cannot recreate past or unwritten events.
+
+Báo cáo có UTC, phiên bản, mã cố định/kết quả dạng số, bản Windows, cờ màn hình/bảo vệ và bộ nhớ/số tab hiện tại. Không chứa nội dung, đường dẫn, URL, tên tab hoặc bản ghi âm. Bắt đầu từ v0.23.0, không dựng lại sự kiện cũ hoặc chưa ghi được.
+
+| Code / Mã | English - recovery | Tiếng Việt - cách xử lý |
+|---|---|---|
+| `QS-D004` | PDF rendering reached its memory/time budget. Reduce zoom or close another PDF, then retry. A complex page may need a simpler copy. | Dựng PDF chạm giới hạn RAM/thời gian. Giảm zoom hoặc đóng PDF khác rồi thử lại. Trang quá phức tạp có thể cần bản đơn giản hơn. |
+| `QS-D005` | PDF page or bitmap could not be loaded. Reopen the file and check it in another reader. Keep the original. | Không tải được trang PDF hoặc bitmap. Mở lại file và kiểm tra bằng trình đọc khác. Giữ file gốc. |
+| `QS-F001` | Local file/path/format was rejected. Check chapter 4 limits and open a supported local copy. | File, đường dẫn hoặc định dạng bị từ chối. Kiểm tra giới hạn ở chương 4 rồi mở bản cục bộ được hỗ trợ. |
+| `QS-F002` | File could not be saved. Preserve your draft, check write access, free space and external changes before retrying. | Không lưu được file. Giữ bản nháp, kiểm tra quyền ghi, dung lượng và thay đổi từ ứng dụng khác trước khi thử lại. |
+| `QS-F003` | The viewer could not open the file. Check that the file is valid, supported and not password-protected. | Trình xem không mở được file. Kiểm tra file hợp lệ, được hỗ trợ và không có mật khẩu. |
+| `QS-J001` | History is unreadable. Close QuietShare and back up error-history.dat. Restore a good copy or rename it before reopening to start a new journal. The app preserves the bad file. | Không đọc được lịch sử. Đóng QuietShare, sao lưu error-history.dat. Khôi phục bản tốt hoặc đổi tên file trước khi mở lại để tạo nhật ký mới. Ứng dụng giữ file lỗi. |
+| `QS-J002` | Some events were not saved. Check local data-folder write access and free space. Missing events cannot be recreated. | Có sự kiện chưa lưu được. Kiểm tra quyền ghi và dung lượng thư mục dữ liệu cục bộ. Không dựng lại được sự kiện đã mất. |
+| `QS-J003` | JSON export or its folder preference failed. Select an existing writable local folder, check free space and retry. | Xuất JSON hoặc lưu thư mục thất bại. Chọn thư mục cục bộ có sẵn, có quyền ghi, kiểm tra dung lượng rồi thử lại. |

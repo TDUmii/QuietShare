@@ -26,6 +26,7 @@ struct ViewState
     int textPoints = DefaultTextPoints;
     bool wrap = true;
     bool fitWidth = false;
+    double scaleWidth=0,scaleHeight=0;
 };
 
 struct Document

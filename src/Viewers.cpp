@@ -1,5 +1,6 @@
 #include "Viewers.h"
 #include "Theme.h"
+#include "DiagnosticHistory.h"
 #include <ILexer.h>
 #include <Lexilla.h>
 #include <SciLexer.h>
@@ -193,6 +194,7 @@ struct PdfRuntime
     PDF_FN(FPDF_ClosePage);
     PDF_FN(FPDF_GetPageWidth);
     PDF_FN(FPDF_GetPageHeight);
+    PDF_FN(FPDF_GetPageSizeByIndex);
     PDF_FN(FPDFBitmap_Create);
     PDF_FN(FPDFBitmap_Destroy);
     PDF_FN(FPDFBitmap_FillRect);
@@ -236,6 +238,7 @@ struct PdfRuntime
         LOAD_PDF(FPDF_ClosePage);
         LOAD_PDF(FPDF_GetPageWidth);
         LOAD_PDF(FPDF_GetPageHeight);
+        LOAD_PDF(FPDF_GetPageSizeByIndex);
         LOAD_PDF(FPDFBitmap_Create);
         LOAD_PDF(FPDFBitmap_Destroy);
         LOAD_PDF(FPDFBitmap_FillRect);
@@ -658,8 +661,16 @@ struct PdfViewer::Impl
     FPDF_DOCUMENT document = nullptr;
     FPDF_PAGE page = nullptr;
     FPDF_TEXTPAGE text = nullptr;
-    FPDF_BITMAP bitmap = nullptr;
-    std::vector<unsigned char> bytes;
+    struct Tile {int number,x,y,width,height,fullWidth,fullHeight;FPDF_BITMAP image;ULONGLONG used;};
+    std::vector<Tile> tiles;
+    std::vector<std::pair<double,double>> dimensions;
+    int loadedPage=0,visiblePages=0;
+    double basisWidth=0,basisHeight=0;
+    ULONGLONG paintDeadline=0;
+    bool clearImagesPending=false;
+    std::wstring diagnosticPath;
+    unsigned lastError=0;int lastErrorPage=-1,lastErrorZoom=-1;
+    std::shared_ptr<const std::vector<unsigned char>> bytes;
     ViewerState state;
     int pages = 0, chars = 0, renderWidth = 0, renderHeight = 0;
     double pageWidth = 0, pageHeight = 0;
@@ -687,8 +698,10 @@ struct PdfViewer::Impl
         }
         ~Operation()
         {
-            if (--owner.operationDepth == 0 && owner.deferredClose)
-                owner.CloseNow();
+            if (--owner.operationDepth == 0) {
+                if(owner.deferredClose)owner.CloseNow();
+                else if(owner.clearImagesPending){owner.DiscardBitmap();owner.ClearThumbnails();owner.clearImagesPending=false;}
+            }
         }
     };
     PdfRuntime &API()
@@ -732,18 +745,17 @@ struct PdfViewer::Impl
         const auto self = static_cast<Impl *>(pause->user);
         return !self->safe || GetTickCount64() >= self->renderDeadline;
     }
-    void DiscardBitmap()
-    {
-        if (bitmap)
-            API().FPDFBitmap_Destroy(bitmap);
-        bitmap = nullptr;
-        renderWidth = renderHeight = 0;
-        renderedZoom = -1;
+    size_t TileBytes()const {size_t result=0;for(const auto& tile:tiles)result+=static_cast<size_t>(tile.width)*tile.height*4;return result;}
+    void DiscardBitmap(){for(auto& tile:tiles)if(tile.image)API().FPDFBitmap_Destroy(tile.image);tiles.clear();renderWidth=renderHeight=0;renderedZoom=-1;visiblePages=0;}
+    void NoteError(unsigned code,DWORD detail=0){
+        if(lastError==code&&lastErrorPage==state.page&&lastErrorZoom==state.zoom)return;
+        lastError=code;lastErrorPage=state.page;lastErrorZoom=state.zoom;RecordDiagnostic(diagnosticPath,'D',code,0,detail);
     }
     void Mask()
     {
         safe = false;
-        ClearThumbnails();
+        ++thumbnailEpoch;
+        if(operationDepth)clearImagesPending=true;else ClearThumbnails();
         wheelRemainder = 0;
         if (GetCapture() == window)
             ReleaseCapture();
@@ -751,14 +763,10 @@ struct PdfViewer::Impl
         if (window)
             ShowWindow(window, SW_HIDE);
         // An active progressive context must be closed before its bitmap is freed.
-        if (!rendering)
-            DiscardBitmap();
+        if(!operationDepth)DiscardBitmap();
     }
     void ReleasePage()
     {
-        if (bitmap)
-            API().FPDFBitmap_Destroy(bitmap);
-        bitmap = nullptr;
         renderWidth = renderHeight = 0;
         renderedZoom = -1;
         if (text)
@@ -782,13 +790,13 @@ struct PdfViewer::Impl
     }
     void CloseNow()
     {
+        DiscardBitmap();ClearThumbnails();clearImagesPending=false;
         ReleasePage();
         if (document)
             API().FPDF_CloseDocument(document);
         document = nullptr;
-        bytes.clear();
-        bytes.shrink_to_fit();
-        pages = 0;
+        bytes.reset();
+        pages = 0;dimensions.clear();basisWidth=basisHeight=0;lastError=0;lastErrorPage=lastErrorZoom=-1;
         state = {};
         wheelRemainder = 0;
         fitWidth = false;
@@ -796,7 +804,7 @@ struct PdfViewer::Impl
         lastOwnerCheck = 0;
         deferredClose = false;
     }
-    bool LoadPage(int n)
+    bool LoadPage(int n,bool updateAnchor=true)
     {
         if (!document || n < 0 || n >= pages)
             return false;
@@ -815,7 +823,8 @@ struct PdfViewer::Impl
         text = API().FPDFText_LoadPage(page);
         chars = text ? API().FPDFText_CountChars(text) : 0;
         hasText = hasText || chars > 0;
-        state.page = n;
+        loadedPage=n;if(updateAnchor)state.page=n;
+        if(static_cast<size_t>(n)<dimensions.size())dimensions[n]={pageWidth,pageHeight};
         return true;
     }
     double Scale() const
@@ -824,98 +833,80 @@ struct PdfViewer::Impl
         if (window)
             GetClientRect(window, &rc);
         const double width = std::max(1L, rc.right - 24L), height = std::max(1L, rc.bottom - 40L);
-        const double fit = fitWidth ? width / pageWidth : std::min(width / pageWidth, height / pageHeight);
+        const double fit = fitWidth ? width / basisWidth : std::min(width / basisWidth, height / basisHeight);
         return fit * state.zoom / 100.0;
     }
-    int BottomPan() const
-    {
-        RECT rc{};
-        GetClientRect(window, &rc);
-        return std::min(0, static_cast<int>(rc.bottom - 32 - std::round(pageHeight * Scale())));
+    std::pair<double,double> Size(int n){
+        if(n<0||n>=pages)return {};
+        auto& size=dimensions[n];if(size.first>0)return size;
+        double w=0,h=0;if(!API().FPDF_GetPageSizeByIndex(document,n,&w,&h)||!std::isfinite(w)||!std::isfinite(h)||w<=0||h<=0||w>144000||h>144000)return {};
+        return size={w,h};
     }
-    bool Navigate(int target, bool atBottom = false)
-    {
-        if (!safe || operationDepth || target == state.page || !LoadPage(target))
-            return false;
-        state.panX = 0;
-        state.panY = atBottom ? BottomPan() : 0;
-        PostMessageW(GetParent(window), WM_APP + 16, 0, 0);
-        InvalidateRect(window, nullptr, FALSE);
-        return true;
+    int Height(int n){return static_cast<int>(std::clamp(std::round(Size(n).second*Scale()),1.0,100000000.0));}
+    RECT Rect(int n){
+        RECT rc{};GetClientRect(window,&rc);const auto size=Size(n);const double scale=Scale();
+        const int w=static_cast<int>(std::clamp(std::round(size.first*scale),1.0,100000000.0)),h=Height(n);
+        long long y=12LL+state.panY;
+        if(n>state.page)for(int i=state.page;i<n;++i)y+=Height(i)+16;
+        else for(int i=state.page-1;i>=n;--i)y-=Height(i)+16;
+        y=std::clamp(y,-100000000LL,100000000LL);
+        const int x=(rc.right-w)/2+state.panX;return {x,static_cast<LONG>(y),x+w,static_cast<LONG>(y+h)};
     }
-    void Scroll(int distance)
-    {
-        if (!safe || operationDepth || !page || !distance)
-            return;
-        const int bottom = BottomPan();
-        state.panY = std::clamp(state.panY, bottom, 0);
-        if (distance < 0 && state.panY == bottom && state.page + 1 < pages)
-            Navigate(state.page + 1);
-        else if (distance > 0 && state.panY == 0 && state.page > 0)
-            Navigate(state.page - 1, true);
-        else
-            state.panY = std::clamp(state.panY + distance, bottom, 0);
-        InvalidateRect(window, nullptr, FALSE);
+    int FirstVisible(){int n=state.page;long long y=12LL+state.panY;while(n>0&&y>0){--n;y-=Height(n)+16;}return n;}
+    void UpdateScroll(){
+        if(!window||!document)return;
+        const int first=FirstVisible();const auto r=Rect(first);
+        const double progress=std::clamp(-r.top/double(std::max(1,Height(first)+16)),0.0,1.0);
+        SCROLLINFO info{};info.cbSize=sizeof(info);info.fMask=SIF_RANGE|SIF_POS|SIF_PAGE;info.nMin=0;info.nMax=std::max(0,pages*1000-1);info.nPage=1;
+        info.nPos=std::clamp(static_cast<int>(first*1000+progress*1000),0,info.nMax);SetScrollInfo(window,SB_VERT,&info,TRUE);
     }
-    bool Render()
-    {
-        if (operationDepth)
-            return false;
-        Operation operation(*this);
-        SafetyMessages();
-        if (!safe || !page)
-            return false;
-        const double scale = Scale();
-        const double proposedW = std::max(1.0, std::round(pageWidth * scale)),
-                     proposedH = std::max(1.0, std::round(pageHeight * scale));
-        if (proposedW > 16384 || proposedH > 16384 || proposedW * proposedH > 16.0 * 1000 * 1000)
-        {
-            renderError =
-                Error(L"Trang vượt giới hạn render. Giảm zoom.", L"Page exceeds rendering limits. Reduce zoom.");
-            return false;
+    bool Navigate(int target,bool atBottom=false){
+        if(!safe||operationDepth||target<0||target>=pages||target==state.page)return false;
+        Operation operation(*this);if(!LoadPage(target))return false;
+        state.panX=0;state.panY=0;if(atBottom){RECT rc{};GetClientRect(window,&rc);state.panY=std::min(0,static_cast<int>(rc.bottom)-32-Height(target));}
+        UpdateScroll();PostMessageW(GetParent(window),WM_APP+16,0,0);InvalidateRect(window,nullptr,FALSE);return true;
+    }
+    void Scroll(int distance){
+        if(!safe||operationDepth||!document||!distance)return;Operation operation(*this);
+        RECT rc{};GetClientRect(window,&rc);const int maximum=3*std::max(1,static_cast<int>(rc.bottom));distance=std::clamp(distance,-maximum,maximum);
+        int first=FirstVisible();const auto firstRect=Rect(first);
+        if(distance>0&&first==0)distance=std::min(distance,std::max(0,12-static_cast<int>(firstRect.top)));
+        if(distance<0){long long bottom=firstRect.top;int n=first;
+            for(int count=0;n<pages&&count<10000;++count,++n){bottom+=Height(n);if(n+1==pages){distance=std::max<long long>(distance,-std::max(0LL,bottom-(rc.bottom-32)));break;}
+                if(bottom>rc.bottom-distance)break;bottom+=16;}
         }
-        const int width = static_cast<int>(proposedW), height = static_cast<int>(proposedH);
-        if (bitmap && renderWidth == width && renderHeight == height && renderedZoom == state.zoom)
-            return true;
-        if (bitmap)
-            API().FPDFBitmap_Destroy(bitmap);
-        bitmap = nullptr;
-        renderWidth = renderHeight = 0;
-        bitmap = API().FPDFBitmap_Create(width, height, 0);
-        if (!bitmap)
-            return false;
-        renderWidth = width;
-        renderHeight = height;
-        renderedZoom = state.zoom;
-        API().FPDFBitmap_FillRect(bitmap, 0, 0, width, height, 0xffffffff);
-        IFSDK_PAUSE pause{1, NeedPause, this};
-        rendering = true;
-        renderError.clear();
-        // PDFium pauses cooperatively at its own rendering checkpoints.
-        const ULONGLONG aggregateDeadline = GetTickCount64() + 750;
-        renderDeadline = std::min(aggregateDeadline, GetTickCount64() + 16);
-        int status = API().FPDF_RenderPageBitmap_Start(bitmap, page, 0, 0, width, height, 0, FPDF_ANNOT, &pause);
-        while (status == FPDF_RENDER_TOBECONTINUED && safe && GetTickCount64() < aggregateDeadline)
-        {
-            SafetyMessages();
-            if (!safe)
-                break;
-            renderDeadline = std::min(aggregateDeadline, GetTickCount64() + 16);
-            status = API().FPDF_RenderPage_Continue(page, &pause);
-        }
-        API().FPDF_RenderPage_Close(page);
-        rendering = false;
-        SafetyMessages();
-        const bool expired = GetTickCount64() >= aggregateDeadline;
-        if (expired)
-            renderError = Error(L"Trang quá phức tạp để render nhanh. Giảm zoom hoặc chuyển trang.",
-                                L"Page rendering exceeded the time budget. Reduce zoom or change page.");
-        if (!safe || status != FPDF_RENDER_DONE || expired)
-        {
-            DiscardBitmap();
-            return false;
-        }
-        return true;
+        state.panY+=distance;const int old=state.page,center=std::max(0L,(rc.bottom-20)/2)-12;
+        while(state.page+1<pages&&state.panY+Height(state.page)+16<center){state.panY+=Height(state.page)+16;++state.page;}
+        while(state.page>0&&state.panY>center){--state.page;state.panY-=Height(state.page)+16;}
+        if(state.page==0)state.panY=std::min(0,state.panY);
+        if(state.page!=old){const int target=state.page;if(!LoadPage(target))NoteError(5,1);PostMessageW(GetParent(window),WM_APP+16,0,0);}
+        UpdateScroll();InvalidateRect(window,nullptr,FALSE);
+    }
+    Tile* RenderTile(int n){
+        const auto r=Rect(n);RECT viewport{};GetClientRect(window,&viewport);viewport.bottom=std::max(0L,viewport.bottom-20);
+        RECT visible{};if(!IntersectRect(&visible,&r,&viewport))return nullptr;
+        const int fullW=r.right-r.left,fullH=r.bottom-r.top;
+        int x=std::max(0,static_cast<int>((visible.left-r.left)/128)*128),y=std::max(0,static_cast<int>((visible.top-r.top)/128)*128);
+        int right=std::min(fullW,static_cast<int>((visible.right-r.left+127)/128)*128),bottom=std::min(fullH,static_cast<int>((visible.bottom-r.top+127)/128)*128);
+        const int width=right-x,height=bottom-y;const size_t needed=static_cast<size_t>(width)*height*4;
+        if(fullW>16384||fullH>16384||width<1||height<1||needed>48u*1024*1024){renderError=Error(L"QS-D004 - Vùng PDF vượt giới hạn. Giảm zoom hoặc thu nhỏ cửa sổ.",L"QS-D004 - PDF region exceeds the limit. Reduce zoom or window size.");NoteError(4,1);return nullptr;}
+        auto found=std::find_if(tiles.begin(),tiles.end(),[&](const Tile& t){return t.number==n&&t.x==x&&t.y==y&&t.width==width&&t.height==height&&t.fullWidth==fullW&&t.fullHeight==fullH;});
+        if(found!=tiles.end()){found->used=GetTickCount64();return &*found;}
+        while(!tiles.empty()&&(tiles.size()>=8||TileBytes()+needed>48u*1024*1024)){auto oldest=std::min_element(tiles.begin(),tiles.end(),[](const auto& a,const auto& b){return a.used<b.used;});API().FPDFBitmap_Destroy(oldest->image);tiles.erase(oldest);}
+        FPDF_PAGE target=n==loadedPage?page:API().FPDF_LoadPage(document,n);if(!target){NoteError(5,2);return nullptr;}
+        auto image=API().FPDFBitmap_Create(width,height,0);if(!image){if(target!=page)API().FPDF_ClosePage(target);NoteError(5,3);return nullptr;}
+        API().FPDFBitmap_FillRect(image,0,0,width,height,0xffffffff);IFSDK_PAUSE pause{1,NeedPause,this};rendering=true;renderError.clear();
+        const auto deadline=paintDeadline?paintDeadline:GetTickCount64()+750;renderDeadline=std::min(deadline,GetTickCount64()+16);
+        int status=FPDF_RENDER_FAILED;
+        if(GetTickCount64()<deadline)status=API().FPDF_RenderPageBitmap_Start(image,target,-x,-y,fullW,fullH,0,FPDF_ANNOT,&pause);
+        while(status==FPDF_RENDER_TOBECONTINUED&&safe&&GetTickCount64()<deadline){SafetyMessages();if(!safe)break;renderDeadline=std::min(deadline,GetTickCount64()+16);status=API().FPDF_RenderPage_Continue(target,&pause);}
+        API().FPDF_RenderPage_Close(target);rendering=false;if(target!=page)API().FPDF_ClosePage(target);SafetyMessages();
+        if(!safe||status!=FPDF_RENDER_DONE||GetTickCount64()>=deadline){API().FPDFBitmap_Destroy(image);if(safe){renderError=Error(L"QS-D004 - PDF vượt thời gian dựng. Giảm zoom hoặc chuyển trang.",L"QS-D004 - PDF rendering exceeded its budget. Reduce zoom or change page.");NoteError(4,2);}return nullptr;}
+        tiles.push_back({n,x,y,width,height,fullW,fullH,image,GetTickCount64()});return &tiles.back();
+    }
+    bool Render(){
+        if(operationDepth)return false;Operation operation(*this);SafetyMessages();if(!safe||!document)return false;
+        auto tile=RenderTile(state.page);if(!tile)return false;renderWidth=tile->fullWidth;renderHeight=tile->fullHeight;renderedZoom=state.zoom;return true;
     }
     bool ThumbnailPage(int number,HDC dc,RECT bounds)
     {
@@ -955,78 +946,33 @@ struct PdfViewer::Impl
         return StretchDIBits(dc,bounds.left,bounds.top,bounds.right-bounds.left,bounds.bottom-bounds.top,0,0,width,height,
             API().FPDFBitmap_GetBuffer(found->image),&info,DIB_RGB_COLORS,SRCCOPY)!=GDI_ERROR;
     }
-    RECT PageRect() const
-    {
-        RECT rc{};
-        GetClientRect(window, &rc);
-        const int x = (rc.right - renderWidth) / 2 + state.panX;
-        const int y = std::max(12L, (rc.bottom - 20 - renderHeight) / 2) + state.panY;
-        return {x, y, x + renderWidth, y + renderHeight};
+    RECT PageRect(){return Rect(loadedPage);}
+    int CharAt(int x,int y){
+        if(!safe||operationDepth||!document)return -1;Operation operation(*this);
+        RECT rc{};GetClientRect(window,&rc);
+        for(int n=FirstVisible(),count=0;n<pages&&count<128;++n,++count){const auto r=Rect(n);if(r.top>=rc.bottom-20)break;
+            if(x>=r.left&&x<r.right&&y>=r.top&&y<r.bottom){if(selecting&&n!=loadedPage)return -1;if(n!=loadedPage&&!LoadPage(n,false))return -1;if(!text)return -1;
+                const double px=(x-r.left)/Scale(),py=pageHeight-(y-r.top)/Scale();return API().FPDFText_GetCharIndexAtPos(text,px,py,12/Scale(),12/Scale());}}
+        return -1;
     }
-    int CharAt(int x, int y)
-    {
-        if (!safe || !text || !bitmap)
-            return -1;
-        const auto r = PageRect();
-        const double px = (x - r.left) * pageWidth / renderWidth,
-                     py = pageHeight - (y - r.top) * pageHeight / renderHeight;
-        return API().FPDFText_GetCharIndexAtPos(text, px, py, 12 / Scale(), 12 / Scale());
-    }
-    void Paint(HDC dc)
-    {
-        RECT rc{};
-        GetClientRect(window, &rc);
-        HBRUSH brush = CreateSolidBrush(Background);
-        FillRect(dc, &rc, brush);
-        DeleteObject(brush);
-        if (!safe || !document)
-            return;
-        if (!Render())
-        {
-            if (!safe)
-                return;
-            SetBkMode(dc, TRANSPARENT);
-            SetTextColor(dc, Muted);
-            const wchar_t *msg =
-                renderError.empty() ? L"Không thể render trang. / Unable to render page." : renderError.c_str();
-            DrawTextW(dc, msg, -1, &rc, DT_CENTER | DT_VCENTER | DT_WORDBREAK);
-            return;
+    void Paint(HDC dc){
+        RECT rc{};GetClientRect(window,&rc);HBRUSH brush=CreateSolidBrush(Background);FillRect(dc,&rc,brush);DeleteObject(brush);
+        if(!safe||!document)return;Operation operation(*this);SafetyMessages();if(!safe)return;
+        paintDeadline=GetTickCount64()+750;visiblePages=0;const int saved=SaveDC(dc);IntersectClipRect(dc,0,0,rc.right,std::max(0L,rc.bottom-20));
+        for(int n=FirstVisible(),count=0;n<pages&&count<128;++n,++count){const auto r=Rect(n);if(r.top>=rc.bottom-20)break;if(r.bottom<=0)continue;
+            ++visiblePages;auto tile=RenderTile(n);if(!safe)break;
+            if(tile){BITMAPINFO info{};info.bmiHeader.biSize=sizeof(BITMAPINFOHEADER);info.bmiHeader.biWidth=tile->width;info.bmiHeader.biHeight=-tile->height;info.bmiHeader.biPlanes=1;info.bmiHeader.biBitCount=32;info.bmiHeader.biCompression=BI_RGB;
+                StretchDIBits(dc,r.left+tile->x,r.top+tile->y,tile->width,tile->height,0,0,tile->width,tile->height,API().FPDFBitmap_GetBuffer(tile->image),&info,DIB_RGB_COLORS,SRCCOPY);
+                if(n==state.page){renderWidth=tile->fullWidth;renderHeight=tile->fullHeight;renderedZoom=state.zoom;}
+            }else{FillRect(dc,&r,static_cast<HBRUSH>(GetStockObject(WHITE_BRUSH)));SetTextColor(dc,RGB(80,80,80));SetBkMode(dc,TRANSPARENT);RECT message=r;InflateRect(&message,-8,-8);DrawTextW(dc,renderError.empty()?L"QS-D005 - Unable to render page.":renderError.c_str(),-1,&message,DT_CENTER|DT_VCENTER|DT_WORDBREAK);}
+            if(n==loadedPage&&text&&selectStart>=0&&selectEnd>=0){HBRUSH highlight=CreateSolidBrush(Accent);const int start=std::min(selectStart,selectEnd),end=std::min(chars-1,std::max(selectStart,selectEnd));
+                for(int i=start;i<=end&&i<start+100000;++i){if((i-start)%128==0){SafetyMessages();if(!safe)break;}double left=0,right=0,bottom=0,top=0;
+                    if(API().FPDFText_GetCharBox(text,i,&left,&right,&bottom,&top)){RECT box{r.left+static_cast<LONG>(left*Scale()),r.top+static_cast<LONG>((pageHeight-top)*Scale()),r.left+static_cast<LONG>(right*Scale())+1,r.top+static_cast<LONG>((pageHeight-bottom)*Scale())+1};FrameRect(dc,&box,highlight);}}
+                DeleteObject(highlight);}
         }
-        const auto r = PageRect();
-        BITMAPINFO info{};
-        info.bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
-        info.bmiHeader.biWidth = renderWidth;
-        info.bmiHeader.biHeight = -renderHeight;
-        info.bmiHeader.biPlanes = 1;
-        info.bmiHeader.biBitCount = 32;
-        info.bmiHeader.biCompression = BI_RGB;
-        StretchDIBits(dc, r.left, r.top, renderWidth, renderHeight, 0, 0, renderWidth, renderHeight,
-                      API().FPDFBitmap_GetBuffer(bitmap), &info, DIB_RGB_COLORS, SRCCOPY);
-        if (text && selectStart >= 0 && selectEnd >= 0)
-        {
-            const int start = std::min(selectStart, selectEnd),
-                      end = std::min(chars - 1, std::max(selectStart, selectEnd));
-            HBRUSH highlight = CreateSolidBrush(Accent);
-            for (int i = start; i <= end && i < start + 100000; ++i)
-            {
-                double l = 0, rt = 0, b = 0, t = 0;
-                if (API().FPDFText_GetCharBox(text, i, &l, &rt, &b, &t))
-                {
-                    RECT box{r.left + static_cast<LONG>(l * renderWidth / pageWidth),
-                             r.top + static_cast<LONG>((pageHeight - t) * renderHeight / pageHeight),
-                             r.left + static_cast<LONG>(rt * renderWidth / pageWidth) + 1,
-                             r.top + static_cast<LONG>((pageHeight - b) * renderHeight / pageHeight) + 1};
-                    FrameRect(dc, &box, highlight);
-                }
-            }
-            DeleteObject(highlight);
-        }
-        SetBkMode(dc, TRANSPARENT);
-        SetTextColor(dc, Muted);
-        auto label = std::to_wstring(state.page + 1) + L" / " + std::to_wstring(pages) + L"  ·  " +
-                     std::to_wstring(state.zoom) + L"%";
-        RECT footer{0, rc.bottom - 20, rc.right, rc.bottom};
-        DrawTextW(dc, label.c_str(), -1, &footer, DT_CENTER | DT_SINGLELINE | DT_VCENTER);
+        RestoreDC(dc,saved);paintDeadline=0;if(!safe)return;UpdateScroll();SetBkMode(dc,TRANSPARENT);SetTextColor(dc,Muted);
+        const auto label=std::to_wstring(state.page+1)+L" / "+std::to_wstring(pages)+L"  ·  "+std::to_wstring(state.zoom)+L"%";
+        RECT footer{0,rc.bottom-20,rc.right,rc.bottom};DrawTextW(dc,label.c_str(),-1,&footer,DT_CENTER|DT_SINGLELINE|DT_VCENTER);
     }
     static LRESULT CALLBACK Proc(HWND w, UINT m, WPARAM wp, LPARAM lp)
     {
@@ -1101,8 +1047,9 @@ struct PdfViewer::Impl
             }
             else if (p->dragging)
             {
-                p->state.panX = p->dragPanX + GET_X_LPARAM(lp) - p->dragStart.x;
-                p->state.panY = p->dragPanY + GET_Y_LPARAM(lp) - p->dragStart.y;
+                p->state.panX+=GET_X_LPARAM(lp)-p->dragStart.x;
+                p->Scroll(GET_Y_LPARAM(lp)-p->dragStart.y);
+                p->dragStart={GET_X_LPARAM(lp),GET_Y_LPARAM(lp)};
                 InvalidateRect(w, nullptr, FALSE);
             }
             return 0;
@@ -1114,6 +1061,17 @@ struct PdfViewer::Impl
         case WM_CAPTURECHANGED:
             p->dragging = p->selecting = false;
             return 0;
+        case WM_VSCROLL: {
+            if(!p->safe||p->operationDepth)return 0;
+            const int action=LOWORD(wp);RECT rc{};GetClientRect(w,&rc);
+            if(action==SB_LINEUP)p->Scroll(40);else if(action==SB_LINEDOWN)p->Scroll(-40);
+            else if(action==SB_PAGEUP)p->Scroll(std::max(40L,rc.bottom-40));else if(action==SB_PAGEDOWN)p->Scroll(-std::max(40L,rc.bottom-40));
+            else if(action==SB_THUMBTRACK||action==SB_THUMBPOSITION){SCROLLINFO info{};info.cbSize=sizeof(info);info.fMask=SIF_TRACKPOS;GetScrollInfo(w,SB_VERT,&info);
+                const int target=std::clamp(info.nTrackPos/1000,0,std::max(0,p->pages-1));if(target!=p->state.page)p->Navigate(target);
+                p->state.panY=-static_cast<int>((info.nTrackPos%1000)/1000.0*(p->Height(target)+16));
+                if(target+1==p->pages)p->state.panY=std::max(p->state.panY,std::min(0,static_cast<int>(rc.bottom)-32-p->Height(target)));
+                p->UpdateScroll();InvalidateRect(w,nullptr,FALSE);}
+            return 0;}
         case WM_MOUSEWHEEL:
             if (!p->safe || p->operationDepth)
                 return 0;
@@ -1126,24 +1084,19 @@ struct PdfViewer::Impl
             }
             else
             {
-                p->wheelRemainder += GET_WHEEL_DELTA_WPARAM(wp);
-                const int steps = p->wheelRemainder / WHEEL_DELTA;
+                p->wheelRemainder += GET_WHEEL_DELTA_WPARAM(wp)*60;
+                const int pixels = p->wheelRemainder / WHEEL_DELTA;
                 p->wheelRemainder %= WHEEL_DELTA;
-                p->Scroll(steps * 60);
+                p->Scroll(pixels);
             }
             InvalidateRect(w, nullptr, FALSE);
             return 0;
         case WM_KEYDOWN:
             if (!p->safe || p->operationDepth)
                 return 0;
-            if (wp == VK_NEXT || wp == VK_RIGHT)
-            {
-                p->Navigate(p->state.page + 1);
-            }
-            else if (wp == VK_PRIOR || wp == VK_LEFT)
-            {
-                p->Navigate(p->state.page - 1);
-            }
+            if(wp==VK_NEXT||wp==VK_PRIOR){RECT rc{};GetClientRect(w,&rc);p->Scroll((wp==VK_NEXT?-1:1)*std::max(40L,rc.bottom-40));}
+            else if(wp==VK_RIGHT)p->Navigate(p->state.page+1);
+            else if(wp==VK_LEFT)p->Navigate(p->state.page-1);
             else if (wp == VK_UP)
                 p->Scroll(40);
             else if (wp == VK_DOWN)
@@ -1190,7 +1143,7 @@ bool PdfViewer::Create(HWND parent, int id, std::wstring &error)
     wc.lpszClassName = L"QuietSharePdfCanvas";
     wc.hCursor = LoadCursorW(nullptr, IDC_ARROW);
     RegisterClassW(&wc);
-    impl->window = CreateWindowExW(0, wc.lpszClassName, L"", WS_CHILD | WS_TABSTOP, 0, 0, 100, 100, parent,
+    impl->window = CreateWindowExW(0, wc.lpszClassName, L"", WS_CHILD | WS_TABSTOP | WS_VSCROLL, 0, 0, 100, 100, parent,
                                    reinterpret_cast<HMENU>(static_cast<INT_PTR>(id)), wc.hInstance, impl.get());
     return impl->window != nullptr;
 }
@@ -1210,13 +1163,13 @@ bool PdfViewer::Open(const LoadedContent &content, std::wstring &error)
         error = Error(L"Chưa khởi tạo trình xem PDF.", L"PDF viewer is not initialized.");
         return false;
     }
-    if (content.bytes.empty() || content.bytes.size() > 64u * 1024 * 1024)
+    if (!content.bytes || content.bytes->empty() || content.bytes->size() > 64u * 1024 * 1024)
     {
         error = Error(L"PDF rỗng hoặc vượt 64 MiB.", L"PDF is empty or exceeds 64 MiB.");
         return false;
     }
     auto bytes = content.bytes;
-    auto doc = PdfEngine().FPDF_LoadMemDocument64(bytes.data(), bytes.size(), nullptr);
+    auto doc = PdfEngine().FPDF_LoadMemDocument64(bytes->data(), bytes->size(), nullptr);
     if (!doc)
     {
         const auto code = PdfEngine().FPDF_GetLastError();
@@ -1252,8 +1205,8 @@ bool PdfViewer::Open(const LoadedContent &content, std::wstring &error)
     impl->state = {};
     impl->fitWidth = false;
     impl->page = page;
-    impl->pageWidth = width;
-    impl->pageHeight = height;
+    impl->pageWidth=impl->basisWidth=width;
+    impl->pageHeight=impl->basisHeight=height;impl->loadedPage=0;impl->dimensions.assign(pages,{});impl->dimensions[0]={width,height};
     impl->text = text;
     impl->chars = text ? PdfEngine().FPDFText_CountChars(text) : 0;
     impl->hasText = impl->chars > 0;
@@ -1285,18 +1238,20 @@ ViewerState PdfViewer::GetState() const
 {
     auto state = impl->state;
     state.fitWidth = impl->fitWidth;
+    state.scaleWidth=impl->basisWidth;state.scaleHeight=impl->basisHeight;
     return state;
 }
 void PdfViewer::SetState(const ViewerState &state)
 {
     if (impl->operationDepth)
         return;
-    if (state.page != impl->state.page)
+    if (state.page != impl->loadedPage)
         impl->LoadPage(std::clamp(state.page, 0, std::max(0, impl->pages - 1)));
     impl->state.zoom = std::clamp(state.zoom, 25, 400);
     impl->state.panX = state.panX;
     impl->state.panY = state.panY;
     impl->fitWidth = state.fitWidth;
+    if(std::isfinite(state.scaleWidth)&&std::isfinite(state.scaleHeight)&&state.scaleWidth>0&&state.scaleWidth<=144000&&state.scaleHeight>0&&state.scaleHeight<=144000){impl->basisWidth=state.scaleWidth;impl->basisHeight=state.scaleHeight;}
     if (impl->window)
         InvalidateRect(impl->window, nullptr, FALSE);
 }
@@ -1314,6 +1269,7 @@ void PdfViewer::FitPage()
     if (impl->operationDepth)
         return;
     impl->fitWidth = false;
+    const auto size=impl->Size(impl->state.page);impl->basisWidth=size.first;impl->basisHeight=size.second;
     SetZoom(100);
 }
 void PdfViewer::FitWidth()
@@ -1321,6 +1277,7 @@ void PdfViewer::FitWidth()
     if (impl->operationDepth)
         return;
     impl->fitWidth = true;
+    const auto size=impl->Size(impl->state.page);impl->basisWidth=size.first;impl->basisHeight=size.second;
     SetZoom(100);
 }
 bool PdfViewer::GoToPage(int page)
@@ -1344,6 +1301,7 @@ bool PdfViewer::Find(const std::wstring &query, bool forward)
     if (!impl->safe || query.empty() || query.size() > 1024 || !impl->document)
         return false;
     const int starting = impl->state.page;
+    const int previousLoaded=impl->loadedPage;
     const auto previous = impl->state;
     const int previousStart = impl->selectStart, previousEnd = impl->selectEnd;
     std::vector<unsigned short> word(query.begin(), query.end());
@@ -1354,7 +1312,7 @@ bool PdfViewer::Find(const std::wstring &query, bool forward)
         if (!impl->safe)
             return false;
         const int n = (starting + (forward ? step : -step) + impl->pages) % impl->pages;
-        if (n != impl->state.page && !impl->LoadPage(n))
+        if (n != impl->loadedPage && !impl->LoadPage(n))
             continue;
         if (!impl->text || impl->chars < 1)
             continue;
@@ -1378,8 +1336,8 @@ bool PdfViewer::Find(const std::wstring &query, bool forward)
         }
         impl->API().FPDFText_FindClose(search);
     }
-    if (impl->state.page != starting)
-        impl->LoadPage(starting);
+    if (impl->loadedPage != previousLoaded)
+        impl->LoadPage(previousLoaded,false);
     impl->state = previous;
     impl->selectStart = previousStart;
     impl->selectEnd = previousEnd;
@@ -1433,8 +1391,10 @@ std::wstring PdfViewer::SelectedText() const
 }
 size_t PdfViewer::CachedBytes() const
 {
-    return static_cast<size_t>(impl->renderWidth) * impl->renderHeight * 4+impl->ThumbnailBytes();
+    return impl->TileBytes()+impl->ThumbnailBytes();
 }
+void PdfViewer::SetDiagnosticPath(const std::wstring& path){impl->diagnosticPath=path;}
+int PdfViewer::VisiblePageCount()const{return impl->safe?impl->visiblePages:0;}
 bool PdfViewer::DrawThumbnail(int page,HDC dc,RECT bounds){return impl->ThumbnailPage(page,dc,bounds);}
 void PdfViewer::ClearThumbnails(){impl->ClearThumbnails();}
 size_t PdfViewer::ThumbnailCachedBytes()const{return impl->ThumbnailBytes();}

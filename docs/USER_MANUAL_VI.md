@@ -2,7 +2,7 @@
 
 > **Có hướng dẫn bằng ảnh:** [Xem 8 ảnh chụp giao diện có đánh số và khoanh đỏ](VISUAL_GUIDE_VI.md).
 
-Ấn bản tiếng Việt - QuietShare v0.22.0
+Ấn bản tiếng Việt - QuietShare v0.23.0
 
 Đọc, chuẩn bị và thuyết trình với lời nhắc riêng trên Windows.
 
@@ -275,8 +275,8 @@ Nếu dòng code quá dài, bật xuống dòng. Khi cần xem thụt lề hoặ
 
 1. Mở PDF cục bộ được hỗ trợ.
 2. Dùng nút trang trước và trang sau cạnh số trang / tổng số trên thanh công cụ PDF. Các nút vẫn hiển thị trong chế độ tập trung và khi ẩn thanh công cụ chính.
-3. Khi PDF được chọn, dùng Page Up/Page Down hoặc Trái/Phải để đổi trang. Lên/Xuống cuộn trong trang và qua trang. Menu mở rộng vẫn có vừa chiều ngang.
-4. Dùng con lăn để đổi trang khi toàn bộ trang vừa khung. Trang dài hoặc phóng to được cuộn trong giới hạn trước. Khi đến mép, nấc cuộn tiếp theo mới đổi trang. Khi lùi, trang trước mở ở cuối trang. Ctrl+con lăn để zoom. Bạn cũng có thể kéo phần trống của trang để di chuyển.
+3. Dùng con lăn, thanh cuộn, Lên/Xuống hoặc Page Up/Page Down để cuộn liên tục qua các trang liền nhau. Trái/Phải và nút trang nhảy đến trang cụ thể. Menu mở rộng vẫn có vừa chiều ngang.
+4. Con lăn giữ phần dịch chuyển khi qua ranh giới trang, không đặt từng trang lại về đầu. Cuộn nhỏ cũng di chuyển vùng đọc. Ctrl+con lăn để zoom. Kéo vùng trống để di chuyển. Chuyển không gian làm việc vẫn giữ vị trí đọc.
 5. Kéo trên chữ để chọn nếu PDF có lớp văn bản.
 6. Dùng Ctrl+F để tìm trong phần chữ có thể tìm kiếm.
 
@@ -290,9 +290,9 @@ Nếu dòng code quá dài, bật xuống dòng. Khi cần xem thụt lề hoặ
 6. Chỉnh vùng lời nhắc bằng A- / A+. Vị trí đang đọc được giữ khi đổi cỡ hoặc độ đậm chữ.
 7. Cửa sổ rộng đặt lời nhắc bên cạnh PDF. Cửa sổ nhỏ đưa lời nhắc xuống dưới. Có thể ẩn từng vùng khi không cần.
 
-Ảnh thu nhỏ chỉ dựng cho các dòng đang thấy. Bộ đệm LRU giới hạn 12 ảnh và 2 MiB, tách với bitmap trang chính. Ẩn cột trang sẽ giải phóng bộ đệm ảnh thu nhỏ. Dấu trang và liên kết lời nhắc được mã hóa cục bộ, tối đa 32 PDF, 64 dấu trang và 128 liên kết mỗi PDF. PDF gốc giữ nguyên.
+Ảnh thu nhỏ chỉ dựng cho các dòng đang thấy. Bộ đệm LRU giới hạn 12 ảnh và 2 MiB, tách khỏi bộ đệm các vùng trang đang thấy. Ẩn cột trang sẽ giải phóng bộ đệm ảnh thu nhỏ. Dấu trang và liên kết lời nhắc được mã hóa cục bộ, tối đa 32 PDF, 64 dấu trang và 128 liên kết mỗi PDF. PDF gốc giữ nguyên.
 
-Trang quét không có lớp chữ sẽ không cung cấp tìm hoặc sao chép văn bản thông thường. QuietShare dựng từng trang PDF. Ứng dụng không sửa nội dung PDF hoặc gỡ mật khẩu.
+Trang quét không có lớp chữ sẽ không cung cấp tìm hoặc sao chép văn bản thông thường. QuietShare dựng phần đang thấy của các trang liền nhau. Tối đa tám bitmap vùng cắt dùng chung giới hạn 48 MiB. Trình xem dùng chung dữ liệu PDF gốc thay vì sao chép. Ứng dụng không sửa nội dung PDF hoặc gỡ mật khẩu.
 
 ### Tìm chữ
 
@@ -426,6 +426,14 @@ Từ khóa được gửi tới Google. Website bạn mở nhận các yêu cầ
 Tab mới phải qua xác minh capture. Tab nền nhận yêu cầu tạm ngưng. Trang hoặc bộ máy trình duyệt vẫn có thể tiếp tục một số hoạt động dù đã có yêu cầu đó.
 
 Nếu bật trình duyệt khi đang chiếu, QuietShare giữ khung hình công khai gần nhất trong lúc xác minh. Thời gian này có thể tới khoảng năm giây. Thất bại hoặc hủy sẽ dừng chiếu. Kiểm tra kết quả trình chiếu trước khi tiếp tục.
+
+### Giải phóng RAM của tab nền
+
+1. Mở menu thêm của Trình duyệt, chọn **Cho tab nền nghỉ sâu để giải phóng RAM**.
+2. Lưu nội dung ô nhập chưa gửi trước. Xác nhận cảnh báo để bỏ phần trang đang chạy của các tab nền đủ điều kiện.
+3. Tab đang xem, tab phát âm thanh và tab được cấp micro/camera sẽ được giữ.
+4. Tab nghỉ sâu giữ địa chỉ, tiêu đề và zoom trong phiên này. Chọn lại để tải trang và xác minh capture mới trước khi hiển thị. Ô nhập chưa gửi, vị trí cuộn và lịch sử điều hướng của trang có thể mất.
+5. Thao tác này do bạn chủ động chọn. Tắt trình duyệt để giải phóng toàn bộ phần web. Mức bộ nhớ vẫn tùy website.
 
 ### Khi trang hoặc tiến trình web gặp lỗi
 
@@ -967,6 +975,28 @@ Bản ghi gồm:
 - `resourceMode`: chế độ xử lý được chọn.
 
 `0x00000000` nghĩa là không đính kèm HRESULT thất bại. Nó không có nghĩa trình chiếu thành công. Bản ghi không chứa ảnh, chữ riêng, đường dẫn file, URL hoặc định danh màn hình. Ghi chẩn đoán thất bại không cho phép trình chiếu.
+
+### Xuất lịch sử lỗi gần đây
+
+1. Mở **Chẩn đoán lần dừng** từ Cài đặt > Trình chiếu hoặc Trình duyệt.
+2. Chọn **Xuất lịch sử lỗi** (JSON), hoặc nhấn Ctrl+S tại trang này. Có thể xuất ngay cả khi nội dung riêng đang bị che.
+3. File mới nằm trong **Downloads / QuietShare-Diagnostics**. Muốn đổi nơi lưu, chọn thư mục cục bộ có sẵn tại **Cài đặt > Dữ liệu > Thư mục xuất** trước khi xuất.
+4. Gửi JSON kèm các bước gây lỗi. QuietShare không tự tải báo cáo lên mạng.
+
+Nhật ký cục bộ `error-history.dat` giữ 100 sự kiện có mã gần nhất qua các lần khởi động, tối đa 6.012 byte. Mỗi mục có UTC, phiên bản, mã QS, giai đoạn, chi tiết dạng số và HRESULT hoặc mã thoát tiến trình web. File xuất thêm bản Windows, trạng thái màn hình/bảo vệ, chế độ tài nguyên, số tab và bộ nhớ riêng hiện tại kèm cờ đo đủ hay thiếu. Các giá trị này phản ánh máy tại lúc xuất. Không suy diễn rằng đầu nhận đã được xác minh.
+
+Nhật ký không chứa lời nhắc, đường dẫn file, URL, tên tab, âm thanh hoặc ảnh chụp. Đây là báo cáo trường cố định, không phải bản dump khi crash. Bắt đầu thu từ v0.23.0, không dựng lại lỗi đã xảy ra trước đó. Lỗi chưa có mã hoặc không ghi được có thể vắng mặt.
+
+| Mã | Cách xử lý |
+|---|---|
+| `QS-D004` | Dựng PDF chạm giới hạn RAM/thời gian. Giảm zoom hoặc đóng PDF khác rồi thử lại. Trang quá phức tạp có thể cần bản đơn giản hơn. |
+| `QS-D005` | Không tải được trang PDF hoặc bitmap. Mở lại file và kiểm tra bằng trình đọc khác. Giữ file gốc. |
+| `QS-F001` | File, đường dẫn hoặc định dạng bị từ chối. Kiểm tra giới hạn ở chương 4 rồi mở bản cục bộ được hỗ trợ. |
+| `QS-F002` | Không lưu được file. Giữ bản nháp, kiểm tra quyền ghi, dung lượng và thay đổi từ ứng dụng khác trước khi thử lại. |
+| `QS-F003` | Trình xem không mở được file. Kiểm tra file hợp lệ, được hỗ trợ và không có mật khẩu. |
+| `QS-J001` | Không đọc được lịch sử. Đóng QuietShare, sao lưu error-history.dat. Khôi phục bản tốt hoặc đổi tên file trước khi mở lại để tạo nhật ký mới. Ứng dụng giữ file lỗi. |
+| `QS-J002` | Có sự kiện chưa lưu được. Kiểm tra quyền ghi và dung lượng thư mục dữ liệu cục bộ. Không dựng lại được sự kiện đã mất. |
+| `QS-J003` | Xuất JSON hoặc lưu thư mục thất bại. Chọn thư mục cục bộ có sẵn, có quyền ghi, kiểm tra dung lượng rồi thử lại. |
 
 ### Báo lỗi có thể lặp lại
 

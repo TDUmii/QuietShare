@@ -13,6 +13,7 @@ struct ViewerState
     int scrollX = 0, scrollY = 0, zoom = DefaultZoomPercent, page = 0, panX = 0, panY = 0;
     bool wrap = false;
     bool fitWidth = false;
+    double scaleWidth=0,scaleHeight=0;
 };
 
 class CodeViewer
@@ -63,6 +64,8 @@ class PdfViewer
     void FitPage();
     void FitWidth();
     bool GoToPage(int zeroBasedPage);
+void SetDiagnosticPath(const std::wstring& path);
+int VisiblePageCount()const;
     int PageCount() const;
     bool HasText() const;
     bool Find(const std::wstring &query, bool forward = true);

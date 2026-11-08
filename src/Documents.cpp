@@ -44,7 +44,7 @@ bool SameStamp(const FILETIME &a, std::uint64_t as, const FILETIME &b, std::uint
 
 std::uint64_t Bytes(const LoadedContent &content)
 {
-    return content.text.size() * sizeof(wchar_t) + content.bytes.size() +
+    return content.text.size() * sizeof(wchar_t) + (content.bytes?content.bytes->size():0) +
             (content.image ? static_cast<std::uint64_t>(content.width) * content.height * 4 : 0);
 }
 

@@ -52,6 +52,9 @@ public:
     unsigned BackgroundSuspendedCount()const;
     unsigned PendingTabCount()const;
     unsigned ControllerCount()const;
+    unsigned DormantCount()const;
+    unsigned SleepBackgroundTabs();
+    bool PrivateMemoryBytes(unsigned long long& bytes)const;
     void Navigate(const std::wstring& address);
     void Back();void Forward();void Reload();void Focus();
     // Session preference, 25-400%. The canary always renders at 100%.

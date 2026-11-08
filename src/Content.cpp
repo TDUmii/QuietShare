@@ -357,7 +357,7 @@ void LoadedContent::Clear() noexcept
     path.clear();
     displayName.clear();
     text.clear();
-    std::vector<unsigned char>().swap(bytes);
+    bytes.reset();
 }
 
 bool CanonicalLocalPath(const std::wstring &path, bool directory, std::wstring &result,
@@ -423,7 +423,7 @@ bool LoadLocalContent(const std::wstring &path, LoadedContent &result, std::wstr
             bytes[4] != '-' || bytes[5] < '1' || bytes[5] > '2' || bytes[6] != '.' ||
             bytes[7] < '0' || bytes[7] > '9')
             return Fail(error, L"Tệp không có định dạng PDF hợp lệ. / The file is not a valid PDF.");
-        candidate.bytes = std::move(bytes);
+        candidate.bytes = std::make_shared<const std::vector<unsigned char>>(std::move(bytes));
     }
     else if (candidate.kind == ContentKind::Image ? !DecodeImage(bytes, candidate, error)
                                                  : !DecodeText(bytes, candidate.text, error))

@@ -237,6 +237,7 @@ int wmain(int argc, wchar_t **argv)
     LoadedContent one;
     check("validatedPdfLoad", LoadLocalContent(dir + L"\\one.pdf", one, error) && one.kind == ContentKind::Pdf);
     check("onePdfOpen", pdf.Open(one, error) && pdf.PageCount() == 1);
+    check("pdfSourceBufferIsSharedWithoutCopy",one.bytes.use_count()==2);
     pdf.SetPrivateVisible(false);
     check("pdfGateRenderDenied", !pdf.RenderCurrentPage());
     check("pdfGateFindDenied", !pdf.Find(L"QuietShare"));
@@ -251,6 +252,8 @@ int wmain(int argc, wchar_t **argv)
     check("pdfZoom25", pdf.GetState().zoom == 25 && pdf.RenderCurrentPage());
     pdf.SetZoom(400);
     check("pdfZoom400", pdf.GetState().zoom == 400 && pdf.RenderCurrentPage());
+    RECT tileViewport{};GetClientRect(pdf.Window(),&tileViewport);
+    check("pdfZoomedCacheStoresVisibleRegionsOnly",pdf.CachedBytes()<=static_cast<size_t>(tileViewport.right+256)*(tileViewport.bottom+256)*4*3);
     check("pdfCacheCap", pdf.CachedBytes() <= 64u * 1024 * 1024);
     pdf.FitPage();
     check("pdfFitPage", pdf.GetState().zoom == 100 && pdf.RenderCurrentPage());
@@ -274,6 +277,12 @@ int wmain(int argc, wchar_t **argv)
     LoadedContent many;
     check("manyPdfLoad", LoadLocalContent(dir + L"\\many.pdf", many, error));
     check("manyPdfOpen", pdf.Open(many, error) && pdf.PageCount() == 120);
+    ShowWindow(owner,SW_SHOWNOACTIVATE);pdf.SetPrivateVisible(true);InvalidateRect(pdf.Window(),nullptr,FALSE);UpdateWindow(pdf.Window());
+    check("pdfContinuousViewportShowsAdjacentPages",pdf.VisiblePageCount()>=2&&pdf.VisiblePageCount()<10);
+    check("pdfContinuousCacheIsBounded",pdf.CachedBytes()<=50u*1024*1024);
+    SCROLLINFO pdfScroll{};pdfScroll.cbSize=sizeof(pdfScroll);pdfScroll.fMask=SIF_POS;
+    check("pdfScrollbarStartsAtDocumentTop",GetScrollInfo(pdf.Window(),SB_VERT,&pdfScroll)&&pdfScroll.nPos==0);
+    pdf.SetPrivateVisible(false);pdf.SetPrivateVisible(true);ShowWindow(owner,SW_HIDE);
     check("manyPdfLazy", pdf.CachedBytes() == 0);
     ShowWindow(owner,SW_SHOWNOACTIVATE);HDC thumbDC=GetDC(owner);bool thumbs=true;
     for(int i=0;i<20;++i)thumbs=pdf.DrawThumbnail(i,thumbDC,{0,0,96,128})&&thumbs;
@@ -285,9 +294,9 @@ int wmain(int argc, wchar_t **argv)
     pdf.SetPrivateVisible(true);ReleaseDC(owner,thumbDC);ShowWindow(owner,SW_HIDE);
     check("pdfKeyboardKeepsArrowFocus", (SendMessageW(pdf.Window(), WM_GETDLGCODE, VK_RIGHT, 0) & DLGC_WANTARROWS) != 0);
     SendMessageW(pdf.Window(), WM_MOUSEWHEEL, MAKEWPARAM(0, -60), 0);
-    check("pdfPartialWheelDoesNotSkipPage", pdf.GetState().page == 0);
+    check("pdfHighResolutionWheelMovesContinuously",pdf.GetState().panY!=0);
     SendMessageW(pdf.Window(), WM_MOUSEWHEEL, MAKEWPARAM(0, -60), 0);
-    check("pdfWheelReadsNextPage", pdf.GetState().page == 1 && pdf.GetState().panY == 0);
+    check("pdfWheelReadsNextPageWithoutSnappingToTop", pdf.GetState().page == 1 && pdf.GetState().panY != 0);
     SendMessageW(pdf.Window(), WM_MOUSEWHEEL, MAKEWPARAM(0, 120), 0);
     check("pdfWheelReadsPreviousPage", pdf.GetState().page == 0 && pdf.GetState().panY == 0);
     pdf.SetZoom(400);
@@ -295,7 +304,7 @@ int wmain(int argc, wchar_t **argv)
     check("pdfZoomedWheelPansBeforeNextPage", pdf.GetState().page == 0 && pdf.GetState().panY == -60);
     for (int i = 0; i < 100 && pdf.GetState().page == 0; ++i)
         SendMessageW(pdf.Window(), WM_MOUSEWHEEL, MAKEWPARAM(0, -120), 0);
-    check("pdfZoomedWheelEventuallyReadsNextPage", pdf.GetState().page == 1 && pdf.GetState().panY == 0);
+    check("pdfZoomedWheelEventuallyReadsNextPage", pdf.GetState().page == 1 && pdf.GetState().panY != 0);
     SendMessageW(pdf.Window(), WM_MOUSEWHEEL, MAKEWPARAM(0, 120), 0);
     check("pdfPreviousPageStartsAtBottom", pdf.GetState().page == 0 && pdf.GetState().panY < -60);
     pdf.SetZoom(50);

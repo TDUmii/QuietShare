@@ -60,8 +60,8 @@ def main():
     for number in [*range(1,11),99]:
         code=f'QS-B{number:03d}'
         check(code+': browser recovery documented in both editions',all(code in (ROOT/p).read_text(encoding='utf-8-sig') for p in ['docs/BOOK.md',*MANUALS]))
-    notebook_codes=[f'QS-D{n:03d}' for n in range(1,4)]+[f'QS-N{n:03d}' for n in range(1,6)]+['QS-R008','QS-R009']
-    runtime_source=(ROOT/'src/MeetingTranscriber.cpp').read_text(encoding='utf-8-sig')
+    notebook_codes=[f'QS-D{n:03d}' for n in range(1,6)]+[f'QS-N{n:03d}' for n in range(1,6)]+[f'QS-F{n:03d}' for n in range(1,4)]+[f'QS-J{n:03d}' for n in range(1,4)]+['QS-R008','QS-R009']
+    runtime_source=''.join((ROOT/p).read_text(encoding='utf-8-sig') for p in ['src/MeetingTranscriber.cpp','src/Viewers.cpp'])
     for code in notebook_codes:
         check(code+': implementation and all books agree',code in workspace_source+runtime_source and all(code in (ROOT/p).read_text(encoding='utf-8-sig') for p in ['docs/BOOK.md',*MANUALS]))
     books = {name: (ROOT / name).read_text(encoding="utf-8-sig") for name in sorted(MANUALS)}

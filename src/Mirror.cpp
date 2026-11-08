@@ -1,5 +1,6 @@
 #include "Mirror.h"
 #include "ProjectionDiagnostic.h"
+#include "DiagnosticHistory.h"
 #include "Privacy.h"
 #include "Version.h"
 #include <d3d11.h>
@@ -846,6 +847,7 @@ struct MirrorController::Impl : std::enable_shared_from_this<MirrorController::I
         if(bytes<=0||static_cast<size_t>(bytes)>=sizeof(record))return;
         // One small overwritten record, never a growing event history. Failure
         // to write diagnostics must not change revocation or resume capture.
+        const char* publicCode=ProjectionErrorCode(code);RecordDiagnostic(diagnosticPath,'P',static_cast<DWORD>(std::strtoul(publicCode+4,nullptr,10)),strcmp(phase,"start")==0?1:strcmp(phase,"verification")==0?2:3,0,static_cast<DWORD>(error));
         HANDLE file=CreateFileW(diagnosticPath.c_str(),GENERIC_WRITE,FILE_SHARE_READ,nullptr,
                                 CREATE_ALWAYS,FILE_ATTRIBUTE_NORMAL,nullptr);
         if(file==INVALID_HANDLE_VALUE)return;

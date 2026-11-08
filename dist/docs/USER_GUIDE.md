@@ -92,13 +92,13 @@ Lời nhắc tự lưu trên máy, tách biệt với file đã mở.
 
 - **Search:** press **Ctrl+F**, then Enter/Shift+Enter for next/previous. Press Esc to close search.
 - **PDF text:** search/copy requires a text layer.
-- **PDF pages:** the PDF toolbar shows Previous, page number / total and Next, including in focus mode or when the main toolbar is hidden. With the PDF focused, use Page Up/Page Down or Left/Right to change pages. The overflow menu also offers Fit Width.
-- **PDF movement:** the wheel changes pages when the whole page fits. On tall or zoomed pages, it pans to the edge, then the next wheel notch changes pages. Going back enters the previous page at its bottom. Up/Down scroll within and across pages. Ctrl+wheel zooms. Drag blank space to pan or drag text to select it.
+- **PDF pages:** Previous, page number / total and Next remain visible in focus mode. Left/Right jump pages. The overflow menu also offers Fit Width.
+- **PDF movement:** the wheel, scrollbar, Up/Down and Page Up/Page Down scroll continuously across adjacent pages without resetting to the top. Switching workspaces keeps the reading position. Ctrl+wheel zooms. Drag blank space to pan or drag text to select it.
 
 - **Tìm kiếm:** nhấn **Ctrl+F**, sau đó Enter/Shift+Enter để tìm tiếp/trước. Nhấn Esc để đóng.
 - **Chữ PDF:** cần lớp chữ để tìm/sao chép.
-- **Trang PDF:** thanh công cụ PDF hiển thị nút trang trước, số trang / tổng số và trang sau, kể cả trong chế độ tập trung hoặc khi ẩn thanh công cụ chính. Khi PDF được chọn, dùng Page Up/Page Down hoặc Trái/Phải để đổi trang. Menu mở rộng vẫn có vừa chiều ngang.
-- **Di chuyển trong PDF:** con lăn đổi trang khi toàn bộ trang vừa khung. Với trang dài hoặc phóng to, con lăn di chuyển đến mép rồi nấc cuộn tiếp theo mới đổi trang. Khi lùi, trang trước mở ở cuối trang. Lên/Xuống cuộn trong trang và qua trang. Ctrl+con lăn để zoom. Kéo vùng trống để di chuyển hoặc kéo trên chữ để chọn.
+- **Trang PDF:** nút trang trước, số trang / tổng số và trang sau vẫn hiện khi tập trung. Trái/Phải nhảy trang. Menu mở rộng có vừa chiều ngang.
+- **Di chuyển trong PDF:** con lăn, thanh cuộn, Lên/Xuống và Page Up/Page Down cuộn liên tục qua các trang liền nhau, không đặt lại về đầu. Chuyển không gian vẫn giữ vị trí đọc. Ctrl+con lăn để zoom. Kéo vùng trống để di chuyển hoặc kéo trên chữ để chọn.
 
 ## Appearance / Giao diện
 
@@ -157,6 +157,10 @@ Busy web metadata updates are grouped. Hidden web pages do not relayout the acti
 
 Cập nhật trạng thái web liên tục được gom lại. Web ẩn không dàn lại vùng đọc đang dùng. Tab nền được yêu cầu nghỉ, có phương án yêu cầu bộ nhớ thấp khi runtime từ chối nghỉ và hỗ trợ API này. Quay lại sẽ phục hồi hoạt động bình thường. Tab và nội dung ô nhập chưa gửi được giữ. Đây không phải giới hạn RAM cố định.
 
+To release more RAM, choose **Browser > overflow > Deep sleep background tabs** and confirm. Save unsent forms first. Eligible background controllers close, while tab addresses/titles/zoom stay in this session. Audible or microphone/camera tabs are retained. Reopening reloads the page and runs fresh verification. Form contents, scroll and navigation history may be lost.
+
+Muốn giải phóng thêm RAM, chọn **Trình duyệt > menu thêm > Cho tab nền nghỉ sâu** rồi xác nhận. Lưu ô nhập chưa gửi trước. Phần chạy của tab nền đủ điều kiện được đóng, địa chỉ/tên/zoom vẫn giữ trong phiên. Tab phát âm thanh hoặc được cấp micro/camera được giữ. Mở lại sẽ tải trang và xác minh mới. Nội dung ô nhập, vị trí cuộn và lịch sử điều hướng có thể mất.
+
 ## Meeting notebook / Sổ ghi chép cuộc họp
 
 - Open **Meetings**, then **Export / more > Check playback and recognition**. Set language, output folder and optional Whisper model in **Settings > Meetings**. Small (466 MiB) prioritizes accuracy. Base (142 MiB) is lighter. Downloads require explicit Install.
@@ -182,7 +186,7 @@ Cập nhật trạng thái web liên tục được gom lại. Web ẩn không d
 |---|---|
 | Text and code / Văn bản và code | UTF-8 or UTF-16 with BOM, up to 5 MiB. Unknown extensions need valid text encoding and no binary content.<br>UTF-8 hoặc UTF-16 có BOM, tối đa 5 MiB. Đuôi lạ phải là văn bản hợp lệ, không chứa dữ liệu nhị phân. |
 | Images / Ảnh | PNG, JPEG, BMP and the first GIF frame. Up to 25 MiB and 40 megapixels.<br>PNG, JPEG, BMP và khung đầu GIF. Tối đa 25 MiB, 40 megapixel. |
-| PDF | Up to 64 MiB and 10,000 pages. One rendered page at a time, no password support.<br>Tối đa 64 MiB và 10.000 trang. Dựng từng trang, chưa hỗ trợ mật khẩu. |
+| PDF | Up to 64 MiB and 10,000 pages. Shared source buffer, visible-page tiles capped at 48 MiB, thumbnails at 2 MiB. No passwords.<br>Tối đa 64 MiB và 10.000 trang. Dữ liệu gốc dùng chung, bitmap vùng đang thấy tối đa 48 MiB, ảnh thu nhỏ 2 MiB. Chưa hỗ trợ mật khẩu. |
 | Local paths / Đường dẫn cục bộ | Local files/folders only. Executables, installers, archives and binaries are rejected.<br>Chỉ file/thư mục cục bộ. Từ chối tệp thực thi, bộ cài, tệp nén và nhị phân. |
 
 ## Default shortcuts / Phím tắt mặc định
@@ -236,3 +240,9 @@ Cài đặt có tám nhóm bên trái, nút chọn khi cửa sổ nhỏ và Giao
 Open Last-stop diagnostics from Projection or Browser. For a stopped browser tab, use Reload tab to recreate and reverify. QS-P protection failures still require repair, F9 and explicit F10. See the [error book](BOOK.md).
 
 Mở Chẩn đoán lần dừng từ Trình chiếu hoặc Trình duyệt. Tab web dừng có nút Tải lại tab để tạo và xác minh lại. Lỗi bảo vệ QS-P vẫn cần khắc phục, F9 rồi chủ động F10. Xem [book mã lỗi](BOOK.md).
+
+## Export error history / Xuất lịch sử lỗi
+
+Open **Settings > Projection or Browser > Last-stop diagnostics > Export error history** (JSON). The newest 100 mapped errors persist across restarts. Find the report in **Downloads / QuietShare-Diagnostics**, or choose a folder in **Settings > Data**. The report has codes, UTC, versions, numeric results and a current environment/memory snapshot. It excludes private content, paths, URLs and titles. Send it manually with the steps that caused the problem. See the [code book](BOOK.md) for recovery.
+
+Mở **Cài đặt > Trình chiếu hoặc Trình duyệt > Chẩn đoán lần dừng > Xuất lịch sử lỗi** (JSON). 100 lỗi có mã gần nhất được giữ qua lần mở lại. Báo cáo nằm ở **Downloads / QuietShare-Diagnostics**, hoặc đổi thư mục tại **Cài đặt > Dữ liệu**. Báo cáo có mã, UTC, phiên bản, kết quả dạng số và môi trường/bộ nhớ hiện tại. Không có nội dung riêng, đường dẫn, URL hoặc tên tab. Chủ động gửi file kèm các bước gây lỗi. Tra cách sửa trong [sổ mã lỗi](BOOK.md).

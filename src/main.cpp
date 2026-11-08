@@ -30,6 +30,7 @@
 #include "SpeechRuntime.h"
 #include "CustomTheme.h"
 #include "Version.h"
+#include "DiagnosticHistory.h"
 #include "Preferences.h"
 #include <algorithm>
 #include <commctrl.h>
@@ -107,7 +108,7 @@ constexpr int MEETING_LIST=320,MEETING_EDITOR=321,MEETING_SPEAKER=322,MEETING_BE
     MEETING_VIEW_LIST=340,MEETING_VIEW_EDIT=341,MEETING_VIEW_META=342;
 constexpr int SETTINGS_MEETING=345,SETTINGS_DATA=346,SETTINGS_CATEGORY=347,SETTINGS_ADVANCED=348,
     THEME_DARK=349,THEME_LIGHT=350,PROFILE_SELECT=360,PROFILE_SAVE=361,PROFILE_APPLY=362,
-    DIAGNOSTICS_OPEN=370,DIAGNOSTICS_COPY=371,DIAGNOSTICS_BACK=372,DIAGNOSTICS_TEXT=373,BROWSER_DIAGNOSTICS=374,BROWSER_RETRY=375,BROWSER_ERROR=376;
+    DIAGNOSTICS_OPEN=370,DIAGNOSTICS_COPY=371,DIAGNOSTICS_BACK=372,DIAGNOSTICS_TEXT=373,BROWSER_DIAGNOSTICS=374,BROWSER_RETRY=375,BROWSER_ERROR=376,BROWSER_SLEEP=377,DIAGNOSTICS_EXPORT=378,DIAGNOSTICS_FOLDER=379;
 const int SettingsCategoryIds[]={SETTINGS_APPEARANCE,SETTINGS_READING,SETTINGS_WORKSPACE,SETTINGS_PROJECTION,SETTINGS_KEYS,SETTINGS_BROWSER,SETTINGS_MEETING,SETTINGS_DATA};
 const int SettingsCategoryOrder[]={0,1,3,5,6,2,4,7};
 const wchar_t* SettingsCategoryVi[]={L"Giao diện",L"Đọc & tệp",L"Bố cục",L"Trình chiếu",L"Phím tắt",L"Trình duyệt",L"Cuộc họp",L"Dữ liệu"};
@@ -205,6 +206,7 @@ int fontPoints = DefaultTextPoints, speed = 1;
 double scrollRemainder = 0;
 ULONGLONG lastScrollTick = 0;
 std::wstring dataDir;
+std::wstring diagnosticNotice,diagnosticFolder;
 enum class Page { Home, Content, Settings, Presentation, Browser, Quick, Sets, Meeting, Diagnostics };
 Page diagnosticReturn=Page::Presentation;
 HWND diagnosticsText=nullptr;
@@ -758,7 +760,53 @@ std::wstring DiagnosticReport(){
     report+=T(L"\r\n\r\nLẦN DỪNG TRÌNH CHIẾU\r\n",L"\r\n\r\nLAST PROJECTION FAILURE\r\n")+(projection.empty()?T(L"Chưa có bản ghi hợp lệ.",L"No valid record yet."):projection);
     report+=T(L"\r\n\r\nSỰ CỐ TRÌNH DUYỆT GẦN NHẤT\r\n",L"\r\n\r\nLAST BROWSER PROCESS EVENT\r\n")+(web.empty()?T(L"Chưa ghi nhận.",L"No event recorded."):web);
     report+=T(L"\r\n\r\nLỗi tiến trình web và lỗi bảo vệ là hai sự kiện riêng. Đối chiếu thời gian UTC trước khi kết luận nguyên nhân.",L"Browser process events and protection failures are separate. Compare UTC timestamps before assigning a cause.");
+    DiagnosticHistory history;report+=T(L"\r\n\r\nLỊCH SỬ LỖI (tối đa 100 sự kiện)\r\n",L"\r\n\r\nERROR HISTORY (up to 100 events)\r\n");
+    if(history.Load(dataDir+L"\\error-history.dat"))report+=history.events.empty()?T(L"Chưa có sự kiện. Bản cũ chỉ lưu lỗi gần nhất.",L"No events yet. Older versions retained only the latest failure."):history.Text();
+    else report+=T(L"QS-J001 - Không đọc được lịch sử. File được giữ nguyên.",L"QS-J001 - History is unreadable. Existing file preserved.");
+    if(!diagnosticNotice.empty())report+=L"\r\n\r\n"+diagnosticNotice;
+    if(DiagnosticWriteFailed())report+=T(L"\r\nQS-J002 - Có sự kiện chưa lưu được. Kiểm tra quyền ghi và dung lượng.",L"\r\nQS-J002 - Some events could not be saved. Check write access and free space.");
     return report;
+}
+void CollectDiagnosticErrors(){
+    if(qa||dataDir.empty())return;static std::array<std::wstring,4> previous;
+    const std::wstring* values[]={&preferenceError,&workspaceNotice,&transcriptionNotice,&importError};
+    for(size_t i=0;i<4;++i){const auto& value=*values[i];std::wstring code;
+        if(value.size()>=7&&value.rfind(L"QS-",0)==0&&value[4]>=L'0'&&value[4]<=L'9'&&value[5]>=L'0'&&value[5]<=L'9'&&value[6]>=L'0'&&value[6]<=L'9')code=value.substr(0,7);
+        if(code!=previous[i]){previous[i]=code;if(!code.empty()){const unsigned n=(code[4]-L'0')*100+(code[5]-L'0')*10+code[6]-L'0';if(ValidDiagnosticCode(code[3],n))RecordDiagnostic(dataDir+L"\\ui-errors.dat",code[3],n,4);}}}
+}
+void ExportDiagnosticHistory(){
+    CollectDiagnosticErrors();DiagnosticHistory history;
+    if(!history.Load(dataDir+L"\\error-history.dat")){diagnosticNotice=T(L"QS-J001 - Không đọc được lịch sử. Bản lưu được giữ nguyên.",L"QS-J001 - History unreadable. Existing file preserved.");SetWindowTextW(diagnosticsText,DiagnosticReport().c_str());return;}
+    OSVERSIONINFOW version{};version.dwOSVersionInfoSize=sizeof(version);using VersionFn=LONG(WINAPI*)(OSVERSIONINFOW*);auto getVersion=reinterpret_cast<VersionFn>(GetProcAddress(GetModuleHandleW(L"ntdll.dll"),"RtlGetVersion"));if(getVersion)getVersion(&version);
+    unsigned long long browserBytes=0,hostBytes=0;const bool complete=browser.PrivateMemoryBytes(browserBytes),hostComplete=DiagnosticPrivateMemory(GetCurrentProcess(),hostBytes);
+    DWORD affinity=0;const bool excluded=GetWindowDisplayAffinity(window,&affinity)&&affinity==0x11;bool reportCloned=false;const bool known=TryGetDisplayCloned(reportCloned);const auto displays=EnumerateMonitors();
+    std::string report="{\n\"schema\":1,\"application\":\"QuietShare\",\"version\":\"" QUIETSHARE_VERSION_TEXT "\",\"processArchitecture\":\"x64\",\"windowsBuild\":"+std::to_string(version.dwBuildNumber)+
+        ",\"displayCount\":"+std::to_string(displays.size())+",\"topologyKnown\":"+(known?"true":"false")+",\"displayCloned\":"+(reportCloned?"true":"false")+",\"windowsCaptureExcluded\":"+(excluded?"true":"false")+",\"wgcVerified\":"+(mirror&&mirror->IsVerified()?"true":"false")+
+        ",\"receiverVerified\":false,\"resourceMode\":"+std::to_string(resourceMode)+",\"browserTabs\":"+std::to_string(browser.Tabs().size())+",\"dormantTabs\":"+std::to_string(browser.DormantCount())+
+        ",\"browserPrivateBytes\":"+std::to_string(browserBytes)+",\"browserMemoryComplete\":"+(complete?"true":"false")+",\"hostPrivateBytes\":"+std::to_string(hostBytes)+",\"hostMemoryComplete\":"+(hostComplete?"true":"false")+",\"events\":"+history.Json()+"\n}\n";
+    bool saved=false;std::wstring canonical,error;
+    bool folderReady=!diagnosticFolder.empty()&&CanonicalLocalPath(diagnosticFolder,true,canonical,error);
+    if(!folderReady){const auto split=diagnosticFolder.find_last_of(L"\\/");std::wstring parent;
+        if(split!=std::wstring::npos&&diagnosticFolder.substr(split+1)==L"QuietShare-Diagnostics"&&CanonicalLocalPath(diagnosticFolder.substr(0,split),true,parent,error)){
+            const auto target=parent+L"\\QuietShare-Diagnostics";if(CreateDirectoryW(target.c_str(),nullptr)||GetLastError()==ERROR_ALREADY_EXISTS)folderReady=CanonicalLocalPath(target,true,canonical,error);}}
+    if(folderReady){
+        SYSTEMTIME stamp{};GetSystemTime(&stamp);wchar_t name[128]{};swprintf_s(name,L"\\QuietShare-errors-%04u%02u%02u-%02u%02u%02u-%llu.json",stamp.wYear,stamp.wMonth,stamp.wDay,stamp.wHour,stamp.wMinute,stamp.wSecond,GetTickCount64());
+        HANDLE file=CreateFileW((canonical+name).c_str(),GENERIC_WRITE,0,nullptr,CREATE_NEW,FILE_ATTRIBUTE_NORMAL,nullptr);
+        if(file!=INVALID_HANDLE_VALUE){DWORD written=0;saved=WriteFile(file,report.data(),static_cast<DWORD>(report.size()),&written,nullptr)&&written==report.size()&&FlushFileBuffers(file);CloseHandle(file);}}
+    diagnosticNotice=saved?T(L"Đã xuất JSON vào thư mục chẩn đoán đã chọn. Mặc định: Downloads / QuietShare-Diagnostics.",L"JSON exported to the selected diagnostics folder. Default: Downloads / QuietShare-Diagnostics."):T(L"QS-J003 - Không xuất được JSON. Kiểm tra thư mục, quyền ghi và dung lượng.",L"QS-J003 - JSON export failed. Check the folder, write access and free space.");
+    if(!saved)RecordDiagnostic(dataDir+L"\\ui-errors.dat",'J',3,4);SetWindowTextW(diagnosticsText,DiagnosticReport().c_str());
+}
+void ChooseDiagnosticFolder(){
+    if(Blocked())return;Pause();LocalPicker picker;auto paths=picker.Show(window,true,diagnosticFolder,english,uiFont,filePicker,importError);
+    if(paths.empty())return;ProfileWords record;record.Put(1);record.Put(paths.front());
+    if(WritePrivateProfile(dataDir+L"\\diagnostic-folder.dpapi",record)){diagnosticFolder=paths.front();diagnosticNotice.clear();}
+    else importError=T(L"QS-J003 - Không lưu được thư mục chẩn đoán.",L"QS-J003 - Could not save the diagnostics folder.");Layout();
+}
+void SleepBrowserBackground(){
+    if(Blocked()||!browser.Enabled()||browser.PendingTabCount())return;RECT anchor{};GetWindowRect(GetDlgItem(window,WEB_MENU),&anchor);ToolMenu menu;
+    const int action=menu.Show(window,anchor,dpi,uiFont,{{0,T(L"Tab nền sẽ tải lại. Ô nhập chưa gửi có thể mất.",L"Background tabs will reload. Unsent form content may be lost."),false,0xea6c},
+        {1,T(L"Cho tab nền nghỉ sâu để giải phóng RAM",L"Deep sleep background tabs to release RAM"),true,0xeb2c},{0,T(L"Hủy",L"Cancel"),true,0xea76}});
+    if(action==1){const auto count=browser.SleepBackgroundTabs();preferenceError=std::to_wstring(count)+T(L" tab đã nghỉ sâu. Tab phát âm thanh hoặc dùng thiết bị được giữ.",L" tabs asleep. Audio/device tabs are retained.");Layout();}
 }
 void OpenDiagnostics(){Pause();focusMode=false;diagnosticReturn=page;page=Page::Diagnostics;SetWindowTextW(diagnosticsText,DiagnosticReport().c_str());Layout();}
 void CopyDiagnosticReport(){const auto text=DiagnosticReport();if(!OpenClipboard(window))return;
@@ -795,6 +843,9 @@ void UpdateQuickActions()
 }
 void UpdateButtons()
 {
+    CollectDiagnosticErrors();
+    EnableWindow(GetDlgItem(window,DIAGNOSTICS_FOLDER),!Blocked());
+    EnableWindow(GetDlgItem(window,BROWSER_SLEEP),!Blocked()&&browser.ControllerCount()>1&&!browser.PendingTabCount());
     browser.SetEnglish(english);
     std::vector<BrowserCommandShortcut> webShortcuts;
     for(unsigned i=0;i<PreferenceCommandCount;++i) {
@@ -852,7 +903,7 @@ void UpdateButtons()
     SetTip(NAV_BROWSER,T(L"Trình duyệt tùy chọn",L"Optional browser"));
     SetTip(WEB_BACK,T(L"Quay lại",L"Back"));SetTip(WEB_FORWARD,T(L"Tiến tới",L"Forward"));SetTip(WEB_RELOAD,T(L"Tải lại trang",L"Reload page"));
     for(const auto& item:std::vector<std::pair<int,const wchar_t*>>{{DIAGNOSTICS_OPEN,page==Page::Presentation?T(L"Chẩn đoán",L"Diagnostics"):T(L"Chẩn đoán lần dừng",L"Last-stop diagnostics")},{BROWSER_DIAGNOSTICS,T(L"Chẩn đoán trình duyệt",L"Browser diagnostics")},
-        {DIAGNOSTICS_COPY,T(L"Sao chép báo cáo",L"Copy report")},{DIAGNOSTICS_BACK,T(L"Quay lại",L"Back")},{BROWSER_RETRY,T(L"Tải lại tab",L"Reload tab")}})SetWindowTextW(GetDlgItem(window,item.first),item.second);
+        {DIAGNOSTICS_COPY,T(L"Sao chép báo cáo",L"Copy report")},{DIAGNOSTICS_EXPORT,T(L"Xuất lịch sử lỗi",L"Export error history")},{DIAGNOSTICS_FOLDER,T(L"Thư mục xuất chẩn đoán",L"Diagnostics export folder")},{BROWSER_SLEEP,T(L"Giải phóng RAM tab nền",L"Release background tab RAM")},{DIAGNOSTICS_BACK,T(L"Quay lại",L"Back")},{BROWSER_RETRY,T(L"Tải lại tab",L"Reload tab")}})SetWindowTextW(GetDlgItem(window,item.first),item.second);
     SendMessageW(webAddress,EM_SETCUEBANNER,TRUE,(LPARAM)T(L"Tìm trên Google hoặc nhập địa chỉ web",L"Search Google or enter a web address"));
     SetWindowTextW(GetDlgItem(window,LAYOUT_MENU),T(L"Bố cục",L"Layout"));
     SetTip(LAYOUT_MENU,T(L"Bố cục: thanh bên, tab, công cụ, trạng thái",L"Layout: activity bar, tabs, toolbar and status bar"));
@@ -1346,6 +1397,8 @@ void Layout()
             {S(left),S(y),S(right),S(y+104)},false});y+=112;
         }
         if(settingsCategory==7){heading(L"Dữ liệu trên máy",L"Local data");
+        row(L"Báo cáo hỗ trợ",L"Support report",DIAGNOSTICS_OPEN,200);
+        row(L"Thư mục xuất",L"Export folder",DIAGNOSTICS_FOLDER,220);
             row(L"Lịch sử gần đây",L"Recent history",RECENT_CLEAR,std::min(180,right-left));
             settingsLines.push_back({T(L"Xóa lịch sử và ghim không xóa file gốc. Lời nhắc, bộ thuyết trình và ghi chép được lưu riêng.",L"Clearing history and pins does not delete originals. Scripts, sets and meeting notes are stored separately."),{S(left),S(y),S(right),S(y+80)},false});y+=88;
         }
@@ -1360,9 +1413,11 @@ void Layout()
         }
     }
     else if(page==Page::Diagnostics){
-        move(DIAGNOSTICS_BACK,contentLeft,48,100,30);move(DIAGNOSTICS_COPY,contentRight-170,48,170,30);
-        MoveWindow(diagnosticsText,S(contentLeft),S(90),S(contentRight-contentLeft),S(std::max(40,bottom-90)),FALSE);reveal(diagnosticsText);
-        contentCardRect={S(contentLeft),S(90),S(contentRight),S(bottom)};
+        const bool narrow=contentRight-contentLeft<550;
+        move(DIAGNOSTICS_BACK,contentLeft,48,80,30);move(DIAGNOSTICS_COPY,narrow?contentLeft:contentRight-340,narrow?84:48,narrow?(contentRight-contentLeft-8)/2:160,30);
+        move(DIAGNOSTICS_EXPORT,narrow?contentLeft+(contentRight-contentLeft)/2:contentRight-172,narrow?84:48,narrow?(contentRight-contentLeft-8)/2:172,30);
+        const int top=narrow?124:90;MoveWindow(diagnosticsText,S(contentLeft),S(top),S(contentRight-contentLeft),S(std::max(40,bottom-top)),FALSE);reveal(diagnosticsText);
+        contentCardRect={S(contentLeft),S(top),S(contentRight),S(bottom)};
     }
     else if(page==Page::Browser) {
         // Keep the address centred between navigation and the browser menu.
@@ -1827,7 +1882,7 @@ bool SaveActiveState()
     if(IsCode() || IsPdf()) {
         auto view=IsCode()?codeViewer.GetState():pdfViewer.GetState();
         state.scrollX=view.scrollX;state.scrollY=view.scrollY;state.zoom=view.zoom;
-        state.page=view.page;state.panX=view.panX;state.panY=view.panY;state.wrap=view.wrap;state.fitWidth=view.fitWidth;
+        state.page=view.page;state.panX=view.panX;state.panY=view.panY;state.wrap=view.wrap;state.fitWidth=view.fitWidth;state.scaleWidth=view.scaleWidth;state.scaleHeight=view.scaleHeight;
     } else {
         POINT scroll{};SendMessageW(editor,EM_GETSCROLLPOS,0,(LPARAM)&scroll);
         state.scrollX=scroll.x;state.scrollY=scroll.y;
@@ -1836,9 +1891,10 @@ bool SaveActiveState()
     return true;
 }
 bool SaveFile(){
+    if(page==Page::Diagnostics){ExportDiagnosticHistory();return true;}
     if(Blocked()||!preferences.allowFileEditing||!viewingFile||IsImage()||IsPdf())return false;
     if(!SaveActiveState())return false;if(!documents.Active().dirty)return true;
-    const bool saved=documents.Save(documents.Active().id,importError);
+    const bool saved=documents.Save(documents.Active().id,importError);if(!saved){importError=L"QS-F002 - "+importError;CollectDiagnosticErrors();}
     if(saved&&IsCode())codeViewer.MarkSaved();
     UpdateDocumentBar();InvalidateRect(window,nullptr,FALSE);return saved;
 }
@@ -1854,7 +1910,7 @@ bool ConfirmFile(DocumentId id){
         {0,T(L"Hủy thao tác",L"Cancel"),true,0xea76}});
     closeConfirmation=false;
     if(!window||!documents.Get(id))return false;
-    if(action==1){if(!documents.Save(id,importError)){InvalidateRect(window,nullptr,FALSE);return false;}
+    if(action==1){if(!documents.Save(id,importError)){importError=L"QS-F002 - "+importError;CollectDiagnosticErrors();InvalidateRect(window,nullptr,FALSE);return false;}
         if(id==documents.Active().id&&IsCode())codeViewer.MarkSaved();return true;}
     return action==2;
 }
@@ -1882,7 +1938,7 @@ void RenderDocument()
         codeViewer.SetState({doc.state.scrollX,doc.state.scrollY,doc.state.zoom,doc.state.page,doc.state.panX,doc.state.panY,doc.state.wrap});
     } else if(IsPdf()) {
         if(!pdfViewer.Open(doc.content,viewerError)) {Layout();return;}
-        pdfViewer.SetState({doc.state.scrollX,doc.state.scrollY,doc.state.zoom,doc.state.page,doc.state.panX,doc.state.panY,doc.state.wrap,doc.state.fitWidth});
+        pdfViewer.SetState({doc.state.scrollX,doc.state.scrollY,doc.state.zoom,doc.state.page,doc.state.panX,doc.state.panY,doc.state.wrap,doc.state.fitWidth,doc.state.scaleWidth,doc.state.scaleHeight});
     }
     ApplyTextWrap();
     ApplyTextFormat();POINT scroll{doc.state.scrollX,doc.state.scrollY};SendMessageW(editor,EM_SETSCROLLPOS,0,(LPARAM)&scroll);
@@ -1916,10 +1972,10 @@ bool OpenContentPath(const std::wstring &path)
     if(result.status==OpenStatus::ReloadRequired) {
         reloadPending=result.id;findVisible=false;RenderDocument();return false;
     }
-    if(!result) {RenderDocument();return false;}
+    if(!result) {importError=L"QS-F001 - "+importError;CollectDiagnosticErrors();RenderDocument();return false;}
     viewingFile=true;viewerError.clear();RenderDocument();
     if(!viewerError.empty()) {
-        importError=viewerError;documentHost.CloseExternal();
+        importError=L"QS-F003 - "+viewerError;CollectDiagnosticErrors();documentHost.CloseExternal();
         if(result.status==OpenStatus::Opened)documents.Close(result.id);
         documents.Activate(previous);viewingFile=previous!=0;viewerError.clear();RenderDocument();return false;
     }
@@ -3882,7 +3938,7 @@ LRESULT CALLBACK Proc(HWND h, UINT message, WPARAM wp, LPARAM lp)
         if(!LoadCodicons(instance))return -1;
         window = h;
         mirror=std::make_unique<MirrorController>();mirror->SetResourceMode(resourceMode);
-        if(!qa){mirror->SetDiagnosticPath(dataDir+L"\\projection-stop.json");browser.SetDiagnosticPath(dataDir+L"\\browser-fault.dat");}
+        if(!qa){mirror->SetDiagnosticPath(dataDir+L"\\projection-stop.json");browser.SetDiagnosticPath(dataDir+L"\\browser-fault.dat");pdfViewer.SetDiagnosticPath(dataDir+L"\\viewer-errors.dat");}
         privacy = ApplyPrivacy(h);
         topologyKnown = TryGetDisplayCloned(cloned);
         if (qaVisual)
@@ -3912,7 +3968,7 @@ LRESULT CALLBACK Proc(HWND h, UINT message, WPARAM wp, LPARAM lp)
             {RESET_PREFERENCES,L"Khôi phục mặc định"},{MIRROR_ACTION,L"Bắt đầu trình chiếu"},
             {220,L"F8"},{221,L"Ctrl+Alt+Q"},{222,L"F9"},{223,L"F10"},{224,L"F11"},
             {225,L"Ctrl+O"},{226,L"Ctrl+Shift+O"},{227,L"Ctrl+B"},{228,L"Ctrl+Enter"},{229,L"Space"}};
-        labels.insert(labels.end(),{{SETTINGS_MEETING,L"Cuộc họp"},{SETTINGS_DATA,L"Dữ liệu"},{SETTINGS_CATEGORY,L"Giao diện"},{SETTINGS_ADVANCED,L"Nâng cao"},
+        labels.insert(labels.end(),{{BROWSER_SLEEP,L"Giải phóng RAM tab nền"},{DIAGNOSTICS_EXPORT,L"Xuất lịch sử lỗi"},{DIAGNOSTICS_FOLDER,L"Thư mục xuất chẩn đoán"},{SETTINGS_MEETING,L"Cuộc họp"},{SETTINGS_DATA,L"Dữ liệu"},{SETTINGS_CATEGORY,L"Giao diện"},{SETTINGS_ADVANCED,L"Nâng cao"},
             {THEME_DARK,L"Tối"},{THEME_LIGHT,L"Sáng"},{PROFILE_SELECT,L"Hồ sơ"},{PROFILE_SAVE,L"Lưu hồ sơ"},{PROFILE_APPLY,L"Áp dụng"},
             {DIAGNOSTICS_OPEN,L"Chẩn đoán lần dừng"},{DIAGNOSTICS_COPY,L"Sao chép báo cáo"},{DIAGNOSTICS_BACK,L"Quay lại"},{BROWSER_DIAGNOSTICS,L"Chẩn đoán trình duyệt"},{BROWSER_RETRY,L"Tải lại tab"},
             {NAV_MEETING,L"Cuộc họp"},{MEETING_SAVE,L"Lưu đoạn"},{MEETING_DECISION,L"Quyết định"},{MEETING_ACTION,L"Việc cần làm"},{MEETING_EXPORT,L"Xuất"},
@@ -4016,7 +4072,7 @@ LRESULT CALLBACK Proc(HWND h, UINT message, WPARAM wp, LPARAM lp)
         SendMessageW(webAddress,EM_SETLIMITTEXT,4096,0);SetWindowTheme(webAddress,theme.dark?L"DarkMode_Explorer":L"Explorer",nullptr);
         SetWindowSubclass(webAddress,AddressInputProc,1,0);
         diagnosticsText=CreateWindowExW(0,L"EDIT",L"",WS_CHILD|WS_TABSTOP|WS_VSCROLL|ES_MULTILINE|ES_AUTOVSCROLL|ES_READONLY,0,0,0,0,h,(HMENU)DIAGNOSTICS_TEXT,instance,nullptr);
-        SendMessageW(diagnosticsText,EM_SETLIMITTEXT,8000,0);SetWindowSubclass(diagnosticsText,PrivateReaderInputProc,1,0);
+        SendMessageW(diagnosticsText,EM_SETLIMITTEXT,32768,0);SetWindowSubclass(diagnosticsText,PrivateReaderInputProc,1,0);
         buttons.push_back(CreateWindowExW(0,L"STATIC",L"",WS_CHILD|SS_LEFT,0,0,0,0,h,(HMENU)BROWSER_ERROR,instance,nullptr));
         sourceMonitor=CreateWindowExW(0,L"COMBOBOX",L"",WS_CHILD|WS_TABSTOP|CBS_DROPDOWNLIST|CBS_OWNERDRAWFIXED|CBS_HASSTRINGS|WS_VSCROLL,0,0,0,0,h,(HMENU)SOURCE_MONITOR,instance,nullptr);
         destinationMonitor=CreateWindowExW(0,L"COMBOBOX",L"",WS_CHILD|WS_TABSTOP|CBS_DROPDOWNLIST|CBS_OWNERDRAWFIXED|CBS_HASSTRINGS|WS_VSCROLL,0,0,0,0,h,(HMENU)DEST_MONITOR,instance,nullptr);
@@ -4052,7 +4108,7 @@ LRESULT CALLBACK Proc(HWND h, UINT message, WPARAM wp, LPARAM lp)
         SetWindowTextW(editor, content.c_str());
         scriptDraft=content;documents.Get(0)->content.text=content;
         loading = false;
-        qaContent = TextOf(editor);
+        if(qa)qaContent = TextOf(editor);
         browser.SetMediaPreferences(preferences.browserMuted,preferences.browserAllowCamera,preferences.browserAllowMicrophone);
         RefreshFonts();
         ApplyTextFormat();
@@ -4378,6 +4434,10 @@ LRESULT CALLBACK Proc(HWND h, UINT message, WPARAM wp, LPARAM lp)
         case 83:return page==Page::Diagnostics;
         case 84:return settingsAdvanced;
         case 85:return browserUiLayouts;
+        case 86:return browser.DormantCount();
+        case 87:return pdfViewer.VisiblePageCount();
+        case 88:return pdfViewer.GetState().panY;
+        case 89:return static_cast<LRESULT>(pdfViewer.CachedBytes());
         case 65:{DWORD affinity=0;return GetWindowDisplayAffinity(window,&affinity)&&affinity==0x11;}
             case 60:return preferences.iconSize;
             case 61:return preferences.browserMuted;
@@ -4510,6 +4570,9 @@ LRESULT CALLBACK Proc(HWND h, UINT message, WPARAM wp, LPARAM lp)
         case THEME_DARK:case THEME_LIGHT:{auto candidate=preferences;candidate.themeId=LOWORD(wp)==THEME_DARK?0:1;StorePreferences(candidate);Layout();break;}
         case DIAGNOSTICS_OPEN:case BROWSER_DIAGNOSTICS:OpenDiagnostics();break;
         case DIAGNOSTICS_COPY:CopyDiagnosticReport();break;
+        case DIAGNOSTICS_EXPORT:ExportDiagnosticHistory();break;
+        case DIAGNOSTICS_FOLDER:ChooseDiagnosticFolder();break;
+        case BROWSER_SLEEP:SleepBrowserBackground();break;
         case DIAGNOSTICS_BACK:page=diagnosticReturn;Layout();break;
         case BROWSER_RETRY:if(!Blocked()){browser.Reload();Layout();}break;
         case QUICK_SWITCH:OpenQuick();break;
@@ -4658,6 +4721,7 @@ LRESULT CALLBACK Proc(HWND h, UINT message, WPARAM wp, LPARAM lp)
         case WEB_GO:if(!Blocked()){const auto target=TextOf(webAddress);webAddressEdited=false;browser.Navigate(target);browser.Focus();}break;
         case WEB_MENU: {
             std::vector<ToolMenuItem> entries{{WEB_NEW_TAB,T(L"Tab mới   Ctrl+T",L"New tab   Ctrl+T"),browser.CanNewTab(),0xea60},
+                {BROWSER_SLEEP,T(L"Giải phóng RAM tab nền",L"Release background tab RAM"),browser.Tabs().size()>1&&!browser.PendingTabCount(),0xeb2c},
                 {BROWSER_MUTED,T(preferences.browserMuted?L"Bật âm thanh":L"Tắt âm thanh",
                     preferences.browserMuted?L"Unmute audio":L"Mute audio"),true,
                     static_cast<wchar_t>(preferences.browserMuted?0xeb75:0xeb24),preferences.browserMuted},
@@ -4962,6 +5026,9 @@ int WINAPI wWinMain(HINSTANCE inst, HINSTANCE, LPWSTR, int show)
     LoadLayoutPreferences();
     if(!qa){
         if(GetFileAttributesW((dataDir+L"\\workspace-profiles.dpapi").c_str())!=INVALID_FILE_ATTRIBUTES)profilesUnavailable=!workspaceProfiles.Load(dataDir);
+        PWSTR downloads=nullptr;if(SUCCEEDED(SHGetKnownFolderPath(FOLDERID_Downloads,KF_FLAG_DEFAULT,nullptr,&downloads))&&downloads)diagnosticFolder=std::wstring(downloads)+L"\\QuietShare-Diagnostics";CoTaskMemFree(downloads);
+        ProfileWords diagnosticConfig;if(ReadPrivateProfile(dataDir+L"\\diagnostic-folder.dpapi",diagnosticConfig)&&diagnosticConfig.Get()==1){auto folder=diagnosticConfig.Text(32767);if(diagnosticConfig.Done()&&!folder.empty())diagnosticFolder=folder;}
+
         LoadPreferences(dataDir,preferences);
         meetingSettings.outputDirectory=DefaultMeetingDirectory(dataDir);
         LoadMeetingSettings(dataDir,meetingSettings);
