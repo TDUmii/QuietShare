@@ -8,7 +8,7 @@ import shutil
 import subprocess
 
 ROOT = Path(__file__).resolve().parents[1]
-VERSION = '0.23.0'
+VERSION = '0.23.1'
 
 def sha256(path):
     return hashlib.sha256((ROOT / path).read_bytes()).hexdigest()
@@ -37,6 +37,7 @@ def main():
     upgrade = read('settings-browser-upgrade.json')
     resources = read('browser-resource-regression.json')
     ram_pdf_history = read('ram-pdf-history-integration.json')
+    scrolling = read('browser-scrolling-integration.json')
     documentation = read('docs-regression.json')
     manuals = read('manuals-regression.json')
     scrollbar = read('scrollbar-check.json')
@@ -58,6 +59,7 @@ def main():
     assert upgrade['exeSha256']==actual_hash and upgrade['failed']==0 and not upgrade['failure']
     assert resources['exeSha256']==actual_hash and resources['failed']==0
     assert ram_pdf_history['exeSha256']==actual_hash and ram_pdf_history['failed']==0 and not ram_pdf_history['failure']
+    assert scrolling['exeSha256']==actual_hash and scrolling['failed']==0 and not scrolling['failure']
     assert documentation['failed']==manuals['failed']==0 and manuals['version']==VERSION
     for path, expected in documentation['sourceSha256'].items():
         assert sha256(path)==expected, path
@@ -114,6 +116,7 @@ def main():
         ('Content / file policy','qa-content/content-regression.json'),
         ('Bounded fixed-field diagnostic journal / restart / corruption','qa-diagnostic-history/diagnostic-history-regression.json'),
         ('Shipping continuous PDF / private JSON error export','ram-pdf-history-integration.json'),
+        ('Shipping web scrolling / native responsiveness / stalled renderer recovery','browser-scrolling-integration.json'),
         ('Workspace / encrypted history / editing','qa-workspace/workspace-regression.json'),
         ('Preferences / atomic shortcuts / validation','qa-preferences/preferences-regression.json'),
         ('Workspace profiles / encrypted bounds / atomic recovery','qa-workspace-profiles/workspace-profiles-regression.json'),

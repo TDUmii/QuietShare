@@ -2,7 +2,7 @@
 
 > **Illustrated walkthrough:** [8 real UI screenshots with numbered red click targets](VISUAL_GUIDE_EN.md).
 
-English edition - QuietShare v0.23.0
+English edition - QuietShare v0.23.1
 
 Read, prepare and present with private notes on Windows.
 
@@ -440,7 +440,7 @@ If you enable browsing during projection, QuietShare holds the last public frame
 Recoverable GPU, utility and subframe events retain the verified controller. A nonresponding page can be waited on or reloaded. This does not override a real WGC, display or privacy failure.
 
 1. If a page stops, read its **QS-B** code and open **Diagnostics**. The current tabs and addresses stay in the session.
-2. For **QS-B001** or **QS-B002**, select **Reload tab**. A browser-process exit may need a short wait before retry.
+2. For **QS-B001** or **QS-B002**, select **Recover tab**. A browser-process exit may need a short wait before retry.
 3. QuietShare recreates the required controller/environment and verifies its mounted rendered surface before showing the page.
 4. If private content is locked, read the separate **QS-P** record, repair that condition and run F9. If verification still fails, keep content locked and restart QuietShare.
 5. Start projection explicitly with F10 only after protection succeeds. Inspect the actual receiver again.
@@ -983,7 +983,7 @@ The record contains:
 3. Find the new file in **Downloads / QuietShare-Diagnostics**. To choose another existing local folder, use **Settings > Data > Export folder** before exporting.
 4. Send this JSON with the steps that caused the problem. QuietShare never uploads it automatically.
 
-The local journal `error-history.dat` retains the newest 100 mapped events across restarts, using at most 6,012 bytes. It records UTC, version, QS code, phase, numeric detail and HRESULT or browser exit code. The export adds Windows build, display topology/protection flags, resource mode, tab counts and a current private-memory snapshot with completeness flags. These values describe this computer at export time. Receiver verification is not inferred.
+The local journal `error-history.dat` retains the newest 100 mapped events across restarts, using at most 7,612 bytes. It records UTC, version, QS code, phase, numeric detail and HRESULT or browser exit code. The export adds Windows build, display topology/protection flags, resource mode, tab counts and a current private-memory snapshot with completeness flags. These values describe this computer at export time. Receiver verification is not inferred.
 
 The journal does not contain notes, file paths, URLs, tab titles, audio or screenshots. It is a fixed-field diagnostic file, not a full crash dump. It starts collecting in v0.23.0 and cannot reconstruct earlier failures. Unmapped errors and events that could not be written may be absent.
 
@@ -1057,8 +1057,8 @@ Use **Hide preview** on Presentation, or **Settings > Projection > Outgoing prev
 
 | Code | Detected event and recovery |
 |---|---|
-| `QS-B001` | Browser process exited. Wait for exit, then Reload tab. Tabs stay in this session. |
-| `QS-B002` | Main renderer exited. Reload tab to recreate and verify it. |
+| `QS-B001` | Browser process exited. Wait for exit, then Recover tab. Tabs stay in this session. |
+| `QS-B002` | Main renderer exited. Recover tab to recreate and verify it. |
 | `QS-B003` | Renderer is unresponsive. Wait or reload the page. Close an unused heavy tab if needed. |
 | `QS-B004` | Subframe renderer exited. The controller is retained. Reload if a frame remains blank. |
 | `QS-B005` | Utility process exited. WebView2 can recover. Reload if page features remain broken. |
@@ -1067,11 +1067,23 @@ Use **Hide preview** on Presentation, or **Settings > Projection > Outgoing prev
 | `QS-B008` | Plugin process exited. Reload the affected page. Some legacy page features may be unsupported. |
 | `QS-B009` | Plugin broker exited. Reload the affected page and update WebView2 if repeated. |
 | `QS-B010` | Another WebView2 process exited. Inspect the page and reload if needed. |
+| `QS-B011` | Windows committed memory is almost exhausted. QuietShare temporarily requests a lower memory target and pauses new-tab creation. Save forms, deep-sleep background tabs or close unused apps. Retry after headroom returns. |
 | `QS-B099` | Unrecognized process event. Reload to recreate and verify. Preserve the numeric reason/exit code. |
 
-These codes describe process events. QS-B004 through QS-B010 preserve the controller while WebView2 recovers. An independent protection failure still locks private content.
+QS-B001 through QS-B010 and QS-B099 describe process notifications. A shared GPU failure can notify multiple tabs, so notification count is not a count of distinct crashes. The renderer reason `5` means out-of-memory. QS-B011 is a Windows commit warning. An independent protection failure still locks private content.
 
 ### Usage profile recovery codes
 
 - **QS-W009:** saved profiles cannot be read. Close QuietShare and back up `workspace-profiles.dpapi`. Restore a known-good copy under the same Windows account, or rename it before starting fresh. The unreadable file is preserved.
 - **QS-W010:** a profile or its colors could not be saved. Check local write access and free space. Keep the existing profile and retry.
+
+### A feed freezes while native controls still work
+
+1. Open **Diagnostics** and inspect the exact QS-B code and reason. **QS-B002** or **QS-B004** with reason `5` indicates an out-of-memory renderer. **QS-B003** indicates an unresponsive page.
+2. Compare **available committed memory** with **available physical RAM**. A computer can have free physical RAM while its commit limit is nearly exhausted.
+3. On **QS-B011**, QuietShare requests a lower memory target for the active, unsuspended page and blocks additional tabs. This preserves the current page and form state. The normal target returns after sufficient headroom returns. Runtime memory reduction is best effort and can temporarily reduce performance.
+4. Save forms when possible. Use **Release background tab RAM**, then confirm, or close unused applications yourself. Deep sleep may discard unsent page forms.
+5. An unresponsive page exposes **Recover tab** and **Browser diagnostics** above the page. **Browser > overflow > Recover tab** is also available before the runtime reports a failure. Recovery recreates the tab, retains its address and zoom, and verifies the new rendered surface before display. Unsent page input may be lost. Recovery is explicit, without an automatic reload loop.
+6. QuietShare leaves Windows paging settings unchanged. If commit remains full with only one web tab, memory used elsewhere on Windows still needs attention.
+
+New v0.23.1 history entries include available/limit committed memory and physical RAM at the time of the event. Existing v0.23.0 entries are retained and mark their memory snapshot as unknown. Current export-time memory is a separate snapshot. The app checks pressure at most once every two seconds and uses separate recovery thresholds to avoid flickering warnings.

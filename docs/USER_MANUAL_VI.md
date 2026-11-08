@@ -2,7 +2,7 @@
 
 > **Có hướng dẫn bằng ảnh:** [Xem 8 ảnh chụp giao diện có đánh số và khoanh đỏ](VISUAL_GUIDE_VI.md).
 
-Ấn bản tiếng Việt - QuietShare v0.23.0
+Ấn bản tiếng Việt - QuietShare v0.23.1
 
 Đọc, chuẩn bị và thuyết trình với lời nhắc riêng trên Windows.
 
@@ -440,7 +440,7 @@ Nếu bật trình duyệt khi đang chiếu, QuietShare giữ khung hình công
 Sự kiện GPU, tiện ích hoặc khung con có thể phục hồi sẽ giữ controller đã xác minh. Với trang chưa phản hồi, có thể đợi hoặc tải lại. Quy tắc này không bỏ qua lỗi WGC, màn hình hoặc bảo vệ thực tế.
 
 1. Khi trang dừng, đọc mã **QS-B** và mở **Chẩn đoán**. Tab và địa chỉ hiện tại vẫn giữ trong phiên.
-2. Với **QS-B001** hoặc **QS-B002**, chọn **Tải lại tab**. Tiến trình web thoát có thể cần đợi ít giây rồi thử lại.
+2. Với **QS-B001** hoặc **QS-B002**, chọn **Khôi phục tab**. Tiến trình web thoát có thể cần đợi ít giây rồi thử lại.
 3. QuietShare tạo lại controller/môi trường cần thiết và kiểm tra vùng render đang gắn vào cửa sổ trước khi hiện trang.
 4. Nếu nội dung riêng bị khóa, đọc bản ghi **QS-P** riêng, khắc phục nguyên nhân rồi nhấn F9. Nếu vẫn không xác minh được, giữ khóa và mở lại QuietShare.
 5. Chỉ chủ động nhấn F10 sau khi bảo vệ thành công. Kiểm tra lại đúng đầu nhận.
@@ -983,7 +983,7 @@ Bản ghi gồm:
 3. File mới nằm trong **Downloads / QuietShare-Diagnostics**. Muốn đổi nơi lưu, chọn thư mục cục bộ có sẵn tại **Cài đặt > Dữ liệu > Thư mục xuất** trước khi xuất.
 4. Gửi JSON kèm các bước gây lỗi. QuietShare không tự tải báo cáo lên mạng.
 
-Nhật ký cục bộ `error-history.dat` giữ 100 sự kiện có mã gần nhất qua các lần khởi động, tối đa 6.012 byte. Mỗi mục có UTC, phiên bản, mã QS, giai đoạn, chi tiết dạng số và HRESULT hoặc mã thoát tiến trình web. File xuất thêm bản Windows, trạng thái màn hình/bảo vệ, chế độ tài nguyên, số tab và bộ nhớ riêng hiện tại kèm cờ đo đủ hay thiếu. Các giá trị này phản ánh máy tại lúc xuất. Không suy diễn rằng đầu nhận đã được xác minh.
+Nhật ký cục bộ `error-history.dat` giữ 100 sự kiện có mã gần nhất qua các lần khởi động, tối đa 7.612 byte. Mỗi mục có UTC, phiên bản, mã QS, giai đoạn, chi tiết dạng số và HRESULT hoặc mã thoát tiến trình web. File xuất thêm bản Windows, trạng thái màn hình/bảo vệ, chế độ tài nguyên, số tab và bộ nhớ riêng hiện tại kèm cờ đo đủ hay thiếu. Các giá trị này phản ánh máy tại lúc xuất. Không suy diễn rằng đầu nhận đã được xác minh.
 
 Nhật ký không chứa lời nhắc, đường dẫn file, URL, tên tab, âm thanh hoặc ảnh chụp. Đây là báo cáo trường cố định, không phải bản dump khi crash. Bắt đầu thu từ v0.23.0, không dựng lại lỗi đã xảy ra trước đó. Lỗi chưa có mã hoặc không ghi được có thể vắng mặt.
 
@@ -1057,8 +1057,8 @@ Dùng **Ẩn xem trước** tại Trình chiếu hoặc **Cài đặt > Trình c
 
 | Mã | Sự kiện phát hiện và cách xử lý |
 |---|---|
-| `QS-B001` | Tiến trình trình duyệt đã thoát. Đợi thoát xong rồi Tải lại tab. Tab vẫn giữ trong phiên. |
-| `QS-B002` | Tiến trình render chính đã thoát. Tải lại tab để tạo và xác minh lại. |
+| `QS-B001` | Tiến trình trình duyệt đã thoát. Đợi thoát xong rồi Khôi phục tab. Tab vẫn giữ trong phiên. |
+| `QS-B002` | Tiến trình render chính đã thoát. Khôi phục tab để tạo và xác minh lại. |
 | `QS-B003` | Trang chưa phản hồi. Đợi hoặc tải lại. Có thể đóng tab nặng không dùng. |
 | `QS-B004` | Render khung con thoát. Controller được giữ. Tải lại nếu khung vẫn trắng. |
 | `QS-B005` | Tiến trình tiện ích thoát. WebView2 có thể phục hồi. Tải lại nếu chức năng trang vẫn lỗi. |
@@ -1067,11 +1067,23 @@ Dùng **Ẩn xem trước** tại Trình chiếu hoặc **Cài đặt > Trình c
 | `QS-B008` | Tiến trình plugin thoát. Tải lại trang. Một số chức năng cũ có thể không được hỗ trợ. |
 | `QS-B009` | Tiến trình môi giới plugin thoát. Tải lại trang và cập nhật WebView2 nếu lặp lại. |
 | `QS-B010` | Tiến trình WebView2 khác thoát. Kiểm tra trang và tải lại nếu cần. |
+| `QS-B011` | Bộ nhớ cam kết Windows gần hết. QuietShare tạm yêu cầu mức bộ nhớ thấp hơn và ngừng tạo thêm tab. Lưu ô nhập, cho tab nền nghỉ sâu hoặc đóng ứng dụng không dùng. Thử lại khi có đủ khoảng trống bộ nhớ. |
 | `QS-B099` | Sự kiện tiến trình chưa nhận dạng. Tải lại để tạo và xác minh. Giữ mã reason/exit dạng số. |
 
-Mã mô tả sự kiện tiến trình. QS-B004 đến QS-B010 giữ controller trong khi WebView2 phục hồi. Lỗi bảo vệ độc lập vẫn khóa nội dung riêng.
+QS-B001 đến QS-B010 và QS-B099 mô tả thông báo tiến trình. Một lỗi GPU dùng chung có thể báo cho nhiều tab, nên số thông báo không phải số lần crash riêng biệt. Lý do renderer `5` nghĩa là hết bộ nhớ. QS-B011 cảnh báo bộ nhớ cam kết Windows. Lỗi bảo vệ độc lập vẫn khóa nội dung riêng.
 
 ### Mã phục hồi hồ sơ sử dụng
 
 - **QS-W009:** không đọc được hồ sơ cũ. Đóng QuietShare và sao lưu `workspace-profiles.dpapi`. Khôi phục bản tốt bằng cùng tài khoản Windows hoặc đổi tên file trước khi tạo mới. File lỗi được giữ nguyên.
 - **QS-W010:** không lưu được hồ sơ hoặc màu. Kiểm tra quyền ghi và dung lượng trống. Giữ hồ sơ cũ rồi thử lại.
+
+### Feed đứng nhưng nút của ứng dụng vẫn bấm được
+
+1. Mở **Chẩn đoán**, đọc đúng mã QS-B và reason. **QS-B002** hoặc **QS-B004** với reason `5` là renderer hết bộ nhớ. **QS-B003** là trang không phản hồi.
+2. So **bộ nhớ cam kết còn trống** với **RAM vật lý còn trống**. Máy có thể còn RAM vật lý nhưng giới hạn bộ nhớ cam kết đã gần hết.
+3. Khi có **QS-B011**, QuietShare yêu cầu mức bộ nhớ thấp hơn cho trang đang xem chưa bị tạm ngưng, đồng thời chặn mở thêm tab. Trang hiện tại và ô nhập được giữ. Mức bình thường trở lại khi có đủ khoảng trống. Giảm bộ nhớ phụ thuộc runtime và có thể tạm giảm hiệu năng.
+4. Lưu ô nhập nếu còn thao tác được. Dùng **Giải phóng RAM tab nền** rồi xác nhận, hoặc tự đóng ứng dụng không dùng. Nghỉ sâu có thể bỏ nội dung ô nhập chưa gửi.
+5. Trang không phản hồi có nút **Khôi phục tab** và **Chẩn đoán trình duyệt** ngay phía trên. **Trình duyệt > menu thêm > Khôi phục tab** cũng dùng được trước khi runtime báo lỗi. Khôi phục tạo lại tab, giữ địa chỉ và zoom, xác minh vùng render mới trước khi hiện. Ô nhập chưa gửi có thể mất. Thao tác do bạn chủ động chọn, không tự tải trang lặp lại.
+6. QuietShare giữ nguyên thiết lập pagefile của Windows. Nếu bộ nhớ cam kết vẫn đầy khi chỉ mở một tab, cần xem thêm phần bộ nhớ đang dùng ở nơi khác trong Windows.
+
+Mục lịch sử mới từ v0.23.1 có bộ nhớ cam kết và RAM vật lý còn trống/tổng giới hạn tại lúc lỗi. Mục v0.23.0 cũ được giữ, ghi rõ chưa có số liệu bộ nhớ. Bộ nhớ tại lúc xuất là bản đo riêng. Ứng dụng kiểm tra áp lực bộ nhớ tối đa mỗi hai giây và dùng ngưỡng phục hồi khác để cảnh báo không nhấp nháy.

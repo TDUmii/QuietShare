@@ -756,6 +756,7 @@ void UpdateProjectionReadout()
 std::wstring DiagnosticReport(){
     std::wstring report=L"QuietShare v" QUIETSHARE_VERSION_WIDE L"\r\n";
     report+=T(L"Báo cáo mã lỗi cục bộ. Không chứa URL, tên tab, nội dung hoặc định danh màn hình.",L"Local fixed-code report. No URLs, tab titles, content or display identifiers.");
+    const auto memory=ReadDiagnosticMemory();if(memory.Known())report+=T(L"\r\nBộ nhớ cam kết còn: ",L"\r\nAvailable committed memory: ")+std::to_wstring(memory.availableCommitMiB)+L" / "+std::to_wstring(memory.commitLimitMiB)+T(L" MiB. RAM vật lý còn: ",L" MiB. Available physical RAM: ")+std::to_wstring(memory.availablePhysicalMiB)+L" / "+std::to_wstring(memory.physicalMiB)+L" MiB.";
     const auto projection=mirror?mirror->LastFailureDiagnostic():L"",web=browser.LastFailureDiagnostic();
     report+=T(L"\r\n\r\nLẦN DỪNG TRÌNH CHIẾU\r\n",L"\r\n\r\nLAST PROJECTION FAILURE\r\n")+(projection.empty()?T(L"Chưa có bản ghi hợp lệ.",L"No valid record yet."):projection);
     report+=T(L"\r\n\r\nSỰ CỐ TRÌNH DUYỆT GẦN NHẤT\r\n",L"\r\n\r\nLAST BROWSER PROCESS EVENT\r\n")+(web.empty()?T(L"Chưa ghi nhận.",L"No event recorded."):web);
@@ -780,10 +781,12 @@ void ExportDiagnosticHistory(){
     OSVERSIONINFOW version{};version.dwOSVersionInfoSize=sizeof(version);using VersionFn=LONG(WINAPI*)(OSVERSIONINFOW*);auto getVersion=reinterpret_cast<VersionFn>(GetProcAddress(GetModuleHandleW(L"ntdll.dll"),"RtlGetVersion"));if(getVersion)getVersion(&version);
     unsigned long long browserBytes=0,hostBytes=0;const bool complete=browser.PrivateMemoryBytes(browserBytes),hostComplete=DiagnosticPrivateMemory(GetCurrentProcess(),hostBytes);
     DWORD affinity=0;const bool excluded=GetWindowDisplayAffinity(window,&affinity)&&affinity==0x11;bool reportCloned=false;const bool known=TryGetDisplayCloned(reportCloned);const auto displays=EnumerateMonitors();
-    std::string report="{\n\"schema\":1,\"application\":\"QuietShare\",\"version\":\"" QUIETSHARE_VERSION_TEXT "\",\"processArchitecture\":\"x64\",\"windowsBuild\":"+std::to_string(version.dwBuildNumber)+
+    const auto memory=ReadDiagnosticMemory();
+    std::string report="{\n\"schema\":2,\"application\":\"QuietShare\",\"version\":\"" QUIETSHARE_VERSION_TEXT "\",\"processArchitecture\":\"x64\",\"windowsBuild\":"+std::to_string(version.dwBuildNumber)+
         ",\"displayCount\":"+std::to_string(displays.size())+",\"topologyKnown\":"+(known?"true":"false")+",\"displayCloned\":"+(reportCloned?"true":"false")+",\"windowsCaptureExcluded\":"+(excluded?"true":"false")+",\"wgcVerified\":"+(mirror&&mirror->IsVerified()?"true":"false")+
         ",\"receiverVerified\":false,\"resourceMode\":"+std::to_string(resourceMode)+",\"browserTabs\":"+std::to_string(browser.Tabs().size())+",\"dormantTabs\":"+std::to_string(browser.DormantCount())+
-        ",\"browserPrivateBytes\":"+std::to_string(browserBytes)+",\"browserMemoryComplete\":"+(complete?"true":"false")+",\"hostPrivateBytes\":"+std::to_string(hostBytes)+",\"hostMemoryComplete\":"+(hostComplete?"true":"false")+",\"events\":"+history.Json()+"\n}\n";
+        ",\"browserPrivateBytes\":"+std::to_string(browserBytes)+",\"browserMemoryComplete\":"+(complete?"true":"false")+",\"hostPrivateBytes\":"+std::to_string(hostBytes)+",\"hostMemoryComplete\":"+(hostComplete?"true":"false")+
+        ",\"memoryKnown\":"+(memory.Known()?"true":"false")+",\"commitLimitMiB\":"+std::to_string(memory.commitLimitMiB)+",\"availableCommitMiB\":"+std::to_string(memory.availableCommitMiB)+",\"physicalMiB\":"+std::to_string(memory.physicalMiB)+",\"availablePhysicalMiB\":"+std::to_string(memory.availablePhysicalMiB)+",\"events\":"+history.Json()+"\n}\n";
     bool saved=false;std::wstring canonical,error;
     bool folderReady=!diagnosticFolder.empty()&&CanonicalLocalPath(diagnosticFolder,true,canonical,error);
     if(!folderReady){const auto split=diagnosticFolder.find_last_of(L"\\/");std::wstring parent;
@@ -903,7 +906,7 @@ void UpdateButtons()
     SetTip(NAV_BROWSER,T(L"Trình duyệt tùy chọn",L"Optional browser"));
     SetTip(WEB_BACK,T(L"Quay lại",L"Back"));SetTip(WEB_FORWARD,T(L"Tiến tới",L"Forward"));SetTip(WEB_RELOAD,T(L"Tải lại trang",L"Reload page"));
     for(const auto& item:std::vector<std::pair<int,const wchar_t*>>{{DIAGNOSTICS_OPEN,page==Page::Presentation?T(L"Chẩn đoán",L"Diagnostics"):T(L"Chẩn đoán lần dừng",L"Last-stop diagnostics")},{BROWSER_DIAGNOSTICS,T(L"Chẩn đoán trình duyệt",L"Browser diagnostics")},
-        {DIAGNOSTICS_COPY,T(L"Sao chép báo cáo",L"Copy report")},{DIAGNOSTICS_EXPORT,T(L"Xuất lịch sử lỗi",L"Export error history")},{DIAGNOSTICS_FOLDER,T(L"Thư mục xuất chẩn đoán",L"Diagnostics export folder")},{BROWSER_SLEEP,T(L"Giải phóng RAM tab nền",L"Release background tab RAM")},{DIAGNOSTICS_BACK,T(L"Quay lại",L"Back")},{BROWSER_RETRY,T(L"Tải lại tab",L"Reload tab")}})SetWindowTextW(GetDlgItem(window,item.first),item.second);
+        {DIAGNOSTICS_COPY,T(L"Sao chép báo cáo",L"Copy report")},{DIAGNOSTICS_EXPORT,T(L"Xuất lịch sử lỗi",L"Export error history")},{DIAGNOSTICS_FOLDER,T(L"Thư mục xuất chẩn đoán",L"Diagnostics export folder")},{BROWSER_SLEEP,T(L"Giải phóng RAM tab nền",L"Release background tab RAM")},{DIAGNOSTICS_BACK,T(L"Quay lại",L"Back")},{BROWSER_RETRY,T(L"Khôi phục tab",L"Recover tab")}})SetWindowTextW(GetDlgItem(window,item.first),item.second);
     SendMessageW(webAddress,EM_SETCUEBANNER,TRUE,(LPARAM)T(L"Tìm trên Google hoặc nhập địa chỉ web",L"Search Google or enter a web address"));
     SetWindowTextW(GetDlgItem(window,LAYOUT_MENU),T(L"Bố cục",L"Layout"));
     SetTip(LAYOUT_MENU,T(L"Bố cục: thanh bên, tab, công cụ, trạng thái",L"Layout: activity bar, tabs, toolbar and status bar"));
@@ -1442,6 +1445,13 @@ void Layout()
                 move(BROWSER_ERROR,contentLeft+12,88,contentRight-contentLeft-24,72);
                 move(BROWSER_RETRY,contentLeft+12,168,120,30);move(BROWSER_DIAGNOSTICS,contentLeft+12,206,std::min(210,contentRight-contentLeft-24),30);
                 SetWindowTextW(GetDlgItem(window,BROWSER_ERROR),browser.Status(english).c_str());EnableWindow(GetDlgItem(window,BROWSER_RETRY),browser.CanRetry());
+            } else if(browser.Ready()&&!Blocked()&&(browser.CanRetry()||browser.MemoryPressure())){
+                const bool retry=browser.CanRetry();const int actionWidth=retry?120:170;
+                move(retry?BROWSER_RETRY:BROWSER_SLEEP,contentLeft+4,62,actionWidth,28);
+                move(BROWSER_DIAGNOSTICS,contentLeft+actionWidth+12,62,std::min(175,contentRight-contentLeft-actionWidth-16),28);
+                move(BROWSER_ERROR,contentLeft+4,94,contentRight-contentLeft-8,46);
+                SetWindowTextW(GetDlgItem(window,BROWSER_ERROR),browser.Status(english).c_str());EnableWindow(GetDlgItem(window,BROWSER_RETRY),browser.CanRetry());
+                contentCardRect.top=S(144);
             }
         } else {
             move(BROWSER_TOGGLE,contentLeft,48,std::min(164,contentRight-contentLeft),28);
@@ -3227,6 +3237,11 @@ POINT ScrollPosition()
 }
 void Capture(const wchar_t *name)
 {
+#ifdef QUIETSHARE_QA
+    // Documentation uses synthetic fixtures. Raise only this QA window so
+    // unrelated desktop windows cannot obscure the captured illustration.
+    if(qaVisual)SetWindowPos(window,HWND_TOPMOST,0,0,0,0,SWP_NOMOVE|SWP_NOSIZE|SWP_NOACTIVATE);
+#endif
     RECT rect{};
     RedrawWindow(window, nullptr, nullptr, RDW_INVALIDATE | RDW_ALLCHILDREN | RDW_UPDATENOW);
     GetWindowRect(window, &rect);
@@ -4574,7 +4589,7 @@ LRESULT CALLBACK Proc(HWND h, UINT message, WPARAM wp, LPARAM lp)
         case DIAGNOSTICS_FOLDER:ChooseDiagnosticFolder();break;
         case BROWSER_SLEEP:SleepBrowserBackground();break;
         case DIAGNOSTICS_BACK:page=diagnosticReturn;Layout();break;
-        case BROWSER_RETRY:if(!Blocked()){browser.Reload();Layout();}break;
+        case BROWSER_RETRY:if(!Blocked()){browser.Reload(true);Layout();}break;
         case QUICK_SWITCH:OpenQuick();break;
         case SET_LIBRARY:OpenQuick(true);break;
         case QUICK_OPEN:OpenQuickSelection();break;
@@ -4721,6 +4736,7 @@ LRESULT CALLBACK Proc(HWND h, UINT message, WPARAM wp, LPARAM lp)
         case WEB_GO:if(!Blocked()){const auto target=TextOf(webAddress);webAddressEdited=false;browser.Navigate(target);browser.Focus();}break;
         case WEB_MENU: {
             std::vector<ToolMenuItem> entries{{WEB_NEW_TAB,T(L"Tab mới   Ctrl+T",L"New tab   Ctrl+T"),browser.CanNewTab(),0xea60},
+                {BROWSER_RETRY,T(L"Khôi phục tab (ô nhập có thể mất)",L"Recover tab (unsent input may be lost)"),(browser.Ready()||browser.CanRetry())&&!browser.PendingTabCount(),0xeade},
                 {BROWSER_SLEEP,T(L"Giải phóng RAM tab nền",L"Release background tab RAM"),browser.Tabs().size()>1&&!browser.PendingTabCount(),0xeb2c},
                 {BROWSER_MUTED,T(preferences.browserMuted?L"Bật âm thanh":L"Tắt âm thanh",
                     preferences.browserMuted?L"Unmute audio":L"Mute audio"),true,
@@ -4918,6 +4934,7 @@ LRESULT CALLBACK Proc(HWND h, UINT message, WPARAM wp, LPARAM lp)
             topologyKnown = TryGetDisplayCloned(cloned);
             if (!affinityOk || cloned != previousCloned || topologyKnown != previousKnown)
                 RefreshPrivacy();
+            browser.CheckMemoryPressure();
         }
         else if (wp == MEETING_TIMER)
         {

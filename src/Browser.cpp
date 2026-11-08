@@ -236,6 +236,8 @@ struct Browser::Impl:std::enable_shared_from_this<Browser::Impl> {
     bool changedPending=false;
     bool reducedMemory=false;
     bool dormant=false;
+    bool memoryPressure=false;ULONGLONG memoryChecked=0;DiagnosticMemory memory{};
+    int processReason=-1,processKind=-1;
     int faultKind=-1,faultReason=-1,faultExit=0;DWORD faultCount=0;SYSTEMTIME faultUtc{};
     std::wstring diagnosticPath;
     bool StartEnvironment();
@@ -256,6 +258,7 @@ struct Browser::Impl:std::enable_shared_from_this<Browser::Impl> {
     std::shared_ptr<Impl> Active()const{return Find(activeId);}
     void ProcessFailure(COREWEBVIEW2_PROCESS_FAILED_KIND kind,int reason=-1,int exit=0){
         auto manager=owner.lock();if(!manager)return;
+        processReason=reason;processKind=static_cast<int>(kind);
         manager->faultKind=static_cast<int>(kind);manager->faultReason=reason;manager->faultExit=exit;
         if(manager->faultCount<0xffffffffu)++manager->faultCount;GetSystemTime(&manager->faultUtc);
         const auto& utc=manager->faultUtc;
@@ -268,7 +271,7 @@ struct Browser::Impl:std::enable_shared_from_this<Browser::Impl> {
                 if(ok)MoveFileExW(temporary.c_str(),manager->diagnosticPath.c_str(),MOVEFILE_REPLACE_EXISTING|MOVEFILE_WRITE_THROUGH);else DeleteFileW(temporary.c_str());}}
         if(kind==COREWEBVIEW2_PROCESS_FAILED_KIND_BROWSER_PROCESS_EXITED){
             manager->environmentFailed=true;const auto snapshot=manager->tabs;const auto epoch=manager->generation;
-            for(const auto& tab:snapshot){if(!manager->Current(tab,epoch))break;if(!tab->dormant){tab->processRetry=true;tab->Fail(200+static_cast<int>(kind));}}
+            for(const auto& tab:snapshot){if(!manager->Current(tab,epoch))break;if(!tab->dormant){tab->processReason=reason;tab->processKind=static_cast<int>(kind);tab->processRetry=true;tab->Fail(200+static_cast<int>(kind));}}
         }else if(kind==COREWEBVIEW2_PROCESS_FAILED_KIND_RENDER_PROCESS_EXITED||static_cast<int>(kind)<0||static_cast<int>(kind)>9){
             processRetry=true;Fail(200+static_cast<int>(kind));
         }else{
@@ -276,7 +279,7 @@ struct Browser::Impl:std::enable_shared_from_this<Browser::Impl> {
             // An unresponsive renderer is a status event, not proof of a crash.
             // Keep the same verified controller. The independent WGC guard
             // still revokes capture on any actual privacy/device failure.
-            notice=kind==COREWEBVIEW2_PROCESS_FAILED_KIND_RENDER_PROCESS_UNRESPONSIVE?L"unresponsive":L"process-recovered";Notify();
+            notice=reason==COREWEBVIEW2_PROCESS_FAILED_REASON_OUT_OF_MEMORY?L"out-of-memory":kind==COREWEBVIEW2_PROCESS_FAILED_KIND_RENDER_PROCESS_UNRESPONSIVE?L"unresponsive":L"process-recovered";Notify();
         }
     }
     bool Current(const std::shared_ptr<Impl>& tab,unsigned epoch)const{return enabled&&generation==epoch&&tab&&tab->enabled&&Find(tab->id)==tab;}
@@ -298,6 +301,7 @@ struct Browser::Impl:std::enable_shared_from_this<Browser::Impl> {
         if(FAILED(web->NavigateToString(html.c_str()))){localPage=localNavigation=false;navigating=false;notice=L"navigation";}Notify();
     }
     void Close(){++generation;changedPending=reducedMemory=false;enabled=ready=verified=visible=probing=locked=suspendPending=mediaReady=false;processRetry=environmentFailed=environmentExited=false;pid=0;error=0;loaded=navigating=localPage=localNavigation=false;cameraOrigin.clear();microphoneOrigin.clear();localNonce.clear();localDocumentUri.clear();newTabError.clear();address.clear();pending.clear();notice.clear();title.clear();
+        memoryPressure=false;memoryChecked=0;memory={};processReason=processKind=-1;
         auto closingTabs=std::move(tabs);tabs.clear();actions.clear();activeId=pendingId=0;
         Com<ICoreWebView2Controller> closingController;closingController.reset(controller.detach());
         Com<ICoreWebView2> closingWeb;closingWeb.reset(web.detach());
@@ -318,7 +322,7 @@ struct Browser::Impl:std::enable_shared_from_this<Browser::Impl> {
     bool Recreate(const std::shared_ptr<Impl>& tab){
         if(!enabled||locked||pendingId||!tab||(tab->locked&&!tab->dormant)||(environmentFailed&&!environmentExited))return false;
         if(tab->dormant)tab->locked=false;
-        tab->pending=tab->address;tab->error=0;tab->dormant=false;tab->processRetry=false;tab->enabled=true;tab->notice.clear();pendingId=tab->id;
+        tab->pending=tab->address;tab->error=0;tab->dormant=false;tab->processRetry=false;tab->processReason=tab->processKind=-1;tab->enabled=true;tab->notice.clear();pendingId=tab->id;
         if(environmentFailed){++generation;changedPending=false;environment.reset();environmentFailed=environmentExited=false;StartEnvironment();}
         else CreateController(tab);
         Notify();return true;
@@ -404,7 +408,8 @@ struct Browser::Impl:std::enable_shared_from_this<Browser::Impl> {
     }
     void ResumeActivity(){
         const unsigned epoch=generation;Com<ICoreWebView2_3> control;if(Query(control))control->Resume();
-        if(enabled&&generation==epoch&&reducedMemory)MemoryTarget(false);
+        if(enabled&&generation==epoch){auto manager=owner.lock();const bool low=manager&&manager->memoryPressure;
+            if(low||reducedMemory)MemoryTarget(low);}
     }
     void SuspendComplete(HRESULT hr,BOOL success){
         suspendPending=false;
@@ -708,7 +713,7 @@ std::vector<BrowserTab> Browser::Tabs()const{std::vector<BrowserTab> result;
     return result;}
 int Browser::ActiveTab()const{for(size_t i=0;i<impl->tabs.size();++i)if(impl->tabs[i]->id==impl->activeId)return static_cast<int>(i);return -1;}
 unsigned Browser::ActiveTabId()const{return impl->activeId;}
-bool Browser::CanNewTab()const{return impl->enabled&&!impl->locked&&impl->environment&&!impl->pendingId&&impl->tabs.size()<8;}
+bool Browser::CanNewTab()const{return impl->enabled&&!impl->locked&&!impl->memoryPressure&&impl->environment&&!impl->pendingId&&impl->tabs.size()<8;}
 bool Browser::NewTab(const std::wstring& value){auto s=impl;std::wstring address;if(!CanNewTab()||(!value.empty()&&!ResolveWebInput(value,address)))return false;auto tab=s->AddTab(address);s->CreateController(tab);return true;}
 bool Browser::CloseTab(unsigned id){auto s=impl;auto found=std::find_if(s->tabs.begin(),s->tabs.end(),[&](const auto& tab){return tab->id==id;});if(found==s->tabs.end())return false;
     auto closing=*found;const size_t index=static_cast<size_t>(found-s->tabs.begin());const bool active=s->activeId==id;const unsigned epoch=s->generation;
@@ -720,7 +725,7 @@ bool Browser::CloseTab(unsigned id){auto s=impl;auto found=std::find_if(s->tabs.
     closing->Close();if(!s->enabled||s->generation!=epoch)return true;
     if(auto next=s->Active();next&&next->dormant&&!s->Recreate(next)){next->error=200;next->processRetry=true;next->notice=L"waiting-exit";}s->UpdateVisible();s->Notify();return true;}
 bool Browser::ActivateTab(unsigned id){auto s=impl;auto tab=s->Find(id);if(!s->enabled||s->locked||!tab)return false;if(s->activeId==id)return true;
-    if(tab->dormant&&(s->pendingId||(s->environmentFailed&&!s->environmentExited)))return false;
+    if(tab->dormant&&(s->memoryPressure||s->pendingId||(s->environmentFailed&&!s->environmentExited)))return false;
     s->actions.clear();s->activeId=id;s->UpdateVisible();if(tab->dormant)s->Recreate(tab);else if(tab->localPage)tab->LoadNewTab();s->Notify();s->NotifyZoom();return true;}
 bool Browser::CycleTab(bool previous){const int active=ActiveTab(),count=static_cast<int>(impl->tabs.size());if(active<0||!count)return false;return ActivateTab(impl->tabs[(active+count+(previous?-1:1))%count]->id);}
 bool Browser::ProcessTabAction(int action){auto s=impl;int value=0;std::wstring address;
@@ -781,6 +786,14 @@ bool Browser::PrivateMemoryBytes(unsigned long long& bytes)const{bytes=0;auto s=
         if(process){if(DiagnosticPrivateMemory(process,value))bytes+=value;else complete=false;CloseHandle(process);}else complete=false;}
     return complete;
 }
+void Browser::CheckMemoryPressure(){auto s=impl;if(!s->enabled)return;const auto now=GetTickCount64();if(s->memoryChecked&&now-s->memoryChecked<2000)return;s->memoryChecked=now;
+    const auto memory=ReadDiagnosticMemory();if(!memory.Known())return;s->memory=memory;
+    const bool pressure=s->memoryPressure?!memory.Recovered():memory.Low();if(pressure==s->memoryPressure)return;s->memoryPressure=pressure;
+    if(pressure)RecordDiagnostic(s->diagnosticPath,'B',11,4);
+    if(auto tab=s->Active();tab&&tab->ready&&tab->visible&&!tab->probing&&!tab->suspendPending)tab->MemoryTarget(pressure);
+    s->Notify();
+}
+bool Browser::MemoryPressure()const{return impl->memoryPressure;}
 unsigned Browser::SleepBackgroundTabs(){auto s=impl;if(!s->enabled||s->locked||s->pendingId)return 0;unsigned count=0;
     const auto snapshot=s->tabs;const unsigned epoch=s->generation;
     for(const auto& tab:snapshot){if(!s->Current(tab,epoch)||s->locked)break;
@@ -795,9 +808,11 @@ void Browser::Navigate(const std::wstring& value){auto s=impl;auto tab=s->Active
     if(!ResolveWebInput(value,address)){tab->notice=L"address";tab->Notify();return;}tab->loaded=false;tab->navigating=true;tab->notice.clear();if(FAILED(tab->web->Navigate(address.c_str()))){tab->navigating=false;tab->notice=L"navigation";tab->Notify();}}
 void Browser::Back(){auto tab=impl->Active();if(Ready()&&!impl->locked&&!tab->locked)tab->web->GoBack();}
 void Browser::Forward(){auto tab=impl->Active();if(Ready()&&!impl->locked&&!tab->locked)tab->web->GoForward();}
-bool Browser::CanRetry()const{auto s=impl;auto tab=s->Active();return s->enabled&&!s->locked&&tab&&!tab->locked&&tab->processRetry&&!s->pendingId;}
-void Browser::Reload(){auto s=impl;auto tab=s->Active();if(!tab||s->locked||tab->locked)return;
-    if(Ready()){tab->notice.clear();if(tab->localPage)tab->LoadNewTab();else tab->web->Reload();return;}
+bool Browser::CanRetry()const{auto s=impl;auto tab=s->Active();return s->enabled&&!s->locked&&tab&&!tab->locked&&(tab->processRetry||tab->notice==L"unresponsive"||tab->notice==L"out-of-memory")&&!s->pendingId;}
+void Browser::Reload(bool recreate){auto s=impl;auto tab=s->Active();if(!tab||s->locked||tab->locked)return;
+    recreate=recreate||tab->notice==L"unresponsive"||tab->notice==L"out-of-memory";
+    if(Ready()&&!recreate){tab->notice.clear();if(tab->localPage)tab->LoadNewTab();else tab->web->Reload();s->Notify();return;}
+    if(Ready()&&recreate){if(s->pendingId)return;tab->processRetry=true;tab->Fail(201);}
     if(!CanRetry())return;
     if(s->environmentFailed&&!s->environmentExited){tab->notice=L"waiting-exit";s->Notify();return;}
     s->Recreate(tab);
@@ -809,11 +824,12 @@ void Browser::SetDiagnosticPath(const std::wstring& path){auto s=impl;s->diagnos
     s->faultCount=record[2];s->faultKind=record[3];s->faultReason=static_cast<int>(record[4]);s->faultExit=static_cast<int>(record[5]);
     s->faultUtc.wYear=record[6];s->faultUtc.wMonth=record[7];s->faultUtc.wDay=record[8];s->faultUtc.wHour=record[9];s->faultUtc.wMinute=record[10];s->faultUtc.wSecond=record[11];
 }
+static const wchar_t* ProcessReasonName(int reason){const wchar_t* names[]={L"unexpected",L"unresponsive",L"terminated",L"crashed",L"launch-failed",L"out-of-memory",L"profile-deleted",L"normal-exit",L"abnormal-exit",L"integrity-failure"};return reason>=0&&reason<10?names[reason]:L"unknown";}
 std::wstring Browser::LastFailureDiagnostic()const{auto s=impl;if(s->faultKind<0)return L"";
     const wchar_t* names[]={L"browser-exited",L"renderer-exited",L"renderer-unresponsive",L"subframe-exited",L"utility-exited",L"sandbox-helper-exited",L"gpu-exited",L"plugin-exited",L"broker-exited",L"other-exited"};
     const int kind=s->faultKind;const auto& t=s->faultUtc;wchar_t out[384]{};
-    swprintf_s(out,L"QS-B%03d\r\nUTC: %04u-%02u-%02uT%02u:%02u:%02uZ\r\nProcess: %s\r\nReason: %d\r\nExit: 0x%08x\r\nEvents: %lu",
-        kind>=0&&kind<=9?kind+1:99,t.wYear,t.wMonth,t.wDay,t.wHour,t.wMinute,t.wSecond,kind>=0&&kind<=9?names[kind]:L"unknown",s->faultReason,static_cast<unsigned>(s->faultExit),static_cast<unsigned long>(s->faultCount));return out;
+    swprintf_s(out,L"QS-B%03d\r\nUTC: %04u-%02u-%02uT%02u:%02u:%02uZ\r\nProcess: %s\r\nReason: %d (%s)\r\nExit: 0x%08x\r\nNotifications: %lu",
+        kind>=0&&kind<=9?kind+1:99,t.wYear,t.wMonth,t.wDay,t.wHour,t.wMinute,t.wSecond,kind>=0&&kind<=9?names[kind]:L"unknown",s->faultReason,ProcessReasonName(s->faultReason),static_cast<unsigned>(s->faultExit),static_cast<unsigned long>(s->faultCount));return out;
 }
 void Browser::Focus(){auto tab=impl->Active();if(Ready()&&tab->visible&&!impl->locked)tab->controller->MoveFocus(COREWEBVIEW2_MOVE_FOCUS_REASON_PROGRAMMATIC);}
 int Browser::ZoomPercent()const{auto tab=impl->Active();return tab?tab->zoomPercent:impl->zoomPercent;}
@@ -838,13 +854,16 @@ std::wstring Browser::Status(bool en)const{
     if(State()==3){auto tab=impl->Active();if(tab&&tab->processRetry){
         const std::wstring code=tab->error==200?L"QS-B001":tab->error==201?L"QS-B002":L"QS-B099";
         if(tab->notice==L"waiting-exit")return code+(en?L" - Waiting for the previous browser process to exit. Reload again shortly.":L" - Đang chờ tiến trình web cũ thoát. Hãy tải lại sau ít giây.");
-        return code+(en?L" - Page stopped. Reload to recreate and verify this tab. Tabs and addresses are retained.":L" - Trang đã dừng. Tải lại để tạo và kiểm tra tab. Giữ nguyên tab và địa chỉ.");}
+        if(tab->processReason==COREWEBVIEW2_PROCESS_FAILED_REASON_OUT_OF_MEMORY)return code+(en?L" - The web renderer ran out of memory. Release background tabs or close unused apps, check Windows committed memory, then reload.":L" - Web hết bộ nhớ. Cho tab nền nghỉ sâu hoặc đóng ứng dụng không dùng, kiểm tra bộ nhớ cam kết Windows rồi tải lại.");
+        return code+(en?L" - Page stopped. Use Recover tab to recreate and verify it. Tabs and addresses are retained.":L" - Trang đã dừng. Chọn Khôi phục tab để tạo và kiểm tra lại. Giữ nguyên tab và địa chỉ.");}
         return en?L"Browser unavailable. Check the WebView2 Runtime or retry enabling.":L"Không mở được trình duyệt. Kiểm tra WebView2 Runtime hoặc bật lại.";}
     if(State()==1)return en?L"Starting browser and verifying its rendered surface...":L"Đang mở trình duyệt và kiểm tra vùng render...";
     if(State()==4)return en?L"Browser hidden. Disable and enable to verify again.":L"Trình duyệt đã che. Tắt và bật lại để kiểm tra lại.";
     auto tab=impl->Active();
-    if(tab&&tab->notice==L"unresponsive")return en?L"QS-B003 - This page is not responding. Wait or reload it.":L"QS-B003 - Trang chưa phản hồi. Đợi hoặc tải lại trang.";
-    if(tab&&tab->notice==L"process-recovered")return en?L"A browser process restarted. The verified tab is retained. Details are available in diagnostics.":L"Một tiến trình web vừa khởi động lại. Giữ tab đã kiểm tra. Có chi tiết trong chẩn đoán.";
+    if(tab&&tab->notice==L"out-of-memory")return L"QS-B"+std::to_wstring(1000+std::clamp(tab->processKind+1,1,10)).substr(1)+(en?L" - Web content ran out of memory. Release background tabs, check Windows committed memory, then reload.":L" - Nội dung web hết bộ nhớ. Cho tab nền nghỉ sâu, kiểm tra bộ nhớ cam kết Windows rồi tải lại.");
+    if(tab&&tab->notice==L"unresponsive")return en?L"QS-B003 - This page is not responding. Wait or use Recover tab.":L"QS-B003 - Trang chưa phản hồi. Đợi hoặc chọn Khôi phục tab.";
+    if(impl->memoryPressure)return (en?L"QS-B011 - Windows commit low: ":L"QS-B011 - Bộ nhớ cam kết gần hết: ")+std::to_wstring(impl->memory.availableCommitMiB)+L" / "+std::to_wstring(impl->memory.commitLimitMiB)+(en?L" MiB available. Free background tabs or unused apps.":L" MiB còn trống. Cho tab nền nghỉ sâu hoặc đóng ứng dụng không dùng.");
+    if(tab&&tab->notice==L"process-recovered")return en?L"A web process exited. WebView2 may recover. Reload if the page stays frozen. See diagnostics.":L"Một tiến trình web đã thoát. WebView2 có thể phục hồi. Tải lại nếu trang vẫn đứng. Xem chẩn đoán.";
     if(tab&&tab->notice==L"address")return en?L"Enter search terms or an HTTP / HTTPS web address.":L"Nhập từ khóa tìm kiếm hoặc địa chỉ web HTTP / HTTPS.";
     if(tab&&tab->notice==L"navigation")return en?L"Page could not load. Check the connection or reload.":L"Không tải được trang. Kiểm tra kết nối hoặc tải lại.";
     if(DormantCount()||(tab&&tab->notice==L"deep-sleep"))return std::to_wstring(DormantCount())+(en?L" tabs in deep sleep. They reload when opened.":L" tab nghỉ sâu. Tab sẽ tải lại khi mở.");

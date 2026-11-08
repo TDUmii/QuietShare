@@ -237,12 +237,18 @@ Settings has eight left categories, a compact picker in small windows and collap
 
 Cài đặt có tám nhóm bên trái, nút chọn khi cửa sổ nhỏ và Giao diện > Nâng cao có thể mở gọn. Lưu/áp dụng ba hồ sơ riêng trong Bố cục. Dữ liệu chứa Xóa lịch sử. Cuộc họp chứa thiết lập ghi và nhận dạng.
 
-Open Last-stop diagnostics from Projection or Browser. For a stopped browser tab, use Reload tab to recreate and reverify. QS-P protection failures still require repair, F9 and explicit F10. See the [error book](BOOK.md).
+Open Last-stop diagnostics from Projection or Browser. For a stopped browser tab, use Recover tab to recreate and reverify. QS-P protection failures still require repair, F9 and explicit F10. See the [error book](BOOK.md).
 
-Mở Chẩn đoán lần dừng từ Trình chiếu hoặc Trình duyệt. Tab web dừng có nút Tải lại tab để tạo và xác minh lại. Lỗi bảo vệ QS-P vẫn cần khắc phục, F9 rồi chủ động F10. Xem [book mã lỗi](BOOK.md).
+Mở Chẩn đoán lần dừng từ Trình chiếu hoặc Trình duyệt. Tab web dừng có nút Khôi phục tab để tạo và xác minh lại. Lỗi bảo vệ QS-P vẫn cần khắc phục, F9 rồi chủ động F10. Xem [book mã lỗi](BOOK.md).
 
 ## Export error history / Xuất lịch sử lỗi
 
 Open **Settings > Projection or Browser > Last-stop diagnostics > Export error history** (JSON). The newest 100 mapped errors persist across restarts. Find the report in **Downloads / QuietShare-Diagnostics**, or choose a folder in **Settings > Data**. The report has codes, UTC, versions, numeric results and a current environment/memory snapshot. It excludes private content, paths, URLs and titles. Send it manually with the steps that caused the problem. See the [code book](BOOK.md) for recovery.
 
 Mở **Cài đặt > Trình chiếu hoặc Trình duyệt > Chẩn đoán lần dừng > Xuất lịch sử lỗi** (JSON). 100 lỗi có mã gần nhất được giữ qua lần mở lại. Báo cáo nằm ở **Downloads / QuietShare-Diagnostics**, hoặc đổi thư mục tại **Cài đặt > Dữ liệu**. Báo cáo có mã, UTC, phiên bản, kết quả dạng số và môi trường/bộ nhớ hiện tại. Không có nội dung riêng, đường dẫn, URL hoặc tên tab. Chủ động gửi file kèm các bước gây lỗi. Tra cách sửa trong [sổ mã lỗi](BOOK.md).
+
+## A frozen web feed / Feed web bị đứng
+
+If native controls work but the page freezes, use its **Recover tab** action or **Browser diagnostics**. QS-B003 means unresponsive. QS-B002/QS-B004 with reason 5 means out-of-memory. QS-B011 warns of low Windows committed-memory headroom even if physical RAM remains free. QuietShare requests lower web memory, pauses additional tabs and restores normal operation after recovery. Save forms before explicit reload or background-tab deep sleep. Windows paging settings stay unchanged.
+
+Nếu nút của ứng dụng vẫn bấm được nhưng trang đứng, dùng **Khôi phục tab** hoặc **Chẩn đoán trình duyệt**. QS-B003 là không phản hồi. QS-B002/QS-B004 có reason 5 là hết bộ nhớ. QS-B011 cảnh báo khoảng trống bộ nhớ cam kết Windows thấp dù vẫn còn RAM vật lý. QuietShare yêu cầu web giảm bộ nhớ, ngừng thêm tab và phục hồi mức bình thường khi đủ khoảng trống. Lưu ô nhập trước khi tải lại hoặc cho tab nền nghỉ sâu. Cấu hình pagefile Windows được giữ nguyên.

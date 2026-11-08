@@ -55,8 +55,10 @@ public:
     unsigned DormantCount()const;
     unsigned SleepBackgroundTabs();
     bool PrivateMemoryBytes(unsigned long long& bytes)const;
+    void CheckMemoryPressure();
+    bool MemoryPressure()const;
     void Navigate(const std::wstring& address);
-    void Back();void Forward();void Reload();void Focus();
+    void Back();void Forward();void Reload(bool recreate=false);void Focus();
     // Session preference, 25-400%. The canary always renders at 100%.
     int ZoomPercent()const;
     bool SetZoomPercent(int percent);

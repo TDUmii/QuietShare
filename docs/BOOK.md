@@ -76,7 +76,7 @@ Bộ ghi và bộ chép lời chỉ dùng âm thanh phát ra từ Windows. Chún
 Recoverable GPU, utility and subframe events retain the verified controller. A nonresponding page can be waited on or reloaded. This does not override a real WGC, display or privacy failure.
 
 1. If a page stops, read its **QS-B** code and open **Diagnostics**. The current tabs and addresses stay in the session.
-2. For **QS-B001** or **QS-B002**, select **Reload tab**. A browser-process exit may need a short wait before retry.
+2. For **QS-B001** or **QS-B002**, select **Recover tab**. A browser-process exit may need a short wait before retry.
 3. QuietShare recreates the required controller/environment and verifies its mounted rendered surface before showing the page.
 4. If private content is locked, read the separate **QS-P** record, repair that condition and run F9. If verification still fails, keep content locked and restart QuietShare.
 5. Start projection explicitly with F10 only after protection succeeds. Inspect the actual receiver again.
@@ -86,7 +86,7 @@ Web process events and projection failures are separate records. Compare their U
 Sự kiện GPU, tiện ích hoặc khung con có thể phục hồi sẽ giữ controller đã xác minh. Với trang chưa phản hồi, có thể đợi hoặc tải lại. Quy tắc này không bỏ qua lỗi WGC, màn hình hoặc bảo vệ thực tế.
 
 1. Khi trang dừng, đọc mã **QS-B** và mở **Chẩn đoán**. Tab và địa chỉ hiện tại vẫn giữ trong phiên.
-2. Với **QS-B001** hoặc **QS-B002**, chọn **Tải lại tab**. Tiến trình web thoát có thể cần đợi ít giây rồi thử lại.
+2. Với **QS-B001** hoặc **QS-B002**, chọn **Khôi phục tab**. Tiến trình web thoát có thể cần đợi ít giây rồi thử lại.
 3. QuietShare tạo lại controller/môi trường cần thiết và kiểm tra vùng render đang gắn vào cửa sổ trước khi hiện trang.
 4. Nếu nội dung riêng bị khóa, đọc bản ghi **QS-P** riêng, khắc phục nguyên nhân rồi nhấn F9. Nếu vẫn không xác minh được, giữ khóa và mở lại QuietShare.
 5. Chỉ chủ động nhấn F10 sau khi bảo vệ thành công. Kiểm tra lại đúng đầu nhận.
@@ -95,8 +95,8 @@ Sự kiện tiến trình web và lỗi chiếu là hai bản ghi riêng. So th�
 
 | Code / Mã | English | Tiếng Việt |
 |---|---|---|
-| `QS-B001` | Browser process exited. Wait for exit, then Reload tab. Tabs stay in this session. | Tiến trình trình duyệt đã thoát. Đợi thoát xong rồi Tải lại tab. Tab vẫn giữ trong phiên. |
-| `QS-B002` | Main renderer exited. Reload tab to recreate and verify it. | Tiến trình render chính đã thoát. Tải lại tab để tạo và xác minh lại. |
+| `QS-B001` | Browser process exited. Wait for exit, then Recover tab. Tabs stay in this session. | Tiến trình trình duyệt đã thoát. Đợi thoát xong rồi Khôi phục tab. Tab vẫn giữ trong phiên. |
+| `QS-B002` | Main renderer exited. Recover tab to recreate and verify it. | Tiến trình render chính đã thoát. Khôi phục tab để tạo và xác minh lại. |
 | `QS-B003` | Renderer is unresponsive. Wait or reload the page. Close an unused heavy tab if needed. | Trang chưa phản hồi. Đợi hoặc tải lại. Có thể đóng tab nặng không dùng. |
 | `QS-B004` | Subframe renderer exited. The controller is retained. Reload if a frame remains blank. | Render khung con thoát. Controller được giữ. Tải lại nếu khung vẫn trắng. |
 | `QS-B005` | Utility process exited. WebView2 can recover. Reload if page features remain broken. | Tiến trình tiện ích thoát. WebView2 có thể phục hồi. Tải lại nếu chức năng trang vẫn lỗi. |
@@ -105,6 +105,7 @@ Sự kiện tiến trình web và lỗi chiếu là hai bản ghi riêng. So th�
 | `QS-B008` | Plugin process exited. Reload the affected page. Some legacy page features may be unsupported. | Tiến trình plugin thoát. Tải lại trang. Một số chức năng cũ có thể không được hỗ trợ. |
 | `QS-B009` | Plugin broker exited. Reload the affected page and update WebView2 if repeated. | Tiến trình môi giới plugin thoát. Tải lại trang và cập nhật WebView2 nếu lặp lại. |
 | `QS-B010` | Another WebView2 process exited. Inspect the page and reload if needed. | Tiến trình WebView2 khác thoát. Kiểm tra trang và tải lại nếu cần. |
+| `QS-B011` | Windows commit is almost exhausted. The app requests lower web memory and blocks more tabs. Save forms, deep-sleep background tabs or close unused apps, then retry. | Bộ nhớ cam kết gần hết. Ứng dụng yêu cầu web dùng ít bộ nhớ và chặn thêm tab. Lưu ô nhập, cho tab nền nghỉ sâu hoặc đóng ứng dụng không dùng rồi thử lại. |
 | `QS-B099` | Unrecognized process event. Reload to recreate and verify. Preserve the numeric reason/exit code. | Sự kiện tiến trình chưa nhận dạng. Tải lại để tạo và xác minh. Giữ mã reason/exit dạng số. |
 
 ## Usage profile recovery / Phục hồi hồ sơ sử dụng
@@ -135,3 +136,13 @@ Báo cáo có UTC, phiên bản, mã cố định/kết quả dạng số, bản
 | `QS-J001` | History is unreadable. Close QuietShare and back up error-history.dat. Restore a good copy or rename it before reopening to start a new journal. The app preserves the bad file. | Không đọc được lịch sử. Đóng QuietShare, sao lưu error-history.dat. Khôi phục bản tốt hoặc đổi tên file trước khi mở lại để tạo nhật ký mới. Ứng dụng giữ file lỗi. |
 | `QS-J002` | Some events were not saved. Check local data-folder write access and free space. Missing events cannot be recreated. | Có sự kiện chưa lưu được. Kiểm tra quyền ghi và dung lượng thư mục dữ liệu cục bộ. Không dựng lại được sự kiện đã mất. |
 | `QS-J003` | JSON export or its folder preference failed. Select an existing writable local folder, check free space and retry. | Xuất JSON hoặc lưu thư mục thất bại. Chọn thư mục cục bộ có sẵn, có quyền ghi, kiểm tra dung lượng rồi thử lại. |
+
+## A feed freezes / Feed bị đứng
+
+**QS-B002** or **QS-B004** with reason `5` means renderer out-of-memory. **QS-B003** means unresponsive. Check Windows committed-memory headroom separately from free physical RAM. Use the explicit Recover tab or background RAM action. Reload and deep sleep can lose unsent forms. The app keeps Windows paging settings unchanged.
+
+**QS-B002** hoặc **QS-B004** có reason `5` là renderer hết bộ nhớ. **QS-B003** là không phản hồi. Kiểm tra khoảng trống bộ nhớ cam kết riêng với RAM vật lý trống. Dùng nút Khôi phục tab hoặc giải phóng RAM tab nền. Tải lại và nghỉ sâu có thể mất ô nhập chưa gửi. Ứng dụng giữ nguyên thiết lập pagefile Windows.
+
+New history records include commit and physical-memory snapshots at failure time. Legacy entries remain readable with unknown memory fields. Shared process failures can notify multiple tabs. Notification count does not establish a count of separate crashes.
+
+Mục lịch sử mới có bộ nhớ cam kết và RAM vật lý tại lúc lỗi. Mục cũ vẫn đọc được và ghi chưa có số liệu bộ nhớ. Lỗi tiến trình dùng chung có thể báo cho nhiều tab. Số thông báo không xác định số lần crash riêng biệt.

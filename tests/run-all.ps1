@@ -46,6 +46,8 @@ python -B (Join-Path $PSScriptRoot 'settings_browser_upgrade_integration.py')
 if ($LASTEXITCODE) { throw 'Settings profiles / browser recovery integration failed.' }
 python -B (Join-Path $PSScriptRoot 'browser_resource_benchmark.py') --check --deep-sleep --output (Join-Path $PSScriptRoot '../artifacts/browser-resource-regression.json')
 if ($LASTEXITCODE) { throw 'Browser resource / bounded UI regression failed.' }
+python -B (Join-Path $PSScriptRoot 'browser_scrolling_integration.py')
+if ($LASTEXITCODE) { throw 'Browser scrolling / unresponsive renderer recovery failed.' }
 & (Join-Path $PSScriptRoot 'run-installer-smoke.ps1')
 python -B (Join-Path $PSScriptRoot 'docs_regression.py')
 if ($LASTEXITCODE) { throw 'Documentation regression failed.' }

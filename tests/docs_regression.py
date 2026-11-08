@@ -57,7 +57,7 @@ def main():
     for number in range(1,11):
         code=f"QS-W{number:03d}"
         check(code+": UI and handbook agree",code in workspace_source and code in (ROOT/"docs/BOOK.md").read_text(encoding="utf-8-sig"))
-    for number in [*range(1,11),99]:
+    for number in [*range(1,12),99]:
         code=f'QS-B{number:03d}'
         check(code+': browser recovery documented in both editions',all(code in (ROOT/p).read_text(encoding='utf-8-sig') for p in ['docs/BOOK.md',*MANUALS]))
     notebook_codes=[f'QS-D{n:03d}' for n in range(1,6)]+[f'QS-N{n:03d}' for n in range(1,6)]+[f'QS-F{n:03d}' for n in range(1,4)]+[f'QS-J{n:03d}' for n in range(1,4)]+['QS-R008','QS-R009']
