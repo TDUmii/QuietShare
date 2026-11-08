@@ -232,6 +232,7 @@ struct Browser::Impl:std::enable_shared_from_this<Browser::Impl> {
     int zoomPercent=DefaultZoomPercent;
     bool processRetry=false,environmentFailed=false,environmentExited=false;
     bool changedPending=false;
+    bool reducedMemory=false;
     int faultKind=-1,faultReason=-1,faultExit=0;DWORD faultCount=0;SYSTEMTIME faultUtc{};
     std::wstring diagnosticPath;
     bool StartEnvironment();
@@ -292,7 +293,7 @@ struct Browser::Impl:std::enable_shared_from_this<Browser::Impl> {
         localDocumentUri=HostHtmlUri(html);if(localDocumentUri.empty()){Fail(332);return;}
         if(FAILED(web->NavigateToString(html.c_str()))){localPage=localNavigation=false;navigating=false;notice=L"navigation";}Notify();
     }
-    void Close(){++generation;changedPending=false;enabled=ready=verified=visible=probing=locked=suspendPending=mediaReady=false;processRetry=environmentFailed=environmentExited=false;pid=0;error=0;loaded=navigating=localPage=localNavigation=false;cameraOrigin.clear();microphoneOrigin.clear();localNonce.clear();localDocumentUri.clear();newTabError.clear();address.clear();pending.clear();notice.clear();title.clear();
+    void Close(){++generation;changedPending=reducedMemory=false;enabled=ready=verified=visible=probing=locked=suspendPending=mediaReady=false;processRetry=environmentFailed=environmentExited=false;pid=0;error=0;loaded=navigating=localPage=localNavigation=false;cameraOrigin.clear();microphoneOrigin.clear();localNonce.clear();localDocumentUri.clear();newTabError.clear();address.clear();pending.clear();notice.clear();title.clear();
         auto closingTabs=std::move(tabs);tabs.clear();actions.clear();activeId=pendingId=0;
         Com<ICoreWebView2Controller> closingController;closingController.reset(controller.detach());
         Com<ICoreWebView2> closingWeb;closingWeb.reset(web.detach());
@@ -300,7 +301,7 @@ struct Browser::Impl:std::enable_shared_from_this<Browser::Impl> {
         // Revoke state before COM can pump nested host messages or callbacks.
         for(auto& tab:closingTabs)tab->Close();
         if(closingController){closingController->put_IsVisible(FALSE);closingController->Close();}Notify();}
-    void Fail(int code=1){++generation;ready=verified=visible=probing=navigating=false;if(!error)error=code;
+    void Fail(int code=1){++generation;ready=verified=visible=probing=navigating=suspendPending=reducedMemory=false;if(!error)error=code;
         if(auto manager=owner.lock();manager&&manager->pendingId==id)manager->pendingId=0;
         Com<ICoreWebView2Controller> closingController;closingController.reset(controller.detach());
         Com<ICoreWebView2> closingWeb;closingWeb.reset(web.detach());
@@ -378,21 +379,40 @@ struct Browser::Impl:std::enable_shared_from_this<Browser::Impl> {
         }
         const bool changed=zoomPercent!=next;zoomPercent=next;if(changed)NotifyZoom();return true;
     }
+    void MemoryTarget(bool low){
+        Com<ICoreWebView2_19> target;if(!Query(target))return;
+        const unsigned epoch=generation;auto current=web.p;
+        const auto hr=target->put_MemoryUsageTargetLevel(low?COREWEBVIEW2_MEMORY_USAGE_TARGET_LEVEL_LOW:COREWEBVIEW2_MEMORY_USAGE_TARGET_LEVEL_NORMAL);
+        if(enabled&&generation==epoch&&web.p==current&&SUCCEEDED(hr))reducedMemory=low;
+    }
+    void ResumeActivity(){
+        const unsigned epoch=generation;Com<ICoreWebView2_3> control;if(Query(control))control->Resume();
+        if(enabled&&generation==epoch&&reducedMemory)MemoryTarget(false);
+    }
+    void SuspendComplete(HRESULT hr,BOOL success){
+        suspendPending=false;
+        if(visible)ResumeActivity();
+        else if(FAILED(hr)||!success)MemoryTarget(true);
+    }
     void Suspend(){
         if(!ready||probing||visible||suspendPending)return;
         Com<ICoreWebView2_3> control;if(!Query(control))return;suspendPending=true;
+        // Do not combine explicit target changes with an already suspended
+        // view. LOW is only a fallback when sleeping is refused or fails.
+        BOOL sleeping=FALSE;if(SUCCEEDED(control->get_IsSuspended(&sleeping))&&sleeping){suspendPending=false;return;}
+        if(reducedMemory)MemoryTarget(false);
         const unsigned epoch=generation;std::weak_ptr<Impl> weak=shared_from_this();
-        auto done=Callback<ICoreWebView2TrySuspendCompletedHandler,HRESULT,BOOL>([weak,epoch](auto,auto){
-            if(auto s=weak.lock();s&&s->generation==epoch){s->suspendPending=false;if(s->visible){Com<ICoreWebView2_3> c;if(s->Query(c))c->Resume();}}return S_OK;
+        auto done=Callback<ICoreWebView2TrySuspendCompletedHandler,HRESULT,BOOL>([weak,epoch](HRESULT hr,BOOL success){
+            if(auto s=weak.lock();s&&s->enabled&&s->generation==epoch)s->SuspendComplete(hr,success);return S_OK;
         });
-        if(FAILED(control->TrySuspend(done)))suspendPending=false;done->Release();
+        const auto hr=control->TrySuspend(done);done->Release();if(FAILED(hr)&&generation==epoch)SuspendComplete(hr,FALSE);
     }
     void SetVisible(bool show){
         const bool next=show&&verified&&!locked;
         if(next==visible)return;
         visible=next;
         if(controller&&!probing){const unsigned epoch=generation;Com<ICoreWebView2Controller> current;current.hold(controller.p);
-            if(visible){Com<ICoreWebView2_3> control;if(Query(control))control->Resume();}
+            if(visible)ResumeActivity();
             if(!enabled||generation!=epoch||current.p!=controller.p)return;
             current->put_IsVisible(visible);if(enabled&&generation==epoch&&!visible)Suspend();}
     }

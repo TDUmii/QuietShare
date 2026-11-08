@@ -89,6 +89,12 @@ The SVG records 30 days of main-branch commits and GitHub issues/PRs opened, usi
 
 SVG ghi commit nhánh main và issue/PR được mở trong 30 ngày, theo giờ Việt Nam (UTC+07). Hình có commit nguồn và thời điểm cập nhật. Mở xem hình không cập nhật dữ liệu.
 
+## Browser resource measurements / Đo tài nguyên trình duyệt
+
+For a bounded local browser resource workload, run `python -B tests/browser_resource_benchmark.py --check --output artifacts/browser-resource-regression.json`. The shipping EXE uses real WGC verification and an isolated profile. No personal tabs are inspected. CPU is reported as percent of one logical core. Private bytes measure committed process memory, while summed working sets can include shared pages. Neither metric measures GPU memory. Compare the same script, host and workload across binaries. A synthetic feed is not an authenticated Threads benchmark.
+
+Đo trình duyệt cục bộ bằng lệnh trên. Bản chạy dùng WGC thực và hồ sơ riêng, không đọc tab cá nhân. CPU tính theo một lõi logic. Private bytes là bộ nhớ tiến trình đã cấp, tổng working set có thể đếm trùng trang dùng chung. Hai số này không đo bộ nhớ GPU. So cùng script, máy và dữ liệu giữa các bản. Feed giả lập không đại diện phiên Threads đã đăng nhập.
+
 ## Optional speech runtime / Bộ nhận dạng tùy chọn
 
 Build the separate CPU add-on with MinGW-w64 GCC 13.1.0, CMake and Ninja:

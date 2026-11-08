@@ -119,6 +119,9 @@ WorkspaceProfiles workspaceProfiles;
 int selectedProfile=0;bool profilesUnavailable=false;
 constexpr int NORMAL_SIDEBAR = 48, COMPACT_SIDEBAR = 48;
 constexpr UINT_PTR PRIVACY_TIMER = 1, SCROLL_TIMER = 2, SAVE_TIMER = 3, QA_TIMER = 4, MEETING_TIMER = 6;
+constexpr UINT_PTR BROWSER_UI_TIMER=9;
+bool browserUiPending=false;
+unsigned browserUiGeneration=0,browserUiLayouts=0;
 HINSTANCE instance;
 HWND window, editor, underlay, tooltips, hoveredButton, imageViewer, settingsScroll, filePicker,
      findInput, sourceMonitor, destinationMonitor, sizeInput, homeVersion;
@@ -4091,7 +4094,14 @@ LRESULT CALLBACK Proc(HWND h, UINT message, WPARAM wp, LPARAM lp)
     case BrowserChangedMessage:
         if(wp!=browser.Generation())return 0;
         browser.AcknowledgeChanged();
-        Layout();return 0;
+        // Titles/history may change many times per second. Keep a fixed
+        // refresh deadline and leave hidden readers alone. Canary, capture
+        // revocation and explicit tab actions keep their immediate paths.
+        if(page==Page::Browser||(page==Page::Settings&&settingsCategory==5)||page==Page::Quick){
+            browserUiGeneration=static_cast<unsigned>(wp);
+            if(!browserUiPending)browserUiPending=SetTimer(h,BROWSER_UI_TIMER,100,nullptr)!=0;
+        }
+        return 0;
     case BrowserCommandMessage:
         if(wp==browser.Generation()&&page==Page::Browser&&!Blocked()) {
             if(lp>0&&lp<=PreferenceCommandCount)RunPreferenceCommand(static_cast<PreferenceCommand>(lp-1));
@@ -4367,6 +4377,7 @@ LRESULT CALLBACK Proc(HWND h, UINT message, WPARAM wp, LPARAM lp)
         case 82:return selectedProfile;
         case 83:return page==Page::Diagnostics;
         case 84:return settingsAdvanced;
+        case 85:return browserUiLayouts;
         case 65:{DWORD affinity=0;return GetWindowDisplayAffinity(window,&affinity)&&affinity==0x11;}
             case 60:return preferences.iconSize;
             case 61:return preferences.browserMuted;
@@ -4803,7 +4814,13 @@ LRESULT CALLBACK Proc(HWND h, UINT message, WPARAM wp, LPARAM lp)
         Layout();
         return 0;
     case WM_TIMER:
-        if(wp==5 && mirror) {
+        if(wp==BROWSER_UI_TIMER){
+            KillTimer(h,BROWSER_UI_TIMER);browserUiPending=false;
+            if(browserUiGeneration==browser.Generation()&&(page==Page::Browser||(page==Page::Settings&&settingsCategory==5)||page==Page::Quick)){
+                ++browserUiLayouts;Layout();
+            }
+        }
+        else if(wp==5 && mirror) {
             mirror->Tick();
             UpdateMirrorTimer();
             if(renderedSafe!=IsPrivateContentSafe()) {
@@ -4881,7 +4898,7 @@ LRESULT CALLBACK Proc(HWND h, UINT message, WPARAM wp, LPARAM lp)
         KillTimer(h, MEETING_TIMER);
         meetingRecorder.Stop();
         meetingTranscriber.Stop();speechInstaller.Stop();
-        KillTimer(h,7);KillTimer(h,8);
+        KillTimer(h,7);KillTimer(h,8);KillTimer(h,BROWSER_UI_TIMER);browserUiPending=false;
         for (UINT_PTR timer : {PRIVACY_TIMER, SCROLL_TIMER, SAVE_TIMER, QA_TIMER,(UINT_PTR)5})
             KillTimer(h, timer);
         if(mirror)mirror->Stop();

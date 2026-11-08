@@ -38,9 +38,9 @@ A Windows companion for scripts, documents and web browsing. Smart Mirror sends 
 
   **Dễ đọc hơn:** mười theme, màu riêng và ba hồ sơ. Cài đặt có danh mục trái hoặc nút chọn gọn. Công cụ đọc nằm cạnh nội dung.
 
-- **Browse when needed:** optional WebView2 browser, up to 8 tabs, recoverable process-event handling and explicit retry after crashes. Last-stop diagnostics has stable codes. Browsing starts disabled.
+- **Browse when needed:** optional WebView2, 8 tabs, grouped UI updates and background memory requests. Retained tabs support retry after crashes. Diagnostics has stable codes. Browsing starts disabled.
 
-  **Duyệt web khi cần:** WebView2 tùy chọn, tối đa 8 tab, xử lý sự kiện tiến trình có thể phục hồi và tải lại chủ động sau crash. Chẩn đoán lần dừng có mã lỗi cố định. Mở ứng dụng luôn tắt trình duyệt.
+  **Duyệt web khi cần:** WebView2 tùy chọn, tối đa 8 tab, gom cập nhật giao diện và yêu cầu giảm bộ nhớ tab nền. Tab crash có thể tải lại. Chẩn đoán có mã lỗi cố định. Mở ứng dụng luôn tắt trình duyệt.
 
 - **Record and transcribe:** optional offline Whisper (Small by default), English/Vietnamese, editable timed notes and TXT/VTT/minutes export. Import Teams/Zoom/Meet transcripts for speaker names.
 
@@ -53,11 +53,11 @@ A Windows companion for scripts, documents and web browsing. Smart Mirror sends 
 
 ## 📊 Project Status / Tình trạng dự án
 
-![QuietShare Project Status: 51 main commits, 0 PRs and 0 issues opened in 30 days / Thống kê 30 ngày](docs/project-status.svg)
+![QuietShare Project Status: 52 main commits, 0 PRs and 0 issues opened in 30 days / Thống kê 30 ngày](docs/project-status.svg)
 
-30 days: **51 commits · 0 PRs · 0 issues**. Updated **7 Nov 2026**.
+30 days: **52 commits · 0 PRs · 0 issues**. Updated **08 Nov 2026**.
 
-30 ngày: **51 commit · 0 PR · 0 issue**. Cập nhật **07/11/2026**.
+30 ngày: **52 commit · 0 PR · 0 issue**. Cập nhật **08/11/2026**.
 
 ## 🛡️ Requirements and protection / Yêu cầu và bảo vệ
 

@@ -2,7 +2,7 @@
 
 > **Illustrated walkthrough:** [8 real UI screenshots with numbered red click targets](VISUAL_GUIDE_EN.md).
 
-English edition - QuietShare v0.21.0
+English edition - QuietShare v0.22.0
 
 Read, prepare and present with private notes on Windows.
 
@@ -422,6 +422,8 @@ Search words are submitted to Google. Websites you open receive normal network r
 - Closing the final tab disables browsing.
 
 New tabs must pass capture verification. Background tabs receive suspension requests. A page or runtime may continue some activity despite that request.
+
+Busy page metadata updates are grouped so they do not repeatedly rebuild the whole interface. Hidden web pages do not trigger layout work in the active file/script reader. If WebView2 refuses a background sleep request, QuietShare requests a lower memory target when the runtime supports it, then restores the normal target on return. This preserves the controller and unsent page state. It does not discard or reload tabs. Memory reduction is best effort and depends on the site and runtime.
 
 If you enable browsing during projection, QuietShare holds the last public frame while verifying. This can last up to about five seconds. Failure or cancellation stops projection. Check the projection result before continuing.
 

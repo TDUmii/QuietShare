@@ -153,6 +153,10 @@ Lời nhắc tự lưu trên máy, tách biệt với file đã mở.
 - Separate-popup sign-in flows may not work.
 - Microphone/camera access is off by default. See [privacy](PRIVACY.md) for grant conditions.
 
+Busy web metadata updates are grouped. Hidden web pages do not relayout the active reader. Background tabs request sleep, with a low-memory fallback when sleep is refused and the runtime supports it. Returning restores normal activity. Tabs and unsent form state are retained. This is not a fixed RAM limit.
+
+Cập nhật trạng thái web liên tục được gom lại. Web ẩn không dàn lại vùng đọc đang dùng. Tab nền được yêu cầu nghỉ, có phương án yêu cầu bộ nhớ thấp khi runtime từ chối nghỉ và hỗ trợ API này. Quay lại sẽ phục hồi hoạt động bình thường. Tab và nội dung ô nhập chưa gửi được giữ. Đây không phải giới hạn RAM cố định.
+
 ## Meeting notebook / Sổ ghi chép cuộc họp
 
 - Open **Meetings**, then **Export / more > Check playback and recognition**. Set language, output folder and optional Whisper model in **Settings > Meetings**. Small (466 MiB) prioritizes accuracy. Base (142 MiB) is lighter. Downloads require explicit Install.

@@ -2,7 +2,7 @@
 
 > **Có hướng dẫn bằng ảnh:** [Xem 8 ảnh chụp giao diện có đánh số và khoanh đỏ](VISUAL_GUIDE_VI.md).
 
-Ấn bản tiếng Việt - QuietShare v0.21.0
+Ấn bản tiếng Việt - QuietShare v0.22.0
 
 Đọc, chuẩn bị và thuyết trình với lời nhắc riêng trên Windows.
 
@@ -398,6 +398,8 @@ Tổ hợp trùng hoặc dành riêng sẽ bị từ chối. Ứng dụng khác 
 ## 8. Dùng trình duyệt tùy chọn
 
 Trình duyệt tắt ở mỗi lần mở ứng dụng. Tính năng cần Microsoft Edge WebView2 Runtime. Bật từ không gian Trình duyệt hoặc **Cài đặt > Trình duyệt** khi cần.
+
+Cập nhật tiêu đề/trạng thái web liên tục được gom lại để tránh dàn lại toàn bộ giao diện quá nhiều lần. Trang web ẩn không gây dàn lại vùng đọc file/lời nhắc đang dùng. Nếu WebView2 từ chối cho tab nền nghỉ, QuietShare yêu cầu mức bộ nhớ thấp hơn khi runtime hỗ trợ và trả về mức bình thường khi quay lại. Controller và nội dung chưa gửi vẫn được giữ. Tối ưu này không bỏ hoặc tải lại tab. Mức giảm bộ nhớ còn tùy website và runtime.
 
 ### Mở trang
 

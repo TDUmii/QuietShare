@@ -173,6 +173,19 @@ int wmain(int argc,wchar_t** argv){
             Check("compactEnglishNewTabHasNoHorizontalOverflow",Script(browser,L"innerWidth>250&&innerHeight>130&&document.documentElement.scrollWidth<=innerWidth")==L"true");
             Check("compactEnglishNewTabPreviewSaved",Preview(browser,output+L"\\newtab-en-358x197.png"));
             CheckPastePolicy(browser);
+            auto memoryTab=browser.impl->Active();auto keptController=memoryTab->controller.p;
+            Check("resourcePolicyHasSyntheticUnsentState",Script(browser,L"window.resourceDraft='UNSENT FIXTURE';true")==L"true");
+            browser.Show(false);Check("hiddenTabCompletesItsSleepRequest",Pump([&](){return !memoryTab->suspendPending;},10000));
+            quietshare::Com<ICoreWebView2_3> sleeping;quietshare::Com<ICoreWebView2_19> memory;
+            Check("memoryTargetApiAvailableOnTestRuntime",memoryTab->Query(sleeping)&&memoryTab->Query(memory));
+            if(sleeping&&memory){
+                sleeping->Resume();memoryTab->SuspendComplete(E_FAIL,FALSE);
+                COREWEBVIEW2_MEMORY_USAGE_TARGET_LEVEL target{};
+                Check("refusedSleepRequestsLowMemoryWithoutDiscardingController",SUCCEEDED(memory->get_MemoryUsageTargetLevel(&target))&&target==COREWEBVIEW2_MEMORY_USAGE_TARGET_LEVEL_LOW&&memoryTab->controller.p==keptController&&browser.Verified());
+                browser.Show(true);
+                Check("foregroundRestoresNormalMemoryTarget",SUCCEEDED(memory->get_MemoryUsageTargetLevel(&target))&&target==COREWEBVIEW2_MEMORY_USAGE_TARGET_LEVEL_NORMAL&&!memoryTab->reducedMemory);
+                Check("resourcePolicyPreservesUnsentPageState",Script(browser,L"window.resourceDraft==='UNSENT FIXTURE'")==L"true");
+            }else browser.Show(true);
             const auto stableTab=browser.ActiveTabId();auto stable=browser.impl->Active();const auto stableController=stable->controller.p;const auto stableGeneration=stable->generation;
             const auto countBefore=browser.Tabs().size();
             browser.SetDiagnosticPath(output+L"\\browser-fault.dat");
@@ -190,7 +203,8 @@ int wmain(int argc,wchar_t** argv){
             while(PeekMessageW(&queued,window,quietshare::BrowserChangedMessage,quietshare::BrowserChangedMessage,PM_REMOVE))++notifications;
             Check("oneHundredBrowserUpdatesCoalesceIntoOneLayoutMessage",notifications==1);
             browser.AcknowledgeChanged();stable->Notify();Check("newBrowserUpdateCanNotifyAfterAcknowledgment",PeekMessageW(&queued,window,quietshare::BrowserChangedMessage,quietshare::BrowserChangedMessage,PM_REMOVE));browser.AcknowledgeChanged();
-            stable->ProcessFailure(COREWEBVIEW2_PROCESS_FAILED_KIND_RENDER_PROCESS_EXITED,1,-1);
+            stable->suspendPending=true;stable->ProcessFailure(COREWEBVIEW2_PROCESS_FAILED_KIND_RENDER_PROCESS_EXITED,1,-1);
+            Check("rendererFailureClearsAnOldPendingSleepRequest",!stable->suspendPending&&!stable->reducedMemory);
             Check("rendererFailureRetainsTabAndOffersExplicitRetry",!browser.Ready()&&!browser.Verified()&&browser.CanRetry()&&browser.ActiveTabId()==stableTab&&browser.Tabs().size()==countBefore&&!stable->controller);
             browser.Reload();Check("retryCreatesANewControllerAndPassesFixtureProof",Pump([&](){return browser.Ready()&&browser.Loaded();},20000)&&browser.ActiveTabId()==stableTab&&browser.Tabs().size()==countBefore);
             // An actual isolated renderer crash drives the production event

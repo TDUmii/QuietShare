@@ -86,6 +86,10 @@ Sau khi bắt đầu chiếu thất bại, xem **Cài đặt > Trình chiếu**.
 
 [Browser recovery codes / Mã phục hồi trình duyệt](BOOK.md#browser-process-recovery--phục-hồi-tiến-trình-trình-duyệt)
 
+If web use feels heavy, compare one tab with several tabs, then switch to the local reader or disable browsing. QuietShare groups native UI updates from busy sites. Sleep and lower-memory requests preserve page state, but cannot force every site to release its committed memory. Include the action, tab count and exact QS-B/QS-P code when reporting a problem. Authenticated Threads and physical projection still require checking on the affected setup.
+
+Nếu duyệt web thấy nặng, so một tab với nhiều tab, sau đó chuyển sang trình đọc cục bộ hoặc tắt trình duyệt. QuietShare gom cập nhật giao diện từ trang hoạt động liên tục. Yêu cầu nghỉ/bộ nhớ thấp giữ nội dung trang nhưng không ép mọi website trả lại bộ nhớ đã cấp. Khi báo lỗi, ghi thao tác, số tab và đúng mã QS-B/QS-P. Threads đã đăng nhập và đầu chiếu thực tế vẫn cần thử trên đúng máy gặp lỗi.
+
 ## Meeting recording or transcription issues / Sự cố ghi âm hoặc chép lời cuộc họp
 
 1. Open Meetings and check playback/recognition. Confirm the meeting is audible through the default Windows playback device.
