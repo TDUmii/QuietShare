@@ -64,7 +64,7 @@ def run(exe,seconds,verify=False,deep_sleep=False):
         def q(n):return api.send(h,api.QUERY,n)
         def cmd(n):api.USER32.PostMessageW(h,api.WM_COMMAND,n,0);time.sleep(.15)
         def measure(name):
-            time.sleep(1);layouts=q(85);before={p:usage(p) for p in process_ids(app.pid)};start=time.monotonic();samples=[]
+            time.sleep(1);layouts=q(85);titles=q(90);before={p:usage(p) for p in process_ids(app.pid)};start=time.monotonic();samples=[]
             while time.monotonic()-start<seconds:
                 time.sleep(.25);values={p:usage(p) for p in process_ids(app.pid)}
                 samples.append({p:v for p,v in values.items() if v})
@@ -77,6 +77,7 @@ def run(exe,seconds,verify=False,deep_sleep=False):
                 'processCount':len(last),'tabs':q(34),'backgroundSuspended':q(36),'activeSuspended':q(15),
                 'controllers':q(38),'dormantTabs':q(86),
                 'nativeLayoutsPerSecond':(q(85)-layouts)/elapsed,
+                'tabTitleRefreshesPerSecond':(q(90)-titles)/elapsed,
                 'readerVisible':api.visible(api.USER32.GetDlgItem(h,110)),
                 'wgcVerified':bool(api.send(h,api.GATE,timeout=6000))}
             print(name,json.dumps(stages[name]),flush=True)
@@ -93,6 +94,8 @@ def run(exe,seconds,verify=False,deep_sleep=False):
         measure('fourFeeds')
         cmd(127);measure('fourFeedsHiddenByReader')
         cmd(154);assert api.wait_for(lambda:q(10)==2,10);measure('fourFeedsResumed')
+        if verify:
+            cmd(258);measure('fourFeedsNumberedTabs');cmd(258)
         if deep_sleep:
             selected=q(35);cmd(377)
             menu=api.wait_for(lambda:api.owned_popup(app.pid),5);assert menu,'Deep sleep confirmation missing'
@@ -127,10 +130,11 @@ if __name__=='__main__':
     if args.check:
         s=result['stages'];checks={
             'actual WGC remains verified in every workload':all(v['wgcVerified'] for v in s.values()),
-            'one busy page has bounded nonstarving native updates':0<s['oneFeed']['nativeLayoutsPerSecond']<=12,
-            'four busy pages have bounded nonstarving native updates':0<s['fourFeeds']['nativeLayoutsPerSecond']<=12,
-            'hidden web metadata does not relayout the active reader':s['fourFeedsHiddenByReader']['nativeLayoutsPerSecond']==0 and s['fourFeedsHiddenByReader']['readerVisible'],
-            'resuming web restores bounded native updates':0<s['fourFeedsResumed']['nativeLayoutsPerSecond']<=12,
+            'busy title changes refresh only the tab strip at a bounded rate':all(
+                s[name]['nativeLayoutsPerSecond']<=1 and 0<s[name]['tabTitleRefreshesPerSecond']<=12
+                for name in ('oneFeed','fourFeeds','fourFeedsResumed')),
+            'hidden web metadata leaves the reader and tab strip alone':s['fourFeedsHiddenByReader']['nativeLayoutsPerSecond']==s['fourFeedsHiddenByReader']['tabTitleRefreshesPerSecond']==0 and s['fourFeedsHiddenByReader']['readerVisible'],
+            'numbered tabs ignore title-only changes':s['fourFeedsNumberedTabs']['nativeLayoutsPerSecond']<=1 and s['fourFeedsNumberedTabs']['tabTitleRefreshesPerSecond']==0,
             'all four controllers remain represented as tabs':all(s[n]['tabs']==4 for n in ('fourFeeds','fourFeedsHiddenByReader','fourFeedsResumed')),
             'busy web updates preserve quick switch selection':result['quickSelectionKept'] is True,
             'disabling browsing releases every tab and owned child process':s['browserDisabled']['tabs']==0 and s['browserDisabled']['processCount']==1,

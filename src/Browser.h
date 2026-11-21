@@ -75,7 +75,8 @@ public:
     int State()const; // 0 off, 1 loading/probe, 2 ready, 3 error, 4 locked
     unsigned BrowserProcessId()const;
     unsigned Generation()const;
-    void AcknowledgeChanged();
+    // True if the coalesced changes require a full layout.
+    bool AcknowledgeChanged();
     std::wstring Address()const;
     std::wstring Status(bool english)const;
 private:

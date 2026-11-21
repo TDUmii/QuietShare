@@ -121,8 +121,8 @@ int selectedProfile=0;bool profilesUnavailable=false;
 constexpr int NORMAL_SIDEBAR = 48, COMPACT_SIDEBAR = 48;
 constexpr UINT_PTR PRIVACY_TIMER = 1, SCROLL_TIMER = 2, SAVE_TIMER = 3, QA_TIMER = 4, MEETING_TIMER = 6;
 constexpr UINT_PTR BROWSER_UI_TIMER=9;
-bool browserUiPending=false;
-unsigned browserUiGeneration=0,browserUiLayouts=0;
+bool browserUiPending=false,browserUiNeedsLayout=false;
+unsigned browserUiGeneration=0,browserUiLayouts=0,browserTitleRefreshes=0;
 HINSTANCE instance;
 HWND window, editor, underlay, tooltips, hoveredButton, imageViewer, settingsScroll, filePicker,
      findInput, sourceMonitor, destinationMonitor, sizeInput, homeVersion;
@@ -1092,6 +1092,26 @@ void Pause()
     scrollRemainder = 0;
     UpdateButtons();
 }
+bool CanRefreshBrowserUi(bool layout)
+{
+    if(layout)return page==Page::Browser||(page==Page::Settings&&settingsCategory==5)||page==Page::Quick;
+    return page==Page::Browser&&tabsVisible&&!preferences.numberedBrowserTabs&&!IsIconic(window)&&!Blocked();
+}
+void UpdateBrowserTabBar()
+{
+    std::vector<TabVisual> webTabs;
+    if(!Blocked()) {
+        size_t number=1;
+        for(const auto& tab:browser.Tabs()) {
+            const std::wstring name=preferences.numberedBrowserTabs?
+                std::wstring(L"Tab ")+std::to_wstring(number):
+                tab.title.empty()?T(tab.loading?L"Đang mở…":L"Tab mới",tab.loading?L"Opening…":L"New tab"):tab.title;
+            webTabs.push_back({tab.id,name,tab.address,0,false});
+            ++number;
+        }
+    }
+    browserTabBar.Update(std::move(webTabs),browser.ActiveTabId(),!Blocked(),english,dpi,uiFont);
+}
 void UpdateDocumentBar()
 {
     std::vector<TabVisual> tabs;
@@ -1106,18 +1126,7 @@ void UpdateDocumentBar()
         }
     }
     documentBar.Update(std::move(tabs),documents.Active().id,!Blocked(),english,dpi,uiFont);
-    std::vector<TabVisual> webTabs;
-    if(!Blocked()) {
-        size_t number=1;
-        for(const auto& tab:browser.Tabs()) {
-            const std::wstring name=preferences.numberedBrowserTabs?
-                std::wstring(L"Tab ")+std::to_wstring(number):
-                tab.title.empty()?T(tab.loading?L"Đang mở…":L"Tab mới",tab.loading?L"Opening…":L"New tab"):tab.title;
-            webTabs.push_back({tab.id,name,tab.address,0,false});
-            ++number;
-        }
-    }
-    browserTabBar.Update(std::move(webTabs),browser.ActiveTabId(),!Blocked(),english,dpi,uiFont);
+    UpdateBrowserTabBar();
 }
 void ClipSettingsControls(bool redraw=true)
 {
@@ -4169,17 +4178,18 @@ LRESULT CALLBACK Proc(HWND h, UINT message, WPARAM wp, LPARAM lp)
         if(window&&browser.Enabled()&&generation==browser.Generation())browser.FinishProbe(passed&&!masked&&topologyKnown&&!cloned,token);
         Layout();return 0;
     }
-    case BrowserChangedMessage:
+    case BrowserChangedMessage: {
         if(wp!=browser.Generation())return 0;
-        browser.AcknowledgeChanged();
-        // Titles/history may change many times per second. Keep a fixed
-        // refresh deadline and leave hidden readers alone. Canary, capture
-        // revocation and explicit tab actions keep their immediate paths.
-        if(page==Page::Browser||(page==Page::Settings&&settingsCategory==5)||page==Page::Quick){
+        const bool layout=browser.AcknowledgeChanged();
+        // Keep a fixed refresh deadline. A state change takes precedence over titles.
+        if(CanRefreshBrowserUi(layout)){
+            if(browserUiGeneration!=wp)browserUiNeedsLayout=false;
             browserUiGeneration=static_cast<unsigned>(wp);
+            browserUiNeedsLayout|=layout;
             if(!browserUiPending)browserUiPending=SetTimer(h,BROWSER_UI_TIMER,100,nullptr)!=0;
         }
         return 0;
+    }
     case BrowserCommandMessage:
         if(wp==browser.Generation()&&page==Page::Browser&&!Blocked()) {
             if(lp>0&&lp<=PreferenceCommandCount)RunPreferenceCommand(static_cast<PreferenceCommand>(lp-1));
@@ -4460,6 +4470,7 @@ LRESULT CALLBACK Proc(HWND h, UINT message, WPARAM wp, LPARAM lp)
         case 87:return pdfViewer.VisiblePageCount();
         case 88:return pdfViewer.GetState().panY;
         case 89:return static_cast<LRESULT>(pdfViewer.CachedBytes());
+        case 90:return browserTitleRefreshes;
         case 65:{DWORD affinity=0;return GetWindowDisplayAffinity(window,&affinity)&&affinity==0x11;}
             case 60:return preferences.iconSize;
             case 61:return preferences.browserMuted;
@@ -4903,8 +4914,10 @@ LRESULT CALLBACK Proc(HWND h, UINT message, WPARAM wp, LPARAM lp)
     case WM_TIMER:
         if(wp==BROWSER_UI_TIMER){
             KillTimer(h,BROWSER_UI_TIMER);browserUiPending=false;
-            if(browserUiGeneration==browser.Generation()&&(page==Page::Browser||(page==Page::Settings&&settingsCategory==5)||page==Page::Quick)){
-                ++browserUiLayouts;Layout();
+            const bool layout=std::exchange(browserUiNeedsLayout,false);
+            if(browserUiGeneration==browser.Generation()&&CanRefreshBrowserUi(layout)){
+                if(layout){++browserUiLayouts;Layout();}
+                else{++browserTitleRefreshes;UpdateBrowserTabBar();}
             }
         }
         else if(wp==5 && mirror) {

@@ -10,6 +10,7 @@
 #include <sstream>
 #include <deque>
 #include <cstdio>
+#include <utility>
 #include <psapi.h>
 namespace quietshare {
 namespace {
@@ -233,7 +234,7 @@ struct Browser::Impl:std::enable_shared_from_this<Browser::Impl> {
     unsigned generation=0,pid=0;UINT64 navigationId=0;int error=0;bool loaded=false,navigating=false;std::wstring address,pending,notice,title;
     int zoomPercent=DefaultZoomPercent;
     bool processRetry=false,environmentFailed=false,environmentExited=false;
-    bool changedPending=false;
+    bool changedPending=false,layoutPending=false;
     bool reducedMemory=false;
     bool dormant=false;
     bool memoryPressure=false;ULONGLONG memoryChecked=0;DiagnosticMemory memory{};
@@ -283,7 +284,8 @@ struct Browser::Impl:std::enable_shared_from_this<Browser::Impl> {
         }
     }
     bool Current(const std::shared_ptr<Impl>& tab,unsigned epoch)const{return enabled&&generation==epoch&&tab&&tab->enabled&&Find(tab->id)==tab;}
-    void Notify(){auto manager=owner.lock();auto target=manager?manager.get():this;
+    void Notify(bool layout=true){auto manager=owner.lock();auto target=manager?manager.get():this;
+        target->layoutPending|=layout;
         if(IsWindow(parent)&&!target->changedPending)target->changedPending=PostMessageW(parent,BrowserChangedMessage,target->generation,id)!=FALSE;}
     void NotifyZoom(){auto manager=owner.lock();if(IsWindow(parent)&&(!manager||manager->activeId==id))PostMessageW(parent,BrowserZoomChangedMessage,manager?manager->generation:generation,0);}
     void Queue(int kind,int value=0,std::wstring address={}){
@@ -300,7 +302,7 @@ struct Browser::Impl:std::enable_shared_from_this<Browser::Impl> {
         localDocumentUri=HostHtmlUri(html);if(localDocumentUri.empty()){Fail(332);return;}
         if(FAILED(web->NavigateToString(html.c_str()))){localPage=localNavigation=false;navigating=false;notice=L"navigation";}Notify();
     }
-    void Close(){++generation;changedPending=reducedMemory=false;enabled=ready=verified=visible=probing=locked=suspendPending=mediaReady=false;processRetry=environmentFailed=environmentExited=false;pid=0;error=0;loaded=navigating=localPage=localNavigation=false;cameraOrigin.clear();microphoneOrigin.clear();localNonce.clear();localDocumentUri.clear();newTabError.clear();address.clear();pending.clear();notice.clear();title.clear();
+    void Close(){++generation;changedPending=layoutPending=reducedMemory=false;enabled=ready=verified=visible=probing=locked=suspendPending=mediaReady=false;processRetry=environmentFailed=environmentExited=false;pid=0;error=0;loaded=navigating=localPage=localNavigation=false;cameraOrigin.clear();microphoneOrigin.clear();localNonce.clear();localDocumentUri.clear();newTabError.clear();address.clear();pending.clear();notice.clear();title.clear();
         memoryPressure=false;memoryChecked=0;memory={};processReason=processKind=-1;
         auto closingTabs=std::move(tabs);tabs.clear();actions.clear();activeId=pendingId=0;
         Com<ICoreWebView2Controller> closingController;closingController.reset(controller.detach());
@@ -323,7 +325,7 @@ struct Browser::Impl:std::enable_shared_from_this<Browser::Impl> {
         if(!enabled||locked||pendingId||!tab||(tab->locked&&!tab->dormant)||(environmentFailed&&!environmentExited))return false;
         if(tab->dormant)tab->locked=false;
         tab->pending=tab->address;tab->error=0;tab->dormant=false;tab->processRetry=false;tab->processReason=tab->processKind=-1;tab->enabled=true;tab->notice.clear();pendingId=tab->id;
-        if(environmentFailed){++generation;changedPending=false;environment.reset();environmentFailed=environmentExited=false;StartEnvironment();}
+        if(environmentFailed){++generation;changedPending=layoutPending=false;environment.reset();environmentFailed=environmentExited=false;StartEnvironment();}
         else CreateController(tab);
         Notify();return true;
     }
@@ -571,9 +573,9 @@ struct Browser::Impl:std::enable_shared_from_this<Browser::Impl> {
         ok=Event<ICoreWebView2SourceChangedEventHandler,ICoreWebView2*,ICoreWebView2SourceChangedEventArgs*>([valid](auto,auto){auto s=valid();if(s&&!s->probing){LPWSTR p=nullptr;s->web->get_Source(&p);auto source=TakeString(p);s->address=s->localPage&&(source==L"about:blank"||source==s->localDocumentUri)?L"":source;s->Notify();}return S_OK;},[&](auto h,auto t){return web->add_SourceChanged(h,t);})&&ok;
         ok=Event<ICoreWebView2HistoryChangedEventHandler,ICoreWebView2*,IUnknown*>([valid](auto,auto){if(auto s=valid())s->Notify();return S_OK;},[&](auto h,auto t){return web->add_HistoryChanged(h,t);})&&ok;
         ok=Event<ICoreWebView2DocumentTitleChangedEventHandler,ICoreWebView2*,IUnknown*>([valid](auto,auto){
-            if(auto s=valid();s&&!s->probing){LPWSTR raw=nullptr;s->web->get_DocumentTitle(&raw);s->title=TakeString(raw);if(s->title.size()>160)s->title.resize(160);
-                for(auto& c:s->title)if(c<32||c==127)c=L' ';
-                s->Notify();}return S_OK;
+            if(auto s=valid();s&&!s->probing){LPWSTR raw=nullptr;s->web->get_DocumentTitle(&raw);auto title=TakeString(raw);if(title.size()>160)title.resize(160);
+                for(auto& c:title)if(c<32||c==127)c=L' ';
+                if(s->title!=title){s->title=std::move(title);s->Notify(/*layout=*/false);}}return S_OK;
         },[&](auto h,auto t){return web->add_DocumentTitleChanged(h,t);})&&ok;
         ok=Event<ICoreWebView2NewWindowRequestedEventHandler,ICoreWebView2*,ICoreWebView2NewWindowRequestedEventArgs*>([valid](auto,auto args){
             args->put_Handled(TRUE);auto s=valid();BOOL initiated=FALSE;args->get_IsUserInitiated(&initiated);
@@ -847,7 +849,7 @@ int Browser::ErrorCode()const{auto tab=impl->Active();return tab?tab->error:impl
 int Browser::State()const{return !impl->enabled?0:impl->locked?4:ErrorCode()?3:Ready()?2:1;}
 unsigned Browser::BrowserProcessId()const{auto tab=impl->Active();return tab?tab->pid:0;}
 unsigned Browser::Generation()const{return impl->generation;}
-void Browser::AcknowledgeChanged(){impl->changedPending=false;}
+bool Browser::AcknowledgeChanged(){impl->changedPending=false;return std::exchange(impl->layoutPending,false);}
 std::wstring Browser::Address()const{auto tab=impl->Active();return tab?tab->address:L"";}
 std::wstring Browser::Status(bool en)const{
     if(State()==0)return en?L"Browser is off. Enable only when needed.":L"Trình duyệt đang tắt. Bật khi cần dùng web.";

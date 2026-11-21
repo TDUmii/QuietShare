@@ -207,10 +207,12 @@ int wmain(int argc,wchar_t** argv){
             Check("browserDiagnosticSurvivesRestartWithoutStartingEngine",afterRestart.LastFailureDiagnostic()==diagnostic&&!afterRestart.Enabled());
             Check("browserDiagnosticContainsNoTitleAddressOrContent",diagnostic.find(L"QS-B010")!=std::wstring::npos&&diagnostic.find(L"https")==std::wstring::npos&&diagnostic.find(L"Documentation")==std::wstring::npos);
             browser.AcknowledgeChanged();MSG queued{};while(PeekMessageW(&queued,window,quietshare::BrowserChangedMessage,quietshare::BrowserChangedMessage,PM_REMOVE)){}
-            for(int i=0;i<100;++i)stable->Notify();int notifications=0;
+            for(int i=0;i<100;++i)stable->Notify(/*layout=*/false);int notifications=0;
             while(PeekMessageW(&queued,window,quietshare::BrowserChangedMessage,quietshare::BrowserChangedMessage,PM_REMOVE))++notifications;
-            Check("oneHundredBrowserUpdatesCoalesceIntoOneLayoutMessage",notifications==1);
-            browser.AcknowledgeChanged();stable->Notify();Check("newBrowserUpdateCanNotifyAfterAcknowledgment",PeekMessageW(&queued,window,quietshare::BrowserChangedMessage,quietshare::BrowserChangedMessage,PM_REMOVE));browser.AcknowledgeChanged();
+            Check("oneHundredBrowserTitleUpdatesCoalesceWithoutLayout",notifications==1&&!browser.AcknowledgeChanged());
+            stable->Notify(/*layout=*/false);stable->Notify();stable->Notify(/*layout=*/false);
+            const bool mixedPosted=PeekMessageW(&queued,window,quietshare::BrowserChangedMessage,quietshare::BrowserChangedMessage,PM_REMOVE)!=FALSE;
+            Check("coalescedBrowserStateChangeStillRequiresLayout",mixedPosted&&browser.AcknowledgeChanged());
             browser.impl->memoryPressure=true;browser.impl->memory={40000,100,32000,12000};
             Check("criticalCommitPressureBlocksAdditionalControllersWithoutDiscardingTabs",!browser.CanNewTab()&&!browser.NewTab()&&browser.Tabs().size()==countBefore&&browser.Ready()&&browser.Verified()&&browser.Status(true).find(L"QS-B011")!=std::wstring::npos);
             stable->ResumeActivity();quietshare::Com<ICoreWebView2_19> memoryTarget;COREWEBVIEW2_MEMORY_USAGE_TARGET_LEVEL targetLevel=COREWEBVIEW2_MEMORY_USAGE_TARGET_LEVEL_NORMAL;
