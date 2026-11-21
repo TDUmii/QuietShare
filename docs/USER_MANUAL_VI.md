@@ -2,7 +2,7 @@
 
 > **Có hướng dẫn bằng ảnh:** [Xem 8 ảnh chụp giao diện có đánh số và khoanh đỏ](VISUAL_GUIDE_VI.md).
 
-Ấn bản tiếng Việt - QuietShare v0.24.0
+Ấn bản tiếng Việt - QuietShare v0.24.1
 
 Đọc, chuẩn bị và thuyết trình với lời nhắc riêng trên Windows.
 

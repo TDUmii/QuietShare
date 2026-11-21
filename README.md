@@ -14,6 +14,8 @@ A Windows companion for scripts, documents and web browsing. Smart Mirror sends 
 
 ![QuietShare Home / Trang chủ QuietShare](docs/quietshare-home.png)
 
+**v0.24.1** refreshes only the tab strip for title changes. / **v0.24.1** chỉ cập nhật thanh tab khi tiêu đề trang đổi.
+
 ## 🚀 Get started / Bắt đầu
 
 1. Run **QuietShare-Setup.exe** or extract the complete portable ZIP.
@@ -54,10 +56,6 @@ A Windows companion for scripts, documents and web browsing. Smart Mirror sends 
 ## 📊 Project Status / Tình trạng dự án
 
 ![QuietShare Project Status: 52 main commits, 0 PRs and 0 issues opened in 30 days / Thống kê 30 ngày](docs/project-status.svg)
-
-30 days: **52 commits · 0 PRs · 0 issues**. Updated **08 Nov 2026**.
-
-30 ngày: **52 commit · 0 PR · 0 issue**. Cập nhật **08/11/2026**.
 
 ## 🛡️ Requirements and protection / Yêu cầu và bảo vệ
 
