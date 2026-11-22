@@ -18,9 +18,9 @@
 
    Dùng nhãn vai trò và độ phân giải để nhận diện màn hình. Số thứ tự không nhất thiết là màn hình chính.
 
-3. Select **Verify WGC (F9)**, then **Start projection (F10)**. Confirm the audience output with harmless sample content in the exact meeting/capture setup you will use.
+3. Select **Verify WGC (F9)**, then **Choose source (F10)**. Confirm one source with **Share**. Confirm the audience output with harmless sample content in the exact meeting/capture setup you will use.
 
-   Chọn **Kiểm tra WGC (F9)**, rồi **Bắt đầu trình chiếu (F10)**. Dùng nội dung mẫu không nhạy cảm để kiểm tra phía người xem trong đúng phần mềm họp/capture sắp dùng.
+   Chọn **Kiểm tra WGC (F9)**, rồi **Chọn nguồn (F10)**. Xác nhận một nguồn bằng **Chia sẻ**. Dùng nội dung mẫu không nhạy cảm để kiểm tra phía người xem trong đúng phần mềm họp/capture sắp dùng.
 
 4. Use **Stop/F10** to end projection, or **F8** to mask private content and stop projection and scrolling. A fresh start is required to project again.
 
@@ -124,18 +124,18 @@ Kiểm tra WGC trong phiên khỏe mạnh không tự kết thúc phiên.
 
 - Automatic clipboard reads are denied.
 - Explicit raster-image paste into compatible web editors is allowed.
-- Downloads, web file pickers, file drops, screen sharing and other restricted native surfaces remain blocked. See the [user guide](USER_GUIDE.md).
+- QuietShare blocks websites from launching downloads, web file pickers, file drops and screen sharing. See the [user guide](USER_GUIDE.md).
 
 - Đọc clipboard tự động bị từ chối.
 - Cho phép người dùng chủ động dán ảnh raster vào ô nhập web tương thích.
-- Tải xuống, hộp chọn file web, thả file, chia sẻ màn hình và các vùng native bị hạn chế vẫn bị chặn. Xem [hướng dẫn sử dụng](USER_GUIDE.md).
+- QuietShare chặn các yêu cầu tải xuống, chọn tệp, thả tệp và chia sẻ màn hình từ website. Xem [hướng dẫn sử dụng](USER_GUIDE.md).
 
 ## Outgoing preview / Xem trước luồng đang gửi
 
-- The private preview uses the same GPU image as a successfully presented public frame, up to 10 FPS. It creates no second capture session, CPU screenshot or image file.
+- The private preview reuses the outgoing GPU image at up to 10 FPS. Window sharing captures the selected window. Web tab sharing reads only the confirmed QuietShare tab and holds its frames in memory. The preview creates no separate capture session or image file.
 - Hidden preview does no rendering work. A stop or new verification clears the old image. The preview does not certify physical receivers or meeting participants.
 
-- Khung xem trước riêng dùng cùng ảnh GPU với khung đã được trình chiếu thành công, tối đa 10 FPS. Không tạo phiên capture thứ hai, chụp ảnh bằng CPU hay lưu file ảnh.
+- Khung xem trước riêng dùng lại ảnh GPU của luồng chiếu với tối đa 10 FPS. Chế độ Ứng dụng thu hình cửa sổ đã chọn. Chế độ Tab web đọc khung hình từ tab đã xác nhận và giữ chúng trong RAM. Xem trước không tạo nguồn thu riêng hoặc lưu ảnh.
 - Khi ẩn, khung không dựng hình. Dừng chiếu hoặc xác minh mới sẽ xóa hình cũ. Khung không xác minh đầu nhận vật lý hay máy của người dự họp.
 
 ## Reading and meeting data / Dữ liệu đọc và cuộc họp

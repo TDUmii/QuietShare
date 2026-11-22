@@ -2,7 +2,7 @@
 
 > **Illustrated walkthrough:** [8 real UI screenshots with numbered red click targets](VISUAL_GUIDE_EN.md).
 
-English edition - QuietShare v0.24.1
+English edition - QuietShare v0.25.0
 
 Read, prepare and present with private notes on Windows.
 
@@ -12,7 +12,7 @@ Read, prepare and present with private notes on Windows.
 
 QuietShare is a desktop companion for reading scripts, local documents and optional web pages while presenting. Its private control window is separate from the material you intend to show an audience.
 
-Smart Mirror captures the selected public source display and renders it on a second display. It checks that QuietShare is excluded from the verified capture path before allowing private content. A successful check describes that local capture path. You still need to inspect the actual projector, television, meeting receiver or recording.
+Smart Mirror sends the selected screen, application window or QuietShare web tab to a second display. It checks that QuietShare is excluded from the verified capture path before allowing private content. A successful check describes that local capture path. You still need to inspect the actual projector, television, meeting receiver or recording.
 
 ### Choose your workflow
 
@@ -499,11 +499,11 @@ An accepted Windows request alone is not a general guarantee of safety. A local 
 2. Keep the entire QuietShare control window on the source display.
 3. For Smart Mirror, select a different audience display in Extend on the same GPU.
 4. Run F9 and read the result.
-5. Start projection with F10 when the setup permits it.
+5. Press F10, choose the source and target, then select **Share**.
 6. Inspect the receiver using harmless material.
 7. Open private notes only after the required checks succeed.
 
-The source is the display that contains QuietShare and the public application behind it. Smart Mirror sends that public source capture to the destination. Merely opening a file inside the private QuietShare reader does not turn that file into public projection material.
+Keep QuietShare on the control display. In **Screen** mode, that is the display you share. In **Window** or **Web tab** mode, the output is limited to the selected window or page. Files open in the private reader remain private.
 
 ### What causes a safety stop
 
@@ -538,10 +538,10 @@ If Windows cannot detect the display, resolve its input, power, cable, port or d
 4. Use the role and resolution labels. Do not infer roles only from display numbers.
 5. Put public sample material on the source, behind QuietShare.
 6. Press F9 and wait for its result.
-7. Press F10 or the projection Play control.
+7. Press F10 or **Choose source**, select the source and target, then select **Share**.
 8. Look at the physical audience display and confirm the sample material is visible without private notes.
 
-If Play fails, the app opens the Projection board with a code. Record that code before trying again. Private content disappearing indicates the protection gate failed. Repeatedly clicking Play does not correct the underlying condition.
+If the share fails, the app opens the Projection board with a code. Record that code before trying again. Private content disappearing indicates the protection gate failed. Repeatedly trying to share does not correct the underlying condition.
 
 ### Common HDMI outcomes
 
@@ -563,13 +563,15 @@ These conditions do not prove that a cable or projector is defective. Use the ex
 ### Projection board and live outgoing preview
 
 1. Open **Presentation** from the layout menu or Quick switch.
-2. Choose **Source** and **Target**. After reconnecting HDMI or changing display mode, select **Refresh** and check the pair again.
-3. Select **Verify WGC**, then **Start**. A failed start opens the board with the handbook error code.
+2. Select **Choose source**, then choose **Screen**, **Window** or **Web tab**. Choose an item and the **Target** display, then select **Share**.
+3. Select **Change source** during a session to switch. **Cancel** before confirmation keeps the current share. To share another browser tab, open it and choose **Share this tab** in the browser menu. Confirm the switch in the picker.
 4. Select **Recovery** for the action associated with that code. It does not weaken the privacy checks or automatically restart output.
 5. **Show preview / Hide preview** controls a local preview of frames successfully sent by QuietShare. It reuses the outgoing GPU resource at up to 10 FPS. No separate capture or image file is created.
 6. Hidden or minimized preview does no rendering work. A stop, safety failure or new verification clears the old preview. A preview renderer failure leaves public projection independent and does not retry continuously.
 
 Windows capture exclusion, WGC verification and physical receiver verification remain distinct. This local preview shows QuietShare's outgoing stream. It cannot confirm a physical projector, a TV or a meeting participant's display.
+
+The tab marked **Sharing** stays on the audience display while you browse other tabs. Closing or losing the shared tab stops the output. Sharing sends video frames only.
 
 ### Find the outgoing preview
 
@@ -928,6 +930,10 @@ This is an unverified status, not a hardware diagnosis.
 1. Choose the intended source.
 2. Run F9 and wait for the result.
 3. Read any specific code that follows.
+
+### QS-P025 `window-unavailable`
+
+The selected application window closed, was minimized, or could not provide a capture. Restore or reopen it, then select it again under **Choose source > Window**.
 
 ### QS-P099 - unknown reason
 

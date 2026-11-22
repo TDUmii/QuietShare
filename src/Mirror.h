@@ -64,6 +64,12 @@ public:
     void Invalidate();
     bool Start(const std::wstring &sourceId, const std::wstring &destinationId,
                bool capturePointer = true);
+    bool StartWindow(const std::wstring &sourceId, const std::wstring &destinationId,
+                     HWND window, bool capturePointer = true);
+    bool StartFrames(const std::wstring &sourceId, const std::wstring &destinationId);
+    // Submit only the current source's decoded BGRA pixels on the owner thread.
+    bool SubmitFrame(const void *bgra, unsigned width, unsigned height, unsigned stride);
+    void BlankFrame();
     void Stop();
     // Only an unexpected running-to-stopped transition posts a notice. A new
     // verification/start or explicit Stop invalidates any queued old notice.
@@ -93,6 +99,9 @@ public:
     std::wstring Recovery(bool english = false) const;
     std::wstring Status(bool english = false) const;
 private:
+    enum class Source { Monitor, Window, Frames };
+    bool StartSource(const std::wstring &sourceId, const std::wstring &destinationId,
+                     Source kind, HWND window, bool pointer);
 #if defined(QUIETSHARE_MIRROR_REGRESSION)
     friend struct MirrorRegressionAccess;
 #endif

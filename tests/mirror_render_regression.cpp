@@ -116,6 +116,50 @@ bool ColorAt(const std::vector<unsigned char> &pixels,int width,int x,int y,COLO
     const size_t index=(static_cast<size_t>(y)*width+x)*4;
     return index+4<=pixels.size()&&Near(pixels.data()+index,color);
 }
+void CheckWindowCapture(HWND output)
+{
+    const auto monitors=EnumerateMonitors();
+    if(monitors.empty()){Check(false,"window capture fixture has a display");return;}
+    MirrorController apartment;
+    const auto &monitor=monitors.front();
+    const auto instance=GetModuleHandleW(nullptr);
+    constexpr COLORREF selectedColor=RGB(190,24,30), coveringColor=RGB(22,175,80);
+    const HBRUSH selectedBrush=CreateSolidBrush(selectedColor),coveringBrush=CreateSolidBrush(coveringColor);
+    WNDCLASSW wc{};
+    wc.lpfnWndProc=DefWindowProcW;wc.hInstance=instance;wc.hbrBackground=selectedBrush;
+    wc.lpszClassName=L"QuietShareSyntheticCaptureTarget";RegisterClassW(&wc);
+    wc.hbrBackground=coveringBrush;wc.lpszClassName=L"QuietShareSyntheticCaptureCover";RegisterClassW(&wc);
+    const int x=monitor.bounds.left+180,y=monitor.bounds.top+135;
+    const HWND selected=CreateWindowExW(WS_EX_TOOLWINDOW|WS_EX_NOACTIVATE,L"QuietShareSyntheticCaptureTarget",
+        L"Synthetic selected window",WS_POPUP|WS_VISIBLE,x,y,280,168,nullptr,nullptr,instance,nullptr);
+    const HWND cover=CreateWindowExW(WS_EX_TOOLWINDOW|WS_EX_NOACTIVATE|WS_EX_TOPMOST,L"QuietShareSyntheticCaptureCover",
+        L"Synthetic covering window",WS_POPUP|WS_VISIBLE,x,y,280,168,nullptr,nullptr,instance,nullptr);
+    UpdateWindow(selected);UpdateWindow(cover);DwmFlush();
+    Capture capture;
+    Renderer renderer;
+    const bool started=selected&&cover&&capture.Create(monitor,false,selected)&&renderer.Create(capture,output,640,480);
+    Check(started&&capture.size.Width==280&&capture.size.Height==168,
+          "native window capture uses selected HWND dimensions");
+    bool matched=false;
+    if(started){
+        const auto stopAt=GetTickCount64()+3000;
+        while(!matched&&GetTickCount64()<stopAt){
+            MSG msg{};while(PeekMessageW(&msg,nullptr,0,0,PM_REMOVE)){TranslateMessage(&msg);DispatchMessageW(&msg);}
+            Com<CaptureFrame> frame;Com<ID3D11Texture2D> texture;
+            std::vector<unsigned char> pixels;
+            const auto hr=capture.Next(frame,texture);
+            if(SUCCEEDED(hr)&&frame&&texture&&renderer.Present(capture,texture.get())&&ReadBack(capture,renderer,pixels))
+                matched=ColorAt(pixels,640,320,240,selectedColor);
+            CloseObject(frame.get());
+            if(!matched)Sleep(15);
+        }
+    }
+    Check(matched,"covering window pixels never replace selected HWND pixels");
+    renderer.Clear();capture.Clear();DestroyWindow(cover);DestroyWindow(selected);
+    UnregisterClassW(L"QuietShareSyntheticCaptureCover",instance);
+    UnregisterClassW(L"QuietShareSyntheticCaptureTarget",instance);
+    DeleteObject(coveringBrush);DeleteObject(selectedBrush);
+}
 LRESULT CALLBACK TestProc(HWND hwnd,UINT msg,WPARAM wp,LPARAM lp)
 {
     if(msg==WM_ERASEBKGND)return 1;
@@ -149,6 +193,40 @@ namespace quietshare
 // Compile-only friendship exposes state to this harness, never to a shipped EXE.
 struct MirrorRegressionAccess
 {
+    static void CheckSuppliedFrames(HWND window,Capture &shared)
+    {
+        const auto monitors=EnumerateMonitors();
+        if(monitors.empty())return;
+        MirrorController controller;
+        auto &s=*controller.impl;
+        s.privateWindow=window;s.source=monitors.front();s.topology=monitors;
+        s.kind=MirrorController::Source::Frames;
+        s.running=s.verified=true;s.checkTick=s.Now();
+        shared.device->AddRef();*s.capture.device.put()=shared.device.get();
+        shared.context->AddRef();*s.capture.context.put()=shared.context.get();
+        if(!s.renderer.Create(s.capture,window,640,480)){
+            Check(false,"supplied-frame renderer creates its software D3D output");
+            return;
+        }
+        constexpr unsigned width=4,height=2,stride=20;
+        const unsigned char bgra[stride*height]={
+            54,178,31,255,54,178,31,255,54,178,31,255,54,178,31,255,0,0,0,0,
+            54,178,31,255,54,178,31,255,54,178,31,255,54,178,31,255,0,0,0,0,
+        };
+        std::vector<unsigned char> pixels;
+        Check(controller.SubmitFrame(bgra,width,height,stride)&&ReadBack(s.capture,s.renderer,pixels)&&
+              ColorAt(pixels,640,320,240,RGB(31,178,54))&&ColorAt(pixels,640,320,20,0)&&!s.capture.session,
+              "supplied BGRA frames render with row padding and fitting without a desktop capture session");
+        Check(!controller.SubmitFrame(bgra,width,height,width*4-1)&&
+              !controller.SubmitFrame(bgra,16385,1,stride)&&!controller.SubmitFrame(nullptr,width,height,stride),
+              "malformed supplied frames are rejected before buffer upload");
+        controller.BlankFrame();
+        Check(ReadBack(s.capture,s.renderer,pixels)&&ColorAt(pixels,640,320,240,0)&&controller.Running(),
+              "blanking a supplied source removes its prior frame while keeping the session running");
+        controller.Stop();
+        Check(!controller.SubmitFrame(bgra,width,height,stride)&&!controller.Running(),
+              "stale supplied frames cannot restore output after Stop");
+    }
     static void CheckPreview(HWND window,Capture& shared,ID3D11Texture2D* texture)
     {
         MirrorController controller;auto& s=*controller.impl;s.privateWindow=window;
@@ -534,6 +612,8 @@ int wmain(int argc,wchar_t**argv)
     Check(!renderer.Present(capture,texture.get()),"unexpected frame size cannot project");
     capture.size={400,200};capture.context->ClearState();renderer.Clear();
     MirrorRegressionAccess::CheckPreview(window,capture,texture.get());
+    MirrorRegressionAccess::CheckSuppliedFrames(window,capture);
+    CheckWindowCapture(window);
     SetWindowPos(window,nullptr,0,0,800,200,SWP_NOMOVE|SWP_NOZORDER|SWP_NOACTIVATE);
     Check(renderer.Create(capture,window,800,200),"wide target shader and swapchain recreation");
     Check(renderer.Present(capture,texture.get())&&ReadBack(capture,renderer,pixels),"wide target frame rendered");

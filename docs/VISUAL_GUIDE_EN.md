@@ -1,6 +1,6 @@
 # QuietShare - Illustrated step-by-step guide (English)
 
-> **Screenshot version:** QuietShare 0.24.1, real local UI test captures dated November 21, 2026. **Numbered red outlines** were added to point out controls. Locations may change with display scale, window size, language or release. The screenshots are not synthetic mockups.
+> **Screenshot version:** QuietShare 0.25.0, real local UI test captures dated November 22, 2026. **Numbered red outlines** were added to point out controls. Locations may change with display scale, window size, language or release. The screenshots are not synthetic mockups.
 
 **Jump to:** [Install](#1-download-and-install) · [Home and files](#2-home-and-opening-content) · [Script](#4-write-a-script-and-auto-scroll) · [PDF](#5-view-and-search-pdfs) · [Mirror](#8-safe-smart-mirror-projection) · [Recording](#9-record-and-transcribe-meetings)
 
@@ -87,7 +87,7 @@ Home has compact actions above a full-width recent list and a separate protectio
 **Preflight:** connect two different displays. Press `Win+P` and choose **Extend**. Keep QuietShare fully on the selected source display.
 
 1. **Red 1 - Source and target:** select two different displays. Use **Refresh** after reconnecting HDMI or changing display mode.
-2. **Red 2 - Verify and start:** select **Verify WGC**, then **Start**. The app checks protection before creating output. Failed starts show a handbook code. Select **Recovery** for the next action.
+2. **Red 2 - Choose source:** open **Choose source**, select **Screen**, **Window** or **Web tab**, and confirm the source and target with **Share**. Use **Change source** during a session. Failed starts show a code and a **Recovery** action.
 3. **Red 3 - Outgoing preview:** this area shows frames successfully sent by QuietShare, up to 10 FPS. The QA screenshot has no outgoing frame because this host has one display. **Hide preview** stops its renderer and retains a static off placeholder. Open this panel through Home > Open preview or the sidebar eye icon.
 4. Inspect the actual projector, TV or meeting receiver. A local preview and Windows capture exclusion do not verify the physical audience output.
 5. Select **Stop** when finished. After a display or safety change, restore the setup, verify again and explicitly start output.
@@ -122,7 +122,7 @@ Home has compact actions above a full-width recent list and a separate protectio
 | Cannot edit text/code | **Settings > Content > Allow editing**. PDF and images are read-only |
 | PDF text search does not work | Whether the file contains selectable text or only scanned pages |
 | Web page is unavailable | WebView2 installation, networking and browser-enabled status |
-| Projection **Start** is disabled | `Win+P > Extend`, distinct source/destination, completed WGC verification |
+| Projection **Share** is disabled | `Win+P > Extend`, distinct source/destination, completed WGC verification |
 | Projection stopped after an event | Read the error code, restore displays and verify protection again |
 | Empty transcript | Windows playback audio, language choice, recording state and saved output |
 

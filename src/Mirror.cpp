@@ -46,6 +46,7 @@ const char *ProjectionErrorCode(const char *reason)
     if(std::strcmp(reason,"privacy-unsafe")==0)return "QS-P022";
     if(std::strcmp(reason,"environment-invalidated")==0)return "QS-P023";
     if(std::strcmp(reason,"source-monitor-changed")==0)return "QS-P024";
+    if(std::strcmp(reason,"window-unavailable")==0)return "QS-P025";
     return "QS-P099";
 }
 
@@ -401,6 +402,18 @@ bool PinCaptureRuntime()
     }();
     return pinned;
 }
+bool ValidFrameSize(unsigned width,unsigned height)
+{
+    return width>0&&height>0&&width<=16384&&height<=16384&&UINT64(width)*height<=40000000;
+}
+DWORD ShareableWindowThread(HWND window,DWORD &process)
+{
+    if(!IsWindowVisible(window)||IsIconic(window)||GetAncestor(window,GA_ROOT)!=window)return 0;
+    DWORD cloaked=0;
+    if(SUCCEEDED(DwmGetWindowAttribute(window,DWMWA_CLOAKED,&cloaked,sizeof(cloaked)))&&cloaked)return 0;
+    const DWORD thread=GetWindowThreadProcessId(window,&process);
+    return process==GetCurrentProcessId()?0:thread;
+}
 struct Capture
 {
     Com<ID3D11Device> device;
@@ -416,13 +429,10 @@ struct Capture
         CloseObject(session.get()); CloseObject(pool.get()); session.reset(); pool.reset(); item.reset();
         winrtDevice.reset(); context.reset(); device.reset(); size={};
     }
-    bool Create(const MonitorInfo &monitor, bool pointer)
+    bool CreateDevice(const MonitorInfo &monitor)
     {
         Clear();
-        if(!PinCaptureRuntime())return false;
-        Com<CaptureSupport> supported; boolean yes=false;
-        if(FAILED(Factory(L"Windows.Graphics.Capture.GraphicsCaptureSession",kSupport,supported)) ||
-           FAILED(supported->IsSupported(&yes)) || !yes || !monitor.adapterKnown) return false;
+        if(!monitor.adapterKnown)return false;
         Com<IDXGIFactory1> factory; Com<IDXGIAdapter1> adapter;
         if(FAILED(CreateDXGIFactory1(IID_IDXGIFactory1,reinterpret_cast<void **>(factory.put())))) return false;
         for(UINT i=0;;++i)
@@ -433,9 +443,16 @@ struct Capture
             if(SameLuid(desc.AdapterLuid,monitor.adapter)) break;
         }
         D3D_FEATURE_LEVEL level{};
-        if(FAILED(D3D11CreateDevice(adapter.get(),D3D_DRIVER_TYPE_UNKNOWN,nullptr,
+        return SUCCEEDED(D3D11CreateDevice(adapter.get(),D3D_DRIVER_TYPE_UNKNOWN,nullptr,
             D3D11_CREATE_DEVICE_BGRA_SUPPORT,nullptr,0,D3D11_SDK_VERSION,
-            device.put(),&level,context.put()))) return false;
+            device.put(),&level,context.put()));
+    }
+    bool Create(const MonitorInfo &monitor, bool pointer, HWND window=nullptr)
+    {
+        if(!PinCaptureRuntime())return false;
+        Com<CaptureSupport> supported;boolean yes=false;
+        if(FAILED(Factory(L"Windows.Graphics.Capture.GraphicsCaptureSession",kSupport,supported))||
+           FAILED(supported->IsSupported(&yes))||!yes||!CreateDevice(monitor))return false;
         Com<IDXGIDevice> dxgi;
         if(FAILED(device->QueryInterface(IID_IDXGIDevice,reinterpret_cast<void **>(dxgi.put())))) return false;
         using CreateWinrt=HRESULT(WINAPI *)(IDXGIDevice *,IInspectable **);
@@ -443,10 +460,11 @@ struct Capture
         auto create=Procedure<CreateWinrt>(dll,"CreateDirect3D11DeviceFromDXGIDevice");
         if(!create || FAILED(create(dxgi.get(),winrtDevice.put()))) return false;
         Com<ItemInterop> interop;
-        if(FAILED(Factory(L"Windows.Graphics.Capture.GraphicsCaptureItem",kInterop,interop)) ||
-           FAILED(interop->CreateForMonitor(monitor.handle,kItem,reinterpret_cast<void **>(item.put()))) ||
-           FAILED(item->Size(&size)) || size.Width<=0 || size.Height<=0 ||
-           size.Width>16384 || size.Height>16384 || INT64(size.Width)*size.Height>40000000) return false;
+        if(FAILED(Factory(L"Windows.Graphics.Capture.GraphicsCaptureItem",kInterop,interop)))return false;
+        const HRESULT itemResult=window
+            ? interop->CreateForWindow(window,kItem,reinterpret_cast<void **>(item.put()))
+            : interop->CreateForMonitor(monitor.handle,kItem,reinterpret_cast<void **>(item.put()));
+        if(FAILED(itemResult)||!item||FAILED(item->Size(&size))||!ValidFrameSize(size.Width,size.Height))return false;
         Com<PoolFactory> poolFactory;
         if(FAILED(Factory(L"Windows.Graphics.Capture.Direct3D11CaptureFramePool",kPoolFactory,poolFactory)) ||
            FAILED(poolFactory->CreateFreeThreaded(winrtDevice.get(),87,2,size,pool.put())) ||
@@ -459,7 +477,8 @@ struct Capture
         else if(!pointer) return false;
         return SUCCEEDED(session->StartCapture());
     }
-    HRESULT Next(Com<CaptureFrame> &frame, Com<ID3D11Texture2D> &texture,INT64 after=0)
+    HRESULT Next(Com<CaptureFrame> &frame, Com<ID3D11Texture2D> &texture,INT64 after=0,
+                 bool resizeWindow=false)
     {
         HRESULT hr=pool->TryGetNextFrame(frame.put()); if(FAILED(hr)||!frame) return hr;
         // The pool has two buffers: discard an older queued frame before presenting.
@@ -475,8 +494,16 @@ struct Capture
             return hr; // Never present a queued frame rendered before probe teardown.
         }
         Size32 current{};
-        if(FAILED(frame->ContentSize(&current))||current.Width!=size.Width||current.Height!=size.Height)
-            return E_FAIL; // New size requires a fresh preflight, never stretch an unverified region.
+        if(FAILED(frame->ContentSize(&current)))return E_FAIL;
+        if(current.Width!=size.Width||current.Height!=size.Height)
+        {
+            if(!resizeWindow||!ValidFrameSize(current.Width,current.Height))return E_FAIL;
+            CloseObject(frame.get());frame.reset();
+            hr=pool->Recreate(winrtDevice.get(),87,2,current);
+            if(FAILED(hr))return hr;
+            size=current;
+            return S_FALSE;
+        }
         Com<IInspectable> surface; Com<DxgiAccess> access;
         hr=frame->Surface(surface.put());
         if(SUCCEEDED(hr))hr=surface->QueryInterface(kAccess,reinterpret_cast<void **>(access.put()));
@@ -640,22 +667,34 @@ struct Renderer
             if(swap)swap->Present(0,0);
         }
     }
+    bool EnsureImage(Capture &capture,UINT w,UINT h)
+    {
+        if(!copy||sourceWidth!=int(w)||sourceHeight!=int(h))
+        {
+            resource.reset();copy.reset();
+            D3D11_TEXTURE2D_DESC desc{};desc.Width=w;desc.Height=h;
+            desc.Format=DXGI_FORMAT_B8G8R8A8_UNORM;desc.BindFlags=D3D11_BIND_SHADER_RESOURCE;
+            desc.MipLevels=1;desc.ArraySize=1;desc.SampleDesc.Count=1;
+            if(FAILED(capture.device->CreateTexture2D(&desc,nullptr,copy.put()))||
+               FAILED(capture.device->CreateShaderResourceView(copy.get(),nullptr,resource.put())))return false;
+            sourceWidth=w;sourceHeight=h;
+        }
+        return true;
+    }
     bool Present(Capture &capture,ID3D11Texture2D *texture)
     {
         D3D11_TEXTURE2D_DESC desc{};texture->GetDesc(&desc);
-        if(desc.Format!=DXGI_FORMAT_B8G8R8A8_UNORM || desc.Width!=UINT(capture.size.Width) ||
-           desc.Height!=UINT(capture.size.Height))return false;
-        if(!copy||sourceWidth!=int(desc.Width)||sourceHeight!=int(desc.Height))
-        {
-            resource.reset();copy.reset();desc.Usage=D3D11_USAGE_DEFAULT;desc.BindFlags=D3D11_BIND_SHADER_RESOURCE;
-            desc.CPUAccessFlags=0;desc.MiscFlags=0;desc.MipLevels=1;desc.ArraySize=1;desc.SampleDesc.Count=1;
-            if(FAILED(capture.device->CreateTexture2D(&desc,nullptr,copy.put()))||
-               FAILED(capture.device->CreateShaderResourceView(copy.get(),nullptr,resource.put())))return false;
-            sourceWidth=desc.Width;sourceHeight=desc.Height;
-        }
+        if(desc.Format!=DXGI_FORMAT_B8G8R8A8_UNORM||desc.Width!=UINT(capture.size.Width)||
+           desc.Height!=UINT(capture.size.Height)||!EnsureImage(capture,desc.Width,desc.Height))return false;
         ID3D11ShaderResourceView *none=nullptr;
         capture.context->PSSetShaderResources(0,1,&none);
         capture.context->CopyResource(copy.get(),texture);
+        return Draw(capture,resource.get(),sourceWidth,sourceHeight);
+    }
+    bool PresentPixels(Capture &capture,const void *bgra,UINT w,UINT h,UINT stride)
+    {
+        if(!EnsureImage(capture,w,h))return false;
+        capture.context->UpdateSubresource(copy.get(),0,nullptr,bgra,stride,0);
         return Draw(capture,resource.get(),sourceWidth,sourceHeight);
     }
     bool Draw(Capture &capture,ID3D11ShaderResourceView *image,int imageWidth,int imageHeight)
@@ -691,8 +730,12 @@ struct MirrorController::Impl : std::enable_shared_from_this<MirrorController::I
     HWND requestedPreviewWindow=nullptr;
     bool previewChangePending=false;
     bool previewHasFrame=false,previewFailed=false;
+    bool frameBlankPending=false;
     ULONGLONG previewAt=0;
     HWND privateWindow=nullptr,projector=nullptr;
+    Source kind=Source::Monitor;
+    HWND capturedWindow=nullptr;
+    DWORD capturedProcess=0,capturedThread=0;
     std::wstring sourceId,destinationId;
     MonitorInfo source{},destination{};
     RECT sourceMovementBounds{};
@@ -744,6 +787,7 @@ struct MirrorController::Impl : std::enable_shared_from_this<MirrorController::I
             --owner.operations;
             if(!owner.operations&&owner.clearPending)owner.Clear();
             if(!owner.operations&&owner.previewChangePending)owner.ApplyPreviewChange();
+            if(!owner.operations&&owner.frameBlankPending)owner.BlankFrames();
         }
     };
     bool BeginVerification(HWND owner,const std::wstring &id,bool mounted)
@@ -762,6 +806,7 @@ struct MirrorController::Impl : std::enable_shared_from_this<MirrorController::I
     void Clear()
     {
         ++epoch;verified=false;running=false;fps=0;frameCount=0;presentAfter=0;nextFrameAt=0;
+        frameBlankPending=false;
         ResetPreview();
         // Clear revokes output immediately, even when COM teardown is deferred.
         // Release only our own UI thread's request; retain its earlier state.
@@ -782,12 +827,23 @@ struct MirrorController::Impl : std::enable_shared_from_this<MirrorController::I
         }
         if(capture.context)capture.context->ClearState();
         previewRenderer.Clear();renderer.Clear();capture.Clear();
+        kind=Source::Monitor;capturedWindow=nullptr;capturedProcess=0;capturedThread=0;
         clearing=false;clearPending=false;
     }
     void ResetPreview()
     {
         previewHasFrame=false;previewAt=0;
         if(IsWindow(previewWindow)){InvalidateRect(previewWindow,nullptr,FALSE);UpdateWindow(previewWindow);}
+    }
+    void BlankFrames()
+    {
+        if(operations)return;
+        frameBlankPending=false;
+        if(kind!=Source::Frames||!running||clearing)return;
+        Operation operation(*this);
+        renderer.Blank(capture);
+        previewRenderer.Blank(capture);
+        ResetPreview();
     }
     void ApplyPreviewChange()
     {
@@ -898,6 +954,15 @@ struct MirrorController::Impl : std::enable_shared_from_this<MirrorController::I
         if(FAILED(deviceError)){Fail(State::Unsafe,"device-removed",deviceError);return false;}
         if(projector&&!Affinity(projector)){Fail(State::Unsafe,"projector-affinity");return false;}
         if(running&&!PrivateWindowLocationSafe(privateWindow,source)){Fail(State::WrongLocation);return false;}
+        if(running&&kind==Source::Window)
+        {
+            DWORD process=0;
+            if(ShareableWindowThread(capturedWindow,process)!=capturedThread||process!=capturedProcess)
+            {
+                Fail(State::CaptureFailed,"window-unavailable");
+                return false;
+            }
+        }
         if(topologyNow) {
             if(!SameTopology()){Fail(State::Changed,"display-topology");return false;}
             if(epoch!=attempt)return false;
@@ -945,7 +1010,7 @@ struct MirrorController::Impl : std::enable_shared_from_this<MirrorController::I
             nullptr,nullptr,wc.hInstance,this);
         if(!projector || !ApplyPrivacy(projector).applied)return false;
         if(!renderer.Create(capture,projector,r.right-r.left,r.bottom-r.top))return false;
-        renderer.Blank(capture);ShowWindow(projector,SW_SHOWNOACTIVATE);UpdateWindow(projector);return true;
+        renderer.Blank(capture);return true;
     }
 };
 
@@ -974,7 +1039,10 @@ bool MirrorController::Verify(HWND privateWindow,const std::wstring &sourceId,co
     if(!source)return finish(State::Changed);
     s.source=*source;s.sourceId=sourceId;
     if(s.epoch!=attempt)return false;
-    if(!preserveProjection&&!s.capture.Create(*source,false))return finish(State::CaptureFailed);
+    Capture scopedProbe;
+    Capture &probe=preserveProjection&&s.kind!=Source::Monitor?scopedProbe:s.capture;
+    if((!preserveProjection||&probe==&scopedProbe)&&!probe.Create(*source,false))
+        return finish(State::CaptureFailed);
     if(s.epoch!=attempt)return false;
     const INT64 probeAfter=CaptureClock();
     if(!probeAfter)return finish(State::CaptureFailed);
@@ -999,12 +1067,12 @@ bool MirrorController::Verify(HWND privateWindow,const std::wstring &sourceId,co
             return finish(State::Unsafe);
         if(s.epoch!=attempt)return false;
         Com<CaptureFrame> frame;Com<ID3D11Texture2D> texture;
-        const HRESULT hr=s.capture.Next(frame,texture,probeAfter);
+        const HRESULT hr=probe.Next(frame,texture,probeAfter);
         if(s.epoch!=attempt){CloseObject(frame.get());return false;}
         if(FAILED(hr)){CloseObject(frame.get());return finish(State::CaptureFailed);}
         if(frame&&texture)
         {
-            const auto evidence=s.capture.Check(texture.get(),*source,canary);
+            const auto evidence=probe.Check(texture.get(),*source,canary);
             CloseObject(frame.get());
             if(s.epoch!=attempt)return false;
             if(!markerSeen && evidence==CanaryResult::MarkerPresent)
@@ -1095,6 +1163,20 @@ void MirrorController::SetPublicMenuOwner(HWND owner)
 void MirrorController::Invalidate() {impl->Fail(State::Changed);}
 bool MirrorController::Start(const std::wstring &sourceId,const std::wstring &destinationId,bool pointer)
 {
+    return StartSource(sourceId,destinationId,Source::Monitor,nullptr,pointer);
+}
+bool MirrorController::StartWindow(const std::wstring &sourceId,const std::wstring &destinationId,
+                                   HWND window,bool pointer)
+{
+    return StartSource(sourceId,destinationId,Source::Window,window,pointer);
+}
+bool MirrorController::StartFrames(const std::wstring &sourceId,const std::wstring &destinationId)
+{
+    return StartSource(sourceId,destinationId,Source::Frames,nullptr,false);
+}
+bool MirrorController::StartSource(const std::wstring &sourceId,const std::wstring &destinationId,
+                                   Source kind,HWND window,bool pointer)
+{
     const auto lifetime=impl;
     auto &s=*lifetime;
     if(s.busy||s.clearing||s.operations)return false;
@@ -1115,21 +1197,79 @@ bool MirrorController::Start(const std::wstring &sourceId,const std::wstring &de
     {return fail(State::DifferentAdapters);}
     const HWND owner=s.privateWindow;
     if(!owner||!WithinMonitor(owner,*source)){return fail(State::WrongLocation);}
+    DWORD process=0;
+    const DWORD thread=kind==Source::Window?ShareableWindowThread(window,process):0;
+    if(kind==Source::Window&&!thread)return fail(State::CaptureFailed,"window-unavailable");
     if(!Verify(owner,sourceId))return false;
     Impl::Operation operation(s);
     const unsigned attempt=s.epoch;
-    // Keep the exact verified capture session rather than replacing its path.
-    Com<CaptureSession2> cursor;
-    if(FAILED(s.capture.session->QueryInterface(kSession2,reinterpret_cast<void **>(cursor.put())))||
-       FAILED(cursor->SetCursorEnabled(pointer))) {return fail(State::CaptureFailed);}
+    if(kind==Source::Monitor)
+    {
+        // Only monitor projection uses the exact verified monitor capture session.
+        Com<CaptureSession2> cursor;
+        if(FAILED(s.capture.session->QueryInterface(kSession2,reinterpret_cast<void **>(cursor.put())))||
+           FAILED(cursor->SetCursorEnabled(pointer)))return fail(State::CaptureFailed);
+    }
+    else if(kind==Source::Window)
+    {
+        DWORD currentProcess=0;
+        if(ShareableWindowThread(window,currentProcess)!=thread||currentProcess!=process)
+            return fail(State::CaptureFailed,"window-unavailable");
+        const bool created=s.capture.Create(*source,pointer,window);
+        if(s.epoch!=attempt)return false;
+        if(!created)return fail(State::CaptureFailed,"window-unavailable");
+    }
+    else
+    {
+        const bool created=s.capture.CreateDevice(*source);
+        if(s.epoch!=attempt)return false;
+        if(!created)return fail(State::CaptureFailed);
+    }
     if(s.epoch!=attempt)return false;
+    s.kind=kind;s.capturedWindow=window;s.capturedProcess=process;s.capturedThread=thread;
     s.destination=*destination;s.destinationId=destinationId;
     if(!s.SameTopology()||!s.PinSourceMovement()){return fail(State::Changed);}
+    if(s.epoch!=attempt)return false;
     if(!s.CreateProjector()){return fail(State::RenderFailed);}
     if(s.epoch!=attempt)return false;
     if(!s.execution.Acquire()){return fail(State::CaptureFailed);}
     if(s.epoch!=attempt){s.execution.Release();return false;}
-    s.running=true;s.state=State::Running;s.sessionStarted=s.Now();s.framesTick=s.sessionStarted;s.frameCount=0;s.fps=0;return true;
+    s.running=true;s.state=State::Running;s.sessionStarted=s.Now();s.framesTick=s.sessionStarted;s.frameCount=0;s.fps=0;
+    if(!s.ValidateEnvironment(false)||s.epoch!=attempt)return false;
+    ShowWindow(s.projector,SW_SHOWNOACTIVATE);
+    if(s.epoch!=attempt)return false;
+    UpdateWindow(s.projector);
+    return s.epoch==attempt;
+}
+bool MirrorController::SubmitFrame(const void *bgra,unsigned width,unsigned height,unsigned stride)
+{
+    const auto lifetime=impl;
+    auto &s=*lifetime;
+    if(s.kind!=Source::Frames||!s.running||s.busy||s.clearing||s.operations||
+       !bgra||!ValidFrameSize(width,height)||stride<width*4||UINT64(stride)*height>160000000)
+        return false;
+    Impl::Operation operation(s);
+    const unsigned attempt=s.epoch;
+    const ULONGLONG now=s.Now();
+    if(!s.ValidateEnvironment(now-s.checkTick>=500)||s.epoch!=attempt||s.frameBlankPending)return false;
+    const bool presented=s.renderer.PresentPixels(s.capture,bgra,width,height,stride);
+    if(s.epoch!=attempt||s.frameBlankPending)return false;
+    if(!presented){s.Fail(State::RenderFailed);return false;}
+    s.PresentPreview(now);
+    if(s.epoch!=attempt||s.frameBlankPending)return false;
+    ++s.frameCount;
+#if defined(QUIETSHARE_MIRROR_REGRESSION)
+    ++s.testPresentedFrames;
+#endif
+    return true;
+}
+void MirrorController::BlankFrame()
+{
+    const auto lifetime=impl;
+    auto &s=*lifetime;
+    if(s.kind!=Source::Frames||!s.running||s.clearing)return;
+    s.frameBlankPending=true;
+    s.BlankFrames();
 }
 void MirrorController::Stop() {impl->CancelStoppedNotice();impl->Clear();impl->state=State::Unverified;impl->failureCode=nullptr;}
 bool MirrorController::ConsumeStoppedNotice(unsigned serial)
@@ -1157,26 +1297,30 @@ void MirrorController::Tick()
     // Confidence belongs to this exact capture session. Continuously check the
     // actual safety invariants rather than expiring a healthy lesson by age.
     if(!s.ValidateEnvironment(now-s.checkTick>=500))return;
-    const INT64 frameTime=CaptureClock();
-    if(!frameTime){s.Fail(State::CaptureFailed);return;}
-    if(!FrameDue(frameTime,TargetFps(),s.nextFrameAt))return;
-    Com<CaptureFrame> frame;Com<ID3D11Texture2D> texture;
-    const HRESULT hr=s.capture.Next(frame,texture,s.presentAfter);
-    if(s.epoch!=attempt){CloseObject(frame.get());return;}
-    if(FAILED(hr)){CloseObject(frame.get());s.Fail(State::CaptureFailed,"capture-frame",hr);return;}
-    if(frame&&texture)
+    if(s.kind!=Source::Frames)
     {
-        const bool presented=!s.running||s.renderer.Present(s.capture,texture.get());
-        CloseObject(frame.get());
-        if(!presented){s.Fail(State::RenderFailed);return;}
-        if(s.running)
+        const INT64 frameTime=CaptureClock();
+        if(!frameTime){s.Fail(State::CaptureFailed);return;}
+        if(!FrameDue(frameTime,TargetFps(),s.nextFrameAt))return;
+        Com<CaptureFrame> frame;Com<ID3D11Texture2D> texture;
+        const HRESULT hr=s.capture.Next(frame,texture,s.presentAfter,s.kind==Source::Window);
+        if(s.epoch!=attempt){CloseObject(frame.get());return;}
+        if(FAILED(hr)){CloseObject(frame.get());s.Fail(State::CaptureFailed,"capture-frame",hr);return;}
+        if(frame&&texture)
         {
-            s.PresentPreview(now);
+            const bool presented=!s.running||s.renderer.Present(s.capture,texture.get());
+            CloseObject(frame.get());
             if(s.epoch!=attempt)return;
-            ++s.frameCount;
+            if(!presented){s.Fail(State::RenderFailed);return;}
+            if(s.running)
+            {
+                s.PresentPreview(now);
+                if(s.epoch!=attempt)return;
+                ++s.frameCount;
 #if defined(QUIETSHARE_MIRROR_REGRESSION)
-            ++s.testPresentedFrames;
+                ++s.testPresentedFrames;
 #endif
+            }
         }
     }
     if(s.running&&now-s.framesTick>=1000)
@@ -1260,6 +1404,9 @@ std::wstring MirrorController::Recovery(bool english) const {
     }else if(code==L"QS-P006"||code==L"QS-P007"||code==L"QS-P021"){
         vi=L"Dùng Windows 10 build 19041+ hoặc Windows 11 với DWM. Cập nhật Windows và driver đồ họa.";
         en=L"Use Windows 10 build 19041+ or Windows 11 with DWM. Update Windows and graphics drivers.";
+    }else if(code==L"QS-P025"){
+        vi=L"Mở và khôi phục cửa sổ muốn chia sẻ, sau đó chọn lại cửa sổ.";
+        en=L"Open or restore the window you want to share, then select it again.";
     }else if(!code.empty()){
         vi=L"Kiểm tra kết nối màn, driver và chế độ Extend. Kiểm tra WGC lại, sau đó chủ động Bắt đầu.";
         en=L"Check the display connection, drivers and Extend mode. Verify WGC again, then explicitly Start.";

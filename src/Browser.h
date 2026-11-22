@@ -1,6 +1,7 @@
 #pragma once
 #include "Zoom.h"
 #include <windows.h>
+#include <functional>
 #include <memory>
 #include <string>
 #include <vector>
@@ -42,6 +43,10 @@ public:
     std::vector<BrowserTab> Tabs()const;
     int ActiveTab()const;
     unsigned ActiveTabId()const;
+    // UI thread. Zero releases the selected tab. A rejected request has no callback.
+    bool SetCaptureTab(unsigned id);
+    bool HasCaptureTab(unsigned id)const;
+    bool CaptureTabFrame(unsigned id,std::function<void(std::vector<unsigned char>)> callback);
     bool CanNewTab()const;
     bool NewTab(const std::wstring& address=L"");
     bool CloseTab(unsigned id);

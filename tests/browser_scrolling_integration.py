@@ -62,7 +62,9 @@ def main():
         # input. Exercise the always-available native recovery menu instead.
         cmd(212);popup=api.wait_for(lambda:api.owned_popup(app.pid),5)
         check('native recovery menu remains usable while web script is busy',popup)
-        api.send(popup,0x200,0,(10<<16)|10);api.send(popup,api.WM_KEYDOWN,0x28)
+        # Recover tab follows New tab and Share this tab in the native menu.
+        api.send(popup,0x200,0,(10<<16)|10)
+        for _ in range(2):api.send(popup,api.WM_KEYDOWN,0x28)
         api.USER32.PostMessageW(popup,api.WM_KEYDOWN,0x0D,0)
         check('explicit tab recreation recovers a stalled renderer',api.wait_for(lambda:Fixture.hang_requests>=2 and q(10)==2 and q(12)==1 and q(13)==1 and not api.visible(api.USER32.GetDlgItem(window,375)),25))
         check('recovery preserves capture verification',q(12)==1 and q(13)==1 and api.send(window,api.GATE,timeout=6000)==1)

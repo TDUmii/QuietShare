@@ -46,7 +46,7 @@ def main():
         check(prefix + "chapter bookmarks", len([item for item in reader.outline if not isinstance(item, list)]) >= 14)
         for heading in re.findall(r"^## (.+)$", markdown, re.M):
             check(prefix + "chapter " + heading, plain(heading) in text)
-        for code in [f"QS-P{number:03d}" for number in range(1,25)] + ["QS-P000", "QS-P099"]:
+        for code in [f"QS-P{number:03d}" for number in range(1,26)] + ["QS-P000", "QS-P099"]:
             check(prefix + "error recipe " + code, code in text)
         for code in [f"QS-W{number:03d}" for number in range(1,8)]:
             check(prefix + "saved-set error recipe " + code, code in text)

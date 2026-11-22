@@ -216,12 +216,18 @@ Muốn giải phóng thêm RAM, chọn **Trình duyệt > menu thêm > Cho tab n
 - **Ctrl+K** searches open documents, browser tabs, commands and saved presentation sets.
 - Choose **Presentation sets** to save up to eight named collections with script, local file paths and reading positions. Save edited files first.
 - Opening a set asks before replacing tabs and retains the previous script in an encrypted recovery copy. It never starts projection or browsing automatically.
-- **Presentation** now includes source/target selectors, Refresh, code-specific Recovery and a live preview of the outgoing stream, up to 10 FPS. A physical receiver remains unverified.
 
 - **Ctrl+K** tìm tài liệu đang mở, tab web, lệnh và bộ thuyết trình đã lưu.
 - Chọn **Bộ thuyết trình** để lưu tối đa tám bộ có tên, gồm lời nhắc, đường dẫn file và vị trí đọc. Lưu file đang sửa trước.
 - Mở bộ cần xác nhận thay tab và giữ lời nhắc trước đó trong bản dự phòng mã hóa. Ứng dụng không tự bật chiếu hay trình duyệt.
-- **Trình chiếu** có chọn nguồn/đích, Làm mới, Hướng xử lý theo mã lỗi và xem trước luồng đang gửi, tối đa 10 FPS. Đầu nhận vật lý vẫn chưa được xác minh.
+
+## Choose what to share / Chọn nội dung chia sẻ
+
+- Open **Presentation > Choose source**, pick a screen, application window or QuietShare web tab and confirm with **Share**. Choose a target display in Windows Extend mode.
+- Use **Change source** during a session. For a browser tab, open its browser menu and select **Share this tab**. The tab marked **Sharing** stays on the audience display while you browse other tabs.
+
+- Vào **Trình chiếu > Chọn nguồn**, chọn một màn hình, cửa sổ ứng dụng hoặc tab web trong QuietShare, rồi bấm **Chia sẻ**. Chọn màn đích trong chế độ Windows Extend.
+- Dùng **Đổi nguồn** khi đang chiếu. Để chuyển nhanh sang tab web, mở tab đó, chọn **Chia sẻ tab này** trong menu trình duyệt và xác nhận. Tab có nhãn **Đang chia sẻ** tiếp tục phát khi bạn xem tab khác.
 
 ## Optional reading panels / Vùng đọc tùy chọn
 

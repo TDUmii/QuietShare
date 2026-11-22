@@ -12,7 +12,8 @@ New-Item -ItemType Directory -Path $outputDirectory -Force | Out-Null
 $fixture = Join-Path $outputDirectory 'browser-newtab-fixture.exe'
 & $compiler '-std=c++17' '-O2' '-static' '-static-libgcc' '-static-libstdc++' '-municode' '-DUNICODE' '-D_UNICODE' `
     '-D_WIN32_WINNT=0x0A00' (Join-Path $PSScriptRoot 'browser_newtab_fixture.cpp') `
-    ('-I'+(Join-Path $projectRoot 'vendor\webview2\build\native\include')) '-o' $fixture '-lole32' '-luuid' '-luser32'
+    (Join-Path $projectRoot 'src\Content.cpp') `
+    ('-I'+(Join-Path $projectRoot 'vendor\webview2\build\native\include')) '-o' $fixture '-lole32' '-luuid' '-luser32' '-lcrypt32' '-lwindowscodecs' '-lmsimg32' '-lgdi32'
 if ($LASTEXITCODE) { throw 'New Tab rendering fixture compilation failed.' }
 Copy-Item -LiteralPath (Join-Path $projectRoot 'dist\WebView2Loader.dll') -Destination (Join-Path $outputDirectory 'WebView2Loader.dll') -Force
 $rawReport = Join-Path $outputDirectory 'browser-newtab-fixture.raw.json'
@@ -25,7 +26,7 @@ $report = [ordered]@{method=$raw.method;checks=@($raw.checks);passed=$raw.passed
     generatedAtUtc=[DateTime]::UtcNow.ToString('o');
     fixtureSha256=(Get-FileHash -LiteralPath $fixture -Algorithm SHA256).Hash.ToLowerInvariant();
     sourceSha256=[ordered]@{};screenshots=@()}
-foreach ($relative in @('src\Browser.cpp','src\Browser.h','tests\browser_newtab_fixture.cpp')) {
+foreach ($relative in @('src\Browser.cpp','src\Browser.h','src\Content.cpp','src\Content.h','tests\browser_newtab_fixture.cpp')) {
     $report.sourceSha256[$relative.Replace('\','/')] = (Get-FileHash -LiteralPath (Join-Path $projectRoot $relative) -Algorithm SHA256).Hash.ToLowerInvariant()
 }
 foreach ($imageName in @('newtab-vi-358x197.png','newtab-en-358x197.png')) {

@@ -70,7 +70,14 @@ def main():
         check('applying profile starts no browser capture or recording',q(10)==0 and q(25)==0 and not list((profile/'QuietShare/Meetings').glob('*.wav')))
         cmd(127);check('profile preserves original script content',api.native.control_text(ctl(110))=='PRIVATE_PROFILE_SCRIPT')
         close();launch();cmd(123);cmd(202);check('saved profile persists across restart',q(81)==1);cmd(362);check('saved profile applies after restart',q(4)==37*100//24 and q(70)==0)
-        cmd(139);cmd(141);cmd(370);report=api.native.control_text(ctl(373))
+        cmd(139);cmd(141);cmd(381)
+        listing=ctl(384)
+        check('the screen can be selected explicitly',send(listing,0x186,0)==0)  # LB_SETCURSEL
+        send(window,api.WM_COMMAND,384|(1<<16),listing)  # LBN_SELCHANGE
+        U.PostMessageW(window,api.WM_COMMAND,385,0)
+        check('attempted projection records the single-display diagnostic',
+              api.wait_for(lambda:'QS-P001' in api.native.control_text(ctl(293)),10))
+        cmd(370);report=api.native.control_text(ctl(373))
         check('last-stop diagnostics are visible and identify error',api.visible(ctl(373)) and 'QS-P001' in report and 'UTC:' in report and 'need-two-monitors' in report)
         check('diagnostics exclude script URLs and local paths','PRIVATE_PROFILE_SCRIPT' not in report and str(root) not in report and url not in report)
         cmd(105);check('sanitized diagnostics remain available while private content is masked',api.visible(ctl(373)) and q(83)==0);cmd(105);cmd(372)

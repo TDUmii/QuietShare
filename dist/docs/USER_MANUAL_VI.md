@@ -2,7 +2,7 @@
 
 > **Có hướng dẫn bằng ảnh:** [Xem 8 ảnh chụp giao diện có đánh số và khoanh đỏ](VISUAL_GUIDE_VI.md).
 
-Ấn bản tiếng Việt - QuietShare v0.24.1
+Ấn bản tiếng Việt - QuietShare v0.25.0
 
 Đọc, chuẩn bị và thuyết trình với lời nhắc riêng trên Windows.
 
@@ -499,11 +499,11 @@ Windows nhận yêu cầu không phải bảo đảm an toàn chung. WGC đạt 
 2. Giữ trọn cửa sổ điều khiển QuietShare trên màn nguồn.
 3. Với Smart Mirror, chọn màn riêng cho người xem trong Extend và cùng GPU.
 4. Chạy F9 rồi đọc kết quả.
-5. Bắt đầu chiếu bằng F10 khi cấu hình cho phép.
+5. Bấm F10, chọn nguồn và màn đích, rồi bấm **Chia sẻ**.
 6. Quan sát đầu nhận với tài liệu thử không nhạy cảm.
 7. Chỉ mở lời nhắc riêng sau khi các kiểm tra cần thiết đạt.
 
-Nguồn là màn chứa QuietShare và ứng dụng công khai phía sau. Smart Mirror chuyển bản thu công khai của nguồn sang đích. Chỉ mở file trong trình đọc riêng QuietShare không tự biến file đó thành tài liệu công khai được chiếu.
+Giữ QuietShare trên màn điều khiển. Ở chế độ **Màn hình**, đó là màn được chia sẻ. Ở chế độ **Ứng dụng** hoặc **Tab web**, đầu ra chỉ có cửa sổ hoặc trang đã chọn. Tệp trong trình đọc vẫn ở chế độ riêng tư.
 
 ### Những điều kiện gây dừng bảo vệ
 
@@ -538,10 +538,10 @@ Nếu Windows chưa nhận màn, xử lý đầu vào, nguồn điện, dây, c�
 4. Xem nhãn vai trò và độ phân giải. Không suy ra vai trò chỉ từ số màn.
 5. Đặt tài liệu mẫu công khai trên nguồn, phía sau QuietShare.
 6. Nhấn F9 và đợi kết quả.
-7. Nhấn F10 hoặc nút Play trình chiếu.
+7. Nhấn F10 hoặc **Chọn nguồn**, chọn nguồn và màn đích, rồi bấm **Chia sẻ**.
 8. Nhìn màn của người xem và xác nhận hiện tài liệu mẫu mà không có lời nhắc riêng.
 
-Nếu Play thất bại, ứng dụng mở bảng Trình chiếu kèm mã. Ghi lại mã trước khi thử tiếp. Nội dung riêng biến mất cho biết cổng bảo vệ chưa đạt. Bấm Play liên tục không sửa điều kiện đang lỗi.
+Nếu chia sẻ thất bại, ứng dụng mở bảng Trình chiếu kèm mã. Ghi lại mã trước khi thử tiếp. Nội dung riêng biến mất cho biết cổng bảo vệ chưa đạt. Thử chia sẻ liên tục không sửa điều kiện đang lỗi.
 
 ### Một số kết quả thường gặp với HDMI
 
@@ -563,13 +563,15 @@ Các điều kiện này không chứng minh dây hoặc máy chiếu bị hỏn
 ### Bảng trình chiếu và xem trước luồng đang gửi
 
 1. Mở **Trình chiếu** từ menu bố cục hoặc Chuyển nhanh.
-2. Chọn **Nguồn** và **Đích**. Sau khi cắm lại HDMI hoặc đổi chế độ màn hình, bấm **Làm mới** và kiểm tra lại cặp màn.
-3. Bấm **Kiểm tra WGC**, rồi **Bắt đầu**. Nếu không bắt đầu được, ứng dụng mở bảng kèm mã lỗi trong book.
+2. Mở **Chọn nguồn**, rồi chọn **Màn hình**, **Ứng dụng** hoặc **Tab web**. Chọn một mục và màn **Đích**, sau đó bấm **Chia sẻ**.
+3. Bấm **Đổi nguồn** trong phiên để chuyển. Bấm **Hủy** trước khi xác nhận để giữ nguồn đang phát. Để chiếu một tab khác, mở tab đó, chọn **Chia sẻ tab này** trong menu trình duyệt và xác nhận.
 4. Chọn **Hướng xử lý** để đọc thao tác ứng với mã lỗi. Chức năng này giữ nguyên các kiểm tra bảo vệ và không tự bật lại đầu ra.
 5. **Hiện xem trước / Ẩn xem trước** điều khiển khung xem các hình đã được QuietShare gửi thành công. Khung dùng lại tài nguyên GPU của luồng chiếu, tối đa 10 FPS. Không tạo phiên capture riêng hay lưu file ảnh.
 6. Khi ẩn hoặc thu nhỏ cửa sổ, khung không tiếp tục dựng hình. Dừng chiếu, lỗi bảo vệ hoặc xác minh mới sẽ xóa hình cũ. Nếu bộ dựng xem trước lỗi, luồng chiếu công khai vẫn hoạt động độc lập và không thử lại liên tục.
 
 Windows nhận loại trừ capture, WGC đạt xác minh và đầu nhận vật lý được xác minh là ba trạng thái riêng. Khung này cho thấy luồng QuietShare đang gửi. Nó không xác nhận hình ảnh thực tế trên máy chiếu, TV hay máy của người dự họp.
+
+Tab có nhãn **Đang chia sẻ** tiếp tục lên màn đích khi bạn xem tab khác. Đầu ra dừng nếu tab đó bị đóng hoặc mất kết nối. Chia sẻ chỉ gửi hình ảnh.
 
 ### Tìm phần xem trước luồng đang gửi
 
@@ -928,6 +930,10 @@ Windows nhận loại trừ không thay thế được kết quả xác minh th�
 1. Chọn nguồn cần dùng.
 2. Chạy F9 rồi đợi kết quả.
 3. Đọc mã cụ thể xuất hiện sau đó nếu có.
+
+### QS-P025 `window-unavailable`
+
+Cửa sổ đã đóng, bị thu nhỏ hoặc không cấp được khung hình. Khôi phục hoặc mở lại cửa sổ, rồi vào **Chọn nguồn > Ứng dụng** để chọn lại.
 
 ### QS-P099 - lý do chưa biết
 

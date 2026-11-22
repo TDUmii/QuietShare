@@ -52,6 +52,9 @@ struct LoadedContent
 // Failure leaves result unchanged and returns a readable Vietnamese/English error.
 bool LoadLocalContent(const std::wstring &path, LoadedContent &result, std::wstring &error);
 
+// Decode an in-memory browser frame without opening a file.
+bool DecodeBrowserFrame(std::vector<unsigned char> &jpeg, LoadedContent &result);
+
 // Resolves an existing local file/folder through its actual handle for deduplication.
 // Directory roots reject reparse points. Does not persist or log the result.
 bool CanonicalLocalPath(const std::wstring &path, bool directory, std::wstring &result,

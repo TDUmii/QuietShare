@@ -13,6 +13,7 @@
 #pragma GCC diagnostic ignored "-Wsubobject-linkage"
 #include "../src/Browser.cpp"
 #pragma GCC diagnostic pop
+#include "../src/Content.h"
 #include <cstdio>
 
 namespace {
@@ -50,8 +51,8 @@ LRESULT CALLBACK WindowProc(HWND window,UINT message,WPARAM wp,LPARAM lp){
     if(message==WM_PAINT){PAINTSTRUCT paint{};BeginPaint(window,&paint);EndPaint(window,&paint);return 0;}
     return DefWindowProcW(window,message,wp,lp);
 }
-std::wstring Script(quietshare::Browser& browser,const std::wstring& script){
-    auto tab=browser.impl->Active();if(!tab||!tab->web)return L"";
+std::wstring Script(quietshare::Browser& browser,const std::wstring& script,unsigned id=0){
+    auto tab=id?browser.impl->Find(id):browser.impl->Active();if(!tab||!tab->web)return L"";
     struct Result{bool complete=false;HRESULT status=E_PENDING;std::wstring value;};auto result=std::make_shared<Result>();
     auto callback=quietshare::Callback<ICoreWebView2ExecuteScriptCompletedHandler,HRESULT,LPCWSTR>([result](HRESULT hr,LPCWSTR json){
         result->status=hr;result->value=json?json:L"";result->complete=true;return S_OK;
@@ -59,6 +60,52 @@ std::wstring Script(quietshare::Browser& browser,const std::wstring& script){
     const HRESULT started=tab->web->ExecuteScript(script.c_str(),callback);callback->Release();
     if(FAILED(started)||!Pump([&](){return result->complete;},5000)||FAILED(result->status))return L"";
     return result->value;
+}
+COLORREF SharedPixel(quietshare::Browser &browser,unsigned id)
+{
+    struct Frame { bool complete=false; std::vector<unsigned char> bytes; };
+    const auto frame=std::make_shared<Frame>();
+    if(!browser.CaptureTabFrame(id,[frame](std::vector<unsigned char> jpeg){
+        frame->bytes=std::move(jpeg);frame->complete=true;
+    })||!Pump([&]{return frame->complete;},4000))return CLR_INVALID;
+    quietshare::LoadedContent decoded;
+    BITMAP bitmap{};
+    if(!quietshare::DecodeBrowserFrame(frame->bytes,decoded)||
+       GetObjectW(decoded.image,sizeof(bitmap),&bitmap)!=sizeof(bitmap))return CLR_INVALID;
+    const auto pixel=static_cast<const unsigned char *>(bitmap.bmBits)+
+        bitmap.bmWidthBytes*(decoded.height/2)+4*(decoded.width/2);
+    return RGB(pixel[2],pixel[1],pixel[0]);
+}
+void CheckTabSharing(quietshare::Browser &browser,unsigned first,unsigned second)
+{
+    auto paint=[&](unsigned id,const wchar_t *color){
+        return Script(browser,L"document.body.insertAdjacentHTML('beforeend','<div id=testFrame></div>');"
+            L"document.querySelector('#testFrame').style.cssText='position:fixed;inset:0;z-index:2147483647;background:"+
+            std::wstring(color)+L"';true",id)==L"true";
+    };
+    auto waitColor=[&](unsigned id,COLORREF color){
+        const auto end=GetTickCount64()+5000;
+        do {
+            const auto pixel=SharedPixel(browser,id);
+            if(pixel!=CLR_INVALID&&abs(int(GetRValue(pixel))-int(GetRValue(color)))<=5&&
+                abs(int(GetGValue(pixel))-int(GetGValue(color)))<=5&&
+                abs(int(GetBValue(pixel))-int(GetBValue(color)))<=5)return true;
+        } while(GetTickCount64()<end);
+        return false;
+    };
+    Check("sharePinsOnlyConfirmedTab",browser.SetCaptureTab(first)&&browser.HasCaptureTab(first)&&!browser.HasCaptureTab(second));
+    Check("privateForegroundDoesNotReplaceSharedTab",paint(first,L"red")&&paint(second,L"lime")&&
+        browser.ActiveTabId()==second&&waitColor(first,RGB(255,0,0)));
+    browser.Show(false);
+    Check("sharedTabStillRendersWhenBrowserPageIsHidden",Script(browser,L"document.querySelector('#testFrame').style.background='blue';true",first)==L"true"&&
+        waitColor(first,RGB(0,0,255)));
+    browser.Show(true);
+    Check("manualDeepSleepCannotDiscardSharedTab",browser.SleepBackgroundTabs()==0);
+    Check("explicitSwitchChangesOutputToTheNewTab",browser.SetCaptureTab(second)&&!browser.HasCaptureTab(first)&&
+        waitColor(second,RGB(0,255,0)));
+    browser.SetCaptureTab(0);
+    Check("stoppedTabRejectsFurtherCapture",!browser.HasCaptureTab(second)&&
+        !browser.CaptureTabFrame(second,[](auto){}));
 }
 bool Preview(quietshare::Browser& browser,const std::wstring& path){
     auto tab=browser.impl->Active();if(!tab||!tab->web)return false;
@@ -143,7 +190,9 @@ int wmain(int argc,wchar_t** argv){
             Check("nativeUnmuteUpdatesEveryExistingTab",allMuted(false));
             browser.SetMediaPreferences(true,true,true);
             Check("nativeMuteUpdatesEveryExistingTab",allMuted(true));
-            const auto secondTab=browser.ActiveTabId();auto firstState=browser.impl->Find(originalTab);firstState->cameraOrigin=L"https://example.com";
+            const auto secondTab=browser.ActiveTabId();auto firstState=browser.impl->Find(originalTab);
+            CheckTabSharing(browser,originalTab,secondTab);
+            firstState->cameraOrigin=L"https://example.com";
             Check("deepSleepKeepsDeviceGrantedTabs",browser.SleepBackgroundTabs()==0&&browser.ControllerCount()==2);
             firstState->cameraOrigin.clear();
             Check("explicitDeepSleepReleasesOnlyBackgroundController",browser.SleepBackgroundTabs()==1&&browser.ControllerCount()==1&&browser.DormantCount()==1&&browser.Ready()&&browser.Verified()&&browser.ActiveTabId()==secondTab);

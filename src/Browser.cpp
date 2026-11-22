@@ -12,6 +12,7 @@
 #include <cstdio>
 #include <utility>
 #include <psapi.h>
+#include <wincrypt.h>
 namespace quietshare {
 namespace {
 template<class T> struct Com {
@@ -236,7 +237,8 @@ struct Browser::Impl:std::enable_shared_from_this<Browser::Impl> {
     bool processRetry=false,environmentFailed=false,environmentExited=false;
     bool changedPending=false,layoutPending=false;
     bool reducedMemory=false;
-    bool dormant=false;
+    bool dormant=false,capturePinned=false;
+    unsigned captureEpoch=0;
     bool memoryPressure=false;ULONGLONG memoryChecked=0;DiagnosticMemory memory{};
     int processReason=-1,processKind=-1;
     int faultKind=-1,faultReason=-1,faultExit=0;DWORD faultCount=0;SYSTEMTIME faultUtc{};
@@ -302,7 +304,7 @@ struct Browser::Impl:std::enable_shared_from_this<Browser::Impl> {
         localDocumentUri=HostHtmlUri(html);if(localDocumentUri.empty()){Fail(332);return;}
         if(FAILED(web->NavigateToString(html.c_str()))){localPage=localNavigation=false;navigating=false;notice=L"navigation";}Notify();
     }
-    void Close(){++generation;changedPending=layoutPending=reducedMemory=false;enabled=ready=verified=visible=probing=locked=suspendPending=mediaReady=false;processRetry=environmentFailed=environmentExited=false;pid=0;error=0;loaded=navigating=localPage=localNavigation=false;cameraOrigin.clear();microphoneOrigin.clear();localNonce.clear();localDocumentUri.clear();newTabError.clear();address.clear();pending.clear();notice.clear();title.clear();
+    void Close(){++generation;capturePinned=false;changedPending=layoutPending=reducedMemory=false;enabled=ready=verified=visible=probing=locked=suspendPending=mediaReady=false;processRetry=environmentFailed=environmentExited=false;pid=0;error=0;loaded=navigating=localPage=localNavigation=false;cameraOrigin.clear();microphoneOrigin.clear();localNonce.clear();localDocumentUri.clear();newTabError.clear();address.clear();pending.clear();notice.clear();title.clear();
         memoryPressure=false;memoryChecked=0;memory={};processReason=processKind=-1;
         auto closingTabs=std::move(tabs);tabs.clear();actions.clear();activeId=pendingId=0;
         Com<ICoreWebView2Controller> closingController;closingController.reset(controller.detach());
@@ -311,7 +313,7 @@ struct Browser::Impl:std::enable_shared_from_this<Browser::Impl> {
         // Revoke state before COM can pump nested host messages or callbacks.
         for(auto& tab:closingTabs)tab->Close();
         if(closingController){closingController->put_IsVisible(FALSE);closingController->Close();}Notify();}
-    void Fail(int code=1){++generation;ready=verified=visible=probing=navigating=suspendPending=reducedMemory=false;if(!error)error=code;
+    void Fail(int code=1){++generation;capturePinned=false;ready=verified=visible=probing=navigating=suspendPending=reducedMemory=false;if(!error)error=code;
         if(auto manager=owner.lock();manager&&manager->pendingId==id)manager->pendingId=0;
         Com<ICoreWebView2Controller> closingController;closingController.reset(controller.detach());
         Com<ICoreWebView2> closingWeb;closingWeb.reset(web.detach());
@@ -415,11 +417,11 @@ struct Browser::Impl:std::enable_shared_from_this<Browser::Impl> {
     }
     void SuspendComplete(HRESULT hr,BOOL success){
         suspendPending=false;
-        if(visible)ResumeActivity();
+        if(visible||capturePinned)ResumeActivity();
         else if(FAILED(hr)||!success)MemoryTarget(true);
     }
     void Suspend(){
-        if(!ready||probing||visible||suspendPending)return;
+        if(!ready||probing||visible||suspendPending||capturePinned)return;
         Com<ICoreWebView2_3> control;if(!Query(control))return;suspendPending=true;
         // Do not combine explicit target changes with an already suspended
         // view. LOW is only a fallback when sleeping is refused or fails.
@@ -431,14 +433,35 @@ struct Browser::Impl:std::enable_shared_from_this<Browser::Impl> {
         });
         const auto hr=control->TrySuspend(done);done->Release();if(FAILED(hr)&&generation==epoch)SuspendComplete(hr,FALSE);
     }
+    void ApplyCaptureVisibility(){
+        if(!controller||probing)return;
+        const unsigned epoch=generation,pinEpoch=captureEpoch;
+        const bool wasVisible=visible;
+        Com<ICoreWebView2Controller> current;current.hold(controller.p);
+        auto valid=[&]{return enabled&&!locked&&generation==epoch&&captureEpoch==pinEpoch&&
+            current.p==controller.p&&!probing&&visible==wasVisible;};
+        if(!visible&&!capturePinned){
+            current->put_IsVisible(FALSE);
+            if(valid())Suspend();
+            return;
+        }
+        if(!verified||locked)return;
+        // WebView2 stops rendering when IsVisible is false. Keep only the
+        // explicitly shared tab rendering, clipped outside its protected parent.
+        RECT viewport=bounds;
+        if(!visible)OffsetRect(&viewport,0,-viewport.bottom-2);
+        if(IsRectEmpty(&viewport)||FAILED(current->put_Bounds(viewport))||!valid()){
+            if(valid())current->put_IsVisible(FALSE);
+            return;
+        }
+        ResumeActivity();
+        if(valid())current->put_IsVisible(TRUE);
+    }
     void SetVisible(bool show){
         const bool next=show&&verified&&!locked;
         if(next==visible)return;
         visible=next;
-        if(controller&&!probing){const unsigned epoch=generation;Com<ICoreWebView2Controller> current;current.hold(controller.p);
-            if(visible)ResumeActivity();
-            if(!enabled||generation!=epoch||current.p!=controller.p)return;
-            current->put_IsVisible(visible);if(enabled&&generation==epoch&&!visible)Suspend();}
+        ApplyCaptureVisibility();
     }
     void UpdateVisible(){const auto snapshot=tabs;const unsigned epoch=generation;for(const auto& tab:snapshot){
         if(!enabled||generation!=epoch)return;if(!Current(tab,epoch))continue;
@@ -671,13 +694,14 @@ bool Browser::Impl::StartEnvironment(){
 void Browser::Disable(){auto current=impl->Active();if(current)impl->zoomPercent=current->zoomPercent;impl->Close();}
 void Browser::SetBounds(RECT r){auto s=impl;if(EqualRect(&s->bounds,&r))return;s->bounds=r;const auto snapshot=s->tabs;const unsigned epoch=s->generation;
     for(const auto& tab:snapshot){if(!s->enabled||s->generation!=epoch||!EqualRect(&s->bounds,&r))return;if(!s->Current(tab,epoch))continue;
-        tab->bounds=r;if(tab->controller&&!tab->probing){Com<ICoreWebView2Controller> current;current.hold(tab->controller.p);current->put_Bounds(r);
+        tab->bounds=r;if(tab->controller&&!tab->probing){Com<ICoreWebView2Controller> current;current.hold(tab->controller.p);
+            if(tab->capturePinned)tab->ApplyCaptureVisibility();else current->put_Bounds(r);
             if(s->Current(tab,epoch)&&!tab->probing&&tab->controller.p==current.p&&EqualRect(&s->bounds,&r))current->NotifyParentWindowPositionChanged();}}}
 void Browser::ParentMoved(){auto s=impl;const auto snapshot=s->tabs;const unsigned epoch=s->generation;for(const auto& tab:snapshot){if(!s->enabled||s->generation!=epoch)return;
     if(s->Current(tab,epoch)&&tab->controller&&!tab->probing){Com<ICoreWebView2Controller> current;current.hold(tab->controller.p);current->NotifyParentWindowPositionChanged();}}}
 void Browser::Show(bool show){auto s=impl;if(show){auto tab=s->Active();if(tab&&tab->verified)s->locked=false;}else s->actions.clear();s->visible=show;s->UpdateVisible();}
 void Browser::Lock(){auto s=impl;s->locked=true;s->visible=false;s->actions.clear();s->pendingId=0;
-    const auto snapshot=s->tabs;const unsigned epoch=s->generation;for(const auto& tab:snapshot){tab->locked=true;tab->visible=false;tab->navigating=false;}
+    const auto snapshot=s->tabs;const unsigned epoch=s->generation;for(const auto& tab:snapshot){tab->locked=true;tab->capturePinned=false;tab->visible=false;tab->navigating=false;}
     for(const auto& tab:snapshot){if(!s->enabled||s->generation!=epoch||!s->locked)return;if(!s->Current(tab,epoch))continue;
         if(!tab->verified){tab->Close();tab->locked=true;tab->error=323;continue;}
         Com<ICoreWebView2Controller> current;current.hold(tab->controller.p);Com<ICoreWebView2> web;web.hold(tab->web.p);
@@ -715,6 +739,63 @@ std::vector<BrowserTab> Browser::Tabs()const{std::vector<BrowserTab> result;
     return result;}
 int Browser::ActiveTab()const{for(size_t i=0;i<impl->tabs.size();++i)if(impl->tabs[i]->id==impl->activeId)return static_cast<int>(i);return -1;}
 unsigned Browser::ActiveTabId()const{return impl->activeId;}
+bool Browser::SetCaptureTab(unsigned id){
+    auto manager=impl;
+    auto selected=manager->Find(id);
+    if(id&&(!manager->enabled||manager->locked||!selected||!selected->ready||
+            !selected->verified||selected->locked||!selected->web))return false;
+    const auto snapshot=manager->tabs;
+    for(const auto& tab:snapshot){
+        if(tab==selected||!tab->capturePinned)continue;
+        tab->capturePinned=false;
+        ++tab->captureEpoch;
+        tab->ApplyCaptureVisibility();
+    }
+    if(!selected)return true;
+    if(!selected->capturePinned){
+        selected->capturePinned=true;
+        ++selected->captureEpoch;
+        selected->ApplyCaptureVisibility();
+    }
+    return selected->capturePinned&&selected->ready&&!selected->locked;
+}
+bool Browser::HasCaptureTab(unsigned id)const{
+    auto tab=impl->Find(id);
+    return tab&&tab->capturePinned&&tab->ready&&tab->verified&&!tab->locked&&tab->web;
+}
+bool Browser::CaptureTabFrame(unsigned id,std::function<void(std::vector<unsigned char>)> callback){
+    auto tab=impl->Find(id);
+    if(!callback||!tab||!tab->capturePinned||!tab->ready||!tab->verified||tab->locked||!tab->web)return false;
+    const auto generation=tab->generation,epoch=tab->captureEpoch;
+    std::weak_ptr<Impl> weak=tab;
+    auto done=Callback<ICoreWebView2CallDevToolsProtocolMethodCompletedHandler,HRESULT,LPCWSTR>(
+        [weak,generation,epoch,callback=std::move(callback)](HRESULT hr,LPCWSTR json){
+            std::vector<unsigned char> jpeg;
+            auto current=weak.lock();
+            if(current&&current->capturePinned&&current->generation==generation&&current->captureEpoch==epoch&&SUCCEEDED(hr)&&json){
+                // CDP supplies one flat data field containing standard base64.
+                const wchar_t* field=wcsstr(json,L"\"data\"");
+                const wchar_t* colon=field?wcschr(field+6,L':'):nullptr;
+                const wchar_t* start=colon?wcschr(colon+1,L'"'):nullptr;
+                const wchar_t* end=start?wcschr(++start,L'"'):nullptr;
+                if(end&&end>start&&end-start<=12*1024*1024){
+                    DWORD length=static_cast<DWORD>(end-start),bytes=0;
+                    if(CryptStringToBinaryW(start,length,CRYPT_STRING_BASE64,nullptr,&bytes,nullptr,nullptr)&&bytes){
+                        jpeg.resize(bytes);
+                        if(!CryptStringToBinaryW(start,length,CRYPT_STRING_BASE64,jpeg.data(),&bytes,nullptr,nullptr))jpeg.clear();
+                        else jpeg.resize(bytes);
+                    }
+                }
+            }
+            callback(std::move(jpeg));
+            return S_OK;
+        });
+    Com<ICoreWebView2> source;source.hold(tab->web.p);
+    const HRESULT hr=source->CallDevToolsProtocolMethod(L"Page.captureScreenshot",
+        LR"({"format":"jpeg","quality":75,"fromSurface":true,"captureBeyondViewport":false})",done);
+    done->Release();
+    return SUCCEEDED(hr);
+}
 bool Browser::CanNewTab()const{return impl->enabled&&!impl->locked&&!impl->memoryPressure&&impl->environment&&!impl->pendingId&&impl->tabs.size()<8;}
 bool Browser::NewTab(const std::wstring& value){auto s=impl;std::wstring address;if(!CanNewTab()||(!value.empty()&&!ResolveWebInput(value,address)))return false;auto tab=s->AddTab(address);s->CreateController(tab);return true;}
 bool Browser::CloseTab(unsigned id){auto s=impl;auto found=std::find_if(s->tabs.begin(),s->tabs.end(),[&](const auto& tab){return tab->id==id;});if(found==s->tabs.end())return false;
@@ -799,10 +880,10 @@ bool Browser::MemoryPressure()const{return impl->memoryPressure;}
 unsigned Browser::SleepBackgroundTabs(){auto s=impl;if(!s->enabled||s->locked||s->pendingId)return 0;unsigned count=0;
     const auto snapshot=s->tabs;const unsigned epoch=s->generation;
     for(const auto& tab:snapshot){if(!s->Current(tab,epoch)||s->locked)break;
-        if(tab->id==s->activeId||!tab->ready||tab->probing||!tab->cameraOrigin.empty()||!tab->microphoneOrigin.empty())continue;
+        if(tab->id==s->activeId||tab->capturePinned||!tab->ready||tab->probing||!tab->cameraOrigin.empty()||!tab->microphoneOrigin.empty())continue;
         Com<ICoreWebView2_8> audio;BOOL playing=TRUE;
         if(!tab->Query(audio)||FAILED(audio->get_IsDocumentPlayingAudio(&playing))||playing)continue;
-        if(s->Current(tab,epoch)&&tab->id!=s->activeId){tab->SleepDeep();++count;}}
+        if(s->Current(tab,epoch)&&tab->id!=s->activeId&&!tab->capturePinned){tab->SleepDeep();++count;}}
     if(auto current=s->Active())current->notice=L"deep-sleep";s->Notify();return count;
 }
 void Browser::Navigate(const std::wstring& value){auto s=impl;auto tab=s->Active();std::wstring address;if(!tab||!tab->ready||tab->locked||s->locked||!tab->web)return;

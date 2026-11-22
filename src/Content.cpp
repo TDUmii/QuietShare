@@ -256,7 +256,8 @@ bool DecodeText(const std::vector<BYTE> &bytes, std::wstring &text, std::wstring
     return true;
 }
 
-bool DecodeImage(std::vector<BYTE> &bytes, LoadedContent &content, std::wstring &error)
+bool DecodeImage(std::vector<BYTE> &bytes, LoadedContent &content, std::wstring &error,
+                 bool browserFrame = false)
 {
     const wchar_t *decodeError = L"Không đọc được ảnh. Hãy chọn PNG, JPEG, BMP hoặc GIF hợp lệ. / Cannot "
                                  L"decode this image. Choose a valid PNG, JPEG, BMP or GIF.";
@@ -281,6 +282,7 @@ bool DecodeImage(std::vector<BYTE> &bytes, LoadedContent &content, std::wstring 
         return Fail(error, decodeError);
     GUID container{};
     if (FAILED(decoder->GetContainerFormat(&container)) ||
+        (browserFrame && !IsEqualGUID(container, GUID_ContainerFormatJpeg)) ||
         (!IsEqualGUID(container, GUID_ContainerFormatPng) &&
          !IsEqualGUID(container, GUID_ContainerFormatJpeg) &&
          !IsEqualGUID(container, GUID_ContainerFormatBmp) &&
@@ -289,7 +291,7 @@ bool DecodeImage(std::vector<BYTE> &bytes, LoadedContent &content, std::wstring 
     UINT width = 0, height = 0;
     if (FAILED(frame->GetSize(&width, &height)) || !width || !height)
         return Fail(error, decodeError);
-    if (static_cast<ULONGLONG>(width) * height > PixelLimit || width > std::numeric_limits<int>::max() ||
+    if (static_cast<ULONGLONG>(width) * height > (browserFrame ? 9000000u : PixelLimit) || width > std::numeric_limits<int>::max() ||
         height > std::numeric_limits<int>::max())
         return Fail(error, L"Ảnh vượt quá 40 megapixel. Hãy dùng ảnh nhỏ hơn. / This image exceeds 40 "
                            L"megapixels. Use a smaller image.");
@@ -317,6 +319,16 @@ bool DecodeImage(std::vector<BYTE> &bytes, LoadedContent &content, std::wstring 
     return true;
 }
 } // namespace
+
+bool DecodeBrowserFrame(std::vector<unsigned char> &jpeg, LoadedContent &result)
+{
+    if (jpeg.size() > 8 * 1024 * 1024) return false;
+    LoadedContent decoded;
+    std::wstring error;
+    if (!DecodeImage(jpeg, decoded, error, true)) return false;
+    result = std::move(decoded);
+    return true;
+}
 
 LoadedContent::~LoadedContent()
 {

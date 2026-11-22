@@ -98,7 +98,7 @@ def main():
         input_exe=folder/'browser-input-regression.exe'
         subprocess.run([compiler,'-std=c++17','-O2','-static','-static-libgcc','-static-libstdc++','-DUNICODE','-D_UNICODE',
             '-D_WIN32_WINNT=0x0A00',str(ROOT/'tests/browser_input_regression.cpp'),
-            '-I'+str(ROOT/'vendor/webview2/build/native/include'),'-o',str(input_exe),'-lole32','-luuid','-luser32'],check=True)
+            '-I'+str(ROOT/'vendor/webview2/build/native/include'),'-o',str(input_exe),'-lole32','-luuid','-luser32','-lcrypt32'],check=True)
         input_result=subprocess.run([str(input_exe)],capture_output=True,text=True)
         for item in json.loads(input_result.stdout)['checks']:check(item['name'],item['passed'])
         check('browserInputRegressionExit',input_result.returncode==0)

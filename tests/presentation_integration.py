@@ -1,4 +1,4 @@
-"""Exercise shipping presentation sets and switching with an isolated local profile."""
+"""Exercise shipping presentation sets and source selection with an isolated profile."""
 import ctypes
 import hashlib
 import json
@@ -30,6 +30,12 @@ def main():
         check('real WGC gate passes before private actions',api.wait_for(lambda:send(window,api.GATE,timeout=6000),20))
     def cmd(n):send(window,api.WM_COMMAND,n,timeout=10000)
     def ctl(n):return U.GetDlgItem(window,n)
+    def q(n):return send(window,api.QUERY,n)
+    def select_source(index):
+        listing=ctl(384)
+        selection=send(listing,0x186,index)  # LB_SETCURSEL
+        send(window,api.WM_COMMAND,384|(1<<16),listing)  # LBN_SELCHANGE
+        return selection
     def text(n,value):check('native text input succeeds',api.native.set_control_text(ctl(n),value))
     def approved(n):
         U.PostMessageW(window,api.WM_COMMAND,n,0)
@@ -96,10 +102,48 @@ def main():
             check(f'preview remains available at {width}x{height}',api.visible(ctl(295)))
             cmd(291);check(f'recovery is accessible at {width}x{height}',api.visible(ctl(293)) and bool(api.native.control_text(ctl(293))))
             cmd(291)
-        if(send(window,api.QUERY,30)==1):
-            cmd(141)
-            check('failed Play opens actionable diagnostic board','QS-P001' in api.native.control_text(ctl(293)) and api.visible(ctl(291)))
+        preview_before=q(71)
+        cmd(141)
+        check('Start opens the protected picker with all three source types',
+              all(api.visible(ctl(n)) for n in (381,382,383,384,385,386,387)))
+        affinity=api.wintypes.DWORD()
+        check('source picker inherits the real WGC capture exclusion',
+              U.GetWindowDisplayAffinity(window,ctypes.byref(affinity)) and affinity.value==0x11
+              and send(window,api.GATE,timeout=6000)==1)
+        check('the picker requires an explicit source selection',
+              not U.IsWindowEnabled(ctl(385)) and q(25)==0 and q(71)==preview_before)
+        cmd(385)
+        check('confirm without a selection cannot start output',q(25)==0 and api.visible(ctl(384)))
+        cmd(381)
+        check('screen picker lists the enumerated displays except the active target',
+              send(ctl(384),0x18B)==q(30)-(q(30)>1))
+        check('selecting a screen alone does not start output',
+              select_source(0)==0 and U.IsWindowEnabled(ctl(385)) and q(25)==0 and q(71)==preview_before)
+        cmd(386)
+        check('cancelling a selected source produces no output',
+              not api.visible(ctl(384)) and q(25)==0 and q(71)==preview_before)
+        cmd(141)
+        check('reopening the picker requires fresh consent',not U.IsWindowEnabled(ctl(385)))
+        cmd(381)
+        select_source(0)
+        cmd(382)
+        check('switching to windows requires an explicit selection',not U.IsWindowEnabled(ctl(385)))
+        cmd(383)
+        check('switching to browser tabs requires an explicit selection',not U.IsWindowEnabled(ctl(385)))
+        cmd(381)
+        check('returning to screens clears the previous selection',not U.IsWindowEnabled(ctl(385)))
+        select_source(0)
+        cmd(139)
+        cmd(141)
+        check('leaving the picker clears pending consent',not U.IsWindowEnabled(ctl(385)) and not q(25))
+        if q(30)==1:
+            check('single-display failure is tested after explicit screen selection',select_source(0)==0)
+            U.PostMessageW(window,api.WM_COMMAND,385,0)
+            check('failed Start opens the actionable diagnostic board',
+                  api.wait_for(lambda:api.visible(ctl(291)) and 'QS-P001' in api.native.control_text(ctl(293)),10))
             cmd(291);check('error recovery names Extend','Extend' in api.native.control_text(ctl(293)))
+        else:
+            cmd(386)
         U.PostMessageW(window,0x10,0,0);process.wait(timeout=10);check('owned app exits cleanly',process.returncode==0);process=None
         corrupt=encrypted[:len(encrypted)//2];(data/'presentations.dpapi').write_bytes(corrupt)
         launch();cmd(285)

@@ -14,7 +14,7 @@ A Windows companion for scripts, documents and web browsing. Smart Mirror sends 
 
 ![QuietShare Home / Trang chủ QuietShare](docs/quietshare-home.png)
 
-**v0.24.1** refreshes only the tab strip for title changes. / **v0.24.1** chỉ cập nhật thanh tab khi tiêu đề trang đổi.
+**v0.25.0** adds Screen, Window and Web tab sharing. / **v0.25.0** thêm chia sẻ màn hình, cửa sổ ứng dụng và tab web.
 
 ## 🚀 Get started / Bắt đầu
 
@@ -26,9 +26,9 @@ A Windows companion for scripts, documents and web browsing. Smart Mirror sends 
 
    Chờ xác minh rồi mở file bằng **Ctrl+O** hoặc thư mục bằng **Ctrl+Shift+O**. Dùng thanh bên để chuyển file hoặc chuẩn bị lời nhắc.
 
-3. Set Windows to **Extend**, choose source and destination in **Settings > Projection**, then select **Verify WGC** before **Start projection**. Open preview from Home or the sidebar eye icon. Preview can be disabled. Inspect the real audience output.
+3. Set Windows to **Extend**. Open **Presentation > Choose source**, select a screen, window or QuietShare web tab and a target display, then select **Share**. Check the outgoing preview and the audience display.
 
-   Đặt Windows ở **Extend**, chọn nguồn và đích trong **Cài đặt > Trình chiếu**, rồi **Kiểm tra WGC** trước khi **Bắt đầu trình chiếu**. Mở xem trước từ Home hoặc biểu tượng mắt. Có thể tắt xem trước. Quan sát đúng đầu nhận.
+   Đặt Windows ở **Extend**. Vào **Trình chiếu > Chọn nguồn**, chọn màn hình, ứng dụng hoặc tab web QuietShare và màn đích, rồi bấm **Chia sẻ**. Kiểm tra khung xem trước và màn của người xem.
 
 ## 🎨 What you can do / Chức năng chính
 
